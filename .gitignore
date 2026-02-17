@@ -1,0 +1,34 @@
+# n8n
+.n8n/
+node_modules/
+*.log
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Credentials (niemals committen!)
+credentials/
+secrets/
+*.key
+*.pem
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+*.tgz
+
+# Test Data
+test-data/
+*.test.json

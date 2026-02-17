@@ -1,0 +1,351 @@
+{
+  "name": "SBS Nexus - Enterprise Document Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/document-upload",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger-001",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.documentType }}",
+              "operation": "equals",
+              "value2": "invoice"
+            }
+          ]
+        }
+      },
+      "id": "router-001",
+      "name": "Document Type Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://invoice.sbsnexus.de/api/v1/process",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "sbsNexusApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"file\": \"{{ $json.body.fileBase64 }}\",\n  \"metadata\": {{ $json.body.metadata }}\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "invoice-ai-001",
+      "name": "Invoice AI Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://contract.sbsnexus.de/api/v1/analyze",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "sbsNexusApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"document\": \"{{ $json.body.fileBase64 }}\",\n  \"analysisDepth\": \"deep\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "contract-ai-001",
+      "name": "Contract Intelligence Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "const result = $input.all()[0].json;\nconst confidence = result.aiResponse?.confidence || 0;\n\nif (confidence < 0.85) {\n  return [{ \n    json: { \n      needsReview: true, \n      reason: 'Low confidence score', \n      data: result,\n      processingTime: Date.now() - result.startTime \n    } \n  }];\n}\n\nreturn [{ \n  json: { \n    needsReview: false, \n    data: result,\n    processingTime: Date.now() - result.startTime\n  } \n}];"
+      },
+      "id": "quality-control-001",
+      "name": "Quality Control - 98.5% Threshold",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needsReview }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "review-check-001",
+      "name": "Human Review Required?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C07ABC123DEF",
+          "mode": "id"
+        },
+        "text": "=⚠️ *Manual Review erforderlich*\n\nDokument: `{{ $json.data.documentId }}`\nConfidence: {{ Math.round($json.data.aiResponse.confidence * 100) }}%\nGrund: {{ $json.reason }}\n\n<https://nexus.sbsdeutschland.com/review/{{ $json.data.documentId }}|Zum Review Dashboard>",
+        "otherOptions": {}
+      },
+      "id": "slack-alert-001",
+      "name": "Slack Alert - Review Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEETS_REVIEW_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Pending Reviews",
+          "mode": "name"
+        },
+        "columns": {
+          "mappings": [
+            {
+              "column": "Timestamp",
+              "value": "={{ $now.toISO() }}"
+            },
+            {
+              "column": "Document ID",
+              "value": "={{ $json.data.documentId }}"
+            },
+            {
+              "column": "Type",
+              "value": "={{ $json.data.documentType }}"
+            },
+            {
+              "column": "Confidence",
+              "value": "={{ $json.data.aiResponse.confidence }}"
+            },
+            {
+              "column": "Status",
+              "value": "Pending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sheets-log-001",
+      "name": "Google Sheets - Review Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1250, 350]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.DATEV_API_ENDPOINT }}/api/v1/bookkeeping",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "datevApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"invoiceData\": {{ $json.data.extractedData }},\n  \"accountingRules\": \"{{ $env.DATEV_ACCOUNTING_RULES }}\"\n}",
+        "options": {}
+      },
+      "id": "datev-export-001",
+      "name": "DATEV Export - Auto Booking",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 450]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO processed_documents (document_id, type, confidence, processed_at, exported_to_datev, review_status) VALUES ('{{ $json.data.documentId }}', '{{ $json.data.documentType }}', {{ $json.data.aiResponse.confidence }}, NOW(), TRUE, '{{ $json.needsReview ? 'pending' : 'approved' }}')",
+        "options": {}
+      },
+      "id": "postgres-audit-001",
+      "name": "PostgreSQL - Audit Trail",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \n  success: true, \n  documentId: $json.data.documentId, \n  status: $json.needsReview ? 'review_required' : 'processed', \n  confidence: $json.data.aiResponse.confidence, \n  processingTime: $json.processingTime \n} }}"
+      },
+      "id": "webhook-response-001",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Document Type Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Type Router": {
+      "main": [
+        [
+          {
+            "node": "Invoice AI Processing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Contract Intelligence Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invoice AI Processing": {
+      "main": [
+        [
+          {
+            "node": "Quality Control - 98.5% Threshold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contract Intelligence Analysis": {
+      "main": [
+        [
+          {
+            "node": "Quality Control - 98.5% Threshold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quality Control - 98.5% Threshold": {
+      "main": [
+        [
+          {
+            "node": "Human Review Required?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Review Required?": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert - Review Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets - Review Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DATEV Export - Auto Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Alert - Review Team": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL - Audit Trail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Review Log": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL - Audit Trail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DATEV Export - Auto Booking": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL - Audit Trail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostgreSQL - Audit Trail": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "id": "sbs-document-processing-v1",
+  "meta": {
+    "instanceId": "sbs-nexus-production"
+  },
+  "tags": [
+    {
+      "id": "document-processing",
+      "name": "Document Processing"
+    },
+    {
+      "id": "ai-automation",
+      "name": "AI Automation"
+    }
+  ]
+}
