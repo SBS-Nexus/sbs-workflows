@@ -28,7 +28,12 @@ import {
   saveDraftAction,
   submitExerciseAction,
 } from '@/server/actions/exercise-actions';
-import { hintLevelLabel } from '@/domain/hints/hint-ladder';
+import {
+  canRevealSolution,
+  evaluateHintAvailability,
+  hintLevelLabel,
+  type HintLevelRef,
+} from '@/domain/hints/hint-ladder';
 import type { PublicExercise } from '@/server/services/exercise-service';
 import type { Submission, Hint, TestCase } from '@/domain/content/exercise-payload';
 import type { GradingResult } from '@/domain/grading/grade';
@@ -107,6 +112,30 @@ export function ExercisePanel({
   const feedbackRef = useRef<HTMLDivElement | null>(null);
 
   const revealedLevel = hints.reduce((max, h) => Math.max(max, h.level), 0);
+
+  // Die Verfügbarkeit der Hinweisstufen wird hier laufend neu berechnet statt
+  // die serverseitig gerenderte Fassung zu behalten. Sonst bliebe der nächste
+  // Hinweis nach einem Versuch oder nach dem Aufdecken der Vorstufe bis zum
+  // Neuladen der Seite gesperrt.
+  //
+  // Es ist dieselbe reine Funktion wie auf dem Server, und sie verrät nichts:
+  // Sie kennt nur Stufennummern, keine Hinweistexte. Die Texte kommen
+  // weiterhin einzeln vom Server – und nur, wenn die Stufe dort ebenfalls als
+  // frei gilt.
+  const hintLevels = useMemo<HintLevelRef[]>(
+    () => exercise.hintAvailability.map((entry) => ({ level: entry.level })),
+    [exercise.hintAvailability],
+  );
+
+  const hintAvailability = useMemo(
+    () => evaluateHintAvailability(hintLevels, { attempts, revealedLevel }),
+    [hintLevels, attempts, revealedLevel],
+  );
+
+  const solutionUnlocked = useMemo(
+    () => canRevealSolution({ attempts, revealedLevel }, hintLevels),
+    [hintLevels, attempts, revealedLevel],
+  );
 
   // Zwischenstand regelmäßig sichern, damit auf einem anderen Gerät
   // weitergearbeitet werden kann.
@@ -433,10 +462,8 @@ export function ExercisePanel({
         ) : null}
 
         <div className="flex flex-wrap gap-2">
-          {exercise.hintAvailability.map((entry) => {
-            const alreadyRevealed = entry.level <= revealedLevel;
-            if (alreadyRevealed) return null;
-            const available = entry.available || entry.level <= revealedLevel + 1;
+          {hintAvailability.map((entry) => {
+            if (entry.level <= revealedLevel) return null;
             return (
               <Button
                 key={entry.level}
@@ -446,22 +473,22 @@ export function ExercisePanel({
                 onClick={() => void handleReveal(entry.level)}
                 title={entry.blockedReason}
               >
-                {available && entry.available ? '' : '🔒 '}
+                {entry.available ? '' : '🔒 '}
                 Hinweis {entry.level}: {hintLevelLabel(entry.level)}
               </Button>
             );
           })}
 
-          {exercise.canRevealSolution && !solution ? (
+          {solutionUnlocked && !solution ? (
             <Button type="button" variant="ghost" onClick={() => void handleRevealSolution()}>
               Musterlösung ansehen
             </Button>
           ) : null}
         </div>
 
-        {exercise.hintAvailability.some((e) => !e.available) ? (
+        {hintAvailability.some((e) => !e.available && e.level > revealedLevel) ? (
           <p className="text-xs text-[var(--text-muted)]">
-            {exercise.hintAvailability.find((e) => !e.available)?.blockedReason}
+            {hintAvailability.find((e) => !e.available && e.level > revealedLevel)?.blockedReason}
           </p>
         ) : null}
 

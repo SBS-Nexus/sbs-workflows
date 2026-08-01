@@ -37,6 +37,16 @@ export interface HintAvailability {
   attemptsMissing: number;
 }
 
+/**
+ * Für die Verfügbarkeitsregeln zählt allein die Stufennummer.
+ *
+ * Der Typ ist bewusst so schmal: Dadurch lässt sich die Prüfung auch im Browser
+ * ausführen, ohne dass die Hinweistexte dorthin gelangen müssten.
+ */
+export interface HintLevelRef {
+  level: number;
+}
+
 export interface HintLadderState {
   /** Höchste bereits aufgedeckte Stufe (0 = keine). */
   revealedLevel: number;
@@ -63,7 +73,7 @@ export function hintLevelLabel(level: number): string {
  * Stufe setzt eine Mindestanzahl eigener Versuche voraus.
  */
 export function evaluateHintAvailability(
-  hints: readonly Hint[],
+  hints: readonly HintLevelRef[],
   state: HintLadderState,
 ): HintAvailability[] {
   return hints.map((hint) => {
@@ -98,7 +108,7 @@ export function evaluateHintAvailability(
   });
 }
 
-export function canRevealSolution(state: HintLadderState, hints: readonly Hint[]): boolean {
+export function canRevealSolution(state: HintLadderState, hints: readonly HintLevelRef[]): boolean {
   const maxLevel = hints.reduce((max, h) => Math.max(max, h.level), 0);
   const requiredAttempts = MIN_ATTEMPTS_FOR_LEVEL[5] ?? 3;
   return state.attempts >= requiredAttempts && (maxLevel === 0 || state.revealedLevel >= maxLevel);

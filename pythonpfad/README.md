@@ -134,6 +134,7 @@ openssl rand -base64 48
 | `AUTH_SECRET`                  | ja                          | mindestens 32 Zeichen; sichert Sitzungen                                  |
 | `APP_URL`                      | ja                          | öffentliche Basis-URL                                                     |
 | `ATTEMPT_RETENTION_DAYS`       | nein                        | Aufbewahrungsfrist für Versuchsdaten (Standard 365, `0` = keine Löschung) |
+| `SEED_DEMO_USERS`              | nein                        | `true` legt beim Seeding die Beispielkonten an; in Produktion wirkungslos |
 | `AI_TUTOR_PROVIDER`            | nein                        | `rule-based` (Standard), `anthropic` oder `openai-compatible`             |
 | `AI_TUTOR_API_KEY`             | nur bei externem Anbieter   | niemals mit `NEXT_PUBLIC_` präfixen                                       |
 | `AI_TUTOR_MODEL`               | nur bei externem Anbieter   | Modellbezeichnung                                                         |
@@ -195,12 +196,20 @@ Lernfortschritt bleibt erhalten.
 
 ### Beispielkonten für die lokale Entwicklung
 
+Die Beispielkonten werden **nur** angelegt, wenn `SEED_DEMO_USERS="true"` gesetzt
+ist (in `.env.example` für die lokale Entwicklung voreingestellt). In Produktion
+wird der Schalter grundsätzlich ignoriert – ihre Passwörter stehen schließlich in
+diesem Repository.
+
 | E-Mail                 | Passwort             | Rolle                                |
 | ---------------------- | -------------------- | ------------------------------------ |
 | `lernende@example.org` | `LernenMachtSpass24` | LEARNER, Onboarding bereits erledigt |
 | `admin@example.org`    | `AdminZugangLokal24` | ADMIN, Zugang zum Redaktionsbereich  |
 
-Diese Konten sind ausschließlich für die lokale Entwicklung gedacht.
+Ohne den Schalter meldet das Skript `Beispielkonten übersprungen` und legt
+ausschließlich Inhalte an. So kann `db:seed` gefahrlos auch für spätere
+Inhaltsaktualisierungen laufen, ohne ein bekanntes Administratorkonto
+wiederherzustellen.
 
 ---
 

@@ -188,7 +188,9 @@ einen gemeinsamen Zähler getauscht werden; die Schnittstelle in
 ## 4. Vor dem Produktivbetrieb
 
 - [ ] `AUTH_SECRET` mit `openssl rand -base64 48` neu erzeugen
-- [ ] Beispielkonten (`lernende@example.org`, `admin@example.org`) entfernen
+- [ ] `SEED_DEMO_USERS` nicht gesetzt (in Produktion ohnehin wirkungslos); bei
+      Installationen aus früheren Fassungen die Beispielkonten
+      `lernende@example.org` und `admin@example.org` einmalig entfernen
 - [ ] Ausschließlich HTTPS ausliefern (`secure`-Cookies greifen nur dort)
 - [ ] `APP_URL` auf die tatsächliche Domain setzen
 - [ ] Datenbankzugang mit eigenem Benutzer und minimalen Rechten

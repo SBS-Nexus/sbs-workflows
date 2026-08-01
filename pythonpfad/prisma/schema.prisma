@@ -581,6 +581,10 @@ model LearningSession {
   id                  String    @id @default(cuid())
   userId              String
   startedAt           DateTime  @default(now())
+  /// Zeitpunkt der letzten Aktivität. Die Untätigkeitsspanne wird ab hier
+  /// gemessen, nicht ab `startedAt` – sonst würde eine durchgehend aktive
+  /// Sitzung nach der Höchstdauer fälschlich als beendet gelten.
+  lastActivityAt      DateTime  @default(now())
   endedAt             DateTime?
   activitiesCompleted Int       @default(0)
   activeMinutes       Int       @default(0)

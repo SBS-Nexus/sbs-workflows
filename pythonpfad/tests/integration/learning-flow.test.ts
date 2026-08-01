@@ -13,8 +13,13 @@ import {
   completeLesson,
   getLessonView,
   markLessonStarted,
+  saveSection,
 } from '@/server/services/lesson-service';
-import { getDashboardData } from '@/server/services/progress-service';
+import {
+  SESSION_IDLE_LIMIT_MINUTES,
+  getDashboardData,
+  touchLearningSession,
+} from '@/server/services/progress-service';
 import { getReviewCenterData } from '@/server/services/review-service';
 import { rebuildLearningPath } from '@/server/actions/onboarding-actions';
 
@@ -319,6 +324,65 @@ describe('Lektionsfortschritt', () => {
     expect(progress.completedAt).not.toBeNull();
   });
 
+  // Regression: Das bloße Wiederöffnen einer abgeschlossenen Lektion darf sie
+  // nicht auf IN_PROGRESS zurücksetzen. Sonst verschwindet sie aus den
+  // Abschlusszahlen, der nächste Schritt im Dashboard ändert sich, und
+  // Wiederholungssets werden wieder gesperrt.
+  it('behält den Abschluss beim erneuten Öffnen einer Lektion', async () => {
+    const lesson = await prisma.lesson.findUniqueOrThrow({
+      where: { slug: 'was-ist-ein-programm' },
+      select: { id: true },
+    });
+
+    await prisma.lessonProgress.create({
+      data: {
+        userId,
+        lessonId: lesson.id,
+        state: 'COMPLETED',
+        completedAt: new Date(),
+        lastSection: 'reflection',
+      },
+    });
+
+    await markLessonStarted(userId, 'was-ist-ein-programm');
+
+    const nachOeffnen = await prisma.lessonProgress.findUniqueOrThrow({
+      where: { userId_lessonId: { userId, lessonId: lesson.id } },
+    });
+    expect(nachOeffnen.state).toBe('COMPLETED');
+    expect(nachOeffnen.completedAt).not.toBeNull();
+
+    // Auch das Blättern durch die Abschnitte darf den Abschluss nicht aufheben –
+    // der zuletzt gelesene Abschnitt wird trotzdem festgehalten.
+    await saveSection(userId, 'was-ist-ein-programm', 'beispiel');
+
+    const nachAbschnitt = await prisma.lessonProgress.findUniqueOrThrow({
+      where: { userId_lessonId: { userId, lessonId: lesson.id } },
+    });
+    expect(nachAbschnitt.state).toBe('COMPLETED');
+    expect(nachAbschnitt.lastSection).toBe('beispiel');
+
+    // Und der Abschluss bleibt auch in der Auswertung sichtbar.
+    const data = await getDashboardData(userId);
+    expect(data.totals.lessonsCompleted).toBe(1);
+  });
+
+  it('markiert eine noch nicht abgeschlossene Lektion als begonnen', async () => {
+    await markLessonStarted(userId, 'was-ist-ein-programm');
+    await saveSection(userId, 'was-ist-ein-programm', 'aufgaben');
+
+    const lesson = await prisma.lesson.findUniqueOrThrow({
+      where: { slug: 'was-ist-ein-programm' },
+      select: { id: true },
+    });
+    const progress = await prisma.lessonProgress.findUniqueOrThrow({
+      where: { userId_lessonId: { userId, lessonId: lesson.id } },
+    });
+
+    expect(progress.state).toBe('IN_PROGRESS');
+    expect(progress.lastSection).toBe('aufgaben');
+  });
+
   it('speichert den Zwischenstand im Editor und liefert ihn zurück', async () => {
     await saveDraft(userId, 'variablen-und-zuweisung', 'e1-var-rechnung-schreiben', 'gesamt = 1');
 
@@ -414,6 +478,63 @@ describe('Dashboard und Wiederholungscenter', () => {
     const review = await getReviewCenterData(userId);
     expect(review.due).toEqual([]);
     expect(review.totalScheduled).toBe(0);
+  });
+});
+
+describe('Lernsitzungen', () => {
+  // Regression: Die Untätigkeitsspanne wird ab der letzten Aktivität gemessen,
+  // nicht ab dem Sitzungsbeginn. Sonst würde eine Person, die durchgehend
+  // arbeitet, nach Erreichen der Höchstdauer mitten in der Arbeit als untätig
+  // gelten – die Sitzung würde geteilt und die aktive Zeit unterschätzt.
+  it('führt eine durchgehend aktive Sitzung über die Höchstdauer hinaus fort', async () => {
+    const start = new Date('2026-05-01T09:00:00Z');
+    await touchLearningSession(userId, start);
+
+    // Alle 20 Minuten eine Aktivität, insgesamt 80 Minuten am Stück.
+    for (const minute of [20, 40, 60, 80]) {
+      await touchLearningSession(userId, new Date(start.getTime() + minute * 60_000));
+    }
+
+    const sessions = await prisma.learningSession.findMany({ where: { userId } });
+
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]!.activitiesCompleted).toBe(5);
+    expect(sessions[0]!.activeMinutes).toBe(80);
+    expect(sessions[0]!.endedAt).toBeNull();
+  });
+
+  it('beginnt nach einer echten Pause eine neue Sitzung', async () => {
+    const start = new Date('2026-05-01T09:00:00Z');
+    await touchLearningSession(userId, start);
+    await touchLearningSession(userId, new Date(start.getTime() + 10 * 60_000));
+
+    // Pause über der Grenze.
+    const nachPause = new Date(start.getTime() + (10 + SESSION_IDLE_LIMIT_MINUTES + 5) * 60_000);
+    await touchLearningSession(userId, nachPause);
+
+    const sessions = await prisma.learningSession.findMany({
+      where: { userId },
+      orderBy: { startedAt: 'asc' },
+    });
+
+    expect(sessions).toHaveLength(2);
+    // Die erste Sitzung endet mit ihrer letzten Aktivität, nicht erst jetzt.
+    expect(sessions[0]!.endedAt?.toISOString()).toBe(
+      new Date(start.getTime() + 10 * 60_000).toISOString(),
+    );
+    expect(sessions[0]!.activeMinutes).toBe(10);
+    expect(sessions[1]!.endedAt).toBeNull();
+    expect(sessions[1]!.activitiesCompleted).toBe(1);
+  });
+
+  it('zählt die aktive Zeit im Dashboard', async () => {
+    // Innerhalb des Zeitfensters, das das Dashboard auswertet (30 Tage).
+    const start = new Date(Date.now() - 60 * 60_000);
+    await touchLearningSession(userId, start);
+    await touchLearningSession(userId, new Date(start.getTime() + 30 * 60_000));
+
+    const data = await getDashboardData(userId);
+    expect(data.totals.activeMinutes).toBe(30);
   });
 });
 

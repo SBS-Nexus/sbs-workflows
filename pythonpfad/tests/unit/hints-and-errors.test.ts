@@ -78,6 +78,36 @@ describe('Hinweisleiter', () => {
     expect(followUp.required).toBe(true);
     expect(followUp.reason).toContain('ohne Vorlage');
   });
+
+  // Regression: Die Oberfläche berechnet die Verfügbarkeit nach jedem Versuch
+  // und jedem Aufdecken neu, statt die serverseitig gerenderte Fassung zu
+  // behalten. Dafür muss die Prüfung allein mit Stufennummern auskommen –
+  // die Hinweistexte liegen im Browser gar nicht vor.
+  it('kommt ohne die Hinweistexte aus', () => {
+    const nurStufen = [{ level: 1 }, { level: 2 }, { level: 3 }, { level: 4 }, { level: 5 }];
+
+    expect(evaluateHintAvailability(nurStufen, { attempts: 1, revealedLevel: 1 })).toEqual(
+      evaluateHintAvailability(HINTS, { attempts: 1, revealedLevel: 1 }),
+    );
+    expect(canRevealSolution({ attempts: 3, revealedLevel: 5 }, nurStufen)).toBe(true);
+  });
+
+  it('gibt die nächste Stufe frei, sobald die vorherige aufgedeckt ist', () => {
+    // Ausgangslage im Browser direkt nach dem Aufdecken von Stufe 1.
+    const vorher = evaluateHintAvailability(HINTS, { attempts: 1, revealedLevel: 0 });
+    expect(vorher[1]?.available).toBe(false);
+
+    const nachher = evaluateHintAvailability(HINTS, { attempts: 1, revealedLevel: 1 });
+    expect(nachher[1]?.available).toBe(true);
+  });
+
+  it('gibt die nächste Stufe frei, sobald ein weiterer Versuch vorliegt', () => {
+    const vorVersuch = evaluateHintAvailability(HINTS, { attempts: 1, revealedLevel: 3 });
+    expect(vorVersuch[3]?.available).toBe(false);
+
+    const nachVersuch = evaluateHintAvailability(HINTS, { attempts: 2, revealedLevel: 3 });
+    expect(nachVersuch[3]?.available).toBe(true);
+  });
 });
 
 describe('Fehlererklärungen', () => {

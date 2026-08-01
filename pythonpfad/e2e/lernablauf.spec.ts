@@ -183,6 +183,23 @@ test('gibt Hinweise nur stufenweise frei', async ({ page }) => {
 
   // Die Musterlösung ist nicht anwählbar.
   await expect(karte.getByRole('button', { name: /Musterlösung ansehen/ })).toHaveCount(0);
+
+  // Nach einem eigenen Versuch wird die nächste Stufe frei – ohne die Seite
+  // neu zu laden. Der Startcode ist unvollständig, der Versuch schlägt also
+  // planmäßig fehl.
+  await karte.getByRole('button', { name: 'Lösung einreichen' }).click();
+  await waitForPythonReady(page);
+  await expect(karte.getByRole('heading', { name: /Noch nicht richtig|Teilweise richtig/ })).toBeVisible(
+    { timeout: 90_000 },
+  );
+
+  await expect(stufe2).toBeEnabled();
+  await stufe2.click();
+  await expect(karte.getByText(/Die Grundgebühr fällt einmal an/)).toBeVisible();
+
+  // Stufe 3 wird unmittelbar nach dem Aufdecken von Stufe 2 frei, ebenfalls
+  // ohne Neuladen: Ab einem Versuch verlangt sie keine weiteren.
+  await expect(karte.getByRole('button', { name: /Hinweis 3: Lösungsstruktur/ })).toBeEnabled();
 });
 
 test('stoppt eine Endlosschleife über den Stopp-Knopf', async ({ page }) => {

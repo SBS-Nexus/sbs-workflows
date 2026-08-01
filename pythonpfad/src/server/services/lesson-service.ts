@@ -109,12 +109,27 @@ export async function getLessonView(
   };
 }
 
+/**
+ * Öffnet eine Lektion.
+ *
+ * Eine bereits abgeschlossene Lektion bleibt abgeschlossen. Sonst würde das
+ * bloße Nachschlagen einer alten Lektion sie aus den Abschlusszahlen nehmen,
+ * den nächsten Schritt im Dashboard verändern und Wiederholungssets wieder
+ * sperren, deren Freigabe an abgeschlossenen Lektionen hängt.
+ */
 export async function markLessonStarted(userId: string, lessonSlug: string): Promise<void> {
   const lesson = await prisma.lesson.findUnique({
     where: { slug: lessonSlug },
     select: { id: true },
   });
   if (!lesson) return;
+
+  const existing = await prisma.lessonProgress.findUnique({
+    where: { userId_lessonId: { userId, lessonId: lesson.id } },
+    select: { state: true },
+  });
+
+  if (existing?.state === 'COMPLETED') return;
 
   await prisma.lessonProgress.upsert({
     where: { userId_lessonId: { userId, lessonId: lesson.id } },
@@ -123,6 +138,13 @@ export async function markLessonStarted(userId: string, lessonSlug: string): Pro
   });
 }
 
+/**
+ * Merkt sich den zuletzt geöffneten Abschnitt, damit auf einem anderen Gerät
+ * an derselben Stelle weitergelesen werden kann.
+ *
+ * Wie bei `markLessonStarted` bleibt eine abgeschlossene Lektion abgeschlossen –
+ * der Abschnitt wird trotzdem festgehalten.
+ */
 export async function saveSection(
   userId: string,
   lessonSlug: string,
@@ -134,10 +156,18 @@ export async function saveSection(
   });
   if (!lesson) return;
 
+  const existing = await prisma.lessonProgress.findUnique({
+    where: { userId_lessonId: { userId, lessonId: lesson.id } },
+    select: { state: true },
+  });
+
   await prisma.lessonProgress.upsert({
     where: { userId_lessonId: { userId, lessonId: lesson.id } },
     create: { userId, lessonId: lesson.id, state: 'IN_PROGRESS', lastSection: section },
-    update: { lastSection: section, state: 'IN_PROGRESS' },
+    update: {
+      lastSection: section,
+      ...(existing?.state === 'COMPLETED' ? {} : { state: 'IN_PROGRESS' as const }),
+    },
   });
 }
 

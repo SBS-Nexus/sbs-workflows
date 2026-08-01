@@ -318,13 +318,43 @@ async function main(): Promise<void> {
   }
 
   // --- Beispielkonten -----------------------------------------------------
-  console.log('→ Beispielkonten …');
-  await seedDemoUsers(course.id, pathLessons);
+  if (shouldSeedDemoUsers()) {
+    console.log('→ Beispielkonten …');
+    await seedDemoUsers(course.id, pathLessons);
 
-  console.log('\n✓ Seeding abgeschlossen.\n');
-  console.log('  Beispielkonten für die lokale Entwicklung:');
-  console.log('    lernende@example.org  /  LernenMachtSpass24');
-  console.log('    admin@example.org     /  AdminZugangLokal24  (Rolle ADMIN)\n');
+    console.log('\n✓ Seeding abgeschlossen.\n');
+    console.log('  Beispielkonten für die lokale Entwicklung:');
+    console.log('    lernende@example.org  /  LernenMachtSpass24');
+    console.log('    admin@example.org     /  AdminZugangLokal24  (Rolle ADMIN)\n');
+  } else {
+    console.log('→ Beispielkonten übersprungen (SEED_DEMO_USERS ist nicht "true").');
+    console.log('\n✓ Seeding abgeschlossen.\n');
+  }
+}
+
+/**
+ * Sollen die Beispielkonten angelegt werden?
+ *
+ * Ihre Passwörter stehen im Repository. Sie dürfen deshalb niemals versehentlich
+ * in einer erreichbaren Installation landen – und weil `db:seed` laut
+ * Betriebsanleitung auch für spätere Inhaltsaktualisierungen läuft, genügt ein
+ * einmaliges Löschen von Hand nicht: Ohne diese Sperre käme das
+ * Administratorkonto bei jedem Inhaltsupdate zurück oder bekäme sein bekanntes
+ * Passwort erneut gesetzt.
+ *
+ * Deshalb werden sie ausschließlich bei ausdrücklichem `SEED_DEMO_USERS=true`
+ * angelegt, und in Produktion grundsätzlich nicht.
+ */
+function shouldSeedDemoUsers(): boolean {
+  if (process.env.NODE_ENV === 'production') {
+    if (process.env.SEED_DEMO_USERS === 'true') {
+      console.warn(
+        '  ⚠ SEED_DEMO_USERS=true wird in Produktion ignoriert. Beispielkonten werden nicht angelegt.',
+      );
+    }
+    return false;
+  }
+  return process.env.SEED_DEMO_USERS === 'true';
 }
 
 async function seedDemoUsers(

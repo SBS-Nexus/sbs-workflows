@@ -425,35 +425,60 @@ function buildMilestones(
   ];
 }
 
-/** Startet oder verlängert die aktuelle Lernsitzung. */
-export async function touchLearningSession(userId: string): Promise<void> {
-  const now = new Date();
+/** Nach so vielen Minuten ohne Aktivität gilt eine Lernsitzung als beendet. */
+export const SESSION_IDLE_LIMIT_MINUTES = 45;
+
+/**
+ * Startet oder verlängert die aktuelle Lernsitzung.
+ *
+ * Die Untätigkeitsspanne wird ab der **letzten Aktivität** gemessen, nicht ab
+ * dem Sitzungsbeginn. Sonst würde eine Person, die 50 Minuten am Stück
+ * arbeitet, mitten in der Arbeit als untätig gelten: Die Sitzung würde geteilt,
+ * und die aktive Zeit der alten Sitzung bliebe beim vorletzten Stand stehen.
+ */
+export async function touchLearningSession(userId: string, now: Date = new Date()): Promise<void> {
   const recent = await prisma.learningSession.findFirst({
     where: { userId, endedAt: null },
-    orderBy: { startedAt: 'desc' },
+    orderBy: { lastActivityAt: 'desc' },
   });
 
-  // Eine Sitzung gilt nach 45 Minuten ohne Aktivität als beendet.
-  const gapMinutes = recent ? (now.getTime() - recent.startedAt.getTime()) / 60000 : Infinity;
+  const idleMinutes = recent
+    ? (now.getTime() - recent.lastActivityAt.getTime()) / 60_000
+    : Number.POSITIVE_INFINITY;
 
-  if (!recent || gapMinutes > 45) {
+  if (!recent || idleMinutes > SESSION_IDLE_LIMIT_MINUTES) {
     if (recent) {
       await prisma.learningSession.update({
         where: { id: recent.id },
-        data: { endedAt: now },
+        // Die Sitzung endete mit ihrer letzten Aktivität, nicht jetzt.
+        data: { endedAt: recent.lastActivityAt },
       });
     }
     await prisma.learningSession.create({
-      data: { userId, startedAt: now, activitiesCompleted: 1, activeMinutes: 1 },
+      data: {
+        userId,
+        startedAt: now,
+        lastActivityAt: now,
+        activitiesCompleted: 1,
+        activeMinutes: 1,
+      },
     });
     return;
   }
+
+  // Aktive Zeit ist die Spanne vom Sitzungsbeginn bis jetzt – sie wächst
+  // dadurch fortlaufend, statt nur den letzten Abstand abzubilden.
+  const activeMinutes = Math.max(
+    1,
+    Math.round((now.getTime() - recent.startedAt.getTime()) / 60_000),
+  );
 
   await prisma.learningSession.update({
     where: { id: recent.id },
     data: {
       activitiesCompleted: { increment: 1 },
-      activeMinutes: Math.max(1, Math.round(gapMinutes)),
+      activeMinutes,
+      lastActivityAt: now,
     },
   });
 }

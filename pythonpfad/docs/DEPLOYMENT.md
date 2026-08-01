@@ -133,15 +133,19 @@ Das Skript ist idempotent und schreibt ausschließlich Inhalte. Lernfortschritt
 bestehender Konten bleibt erhalten. Es bricht ab, wenn die Inhaltsvalidierung
 Fehler meldet.
 
-**Achtung:** Das Seed-Skript legt die beiden Beispielkonten an. Vor dem
-Produktivbetrieb entfernen:
+Die Beispielkonten werden dabei **nicht** angelegt: Sie entstehen nur bei
+`SEED_DEMO_USERS="true"`, und bei `NODE_ENV=production` wird dieser Schalter
+grundsätzlich ignoriert. Das Skript darf daher auch für spätere
+Inhaltsaktualisierungen laufen, ohne ein bekanntes Administratorkonto
+wiederherzustellen.
+
+Stammt die Installation aus einer früheren Fassung, in der die Konten noch
+bedingungslos angelegt wurden, einmalig prüfen:
 
 ```sql
+SELECT email FROM users WHERE email IN ('lernende@example.org', 'admin@example.org');
 DELETE FROM users WHERE email IN ('lernende@example.org', 'admin@example.org');
 ```
-
-Alternativ die Konten in `prisma/seed.ts` unter einer Umgebungsbedingung
-anlegen.
 
 ---
 
@@ -208,7 +212,7 @@ Dateinamen sorgen dafür, dass Browser die neue Fassung laden.
 - [ ] `AUTH_SECRET` neu erzeugt
 - [ ] `APP_URL` auf die tatsächliche Domain gesetzt
 - [ ] HTTPS aktiv, HTTP leitet weiter
-- [ ] Beispielkonten entfernt
+- [ ] `SEED_DEMO_USERS` nicht gesetzt; keine Beispielkonten in der Datenbank
 - [ ] Datenbankbenutzer mit minimalen Rechten
 - [ ] Sicherung eingerichtet und einmal wiederhergestellt
 - [ ] `X-Forwarded-For` wird durchgereicht
