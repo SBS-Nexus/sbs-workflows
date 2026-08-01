@@ -1,0 +1,30 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Umgebung – enthält Secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Generierter Prisma-Client
+src/generated/
+
+# Selbst gehostete Pyodide-Laufzeit (wird per `npm run pyodide:sync` erzeugt)
+public/pyodide/
+
+# Tests
+coverage/
+playwright-report/
+test-results/
+.playwright/
+
+# Werkzeuge
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+.vscode/
+.idea/

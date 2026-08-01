@@ -1,0 +1,33 @@
+# PythonPfad – lokale Infrastruktur.
+#
+# Startet ausschließlich die Datenbank. Die Next.js-Anwendung läuft bewusst
+# direkt auf dem Entwicklungsrechner (`npm run dev`), damit Hot Reload und
+# Debugging ohne Umwege funktionieren.
+#
+#   docker compose up -d
+#   npm run db:migrate && npm run db:seed && npm run dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pythonpfad-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pythonpfad
+      POSTGRES_PASSWORD: pythonpfad
+      POSTGRES_DB: pythonpfad
+      # Deutsche Sortierung ist für Lerninhalte mit Umlauten sinnvoll.
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8'
+    ports:
+      - '5432:5432'
+    volumes:
+      - pythonpfad-pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pythonpfad -d pythonpfad']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  pythonpfad-pgdata:
