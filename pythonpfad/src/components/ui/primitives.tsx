@@ -1,0 +1,355 @@
+import type { ReactNode } from 'react';
+import Link from 'next/link';
+
+/**
+ * Kleine, zugängliche Bausteine.
+ *
+ * Bewusst ohne zusätzliche Komponentenbibliothek: Die Anwendung braucht ein
+ * gutes Dutzend Elemente, und jede Abhängigkeit weniger bedeutet weniger
+ * Angriffsfläche und weniger Ballast im Client-Bundle. Die hier verwendeten
+ * Muster (semantisches HTML, sichtbarer Fokus, Beschriftungen, aria-live)
+ * entsprechen den Empfehlungen des WAI-ARIA Authoring Practices Guide.
+ */
+
+export function cx(...values: Array<string | false | null | undefined>): string {
+  return values.filter(Boolean).join(' ');
+}
+
+// ---------------------------------------------------------------------------
+
+const BUTTON_BASE =
+  'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors ' +
+  'disabled:cursor-not-allowed disabled:opacity-55 min-h-11 px-4 py-2.5 text-[0.95rem]';
+
+const BUTTON_VARIANTS = {
+  primary:
+    'bg-[var(--accent)] text-[var(--text-inverse)] hover:bg-[var(--accent-hover)] font-semibold',
+  secondary:
+    'bg-[var(--surface-raised)] text-[var(--text)] border border-[var(--border-strong)] hover:bg-[var(--surface-sunken)]',
+  ghost: 'text-[var(--accent)] hover:bg-[var(--accent-soft)]',
+  danger: 'bg-[var(--alert)] text-[var(--text-inverse)] hover:opacity-90 font-semibold',
+} as const;
+
+export type ButtonVariant = keyof typeof BUTTON_VARIANTS;
+
+export function Button({
+  variant = 'primary',
+  className,
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }): ReactNode {
+  return (
+    <button {...props} className={cx(BUTTON_BASE, BUTTON_VARIANTS[variant], className)}>
+      {children}
+    </button>
+  );
+}
+
+export function ButtonLink({
+  variant = 'primary',
+  className,
+  href,
+  children,
+  ...props
+}: React.ComponentProps<typeof Link> & { variant?: ButtonVariant }): ReactNode {
+  return (
+    <Link {...props} href={href} className={cx(BUTTON_BASE, BUTTON_VARIANTS[variant], className)}>
+      {children}
+    </Link>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+export function Card({
+  as: Component = 'div',
+  className,
+  id,
+  children,
+}: {
+  as?: 'div' | 'section' | 'article' | 'li';
+  className?: string;
+  id?: string;
+  children: ReactNode;
+}): ReactNode {
+  return (
+    <Component
+      id={id}
+      className={cx(
+        'rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-5 sm:p-6',
+        className,
+      )}
+    >
+      {children}
+    </Component>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+const TONE_STYLES = {
+  info: {
+    container: 'border-[var(--border-strong)] bg-[var(--surface-sunken)]',
+    icon: 'ℹ',
+    label: 'Hinweis',
+  },
+  success: {
+    container: 'border-[var(--success)] bg-[var(--success-soft)]',
+    icon: '✓',
+    label: 'Erfolg',
+  },
+  caution: {
+    container: 'border-[var(--caution)] bg-[var(--caution-soft)]',
+    icon: '!',
+    label: 'Achtung',
+  },
+  alert: {
+    container: 'border-[var(--alert)] bg-[var(--alert-soft)]',
+    icon: '✕',
+    label: 'Fehler',
+  },
+} as const;
+
+export type Tone = keyof typeof TONE_STYLES;
+
+/**
+ * Rückmeldung mit Symbol UND Text.
+ * Farbe ist nie das einzige Unterscheidungsmerkmal (WCAG 1.4.1).
+ */
+export function Callout({
+  tone = 'info',
+  title,
+  children,
+  live = false,
+  className,
+}: {
+  tone?: Tone;
+  title?: string;
+  children: ReactNode;
+  live?: boolean;
+  className?: string;
+}): ReactNode {
+  const style = TONE_STYLES[tone];
+  return (
+    <div
+      className={cx(
+        'rounded-lg border-l-4 border px-4 py-3 text-[0.95rem]',
+        style.container,
+        className,
+      )}
+      {...(live ? { role: 'status', 'aria-live': 'polite' } : {})}
+    >
+      <p className="flex items-start gap-2 font-semibold">
+        <span aria-hidden="true" className="mt-px shrink-0">
+          {style.icon}
+        </span>
+        <span>{title ?? style.label}</span>
+      </p>
+      <div className="mt-1 pl-6">{children}</div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+export function Badge({
+  tone = 'info',
+  children,
+}: {
+  tone?: Tone | 'neutral';
+  children: ReactNode;
+}): ReactNode {
+  const styles: Record<string, string> = {
+    neutral: 'bg-[var(--surface-sunken)] text-[var(--text-muted)] border-[var(--border)]',
+    info: 'bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)]',
+    success: 'bg-[var(--success-soft)] text-[var(--success)] border-[var(--success)]',
+    caution: 'bg-[var(--caution-soft)] text-[var(--caution)] border-[var(--caution)]',
+    alert: 'bg-[var(--alert-soft)] text-[var(--alert)] border-[var(--alert)]',
+  };
+
+  return (
+    <span
+      className={cx(
+        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
+        styles[tone],
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Fortschrittsanzeige mit Text-Alternative.
+ * Der Wert wird zusätzlich als Text ausgegeben, damit er nicht nur visuell
+ * erfassbar ist.
+ */
+export function ProgressBar({
+  value,
+  max = 100,
+  label,
+  tone = 'accent',
+}: {
+  value: number;
+  max?: number;
+  label: string;
+  tone?: 'accent' | 'success' | 'caution';
+}): ReactNode {
+  const percent = max === 0 ? 0 : Math.round((Math.min(value, max) / max) * 100);
+  const colors = {
+    accent: 'var(--accent)',
+    success: 'var(--success)',
+    caution: 'var(--caution)',
+  };
+
+  return (
+    <div>
+      <div
+        role="progressbar"
+        aria-valuenow={value}
+        aria-valuemin={0}
+        aria-valuemax={max}
+        aria-label={label}
+        className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]"
+      >
+        <div
+          className="h-full rounded-full transition-[width] duration-300"
+          style={{ width: `${percent}%`, backgroundColor: colors[tone] }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+export function Field({
+  label,
+  htmlFor,
+  hint,
+  error,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  hint?: string;
+  error?: string;
+  children: ReactNode;
+}): ReactNode {
+  const hintId = hint ? `${htmlFor}-hint` : undefined;
+  const errorId = error ? `${htmlFor}-error` : undefined;
+
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={htmlFor} className="block text-sm font-semibold">
+        {label}
+      </label>
+      {hint ? (
+        <p id={hintId} className="text-sm text-[var(--text-muted)]">
+          {hint}
+        </p>
+      ) : null}
+      {children}
+      {error ? (
+        <p
+          id={errorId}
+          role="alert"
+          className="flex items-start gap-1.5 text-sm text-[var(--alert)]"
+        >
+          <span aria-hidden="true">✕</span>
+          <span>{error}</span>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export const inputClass =
+  'w-full min-h-11 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] ' +
+  'px-3 py-2.5 text-[0.95rem] text-[var(--text)] placeholder:text-[var(--text-muted)]';
+
+// ---------------------------------------------------------------------------
+
+export function CodeBlock({
+  code,
+  label,
+  highlightLines = [],
+}: {
+  code: string;
+  label?: string;
+  highlightLines?: number[];
+}): ReactNode {
+  const lines = code.replace(/\n$/, '').split('\n');
+  const highlighted = new Set(highlightLines);
+
+  return (
+    <figure className="overflow-hidden rounded-lg border border-[var(--border)]">
+      {label ? (
+        <figcaption className="border-b border-[var(--border)] bg-[var(--surface-sunken)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)]">
+          {label}
+        </figcaption>
+      ) : null}
+      <div className="overflow-x-auto bg-[var(--surface-raised)]">
+        <pre className="min-w-full py-2 text-[0.875rem] leading-relaxed">
+          <code className="font-mono">
+            {lines.map((line, index) => (
+              <span
+                key={index}
+                className={cx('flex', highlighted.has(index + 1) && 'bg-[var(--accent-soft)]')}
+              >
+                <span
+                  aria-hidden="true"
+                  className="w-10 shrink-0 select-none pr-3 text-right text-[var(--text-muted)]"
+                >
+                  {index + 1}
+                </span>
+                <span className="whitespace-pre pr-4">{line || ' '}</span>
+              </span>
+            ))}
+          </code>
+        </pre>
+      </div>
+    </figure>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+export function EmptyState({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description: string;
+  action?: ReactNode;
+}): ReactNode {
+  return (
+    <div className="rounded-xl border border-dashed border-[var(--border-strong)] px-6 py-10 text-center">
+      <p className="text-lg font-semibold">{title}</p>
+      <p className="mx-auto mt-2 max-w-prose text-[var(--text-muted)]">{description}</p>
+      {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
+    </div>
+  );
+}
+
+export function SectionHeading({
+  children,
+  description,
+  id,
+}: {
+  children: ReactNode;
+  description?: string;
+  id?: string;
+}): ReactNode {
+  return (
+    <div className="mb-4">
+      <h2 id={id} className="text-xl font-semibold tracking-tight sm:text-2xl">
+        {children}
+      </h2>
+      {description ? <p className="mt-1 text-[var(--text-muted)]">{description}</p> : null}
+    </div>
+  );
+}

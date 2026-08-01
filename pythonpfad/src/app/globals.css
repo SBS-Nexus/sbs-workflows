@@ -1,0 +1,284 @@
+@import 'tailwindcss';
+
+/*
+ * PythonPfad – Gestaltungsgrundlage
+ *
+ * Leitgedanken:
+ *  - Ruhig und seriös, nicht verspielt. Die Zielgruppe sind Erwachsene, die
+ *    etwas lernen wollen, keine Spielerinnen und Spieler.
+ *  - Reduzierte Palette: ein Akzentton (Tiefblau), ein Signalgrün, ein
+ *    Signalbernstein. Rückmeldungen sind nie ausschließlich farblich kodiert –
+ *    es gibt immer zusätzlich ein Symbol und Text.
+ *  - Kontraste erfüllen WCAG 2.2 AA (mindestens 4.5:1 für Fließtext) in beiden
+ *    Farbschemata.
+ *  - Schriftgrößen in rem, damit die Browsereinstellung greift.
+ */
+
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif;
+  --font-mono:
+    ui-monospace, 'SFMono-Regular', 'JetBrains Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+
+  --color-ink-50: #f6f7f9;
+  --color-ink-100: #eceef2;
+  --color-ink-200: #d6dae2;
+  --color-ink-300: #b2b9c7;
+  --color-ink-400: #7d8698;
+  --color-ink-500: #5b6478;
+  --color-ink-600: #454d5e;
+  --color-ink-700: #353c4b;
+  --color-ink-800: #232936;
+  --color-ink-900: #161b25;
+  --color-ink-950: #0d1017;
+
+  --color-accent-50: #eef4ff;
+  --color-accent-100: #dbe6fe;
+  --color-accent-200: #bfd3fe;
+  --color-accent-300: #93b4fd;
+  --color-accent-400: #6090fa;
+  --color-accent-500: #3b6df5;
+  --color-accent-600: #2450e6;
+  --color-accent-700: #1d3fc4;
+  --color-accent-800: #1e379f;
+  --color-accent-900: #1d337d;
+
+  --color-success-100: #d9f5e3;
+  --color-success-500: #17925a;
+  --color-success-700: #0f6b41;
+  --color-success-900: #0a4a2d;
+
+  --color-caution-100: #fdefd4;
+  --color-caution-500: #b06f0d;
+  --color-caution-700: #8a5509;
+  --color-caution-900: #5c3806;
+
+  --color-alert-100: #fde3e0;
+  --color-alert-500: #c62f22;
+  --color-alert-700: #99231a;
+  --color-alert-900: #6b1812;
+}
+
+:root {
+  --surface: var(--color-ink-50);
+  --surface-raised: #ffffff;
+  --surface-sunken: var(--color-ink-100);
+  --border: var(--color-ink-200);
+  --border-strong: var(--color-ink-300);
+  --text: var(--color-ink-900);
+  --text-muted: var(--color-ink-500);
+  --text-inverse: #ffffff;
+  --accent: var(--color-accent-700);
+  --accent-hover: var(--color-accent-800);
+  --accent-soft: var(--color-accent-50);
+  --success: var(--color-success-700);
+  --success-soft: var(--color-success-100);
+  --caution: var(--color-caution-700);
+  --caution-soft: var(--color-caution-100);
+  --alert: var(--color-alert-700);
+  --alert-soft: var(--color-alert-100);
+  --focus-ring: var(--color-accent-600);
+  color-scheme: light;
+}
+
+:root[data-theme='dark'],
+:root.dark {
+  --surface: var(--color-ink-950);
+  --surface-raised: var(--color-ink-900);
+  --surface-sunken: #070a10;
+  --border: var(--color-ink-700);
+  --border-strong: var(--color-ink-600);
+  --text: var(--color-ink-50);
+  --text-muted: var(--color-ink-300);
+  --text-inverse: var(--color-ink-950);
+  --accent: var(--color-accent-300);
+  --accent-hover: var(--color-accent-200);
+  --accent-soft: #16233f;
+  --success: #5ddba1;
+  --success-soft: #102c1f;
+  --caution: #f0be6a;
+  --caution-soft: #33240c;
+  --alert: #f79289;
+  --alert-soft: #3a1512;
+  --focus-ring: var(--color-accent-300);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --surface: var(--color-ink-950);
+    --surface-raised: var(--color-ink-900);
+    --surface-sunken: #070a10;
+    --border: var(--color-ink-700);
+    --border-strong: var(--color-ink-600);
+    --text: var(--color-ink-50);
+    --text-muted: var(--color-ink-300);
+    --text-inverse: var(--color-ink-950);
+    --accent: var(--color-accent-300);
+    --accent-hover: var(--color-accent-200);
+    --accent-soft: #16233f;
+    --success: #5ddba1;
+    --success-soft: #102c1f;
+    --caution: #f0be6a;
+    --caution-soft: #33240c;
+    --alert: #f79289;
+    --alert-soft: #3a1512;
+    --focus-ring: var(--color-accent-300);
+    color-scheme: dark;
+  }
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  /* Keine feste Pixelgröße: Die Browsereinstellung der Nutzenden bleibt wirksam. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.65;
+  min-height: 100dvh;
+}
+
+/* Sichtbarer Fokus – Grundvoraussetzung für Tastaturbedienung. */
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Bewegung reduzieren, wenn das System es verlangt. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root[data-reduce-motion='true'] *,
+:root[data-reduce-motion='true'] *::before,
+:root[data-reduce-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+@utility surface-card {
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+}
+
+@utility text-muted {
+  color: var(--text-muted);
+}
+
+/* Sprungmarke zum Hauptinhalt */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+}
+
+.skip-link:focus {
+  left: 0.75rem;
+  top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface-raised);
+  border: 2px solid var(--accent);
+  border-radius: 0.5rem;
+  color: var(--text);
+}
+
+/* --------------------------------------------------------------------------
+ * CodeMirror
+ * -------------------------------------------------------------------------- */
+
+.cm-editor {
+  height: 100%;
+  font-size: 0.9375rem;
+  background-color: var(--surface-raised);
+  color: var(--text);
+}
+
+.cm-editor.cm-focused {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+
+.cm-scroller {
+  font-family: var(--font-mono);
+  line-height: 1.6;
+}
+
+.cm-gutters {
+  background-color: var(--surface-sunken);
+  color: var(--text-muted);
+  border-right: 1px solid var(--border);
+}
+
+.cm-activeLine {
+  background-color: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.cm-activeLineGutter {
+  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.cm-selectionBackground,
+.cm-editor .cm-selectionBackground,
+.cm-content ::selection {
+  background-color: color-mix(in srgb, var(--accent) 26%, transparent) !important;
+}
+
+.cm-cursor {
+  border-left-color: var(--text);
+}
+
+/* Syntaxfarben mit ausreichendem Kontrast in beiden Schemata. */
+.cm-editor .tok-keyword {
+  color: var(--accent);
+  font-weight: 600;
+}
+.cm-editor .tok-string {
+  color: var(--success);
+}
+.cm-editor .tok-number {
+  color: var(--caution);
+}
+.cm-editor .tok-comment {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.cm-editor .tok-function {
+  color: var(--accent);
+}
+
+/* --------------------------------------------------------------------------
+ * Fortschrittsanimation – ruhig, nicht aufdringlich
+ * -------------------------------------------------------------------------- */
+
+@keyframes pp-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-enter {
+  animation: pp-fade-in 220ms ease-out;
+}

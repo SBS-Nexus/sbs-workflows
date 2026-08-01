@@ -1,0 +1,6 @@
+{
+  "begruessung-und-altersrechner": "BEZUGSJAHR = 2026\n\nname = input(\"Wie heisst du? \")\ngeburtsjahr = int(input(\"In welchem Jahr bist du geboren? \"))\n\nalter = BEZUGSJAHR - geburtsjahr\nbis_hundert = 100 - alter\n\nprint(f\"Hallo {name}!\")\nprint(f\"Du bist {alter} Jahre alt. Bis 100 fehlen noch {bis_hundert} Jahre.\")\n",
+  "tarifrechner": "alter = int(input(\"Alter: \"))\nermaessigt = input(\"Ermaessigung (ja/nein): \") == \"ja\"\n\nif alter <= 17:\n    beitrag = 12\nelif alter <= 64:\n    beitrag = 25\nelse:\n    beitrag = 18\n\nif ermaessigt:\n    beitrag = beitrag * 0.8\n\nprint(f\"Monatsbeitrag: {beitrag:.2f} Euro\")\n",
+  "zahlenratespiel": "ZIEL = 42\n\nversuche = 0\ngeraten = None\n\nwhile geraten != ZIEL:\n    geraten = int(input(\"Deine Zahl: \"))\n    versuche = versuche + 1\n    if geraten < ZIEL:\n        print(\"Zu klein\")\n    elif geraten > ZIEL:\n        print(\"Zu gross\")\n\nprint(f\"Richtig! Du hast {versuche} Versuche gebraucht.\")\n",
+  "debugging-labor": "preis1 = float(input(\"Preis 1: \"))\npreis2 = float(input(\"Preis 2: \"))\npreis3 = float(input(\"Preis 3: \"))\n\nsumme = preis1 + preis2 + preis3\n\nif summe >= 50:\n    summe = summe * 0.9\n\nprint(f\"Zu zahlen: {summe:.2f} Euro\")\n"
+}

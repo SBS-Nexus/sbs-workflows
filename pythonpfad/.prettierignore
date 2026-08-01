@@ -1,0 +1,9 @@
+node_modules
+.next
+src/generated
+public/pyodide
+playwright-report
+test-results
+coverage
+prisma/migrations
+package-lock.json
