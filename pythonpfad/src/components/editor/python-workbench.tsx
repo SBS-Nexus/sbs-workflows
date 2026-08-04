@@ -4,8 +4,9 @@ import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
 import { Badge, Button, Callout, cx } from '@/components/ui/primitives';
 import { usePythonRunner } from './use-python-runner';
+import { ExecutionTimeline } from './execution-timeline';
 import { explainPythonError } from '@/domain/errors/python-errors';
-import type { RunnerTestCase, RunnerTestResult, RunResult } from '@/lib/runner/types';
+import type { RunnerTestCase, RunnerTestResult, RunResult, TraceResult } from '@/lib/runner/types';
 import { DEFAULT_TIMEOUT_MS, TEST_TIMEOUT_MS } from '@/lib/runner/types';
 
 /**
@@ -44,6 +45,14 @@ export interface PythonWorkbenchProps {
   minHeight?: string;
   /** Eingaben für input(), eine Zeile je Eingabe. */
   allowStdin?: boolean;
+  /**
+   * Schaltfläche für die schrittweise Ausführung anbieten.
+   *
+   * Standardmäßig an. Ausgeschaltet wird sie dort, wo der Blick auf den Ablauf
+   * die Aufgabe verrät – etwa wenn eine Aufgabe ausdrücklich verlangt, die
+   * Ausgabe vorherzusagen.
+   */
+  allowTrace?: boolean;
 }
 
 export function PythonWorkbench({
@@ -57,11 +66,13 @@ export function PythonWorkbench({
   actions,
   minHeight = '16rem',
   allowStdin = true,
+  allowTrace = true,
 }: PythonWorkbenchProps): React.ReactElement {
   const runner = usePythonRunner();
   const [stdin, setStdin] = useState('');
   const [testResults, setTestResults] = useState<RunnerTestResult[]>([]);
   const [showLimits, setShowLimits] = useState(false);
+  const [trace, setTrace] = useState<{ code: string; result: TraceResult } | null>(null);
   const outputRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -69,6 +80,7 @@ export function PythonWorkbench({
   }, [runner.output]);
 
   const handleRun = async (withTests: boolean): Promise<void> => {
+    setTrace(null);
     const result = await runner.run({
       code,
       stdin: stdin.length > 0 ? stdin.split('\n') : [],
@@ -77,6 +89,18 @@ export function PythonWorkbench({
     });
     setTestResults(result.testResults);
     onRunComplete?.(result);
+  };
+
+  const handleTrace = async (): Promise<void> => {
+    const result = await runner.trace({
+      code,
+      stdin: stdin.length > 0 ? stdin.split('\n') : [],
+    });
+    // Der Code wird mitgespeichert: Die Zeitleiste zeigt weiterhin den Stand,
+    // der aufgezeichnet wurde, auch wenn im Editor daneben schon weitergetippt
+    // wird. Eine Markierung auf einer inzwischen verschobenen Zeile wäre
+    // schlimmer als gar keine.
+    setTrace({ code, result });
   };
 
   const errorInfo = runner.lastResult?.error
@@ -145,6 +169,17 @@ export function PythonWorkbench({
           {runner.isRunning ? 'Läuft …' : 'Ausführen'}
         </Button>
 
+        {allowTrace ? (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void handleTrace()}
+            disabled={runner.isRunning}
+          >
+            <span aria-hidden="true">◫</span> Schritt für Schritt
+          </Button>
+        ) : null}
+
         {visibleTests.length > 0 ? (
           <Button
             type="button"
@@ -183,6 +218,10 @@ export function PythonWorkbench({
       </div>
 
       <RunnerStatusLine status={runner.status} />
+
+      {trace ? (
+        <ExecutionTimeline code={trace.code} result={trace.result} onClose={() => setTrace(null)} />
+      ) : null}
 
       {/* --- Ausgabe ---------------------------------------------------- */}
       <section aria-labelledby="ausgabe-titel" className="space-y-2">
