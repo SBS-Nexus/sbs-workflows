@@ -2,6 +2,7 @@
 
 import { useId, useState } from 'react';
 import { Callout, CodeBlock, cx, inputClass } from '@/components/ui/primitives';
+import { Icon } from '@/components/ui/icon';
 import type { PublicExercisePayload } from '@/domain/content/public-view';
 import type { Submission } from '@/domain/content/exercise-payload';
 
@@ -65,8 +66,14 @@ export function SingleChoiceInput({
               />
               <span className="text-[0.95rem]">
                 {mark !== undefined ? (
-                  <span aria-hidden="true" className="mr-1.5 font-semibold">
-                    {mark ? '✓' : '✕'}
+                  <span
+                    aria-hidden="true"
+                    className={cx(
+                      'mr-1.5 inline-block align-[-3px]',
+                      mark ? 'text-[var(--success)]' : 'text-[var(--alert)]',
+                    )}
+                  >
+                    <Icon name={mark ? 'haken' : 'schliessen'} size={16} />
                   </span>
                 ) : null}
                 {option.text}
@@ -132,8 +139,14 @@ export function MultipleChoiceInput({
               />
               <span className="text-[0.95rem]">
                 {mark !== undefined ? (
-                  <span aria-hidden="true" className="mr-1.5 font-semibold">
-                    {mark ? '✓' : '✕'}
+                  <span
+                    aria-hidden="true"
+                    className={cx(
+                      'mr-1.5 inline-block align-[-3px]',
+                      mark ? 'text-[var(--success)]' : 'text-[var(--alert)]',
+                    )}
+                  >
+                    <Icon name={mark ? 'haken' : 'schliessen'} size={16} />
                   </span>
                 ) : null}
                 {option.text}
@@ -338,14 +351,14 @@ export function ParsonsInput({
                           onClick={() => changeIndent(index, -1)}
                           disabled={disabled || entry.indent === 0}
                         >
-                          ←
+                          <Icon name="zurueck" size={16} />
                         </IconButton>
                         <IconButton
                           label={`Zeile ${index + 1} weiter einrücken`}
                           onClick={() => changeIndent(index, 1)}
                           disabled={disabled}
                         >
-                          →
+                          <Icon name="vor" size={16} />
                         </IconButton>
                       </>
                     ) : null}
@@ -354,21 +367,21 @@ export function ParsonsInput({
                       onClick={() => move(index, -1)}
                       disabled={disabled || index === 0}
                     >
-                      ↑
+                      <Icon name="hoch" size={16} />
                     </IconButton>
                     <IconButton
                       label={`Zeile ${index + 1} nach unten`}
                       onClick={() => move(index, 1)}
                       disabled={disabled || index === used.length - 1}
                     >
-                      ↓
+                      <Icon name="runter" size={16} />
                     </IconButton>
                     <IconButton
                       label={`Zeile ${index + 1} entfernen`}
                       onClick={() => remove(index)}
                       disabled={disabled}
                     >
-                      ✕
+                      <Icon name="schliessen" size={16} />
                     </IconButton>
                   </div>
                 </li>
@@ -531,8 +544,22 @@ export function FindErrorInput({
                   >
                     {lineNumber}
                   </span>
-                  <span aria-hidden="true" className="w-4 shrink-0">
-                    {mark === true ? '✓' : mark === false ? '✕' : isSelected ? '▸' : ' '}
+                  <span
+                    aria-hidden="true"
+                    className={cx(
+                      'flex w-4 shrink-0 justify-center',
+                      mark === true && 'text-[var(--success)]',
+                      mark === false && 'text-[var(--alert)]',
+                      mark === undefined && isSelected && 'text-[var(--accent)]',
+                    )}
+                  >
+                    {mark === true ? (
+                      <Icon name="haken" size={14} />
+                    ) : mark === false ? (
+                      <Icon name="schliessen" size={14} />
+                    ) : isSelected ? (
+                      <Icon name="vor" size={14} />
+                    ) : null}
                   </span>
                   <span className="whitespace-pre-wrap">
                     <span className="sr-only">Zeile {lineNumber}: </span>

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Card, ProgressBar, cx } from '@/components/ui/primitives';
+import { Icon } from '@/components/ui/icon';
 import type { MilestoneState } from '@/domain/motivation/milestones';
 
 /**
@@ -72,11 +73,13 @@ export function MilestoneList({
             <span
               aria-hidden="true"
               className={cx(
-                'mt-0.5 shrink-0 font-semibold',
-                state.reached ? 'text-[var(--success)]' : 'text-[var(--text-muted)]',
+                'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full',
+                state.reached
+                  ? 'bg-[var(--success)] text-[var(--surface-raised)]'
+                  : 'border border-[var(--border-strong)] text-[var(--text-muted)]',
               )}
             >
-              {state.reached ? '✓' : '○'}
+              <Icon name={state.reached ? 'haken' : 'kreis'} size={14} />
             </span>
             <div className="min-w-0">
               <p className="font-medium">

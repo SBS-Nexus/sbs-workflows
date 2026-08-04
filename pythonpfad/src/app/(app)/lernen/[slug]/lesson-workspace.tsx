@@ -2,15 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import {
-  Badge,
-  Button,
-  Callout,
-  Card,
-  CodeBlock,
-  ProgressBar,
-  cx,
-} from '@/components/ui/primitives';
+import { Badge, Button, Callout, Card, CodeBlock, cx } from '@/components/ui/primitives';
+import { Icon } from '@/components/ui/icon';
+import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
 import { ExercisePanel } from '@/components/exercise/exercise-panel';
 import { WorkedExampleRunner } from '@/components/editor/worked-example-runner';
 import {
@@ -76,34 +70,87 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
   const isComplete = passedCount === lesson.exercises.length;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-      <nav aria-label="Brotkrumen" className="mb-3 text-sm text-[var(--text-muted)]">
-        <Link href="/lernen" className="underline">
+    <div
+      className="mx-auto max-w-7xl px-4 py-6 sm:px-6"
+      style={themeStyle(moduleTheme(lesson.moduleOrder))}
+    >
+      <nav
+        aria-label="Brotkrumen"
+        className="mb-3 flex items-center gap-1.5 text-sm text-[var(--text-muted)]"
+      >
+        <Link href="/lernen" className="font-medium underline">
           Lernpfad
         </Link>
-        <span aria-hidden="true"> › </span>
-        <span>{lesson.moduleTitle}</span>
+        <Icon name="vor" size={14} />
+        <span className="font-medium text-[var(--akzent)]">{lesson.moduleTitle}</span>
       </nav>
 
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{lesson.title}</h1>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--text-muted)]">
-          <span>etwa {lesson.estimatedMinutes} Minuten</span>
-          <span aria-hidden="true">·</span>
-          <span>
-            {passedCount} von {lesson.exercises.length} Aufgaben gelöst
-          </span>
-          {lesson.progress.state === 'COMPLETED' ? (
-            <Badge tone="success">abgeschlossen</Badge>
-          ) : null}
-        </div>
-        <div className="mt-3 max-w-md">
-          <ProgressBar
-            value={passedCount}
-            max={lesson.exercises.length}
-            label={`${passedCount} von ${lesson.exercises.length} Aufgaben gelöst`}
-            tone={isComplete ? 'success' : 'accent'}
-          />
+      {/*
+       * Kopfbereich in der Leitfarbe des Moduls.
+       *
+       * Die Farbe ist dieselbe wie auf dem Lernpfad – wer eine Lektion öffnet,
+       * erkennt daran sofort, in welchem Modul er gelandet ist, noch bevor er
+       * die Überschrift gelesen hat.
+       */}
+      <header className="mb-6 overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--akzent-soft)]">
+        <div className="p-6 sm:p-8">
+          <div className="flex flex-wrap items-start gap-4">
+            <span
+              aria-hidden="true"
+              className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--akzent)] text-[var(--text-inverse)]"
+            >
+              <Icon name="lernen" size={26} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl font-black leading-tight tracking-tight sm:text-4xl">
+                {lesson.title}
+              </h1>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--text-muted)]">
+                <span className="flex items-center gap-1.5">
+                  <Icon name="zeit" size={14} />
+                  etwa {lesson.estimatedMinutes} Minuten
+                </span>
+                <span aria-hidden="true">·</span>
+                {/*
+                 * Diese Angabe ist zugleich die Textfassung der Fortschrittskette
+                 * darunter. Als `status` wird sie beim Ändern vorgelesen – ohne
+                 * dass es dafür eine zweite, unsichtbare Kopie braucht.
+                 */}
+                <span role="status">
+                  {passedCount} von {lesson.exercises.length} Aufgaben gelöst
+                </span>
+                {lesson.progress.state === 'COMPLETED' ? (
+                  <Badge tone="success">abgeschlossen</Badge>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          {/*
+           * Fortschritt als Kette aus Gliedern statt als Balken. Bei drei bis
+           * fünf Aufgaben sagt eine Kette mehr: Man sieht, wie viele Aufgaben
+           * es überhaupt gibt, nicht nur einen Anteil.
+           */}
+          <div className="mt-6">
+            <ol
+              aria-hidden="true"
+              className="flex gap-1.5"
+            >
+              {lesson.exercises.map((exercise) => (
+                <li
+                  key={exercise.slug}
+                  className={cx(
+                    'h-2.5 flex-1 rounded-full transition-colors duration-500',
+                    passedSlugs.has(exercise.slug)
+                      ? isComplete
+                        ? 'bg-[var(--success)]'
+                        : 'bg-[var(--akzent)]'
+                      : 'bg-[var(--border-strong)]',
+                  )}
+                />
+              ))}
+            </ol>
+          </div>
         </div>
       </header>
 
@@ -117,10 +164,11 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
                 onClick={() => goTo(section.id)}
                 aria-current={activeSection === section.id ? 'true' : undefined}
                 className={cx(
-                  'min-h-10 whitespace-nowrap rounded-full border px-3.5 text-sm font-medium',
+                  'min-h-10 whitespace-nowrap rounded-full border-2 px-4 text-sm font-bold',
+                  'transition-colors duration-150',
                   activeSection === section.id
-                    ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                    : 'border-[var(--border)] text-[var(--text-muted)]',
+                    ? 'border-[var(--akzent)] bg-[var(--akzent)] text-[var(--text-inverse)]'
+                    : 'border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--akzent)] hover:text-[var(--akzent)]',
                 )}
               >
                 {section.label}
@@ -134,12 +182,20 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
         {/* --- Lerninhalt ------------------------------------------------ */}
         <div className="space-y-5 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-2">
           <Card as="section" id="abschnitt-ziel">
-            <h2 className="text-lg font-semibold">Was du nach dieser Lektion kannst</h2>
+            <h2 className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
+              <span aria-hidden="true" className="text-[var(--akzent)]">
+                <Icon name="karte" size={20} />
+              </span>
+              Was du nach dieser Lektion kannst
+            </h2>
             <ul className="mt-3 space-y-2">
               {lesson.learningObjectives.map((objective) => (
-                <li key={objective} className="flex items-start gap-2 text-[0.95rem]">
-                  <span aria-hidden="true" className="mt-1 text-[var(--accent)]">
-                    ◆
+                <li key={objective} className="flex items-start gap-2.5 text-[0.95rem]">
+                  <span
+                    aria-hidden="true"
+                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--akzent-soft)] text-[var(--akzent)]"
+                  >
+                    <Icon name="haken" size={13} />
                   </span>
                   <span>{objective}</span>
                 </li>
@@ -159,17 +215,32 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
           </Card>
 
           <Card as="section" id="abschnitt-problem">
-            <h2 className="text-lg font-semibold">Das Problem</h2>
+            <h2 className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
+              <span aria-hidden="true" className="text-[var(--akzent)]">
+                <Icon name="gluehbirne" size={20} />
+              </span>
+              Das Problem
+            </h2>
             <p className="mt-2 text-[0.95rem]">{lesson.everydayProblem}</p>
           </Card>
 
           <Card as="section" id="abschnitt-modell">
-            <h2 className="text-lg font-semibold">So kannst du es dir vorstellen</h2>
+            <h2 className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
+              <span aria-hidden="true" className="text-[var(--akzent)]">
+                <Icon name="funke" size={20} />
+              </span>
+              So kannst du es dir vorstellen
+            </h2>
             <p className="mt-2 text-[0.95rem]">{lesson.mentalModel}</p>
           </Card>
 
           <Card as="section" id="abschnitt-beispiel">
-            <h2 className="text-lg font-semibold">Beispiel, Zeile für Zeile</h2>
+            <h2 className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
+              <span aria-hidden="true" className="text-[var(--akzent)]">
+                <Icon name="code" size={20} />
+              </span>
+              Beispiel, Zeile für Zeile
+            </h2>
             <div className="mt-3">
               <CodeBlock
                 code={lesson.workedExample.code}
@@ -227,20 +298,25 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
           </Card>
 
           <Card as="section">
-            <h2 className="text-lg font-semibold">Typische Stolperstellen</h2>
+            <h2 className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
+              <span aria-hidden="true" className="text-[var(--akzent)]">
+                <Icon name="achtung" size={20} />
+              </span>
+              Typische Stolperstellen
+            </h2>
             <ul className="mt-3 space-y-4">
               {lesson.commonMistakes.map((mistake) => (
                 <li key={mistake.mistake}>
-                  <p className="flex items-start gap-2 font-medium">
-                    <span aria-hidden="true" className="text-[var(--caution)]">
-                      !
+                  <p className="flex items-start gap-2.5 font-semibold">
+                    <span aria-hidden="true" className="mt-0.5 shrink-0 text-[var(--caution)]">
+                      <Icon name="achtung" size={18} />
                     </span>
                     <span>{mistake.mistake}</span>
                   </p>
-                  <p className="mt-1 pl-6 text-[0.9375rem] text-[var(--text-muted)]">
+                  <p className="mt-1 pl-[1.75rem] text-[0.9375rem] text-[var(--text-muted)]">
                     <strong className="text-[var(--text)]">Warum:</strong> {mistake.why}
                   </p>
-                  <p className="mt-1 pl-6 text-[0.9375rem] text-[var(--text-muted)]">
+                  <p className="mt-1 pl-[1.75rem] text-[0.9375rem] text-[var(--text-muted)]">
                     <strong className="text-[var(--text)]">Abhilfe:</strong> {mistake.fix}
                   </p>
                 </li>
@@ -251,17 +327,35 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
 
         {/* --- Aufgaben --------------------------------------------------- */}
         <div className="space-y-5" id="abschnitt-aufgaben">
-          <h2 className="text-lg font-semibold">
-            Aufgaben
-            <span className="ml-2 text-sm font-normal text-[var(--text-muted)]">
+          <div>
+            <h2 className="flex items-center gap-2.5 text-xl font-black tracking-tight">
+              <span aria-hidden="true" className="text-[var(--akzent)]">
+                <Icon name="tastatur" size={22} />
+              </span>
+              Aufgaben
+            </h2>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">
               Die Hilfen werden von Aufgabe zu Aufgabe weniger.
-            </span>
-          </h2>
+            </p>
+          </div>
 
           {lesson.exercises.map((exercise, index) => (
             <div key={exercise.slug}>
-              <p className="mb-1.5 text-sm font-medium text-[var(--text-muted)]">
-                Aufgabe {index + 1} von {lesson.exercises.length}
+              <p className="mb-2 flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className={cx(
+                    'flex size-7 items-center justify-center rounded-full text-sm font-black',
+                    passedSlugs.has(exercise.slug)
+                      ? 'bg-[var(--success)] text-[var(--text-inverse)]'
+                      : 'bg-[var(--akzent-soft)] text-[var(--akzent)]',
+                  )}
+                >
+                  {passedSlugs.has(exercise.slug) ? <Icon name="haken" size={15} /> : index + 1}
+                </span>
+                <span className="text-sm font-bold text-[var(--text-muted)]">
+                  Aufgabe {index + 1} von {lesson.exercises.length}
+                </span>
               </p>
               <ExercisePanel
                 exercise={exercise}
@@ -273,7 +367,12 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
 
           {/* --- Reflexion und Abschluss ----------------------------------- */}
           <Card as="section" id="abschnitt-reflexion">
-            <h2 className="text-lg font-semibold">Kurz nachdenken</h2>
+            <h2 className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
+              <span aria-hidden="true" className="text-[var(--akzent)]">
+                <Icon name="profil" size={20} />
+              </span>
+              Kurz nachdenken
+            </h2>
             <p className="mt-1 text-sm text-[var(--text-muted)]">
               Zwei Minuten hier bringen mehr als eine weitere Aufgabe. Deine Antwort wird nicht
               bewertet und nicht im Klartext gespeichert.
@@ -281,9 +380,9 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
 
             <ul className="mt-3 space-y-1.5">
               {lesson.reflectionPrompts.map((prompt) => (
-                <li key={prompt} className="flex items-start gap-2 text-[0.95rem]">
-                  <span aria-hidden="true" className="text-[var(--accent)]">
-                    ?
+                <li key={prompt} className="flex items-start gap-2.5 text-[0.95rem]">
+                  <span aria-hidden="true" className="mt-0.5 shrink-0 text-[var(--akzent)]">
+                    <Icon name="gluehbirne" size={17} />
                   </span>
                   <span>{prompt}</span>
                 </li>
@@ -329,20 +428,29 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
             {lesson.previousSlug ? (
               <Link
                 href={`/lernen/${lesson.previousSlug}`}
-                className="text-[var(--accent)] underline"
+                className="flex items-center gap-1.5 font-semibold text-[var(--akzent)] underline"
               >
-                ← Vorherige Lektion
+                <Icon name="zurueck" size={16} />
+                Vorherige Lektion
               </Link>
             ) : (
               <span />
             )}
             {lesson.nextSlug ? (
-              <Link href={`/lernen/${lesson.nextSlug}`} className="text-[var(--accent)] underline">
-                Nächste Lektion →
+              <Link
+                href={`/lernen/${lesson.nextSlug}`}
+                className="flex items-center gap-1.5 font-semibold text-[var(--akzent)] underline"
+              >
+                Nächste Lektion
+                <Icon name="vor" size={16} />
               </Link>
             ) : (
-              <Link href="/projekte" className="text-[var(--accent)] underline">
-                Zu den Projekten →
+              <Link
+                href="/projekte"
+                className="flex items-center gap-1.5 font-semibold text-[var(--akzent)] underline"
+              >
+                Zu den Projekten
+                <Icon name="vor" size={16} />
               </Link>
             )}
           </nav>

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/primitives';
 import { PythonWorkbench } from '@/components/editor/python-workbench';
 import { TutorPanel } from '@/components/tutor/tutor-panel';
+import { Icon } from '@/components/ui/icon';
 import {
   CodeCompletionInput,
   FindErrorInput,
@@ -375,7 +376,13 @@ export function ExercisePanel({
   }, [busy, code, exercise, feedback, submission]);
 
   return (
-    <Card as="section" className="space-y-5">
+    <Card
+      as="section"
+      className={cx(
+        'space-y-5 transition-colors duration-500',
+        passed && 'border-2 border-[var(--success)] bg-[var(--success-soft)]',
+      )}
+    >
       <header className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={passed ? 'success' : 'neutral'}>
@@ -385,7 +392,7 @@ export function ExercisePanel({
           <Badge tone="neutral">Schwierigkeit {exercise.difficulty} von 5</Badge>
           {exercise.scaffoldLevel >= 5 ? <Badge tone="info">ohne Vorlage</Badge> : null}
         </div>
-        <h3 className="text-lg font-semibold">{exercise.title}</h3>
+        <h3 className="text-lg font-bold tracking-tight sm:text-xl">{exercise.title}</h3>
         {exercise.transferContext ? (
           <p className="rounded-lg bg-[var(--accent-soft)] px-3 py-2 text-sm">
             <strong>Neuer Zusammenhang:</strong> {exercise.transferContext}
@@ -408,13 +415,14 @@ export function ExercisePanel({
               <label
                 key={option.value}
                 className={cx(
-                  'cursor-pointer rounded-full border px-3 py-1.5 text-sm',
+                  'min-h-10 cursor-pointer rounded-full border-2 px-4 py-1.5 text-sm font-semibold',
+                  'inline-flex items-center transition-colors duration-150',
                   // Das Radio ist visuell versteckt. Ohne diese Regel wäre bei
                   // Tastaturbedienung nicht erkennbar, wo der Fokus steht.
                   'has-focus-visible:outline has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-[var(--focus-ring)]',
                   confidence === option.value
-                    ? 'border-[var(--accent)] bg-[var(--accent-soft)] font-medium'
-                    : 'border-[var(--border)]',
+                    ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--text-inverse)]'
+                    : 'border-[var(--border)] hover:border-[var(--accent)]',
                 )}
               >
                 <input
@@ -445,12 +453,18 @@ export function ExercisePanel({
             {hints.map((hint) => (
               <li
                 key={hint.level}
-                className="rounded-lg border-l-4 border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-2"
+                className="animate-enter rounded-xl border-l-4 border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-2.5"
               >
-                <p className="text-xs font-semibold uppercase tracking-wide">
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[var(--accent)]">
+                  <span
+                    aria-hidden="true"
+                    className="flex size-5 items-center justify-center rounded-full bg-[var(--accent)] text-[0.6875rem] text-[var(--text-inverse)]"
+                  >
+                    {hint.level}
+                  </span>
                   Stufe {hint.level}: {hintLevelLabel(hint.level)}
                 </p>
-                <p className="mt-1 text-[0.95rem]">{hint.text}</p>
+                <p className="mt-1.5 text-[0.95rem]">{hint.text}</p>
                 {hint.code ? (
                   <div className="mt-2">
                     <CodeBlock code={hint.code} />
@@ -473,7 +487,7 @@ export function ExercisePanel({
                 onClick={() => void handleReveal(entry.level)}
                 title={entry.blockedReason}
               >
-                {entry.available ? '' : '🔒 '}
+                <Icon name={entry.available ? 'gluehbirne' : 'schloss'} size={16} />
                 Hinweis {entry.level}: {hintLevelLabel(entry.level)}
               </Button>
             );
@@ -518,8 +532,20 @@ export function ExercisePanel({
 
       {/* --- Abgabe ------------------------------------------------------ */}
       <div className="flex flex-wrap items-center gap-3 border-t border-[var(--border)] pt-4">
-        <Button type="button" onClick={() => void handleSubmit()} disabled={busy || !canSubmit}>
-          {busy ? 'Wird geprüft …' : 'Lösung einreichen'}
+        <Button
+          type="button"
+          size="lg"
+          onClick={() => void handleSubmit()}
+          disabled={busy || !canSubmit}
+        >
+          {busy ? (
+            'Wird geprüft …'
+          ) : (
+            <>
+              <Icon name="abspielen" size={18} />
+              Lösung einreichen
+            </>
+          )}
         </Button>
         {!canSubmit ? (
           <p className="text-sm text-[var(--text-muted)]">
@@ -535,15 +561,42 @@ export function ExercisePanel({
         <div
           ref={feedbackRef}
           tabIndex={-1}
-          className="animate-enter space-y-3 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-sunken)] p-4"
+          className={cx(
+            'animate-enter space-y-3 rounded-xl border-2 p-4',
+            feedback.grading.outcome === 'PASSED'
+              ? 'border-[var(--success)] bg-[var(--success-soft)]'
+              : feedback.grading.outcome === 'PARTIAL'
+                ? 'border-[var(--caution)] bg-[var(--caution-soft)]'
+                : 'border-[var(--border-strong)] bg-[var(--surface-sunken)]',
+          )}
         >
-          <h4 className="flex items-center gap-2 text-base font-semibold">
-            <span aria-hidden="true">
-              {feedback.grading.outcome === 'PASSED'
-                ? '✓'
-                : feedback.grading.outcome === 'PARTIAL'
-                  ? '◐'
-                  : '✕'}
+          <h4 className="flex items-center gap-2.5 text-base font-semibold">
+            {/*
+             * Das Zeichen springt kurz auf, wenn es erscheint – aber nur bei
+             * einer bestandenen Aufgabe und nur einmal. Eine Rückmeldung, die
+             * auch beim Misslingen hüpft, wirkt wie Hohn.
+             */}
+            <span
+              aria-hidden="true"
+              className={cx(
+                'flex size-8 shrink-0 items-center justify-center rounded-full',
+                feedback.grading.outcome === 'PASSED'
+                  ? 'animate-pop bg-[var(--success)] text-[var(--surface-raised)]'
+                  : feedback.grading.outcome === 'PARTIAL'
+                    ? 'bg-[var(--caution)] text-[var(--surface-raised)]'
+                    : 'bg-[var(--border-strong)] text-[var(--text)]',
+              )}
+            >
+              <Icon
+                name={
+                  feedback.grading.outcome === 'PASSED'
+                    ? 'haken'
+                    : feedback.grading.outcome === 'PARTIAL'
+                      ? 'halbmond'
+                      : 'gluehbirne'
+                }
+                size={18}
+              />
             </span>
             {feedback.grading.outcome === 'PASSED'
               ? 'Bestanden'
@@ -576,8 +629,11 @@ export function ExercisePanel({
                   item.tone === 'issue' && 'text-[var(--alert)]',
                 )}
               >
-                <span aria-hidden="true" className="mt-0.5">
-                  {item.tone === 'success' ? '✓' : item.tone === 'issue' ? '→' : 'ℹ'}
+                <span aria-hidden="true" className="mt-0.5 shrink-0">
+                  <Icon
+                    name={item.tone === 'success' ? 'haken' : item.tone === 'issue' ? 'vor' : 'info'}
+                    size={16}
+                  />
                 </span>
                 <span className={item.tone === 'info' ? 'text-[var(--text)]' : undefined}>
                   {item.message}
@@ -613,7 +669,7 @@ export function ExercisePanel({
 
           {feedback.nextReview ? (
             <p className="text-sm text-[var(--text-muted)]">
-              <span aria-hidden="true">↺ </span>
+              <Icon name="wiederholen" size={14} className="mr-1 inline align-[-2px]" />
               {feedback.nextReview.reason}
             </p>
           ) : null}
@@ -628,11 +684,12 @@ export function ExercisePanel({
                   <label
                     key={option.value}
                     className={cx(
-                      'cursor-pointer rounded-full border px-3 py-1.5 text-sm',
+                      'min-h-10 cursor-pointer rounded-full border-2 px-4 py-1.5 text-sm font-semibold',
+                      'inline-flex items-center transition-colors duration-150',
                       'has-focus-visible:outline has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-[var(--focus-ring)]',
                       confidenceAfter === option.value
-                        ? 'border-[var(--accent)] bg-[var(--accent-soft)] font-medium'
-                        : 'border-[var(--border)]',
+                        ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--text-inverse)]'
+                        : 'border-[var(--border)] hover:border-[var(--accent)]',
                     )}
                   >
                     <input

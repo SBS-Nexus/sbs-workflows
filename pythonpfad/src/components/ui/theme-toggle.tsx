@@ -9,6 +9,7 @@ import {
   readThemeOnServer,
   subscribeAppearance,
 } from '@/lib/preferences/appearance';
+import { Icon } from '@/components/ui/icon';
 
 /**
  * Umschalter für das Farbschema.
@@ -34,7 +35,7 @@ export function ThemeToggle(): React.ReactElement {
       className="flex size-10 items-center justify-center rounded-lg border border-[var(--border)] text-base transition-colors hover:bg-[var(--surface-sunken)]"
       title={`Farbschema: ${THEME_LABELS[theme]}`}
     >
-      <span aria-hidden="true">{THEME_ICONS[theme]}</span>
+      <Icon name={THEME_ICONS[theme]} size={18} />
       <span className="sr-only">Farbschema umschalten. Aktuell: {THEME_LABELS[theme]}</span>
     </button>
   );

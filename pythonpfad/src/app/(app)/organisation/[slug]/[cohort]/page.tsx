@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Icon } from '@/components/ui/icon';
 import { notFound } from 'next/navigation';
 import { isEnabled } from '@/server/feature-flags';
 import { requireUser } from '@/server/auth/session';
@@ -38,11 +39,11 @@ export default async function CohortPage({
   return (
     <div className="mx-auto max-w-4xl space-y-8 px-4 py-8 sm:px-6">
       <header>
-        <p className="text-sm text-[var(--text-muted)]">
+        <p className="flex flex-wrap items-center gap-1.5 text-sm text-[var(--text-muted)]">
           <Link href="/organisation" className="underline">
             Organisationen
-          </Link>{' '}
-          ›{' '}
+          </Link>
+          <Icon name="vor" size={13} />
           <Link href={`/organisation/${slug}`} className="underline">
             {context.organizationName}
           </Link>

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { Icon, type IconName } from '@/components/ui/icon';
 
 /**
  * Kleine, zugängliche Bausteine.
@@ -17,29 +18,67 @@ export function cx(...values: Array<string | false | null | undefined>): string 
 
 // ---------------------------------------------------------------------------
 
+/*
+ * Knöpfe.
+ *
+ * Die tragenden Knöpfe haben eine sichtbare Unterkante, die beim Drücken
+ * einsinkt (`btn-press`). Das ist nicht nur Zierde: Der Zustand „gedrückt" wird
+ * dadurch an der Geometrie erkennbar und nicht allein an einem Farbwechsel –
+ * ein Vorteil bei Farbsehschwäche und bei hellem Umgebungslicht.
+ *
+ * Die zurückhaltenden Varianten (ghost) bekommen die Kante bewusst nicht.
+ * Wenn jeder Knopf hervortritt, tritt keiner hervor.
+ */
 const BUTTON_BASE =
-  'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors ' +
-  'disabled:cursor-not-allowed disabled:opacity-55 min-h-11 px-4 py-2.5 text-[0.95rem]';
+  'inline-flex items-center justify-center gap-2 rounded-xl font-medium ' +
+  'transition-[background-color,color,transform,border-bottom-width,box-shadow] ' +
+  'disabled:cursor-not-allowed disabled:opacity-55';
+
+const BUTTON_SIZES = {
+  sm: 'min-h-9 px-3 py-1.5 text-[0.875rem]',
+  md: 'min-h-11 px-4 py-2.5 text-[0.95rem]',
+  lg: 'min-h-14 px-7 py-3.5 text-[1.0625rem] rounded-2xl',
+} as const;
+
+export type ButtonSize = keyof typeof BUTTON_SIZES;
 
 const BUTTON_VARIANTS = {
   primary:
-    'bg-[var(--accent)] text-[var(--text-inverse)] hover:bg-[var(--accent-hover)] font-semibold',
+    'btn-press bg-[var(--accent)] text-[var(--text-inverse)] border-b-[var(--accent-deep)] ' +
+    'hover:bg-[var(--accent-hover)] font-bold tracking-tight',
   secondary:
-    'bg-[var(--surface-raised)] text-[var(--text)] border border-[var(--border-strong)] hover:bg-[var(--surface-sunken)]',
-  ghost: 'text-[var(--accent)] hover:bg-[var(--accent-soft)]',
-  danger: 'bg-[var(--alert)] text-[var(--text-inverse)] hover:opacity-90 font-semibold',
+    'btn-press bg-[var(--surface-raised)] text-[var(--text)] border border-[var(--border-strong)] ' +
+    'border-b-[var(--border-strong)] hover:bg-[var(--surface-sunken)] font-semibold',
+  ghost: 'text-[var(--accent)] hover:bg-[var(--accent-soft)] font-semibold',
+  danger:
+    'btn-press bg-[var(--alert)] text-[var(--text-inverse)] border-b-[var(--alert-deep)] ' +
+    'hover:opacity-90 font-bold',
+  /** Auf dunklem Verlauf. Weiße Fläche, damit der Kontrast unabhängig vom Verlauf stimmt. */
+  onDark:
+    'btn-press bg-white text-[var(--color-ink-900)] border-b-[var(--color-ink-300)] ' +
+    'hover:bg-[var(--color-ink-100)] font-bold tracking-tight',
+  /** Zweitrangig auf dunklem Verlauf. */
+  onDarkGhost:
+    'border-2 border-white/45 text-white hover:bg-white/12 font-semibold backdrop-blur-sm',
 } as const;
 
 export type ButtonVariant = keyof typeof BUTTON_VARIANTS;
 
 export function Button({
   variant = 'primary',
+  size = 'md',
   className,
   children,
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }): ReactNode {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+}): ReactNode {
   return (
-    <button {...props} className={cx(BUTTON_BASE, BUTTON_VARIANTS[variant], className)}>
+    <button
+      {...props}
+      className={cx(BUTTON_BASE, BUTTON_SIZES[size], BUTTON_VARIANTS[variant], className)}
+    >
       {children}
     </button>
   );
@@ -47,13 +86,21 @@ export function Button({
 
 export function ButtonLink({
   variant = 'primary',
+  size = 'md',
   className,
   href,
   children,
   ...props
-}: React.ComponentProps<typeof Link> & { variant?: ButtonVariant }): ReactNode {
+}: React.ComponentProps<typeof Link> & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+}): ReactNode {
   return (
-    <Link {...props} href={href} className={cx(BUTTON_BASE, BUTTON_VARIANTS[variant], className)}>
+    <Link
+      {...props}
+      href={href}
+      className={cx(BUTTON_BASE, BUTTON_SIZES[size], BUTTON_VARIANTS[variant], className)}
+    >
       {children}
     </Link>
   );
@@ -65,12 +112,15 @@ export function Card({
   as: Component = 'div',
   className,
   id,
+  style,
   children,
   ...aria
 }: {
   as?: 'div' | 'section' | 'article' | 'li';
   className?: string;
   id?: string;
+  /** Für die Leitfarbe des Bereichs, siehe `themeStyle`. */
+  style?: React.CSSProperties;
   children: ReactNode;
   /**
    * Beschriftung des Bereichs.
@@ -87,8 +137,9 @@ export function Card({
     <Component
       {...aria}
       id={id}
+      style={style}
       className={cx(
-        'rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-5 sm:p-6',
+        'rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-5 sm:p-6',
         className,
       )}
     >
@@ -102,22 +153,22 @@ export function Card({
 const TONE_STYLES = {
   info: {
     container: 'border-[var(--border-strong)] bg-[var(--surface-sunken)]',
-    icon: 'ℹ',
+    icon: 'info' as IconName,
     label: 'Hinweis',
   },
   success: {
     container: 'border-[var(--success)] bg-[var(--success-soft)]',
-    icon: '✓',
+    icon: 'haken' as IconName,
     label: 'Erfolg',
   },
   caution: {
     container: 'border-[var(--caution)] bg-[var(--caution-soft)]',
-    icon: '!',
+    icon: 'achtung' as IconName,
     label: 'Achtung',
   },
   alert: {
     container: 'border-[var(--alert)] bg-[var(--alert-soft)]',
-    icon: '✕',
+    icon: 'fehler' as IconName,
     label: 'Fehler',
   },
 } as const;
@@ -152,12 +203,10 @@ export function Callout({
       {...(live ? { role: 'status', 'aria-live': 'polite' } : {})}
     >
       <p className="flex items-start gap-2 font-semibold">
-        <span aria-hidden="true" className="mt-px shrink-0">
-          {style.icon}
-        </span>
+        <Icon name={style.icon} size={18} className="mt-0.5 shrink-0" />
         <span>{title ?? style.label}</span>
       </p>
-      <div className="mt-1 pl-6">{children}</div>
+      <div className="mt-1 pl-[1.625rem]">{children}</div>
     </div>
   );
 }
@@ -207,13 +256,15 @@ export function ProgressBar({
   value: number;
   max?: number;
   label: string;
-  tone?: 'accent' | 'success' | 'caution';
+  /** `module` nimmt die Leitfarbe des umgebenden Bereichs, siehe `themeStyle`. */
+  tone?: 'accent' | 'success' | 'caution' | 'module';
 }): ReactNode {
   const percent = max === 0 ? 0 : Math.round((Math.min(value, max) / max) * 100);
   const colors = {
     accent: 'var(--accent)',
     success: 'var(--success)',
     caution: 'var(--caution)',
+    module: 'var(--akzent, var(--accent))',
   };
 
   return (
@@ -224,7 +275,7 @@ export function ProgressBar({
         aria-valuemin={0}
         aria-valuemax={max}
         aria-label={label}
-        className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]"
+        className="h-2.5 w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]"
       >
         <div
           className="h-full rounded-full transition-[width] duration-300"
@@ -270,7 +321,7 @@ export function Field({
           role="alert"
           className="flex items-start gap-1.5 text-sm text-[var(--alert)]"
         >
-          <span aria-hidden="true">✕</span>
+          <Icon name="fehler" size={16} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </p>
       ) : null}

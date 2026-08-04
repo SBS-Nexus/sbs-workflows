@@ -7,6 +7,7 @@
  */
 
 import type { SearchableEntry } from '@/lib/search/fuzzy';
+import type { IconName } from '@/components/ui/icon';
 
 export type CommandGroup =
   'Bereiche' | 'Lektionen' | 'Projekte' | 'Wiederholen' | 'Aktionen' | 'Hilfe';
@@ -25,7 +26,7 @@ export interface CommandEntry extends SearchableEntry {
   /** Rechts angezeigter Zusatz, etwa „Modul 2" oder „abgeschlossen". */
   hint?: string;
   /** Symbol links. Rein schmückend, immer zusätzlich zum Text. */
-  icon?: string;
+  icon?: IconName;
 }
 
 /**
@@ -41,7 +42,7 @@ export const STATIC_COMMANDS: readonly CommandEntry[] = [
     keywords: 'lernpfad kurs module lektionen start',
     group: 'Bereiche',
     href: '/lernen',
-    icon: '◆',
+    icon: 'lernen',
   },
   {
     id: 'bereich-ueben',
@@ -49,7 +50,7 @@ export const STATIC_COMMANDS: readonly CommandEntry[] = [
     keywords: 'aufgaben training uebungsmodus',
     group: 'Bereiche',
     href: '/ueben',
-    icon: '◇',
+    icon: 'ueben',
   },
   {
     id: 'bereich-projekte',
@@ -57,7 +58,7 @@ export const STATIC_COMMANDS: readonly CommandEntry[] = [
     keywords: 'projektwerkstatt anwenden bauen',
     group: 'Bereiche',
     href: '/projekte',
-    icon: '▣',
+    icon: 'projekte',
   },
   {
     id: 'bereich-wiederholen',
@@ -65,7 +66,7 @@ export const STATIC_COMMANDS: readonly CommandEntry[] = [
     keywords: 'wiederholung auffrischen faellig',
     group: 'Bereiche',
     href: '/wiederholen',
-    icon: '↺',
+    icon: 'wiederholen',
   },
   {
     id: 'bereich-fortschritt',
@@ -73,7 +74,7 @@ export const STATIC_COMMANDS: readonly CommandEntry[] = [
     keywords: 'dashboard statistik kompetenz uebersicht landkarte',
     group: 'Bereiche',
     href: '/fortschritt',
-    icon: '▤',
+    icon: 'fortschritt',
   },
   {
     id: 'bereich-labor',
@@ -81,7 +82,7 @@ export const STATIC_COMMANDS: readonly CommandEntry[] = [
     keywords: 'python ausprobieren spielwiese editor freies experimentieren',
     group: 'Bereiche',
     href: '/labor',
-    icon: '⌨',
+    icon: 'labor',
   },
   {
     id: 'bereich-organisation',
@@ -89,7 +90,7 @@ export const STATIC_COMMANDS: readonly CommandEntry[] = [
     keywords: 'kohorte klasse kurs team lehrkraft einladung schule',
     group: 'Bereiche',
     href: '/organisation',
-    icon: '⌗',
+    icon: 'organisation',
   },
   {
     id: 'bereich-profil',
@@ -97,7 +98,7 @@ export const STATIC_COMMANDS: readonly CommandEntry[] = [
     keywords: 'konto daten export loeschen einstellungen darstellung',
     group: 'Bereiche',
     href: '/profil',
-    icon: '☺',
+    icon: 'profil',
   },
   {
     id: 'aktion-theme',
@@ -105,7 +106,7 @@ export const STATIC_COMMANDS: readonly CommandEntry[] = [
     keywords: 'hell dunkel dark light modus',
     group: 'Aktionen',
     action: 'toggle-theme',
-    icon: '◐',
+    icon: 'halbmond',
   },
   {
     id: 'aktion-motion',
@@ -113,7 +114,7 @@ export const STATIC_COMMANDS: readonly CommandEntry[] = [
     keywords: 'animation ruhig barrierefrei',
     group: 'Aktionen',
     action: 'toggle-motion',
-    icon: '≈',
+    icon: 'bewegung',
   },
   {
     id: 'hilfe-kuerzel',
@@ -121,6 +122,6 @@ export const STATIC_COMMANDS: readonly CommandEntry[] = [
     keywords: 'shortcuts tasten hilfe bedienung',
     group: 'Hilfe',
     action: 'show-shortcuts',
-    icon: '?',
+    icon: 'info',
   },
 ];

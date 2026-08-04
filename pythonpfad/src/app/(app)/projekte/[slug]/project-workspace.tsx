@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Badge, Button, Callout, Card, ProgressBar, cx } from '@/components/ui/primitives';
+import { Icon } from '@/components/ui/icon';
+import { PROJECT_THEME, themeStyle } from '@/domain/design/module-theme';
 import { PythonWorkbench } from '@/components/editor/python-workbench';
 import { TutorPanel } from '@/components/tutor/tutor-panel';
 import {
@@ -96,15 +98,27 @@ export function ProjectWorkspace({ project }: { project: ProjectView }): React.R
   const done = result?.milestonesDone ?? 0;
 
   return (
-    <div className="space-y-6">
-      <header>
+    <div className="space-y-6" style={themeStyle(PROJECT_THEME)}>
+      <header className="overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--akzent-soft)] p-6 sm:p-8">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone="neutral">Schwierigkeit {project.difficulty} von 5</Badge>
           <Badge tone="neutral">etwa {project.estimatedMinutes} Minuten</Badge>
           {result?.status === 'ACCEPTED' ? <Badge tone="success">abgenommen</Badge> : null}
         </div>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{project.title}</h1>
-        <p className="mt-3 max-w-prose text-[var(--text-muted)]">{project.description}</p>
+        <div className="mt-3 flex flex-wrap items-start gap-4">
+          <span
+            aria-hidden="true"
+            className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--akzent)] text-[var(--text-inverse)]"
+          >
+            <Icon name="projekte" size={26} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-black leading-tight tracking-tight sm:text-4xl">
+              {project.title}
+            </h1>
+            <p className="mt-2 max-w-prose text-[var(--text-muted)]">{project.description}</p>
+          </div>
+        </div>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
@@ -114,9 +128,12 @@ export function ProjectWorkspace({ project }: { project: ProjectView }): React.R
             <h2 className="text-lg font-semibold">Anforderungen</h2>
             <ul className="mt-3 space-y-2">
               {project.requirements.map((requirement) => (
-                <li key={requirement} className="flex items-start gap-2 text-[0.95rem]">
-                  <span aria-hidden="true" className="mt-1 text-[var(--accent)]">
-                    ◆
+                <li key={requirement} className="flex items-start gap-2.5 text-[0.95rem]">
+                  <span
+                    aria-hidden="true"
+                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--akzent-soft)] text-[var(--akzent)]"
+                  >
+                    <Icon name="haken" size={13} />
                   </span>
                   <span>{requirement}</span>
                 </li>
@@ -136,7 +153,7 @@ export function ProjectWorkspace({ project }: { project: ProjectView }): React.R
                 value={done}
                 max={project.milestones.length}
                 label={`${done} von ${project.milestones.length} Meilensteinen erfüllt`}
-                tone={done === project.milestones.length ? 'success' : 'accent'}
+                tone={done === project.milestones.length ? 'success' : 'module'}
               />
             </div>
 
@@ -153,8 +170,18 @@ export function ProjectWorkspace({ project }: { project: ProjectView }): React.R
                         : 'border-[var(--border)]',
                     )}
                   >
-                    <p className="flex items-start gap-2 font-medium">
-                      <span aria-hidden="true">{state?.done ? '✓' : index + 1}</span>
+                    <p className="flex items-start gap-2.5 font-semibold">
+                      <span
+                        aria-hidden="true"
+                        className={cx(
+                          'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-black',
+                          state?.done
+                            ? 'bg-[var(--success)] text-[var(--text-inverse)]'
+                            : 'bg-[var(--akzent-soft)] text-[var(--akzent)]',
+                        )}
+                      >
+                        {state?.done ? <Icon name="haken" size={14} /> : index + 1}
+                      </span>
                       <span>
                         <span className="sr-only">
                           {state?.done ? 'Erfüllt: ' : 'Noch offen: '}
@@ -162,7 +189,7 @@ export function ProjectWorkspace({ project }: { project: ProjectView }): React.R
                         {milestone.title}
                       </span>
                     </p>
-                    <p className="mt-1 pl-6 text-[0.9375rem] text-[var(--text-muted)]">
+                    <p className="mt-1 pl-[2.125rem] text-[0.9375rem] text-[var(--text-muted)]">
                       {milestone.description}
                     </p>
                     {!state?.done ? (

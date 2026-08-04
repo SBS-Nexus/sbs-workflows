@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Badge, Button, Callout, cx } from '@/components/ui/primitives';
+import { Icon } from '@/components/ui/icon';
 import { askTutorAction } from '@/server/actions/tutor-actions';
 import {
   TUTOR_MODE_DESCRIPTIONS,
@@ -113,7 +114,7 @@ export function TutorPanel({
 
               {reply.caveat ? (
                 <p className="text-sm text-[var(--text-muted)]">
-                  <span aria-hidden="true">ℹ </span>
+                  <Icon name="info" size={14} className="mr-1 inline align-[-2px]" />
                   {reply.caveat}
                 </p>
               ) : null}

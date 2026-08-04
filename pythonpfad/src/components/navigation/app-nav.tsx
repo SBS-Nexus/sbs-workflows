@@ -7,6 +7,14 @@ import { logoutAction } from '@/server/actions/auth-actions';
 import { Kbd, cx } from '@/components/ui/primitives';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useCommandCenter } from '@/components/navigation/command-center';
+import { Icon, type IconName } from '@/components/ui/icon';
+import {
+  PROJECT_THEME,
+  REVIEW_THEME,
+  type ModuleTheme,
+  moduleTheme,
+  themeStyle,
+} from '@/domain/design/module-theme';
 
 /**
  * Hauptnavigation.
@@ -16,14 +24,19 @@ import { useCommandCenter } from '@/components/navigation/command-center';
  * Beide Varianten nutzen dieselbe Liste und dasselbe `aria-current`.
  */
 
-const ITEMS = [
-  { href: '/lernen', label: 'Lernen', icon: '◆' },
-  { href: '/ueben', label: 'Üben', icon: '◇' },
-  { href: '/projekte', label: 'Projekte', icon: '▣' },
-  { href: '/wiederholen', label: 'Wiederholen', icon: '↺' },
-  { href: '/fortschritt', label: 'Fortschritt', icon: '▤' },
-  { href: '/profil', label: 'Profil', icon: '☺' },
-] as const;
+/*
+ * Jeder Bereich hat eine eigene Farbe – dieselbe, die auch im Kopfbereich der
+ * Seite steht. Beim Wechsel sieht man dadurch schon in der Navigation, wohin
+ * es geht, und nach dem Wechsel bestätigt die Seite die Farbe.
+ */
+const ITEMS: ReadonlyArray<{ href: string; label: string; icon: IconName; theme: ModuleTheme }> = [
+  { href: '/lernen', label: 'Lernen', icon: 'lernen', theme: moduleTheme(0) },
+  { href: '/ueben', label: 'Üben', icon: 'ueben', theme: moduleTheme(1) },
+  { href: '/projekte', label: 'Projekte', icon: 'projekte', theme: PROJECT_THEME },
+  { href: '/wiederholen', label: 'Wiederholen', icon: 'wiederholen', theme: REVIEW_THEME },
+  { href: '/fortschritt', label: 'Fortschritt', icon: 'fortschritt', theme: moduleTheme(3) },
+  { href: '/profil', label: 'Profil', icon: 'profil', theme: moduleTheme(2) },
+];
 
 export function AppNav({
   userName,
@@ -42,9 +55,29 @@ export function AppNav({
 
   return (
     <>
+      {/*
+       * Deckende Fläche, kein `backdrop-filter`.
+       *
+       * Eine durchscheinende, weichgezeichnete Kopfleiste sieht gut aus, kostet
+       * aber dauerhaft: Weil die Leiste klebt und über die ganze Breite geht,
+       * muss der Browser bei jedem Bildaufbau den Bereich dahinter erneut
+       * weichzeichnen. Auf schwächeren Geräten ruckelt dadurch das Scrollen der
+       * ganzen Anwendung – gemessen an einem Testlauf, in dem darüber sogar
+       * Serveraufrufe ins Zeitlimit liefen. Der Gewinn stand in keinem
+       * Verhältnis dazu.
+       */}
       <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface-raised)]">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/lernen" className="shrink-0 text-base font-bold tracking-tight">
+          <Link
+            href="/lernen"
+            className="group flex shrink-0 items-center gap-2 text-base font-bold tracking-tight"
+          >
+            <span
+              aria-hidden="true"
+              className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--color-modul-3)] to-[var(--color-modul-0)] text-[var(--text-inverse)] transition-transform group-hover:scale-105"
+            >
+              <Icon name="schritte" size={18} />
+            </span>
             PythonPfad
           </Link>
 
@@ -55,16 +88,18 @@ export function AppNav({
                   <Link
                     href={item.href}
                     aria-current={isActive(item.href) ? 'page' : undefined}
+                    style={themeStyle(item.theme)}
                     className={cx(
-                      'flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors',
+                      'flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold transition-colors',
                       isActive(item.href)
-                        ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
-                        : 'text-[var(--text-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]',
+                        ? 'bg-[var(--akzent-soft)] text-[var(--akzent)]'
+                        : 'text-[var(--text-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--akzent)]',
                     )}
                   >
+                    <Icon name={item.icon} size={17} />
                     {item.label}
                     {item.href === '/wiederholen' && dueReviews > 0 ? (
-                      <span className="rounded-full bg-[var(--accent)] px-1.5 text-xs font-semibold text-[var(--text-inverse)]">
+                      <span className="rounded-full bg-[var(--akzent)] px-1.5 text-xs font-bold text-[var(--text-inverse)]">
                         {dueReviews}
                         <span className="sr-only"> fällige Wiederholungen</span>
                       </span>
@@ -102,7 +137,7 @@ export function AppNav({
               onClick={openPalette}
               className="hidden min-h-10 items-center gap-2 rounded-lg border border-[var(--border)] px-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text)] md:flex"
             >
-              <span aria-hidden="true">⌕</span>
+              <Icon name="suchen" size={16} />
               <span>Suchen</span>
               <Kbd>Strg K</Kbd>
             </button>
@@ -116,7 +151,7 @@ export function AppNav({
                 className="flex min-h-10 items-center gap-2 rounded-lg border border-[var(--border)] px-3 text-sm font-medium"
               >
                 <span className="max-w-28 truncate">{userName}</span>
-                <span aria-hidden="true">▾</span>
+                <Icon name="runter" size={14} />
               </button>
               {menuOpen ? (
                 <div
@@ -196,15 +231,22 @@ export function AppNav({
               <Link
                 href={item.href}
                 aria-current={isActive(item.href) ? 'page' : undefined}
+                style={themeStyle(item.theme)}
                 className={cx(
-                  'flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[0.6875rem] font-medium',
-                  isActive(item.href) ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]',
+                  'flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[0.6875rem] font-bold',
+                  isActive(item.href) ? 'text-[var(--akzent)]' : 'text-[var(--text-muted)]',
                 )}
               >
-                <span aria-hidden="true" className="relative text-base leading-none">
-                  {item.icon}
+                <span
+                  aria-hidden="true"
+                  className={cx(
+                    'relative flex size-9 items-center justify-center rounded-2xl leading-none transition-colors',
+                    isActive(item.href) && 'bg-[var(--akzent-soft)]',
+                  )}
+                >
+                  <Icon name={item.icon} size={22} />
                   {item.href === '/wiederholen' && dueReviews > 0 ? (
-                    <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-[var(--accent)]" />
+                    <span className="absolute right-1 top-1 size-2 rounded-full bg-[var(--akzent)]" />
                   ) : null}
                 </span>
                 <span>{item.label}</span>

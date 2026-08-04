@@ -3,6 +3,10 @@ import Link from 'next/link';
 import { requireUser } from '@/server/auth/session';
 import { listProjects } from '@/server/services/project-service';
 import { Badge, Card, ProgressBar } from '@/components/ui/primitives';
+import { PageHero, HeroStat } from '@/components/ui/page-hero';
+import { Icon } from '@/components/ui/icon';
+import { IllustrationBuild } from '@/components/ui/illustration';
+import { PROJECT_THEME, themeStyle } from '@/domain/design/module-theme';
 
 export const metadata: Metadata = { title: 'Projekte' };
 
@@ -23,23 +27,44 @@ export default async function ProjectsPage(): Promise<React.ReactElement> {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Projektwerkstatt</h1>
-        <p className="mt-3 max-w-prose text-[var(--text-muted)]">
-          In einem Projekt gibt es keine Lösungsschritte, sondern nur Anforderungen. Du
-          entscheidest, wie du sie erfüllst. Die Meilensteine werden automatisch geprüft; abgenommen
-          ist ein Projekt erst, wenn außerdem deine Reflexion vorliegt.
-        </p>
-      </header>
+      <PageHero
+        theme={PROJECT_THEME}
+        icon="projekte"
+        title="Projektwerkstatt"
+        description="In einem Projekt gibt es keine Lösungsschritte, sondern nur Anforderungen. Du entscheidest, wie du sie erfüllst. Die Meilensteine werden automatisch geprüft; abgenommen ist ein Projekt erst, wenn außerdem deine Reflexion vorliegt."
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <HeroStat value={projects.length} label="Projekte" />
+          <HeroStat
+            value={projects.filter((project) => project.status === 'ACCEPTED').length}
+            label="abgenommen"
+          />
+          <HeroStat
+            value={projects.filter((project) => project.status === 'IN_PROGRESS').length}
+            label="in Arbeit"
+          />
+        </div>
+      </PageHero>
 
       <ul className="space-y-4">
         {projects.map((project) => {
           const status = STATUS_LABELS[project.status] ?? STATUS_LABELS.NOT_STARTED;
           return (
-            <Card as="li" key={project.slug}>
+            <Card
+              as="li"
+              key={project.slug}
+              style={themeStyle(PROJECT_THEME)}
+              className="hover-lift glow-soft"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
+                <span
+                  aria-hidden="true"
+                  className="hidden size-16 shrink-0 items-center justify-center rounded-2xl bg-[var(--akzent-soft)] p-2 sm:flex"
+                >
+                  <IllustrationBuild tone="var(--akzent)" />
+                </span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-semibold">
+                  <h2 className="text-lg font-bold tracking-tight">
                     <Link href={`/projekte/${project.slug}`} className="hover:underline">
                       {project.title}
                     </Link>
@@ -75,9 +100,10 @@ export default async function ProjectsPage(): Promise<React.ReactElement> {
 
               <Link
                 href={`/projekte/${project.slug}`}
-                className="mt-4 inline-block font-medium text-[var(--accent)] underline"
+                className="mt-4 inline-flex items-center gap-1.5 font-bold text-[var(--akzent)] underline"
               >
                 {project.status === 'NOT_STARTED' ? 'Projekt starten' : 'Weiterarbeiten'}
+                <Icon name="vor" size={16} />
               </Link>
             </Card>
           );

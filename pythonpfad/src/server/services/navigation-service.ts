@@ -59,7 +59,7 @@ export async function buildCommandIndex(userId: string): Promise<CommandEntry[]>
           : state === 'IN_PROGRESS'
             ? 'begonnen'
             : lesson.module.title,
-      icon: '◆',
+      icon: 'lernen',
     };
   });
 
@@ -70,7 +70,7 @@ export async function buildCommandIndex(userId: string): Promise<CommandEntry[]>
     group: 'Projekte',
     href: `/projekte/${project.slug}`,
     hint: `Stufe ${project.difficulty}`,
-    icon: '▣',
+    icon: 'projekte',
   }));
 
   const reviewEntries: CommandEntry[] = reviewSets.map((set) => ({
@@ -79,7 +79,7 @@ export async function buildCommandIndex(userId: string): Promise<CommandEntry[]>
     keywords: `wiederholung ${set.description}`,
     group: 'Wiederholen',
     href: `/wiederholen/${set.slug}`,
-    icon: '↺',
+    icon: 'wiederholen',
   }));
 
   return [...STATIC_COMMANDS, ...lessonEntries, ...projectEntries, ...reviewEntries];
