@@ -26,6 +26,9 @@ Lernverlauf.
 12. [Python-Codeausführung](#12-python-codeausführung)
 13. [KI-Tutor-Konfiguration](#13-ki-tutor-konfiguration)
 14. [Datenschutz- und Sicherheitsgrenzen](#14-datenschutz--und-sicherheitsgrenzen)
+15. [Organisationen und Kohorten](#15-organisationen-und-kohorten)
+16. [Installation als App und Offlinebetrieb](#16-installation-als-app-und-offlinebetrieb)
+17. [Betrieb und Überwachung](#17-betrieb-und-überwachung)
 
 ---
 
@@ -48,6 +51,8 @@ Kapitelschema.
 | Konzepte im Kompetenzmodell | 33                                                                                                                              |
 | Wiederholungssets           | 3 (mit Interleaving über Module hinweg)                                                                                         |
 | Projekte                    | 4, davon 3 Mini-Projekte und 1 Debugging-Labor                                                                                  |
+| Vokabular im Editor         | 37 Python-Bausteine mit deutscher Erklärung und Beispiel                                                                        |
+| Meilensteine                | 10, ausnahmslos an Fähigkeiten gekoppelt                                                                                        |
 
 ### Wie eine Lektion aufgebaut ist
 
@@ -60,6 +65,10 @@ abnehmender Hilfestellung → Reflexion → automatische Wiederholungsplanung.
 
 - **Python im Browser.** Pyodide in einem Web Worker. Kein Nutzercode auf dem
   Server, keine Installation, Endlosschleifen jederzeit stoppbar.
+- **Ausführung Schritt für Schritt.** Jede Zeile, jede Variable, jede Ausgabe
+  zum Zeitpunkt der Ausführung – mit Zeitleiste, Wiederholungszähler an
+  Schleifenzeilen und Kennzeichnung der nie ausgeführten Zeilen. Damit wird
+  beobachtbar, was das mentale Modell der ersten Lektion behauptet.
 - **Progressive Hinweisleiter.** Fünf Stufen von der Denkfrage bis zur
   Erklärung. Die Musterlösung wird erst nach mehreren eigenen Versuchen
   freigegeben – und danach folgt eine ähnliche Aufgabe ohne Vorlage.
@@ -76,6 +85,22 @@ abnehmender Hilfestellung → Reflexion → automatische Wiederholungsplanung.
   vergleicht Gefühl und Ergebnis – behutsam formuliert.
 - **Lerncoach mit Leitplanken.** Standardmäßig regelbasiert und offline. Ein
   externer KI-Anbieter ist optional und nur mit ausdrücklicher Einwilligung.
+- **Editor-Hilfen.** Die Fehlerzeile wird im Editor selbst markiert, nicht nur
+  im Traceback genannt. Strg + Leertaste schlägt Python-Bausteine mit deutscher
+  Erklärung vor – ausschließlich solche, die im Kurs vorkommen.
+- **Wissenslandkarte.** Der Konzeptgraph als Ebenen von links nach rechts:
+  Was links steht, ist Voraussetzung für das rechts daneben. Dazu eine
+  Behaltensprognose nach der Vergessenskurve.
+- **Lernrhythmus ohne Dunkelmuster.** Tagesziel, Lerntage der letzten 30 Tage
+  und Meilensteine, die an Fähigkeiten hängen statt an Regelmäßigkeit.
+- **Befehlspalette.** Strg/Cmd + K findet Lektionen, Projekte und Funktionen;
+  die unscharfe Suche kommt mit deutschen Schreibweisen zurecht.
+- **Organisationen und Kohorten.** Für Schule, Volkshochschule oder Team.
+  Lehrkräfte sehen Summenwerte; namentlich erscheint nur, wer ausdrücklich
+  zustimmt.
+- **Installierbar und teiloffline.** Die Python-Laufzeit liegt nach dem ersten
+  Besuch auf dem Gerät. Persönliche Seiten werden absichtlich nicht
+  zwischengespeichert.
 
 ### Was bewusst fehlt
 
@@ -144,6 +169,23 @@ openssl rand -base64 48
 Die Konfiguration wird beim Start mit Zod geprüft (`src/server/env.ts`). Fehlt
 etwas, bricht die Anwendung mit einer verständlichen Meldung ab statt später
 mit einem schwer zuzuordnenden Laufzeitfehler.
+
+### Funktionsschalter
+
+Vier Bereiche lassen sich ohne neue Fassung abschalten. Ohne gesetzte Variable
+gilt jeweils der Standard; nur die ausdrücklichen Werte `true` und `false`
+werden gelesen, alles andere führt zum Standard.
+
+| Variable                             | Standard | Wirkung                                                    |
+| ------------------------------------ | -------- | ---------------------------------------------------------- |
+| `FEATURE_AUSFUEHRUNGS_VISUALISIERER` | an       | Schaltfläche „Schritt für Schritt" in Editor und Lektion   |
+| `FEATURE_WISSENSLANDKARTE`           | an       | Konzeptgraph und Behaltensprognose im Fortschrittsbereich  |
+| `FEATURE_ORGANISATIONEN`             | an       | Organisationen, Kohorten, Lehrkraftbereich und Einladungen |
+| `FEATURE_EDITOR_VORSCHLAEGE`         | an       | Vorschlagsliste im Code-Editor (Strg + Leertaste)          |
+
+Die Schalter liegen bewusst in Umgebungsvariablen und nicht in der Datenbank:
+Ein Schalter, der selbst von der Datenbank abhängt, hilft genau dann nicht,
+wenn man ihn am dringendsten braucht.
 
 ---
 
@@ -244,15 +286,26 @@ npm run test:e2e          # Playwright gegen den Produktionsbuild
 npm run verify            # Typecheck + Lint + Tests + Build
 ```
 
-**Stand dieser Version:** 174 Vitest-Tests (140 Unit, 34 Integration) und
-8 Playwright-Tests laufen durch; Typecheck, Lint und Build sind fehlerfrei.
+**Stand dieser Version:** 335 Vitest-Tests (280 Unit, 55 Integration) und
+45 Playwright-Tests laufen durch; Typecheck, Lint, Formatprüfung und Build
+sind fehlerfrei. Dazu kommen zwei Prüfskripte, die Python wirklich ausführen:
+54 Testfälle aller Musterlösungen und 32 Zusicherungen der schrittweisen
+Aufzeichnung.
 
 ### Was geprüft wird
 
 - **Unit:** Kompetenzberechnung, Wiederholungsintervalle, Aufgabenbewertung für
   alle acht Interaktionsformen, Hinweisleiter, deutsche Fehlererklärungen,
   Inhaltsvalidierung, Passwort-Hashing, Ratenbegrenzung, Pfadaufbau,
-  Einstufung, Tutor-Leitplanken.
+  Einstufung, Tutor-Leitplanken, Aufbereitung der Ausführungsaufzeichnung,
+  unscharfe Suche mit deutscher Faltung, Kursvokabular, Lernrhythmus und
+  Meilensteine, Konzeptgraph und Behaltensprognose, Berechtigungen und
+  Kohortenauswertung, Funktionsschalter und Protokollierung.
+- **Sprachprüfungen als Tests:** Mehrere Tests prüfen ausschließlich
+  Formulierungen – dass keine Verlustsprache, keine künstliche Dringlichkeit
+  und keine Beschämung auftaucht, und zwar in allen Zuständen einschließlich
+  „nach langer Pause". Was im Produktkonzept steht, soll nicht bei der nächsten
+  Textänderung stillschweigend wegfallen.
 - **Integration:** echte Datenbankabfragen – Abgabe speichern, Kompetenz
   fortschreiben, Wiederholung planen, Lektion abschließen, Projekt abnehmen,
   Sitzungen, Aufbewahrungsfristen, vollständige Kontolöschung.
@@ -456,6 +509,116 @@ Ausführlich in [docs/SICHERHEIT.md](docs/SICHERHEIT.md) und
   Schnittstelle bleibt dabei gleich.
 - **Keine E-Mail-Bestätigung und kein Passwort-Zurücksetzen.** Beides braucht
   einen Mailversand und ist in dieser Version nicht enthalten.
+
+---
+
+---
+
+## 15. Organisationen und Kohorten
+
+Für Schule, Volkshochschule, Weiterbildung oder Team. Wer die Anwendung
+ausschließlich mit Einzelkonten betreibt, schaltet den Bereich über
+`FEATURE_ORGANISATIONEN="false"` ab.
+
+### Rollen
+
+| Rolle                  | Darf                                                                       |
+| ---------------------- | -------------------------------------------------------------------------- |
+| Inhaberin oder Inhaber | Organisation verwalten, Kohorten anlegen, einladen, Prüfprotokoll einsehen |
+| Lehrkraft              | Kohorten anlegen, einladen, Kohortenstand einsehen                         |
+| Lernende Person        | in Kohorten lernen; sieht ausschließlich die eigenen Daten                 |
+
+Die Rolle gilt je Organisation und ist von der globalen Kontorolle getrennt:
+Wer in einer Schule Lehrkraft ist, ist deswegen weder Administrator der
+Anwendung noch Lehrkraft anderswo.
+
+### Was eine Lehrkraft sieht
+
+- **Summenwerte:** Median der abgeschlossenen Lektionen und gelösten Aufgaben,
+  Anteil der zuletzt Aktiven, und vor allem die Konzepte, an denen die Gruppe
+  hängt.
+- **Erst ab drei Mitgliedern.** Bei weniger wären es keine Summenwerte mehr,
+  sondern Aussagen über einzelne Menschen.
+- **Namentlich nur mit Einwilligung.** Der Standard ist aus, die Einstellung
+  steht im Profil der lernenden Person neben Export und Löschung, und der
+  Widerruf wirkt sofort.
+- **Nie:** einzelne Versuche, Bearbeitungszeiten, Fehlermeldungen oder
+  eingereichter Code. Dafür gibt es keine Funktion – auch nicht mit
+  Einwilligung. Eine Lehrkraft sieht den Stand, nicht den Weg dorthin.
+
+### Einladungen
+
+Einladungslinks tragen ein zufälliges Token; in der Datenbank liegt nur dessen
+SHA-256-Hash. Der Link wird genau einmal angezeigt, gilt vierzehn Tage und
+lässt sich wahlweise an eine E-Mail-Adresse und an eine Kohorte binden.
+Unbekannte, abgelaufene und bereits eingelöste Token bekommen dieselbe
+Antwort – eine Unterscheidung verriete, ob ein geratenes Token je gültig war.
+
+Eingelöst wird erst auf Knopfdruck, nicht schon beim Öffnen des Links.
+Sonst würden Link-Vorschauen in Messengern die Einladung im Vorbeigehen
+verbrauchen.
+
+---
+
+## 16. Installation als App und Offlinebetrieb
+
+Die Anwendung lässt sich über das Browsermenü als App installieren
+(`manifest.webmanifest`). Der Service Worker legt dabei bewusst nur einen Teil
+ab:
+
+| Wird zwischengespeichert            | Wird nicht zwischengespeichert            |
+| ----------------------------------- | ----------------------------------------- |
+| Python-Laufzeit unter `/pyodide`    | jede HTML-Seite des angemeldeten Bereichs |
+| statische Bausteine `/_next/static` | alle Antworten außer GET                  |
+| Offlineseite und Symbol             | alles von fremden Ursprüngen              |
+
+Der Grund für die zweite Spalte: Diese Seiten enthalten Lernstand, Namen und
+Kohortenzugehörigkeit. Im Browser-Cache blieben sie auch nach dem Abmelden und
+auf geteilten Geräten liegen. Lektionen offline lesen zu können wiegt das nicht
+auf.
+
+Was bleibt, ist der eigentliche Gewinn: Wer die Laufzeit einmal geladen hat,
+kann im Editor auch ohne Verbindung Python ausführen und wartet beim nächsten
+Besuch nicht erneut auf rund 13 MB. Ohne Verbindung erscheint eine eigene
+Seite, die erklärt, was geht und was nicht – und zuerst die Frage beantwortet,
+ob etwas verloren gegangen ist.
+
+In der Entwicklung wird der Service Worker abgemeldet statt angemeldet. Sonst
+liefert er nach jeder Änderung veraltete Bausteine aus.
+
+---
+
+## 17. Betrieb und Überwachung
+
+### Endpunkte
+
+| Pfad          | Zweck                                                          |
+| ------------- | -------------------------------------------------------------- |
+| `/api/health` | Lebenszeichen des Prozesses, ohne Datenbankzugriff             |
+| `/api/ready`  | Bereitschaft: Datenbank erreichbar **und** Inhalte eingespielt |
+
+Die Trennung ist beabsichtigt. Ein Neustart, nur weil die Datenbank kurz nicht
+erreichbar war, macht die Lage schlimmer statt besser – der Prozess selbst ist
+gesund. Deshalb prüft die Lebenszeichen-Abfrage nichts weiter.
+
+`/api/ready` nennt in der Antwort weder Verbindungszeichenfolge noch Hostname
+noch Datenbankmeldung. Der Endpunkt ist von außen erreichbar, und eine
+hilfreiche Fehlermeldung wäre dort vor allem für Fremde hilfreich. Der Grund
+steht im Protokoll.
+
+### Protokolle
+
+Eine JSON-Zeile je Ereignis, mit Zeitstempel, Stufe und Anfragekennung. Eine
+Sperrliste entfernt E-Mail-Adressen, Passwörter, Token, eingereichten Code und
+Namen, falls sie versehentlich mitgegeben werden. Die Nutzerkennung bleibt
+gekürzt erhalten – ohne sie wäre das Protokoll für die Fehlersuche wertlos.
+
+### Prüfkette
+
+`.github/workflows/pythonpfad.yml` läuft bei jeder Änderung unterhalb von
+`pythonpfad/`: PostgreSQL als Dienst, Migrationen, Seeding, dann Typecheck,
+Lint, Formatprüfung, Vitest, Prüfung aller Musterlösungen, Prüfung der
+Ausführungsaufzeichnung, Produktionsbuild und Playwright.
 
 ---
 

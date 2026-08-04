@@ -207,3 +207,65 @@ einen gemeinsamen Zähler getauscht werden; die Schnittstelle in
 Bitte nicht über ein öffentliches Ticket, sondern direkt an die im Repository
 hinterlegte Kontaktadresse. Hilfreich sind: betroffene Version, Schritte zur
 Nachstellung und die vermutete Auswirkung.
+
+---
+
+## Nachtrag: Organisationen, Einladungen und Betrieb
+
+### Einladungen
+
+- Token aus 32 zufälligen Bytes, in der Datenbank ausschließlich als
+  SHA-256-Hash. Ein Datenbankleck gibt keine einlösbaren Einladungen preis.
+- Gültigkeit vierzehn Tage, einmalige Einlösung, optionale Bindung an eine
+  E-Mail-Adresse.
+- Unbekannte, abgelaufene und bereits eingelöste Token bekommen dieselbe
+  Antwort. Eine Unterscheidung verriete, ob ein geratenes Token je gültig war.
+- Der Link wird genau einmal angezeigt und lässt sich später nicht erneut
+  hervorholen – er steht nirgends im Klartext.
+- Eingelöst wird erst auf Knopfdruck. Sonst würden Link-Vorschauen in
+  Messengern die Einladung im Vorbeigehen verbrauchen.
+
+### Rollentrennung
+
+- Eine Lehrkraft kann niemanden zur Inhaberin machen. Sonst ließe sich die
+  Verwaltungsberechtigung über den Umweg einer Einladung erlangen.
+- Das Prüfprotokoll bleibt der Inhaberin vorbehalten.
+- Eine bestehende Rolle wird beim Einlösen einer Einladung nicht herabgestuft.
+- Eine fremde Organisation antwortet wie nicht vorhanden. Wer nicht dazugehört,
+  soll nicht erfahren, ob es sie gibt.
+
+### Server Actions
+
+Jede Aktion prüft die Mitgliedschaft und die Rolle neu. Die Einwilligung zur
+namentlichen Anzeige lässt sich nur für die eigene Mitgliedschaft setzen – ohne
+diese Prüfung ließe sich über eine fremde Kennung die Einwilligung einer
+anderen Person setzen.
+
+### Zwischenspeicher im Browser
+
+Der Service Worker legt keine einzige HTML-Seite des angemeldeten Bereichs ab.
+Diese Seiten enthalten Lernstand, Namen und Kohortenzugehörigkeit; im
+Browser-Cache blieben sie auch nach dem Abmelden und auf geteilten Geräten
+liegen. Ebenfalls nicht zwischengespeichert wird alles außer GET.
+
+### Protokolle
+
+Eine Sperrliste entfernt E-Mail-Adressen, Passwörter, Token, eingereichten Code
+und Namen aus Protokollzeilen, auch wenn sie versehentlich mitgegeben werden.
+Sie ist die letzte Verteidigungslinie und ersetzt nicht das Nachdenken an der
+Aufrufstelle.
+
+### Betriebsendpunkte
+
+`/api/ready` ist von außen erreichbar und nennt deshalb weder
+Verbindungszeichenfolge noch Hostname noch Datenbankmeldung. Der Grund eines
+Fehlschlags steht im Protokoll, nicht in der Antwort.
+
+### Prüfliste vor dem Ausrollen (Ergänzung)
+
+- [ ] `FEATURE_*`-Schalter bewusst gesetzt oder bewusst weggelassen
+- [ ] `/api/health` und `/api/ready` in die Überwachung aufgenommen
+- [ ] Protokollziel eingerichtet und geprüft, dass keine personenbezogenen
+      Felder ankommen
+- [ ] Bei Einsatz in einer Einrichtung: Einwilligungstext im Profil mit der
+      dortigen Datenschutzerklärung abgeglichen

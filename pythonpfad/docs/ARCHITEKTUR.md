@@ -242,3 +242,87 @@ Fachlich begründet, in der Reihenfolge des Nutzens:
    Kontexten würden den Abruf weiter stärken.
 5. **E-Mail-Anbindung** für Bestätigung und Passwort-Zurücksetzen.
 6. **Gemeinsame Ratenbegrenzung**, sobald mehr als eine Instanz läuft.
+
+---
+
+## Nachtrag: Erweiterungen dieser Ausbaustufe
+
+### Schrittweise Ausführung
+
+Der `PythonRunner` bekommt neben `run()` die eigene Methode `trace()`. Bewusst
+getrennt und nicht als Schalter an `run()`: Ein späterer Container-Runner kann
+die Aufzeichnung anders oder gar nicht anbieten, ohne dass sich die Signatur
+des normalen Laufs ändert.
+
+Im Testgerüst trägt der aufgezeichnete Code den eigenen Dateinamen
+`<lernprogramm>`. Pyodide führt den Aufruf von außen selbst unter `<exec>` aus –
+mit demselben Namen käme der Mitschnitt nicht mehr auseinander, welche Rahmen
+zum Programm der lernenden Person gehören. Die Aufruftiefe wäre um zwei zu hoch,
+und es tauchten Zeilen auf, die niemand geschrieben hat. Der Fehler ist im
+Browser aufgefallen, nicht in der Theorie.
+
+Die Aufbereitung liegt in `src/domain/trace/` und ist ohne Browser prüfbar.
+Zusätzlich führt `scripts/verify_tracer.py` das echte Gerüst aus der
+TypeScript-Datei aus und prüft 32 Zusicherungen – so kann die Aufzeichnung
+nicht auseinanderlaufen, ohne dass es auffällt.
+
+### Suchverzeichnis der Befehlspalette
+
+Wird im Rahmenlayout je Seitenaufruf zusammengestellt und an den Browser
+gegeben. Das ist vertretbar, weil es klein ist und nur veröffentlichte Inhalte
+enthält – also nichts, was nicht ohnehin über die Navigation erreichbar wäre.
+Personenbezogenes steht nicht darin; der Fortschrittsvermerk nennt nur
+„begonnen" oder „abgeschlossen".
+
+Die unscharfe Suche ist eigenhändig umgesetzt statt zugekauft. Der Grund ist
+nicht Sparsamkeit, sondern eine Anforderung, die die verbreiteten Pakete nicht
+erfüllen: „ausfuhren" muss „Ausführen" finden. Für die Trefferhervorhebung
+arbeitet sie mit längentreuer Faltung, damit die Positionen exakt auf den
+Originaltext passen; wo das nicht geht (ß wird zu einem einzelnen s), greift
+ein zweiter Anlauf mit voller Faltung – dann lieber ohne Hervorhebung als ohne
+Treffer.
+
+### Wissenslandkarte
+
+Das Layout ist eine Ebenenzerlegung des gerichteten, kreisfreien
+Konzeptgraphen: Ebene 0 sind die Konzepte ohne Voraussetzung, jedes weitere
+liegt eine Ebene über seiner spätesten Voraussetzung. Bewusst kein
+kräftebasiertes Verfahren – das ordnet bei jedem Aufruf leicht anders an, und
+bei einer Landkarte, in der man sich wiederfinden soll, ist das ein Nachteil.
+
+In der Darstellung liegen die Verbindungslinien in einem SVG und die Knoten
+darüber als echte Schaltflächen. Damit sind Tabulator, Eingabetaste und
+Fokusrahmen nativ, und die Namen stehen als Text im Dokument statt als
+SVG-Beschriftung.
+
+### Organisationen
+
+Fünf Tabellen: `organizations`, `memberships`, `cohorts`, `cohort_memberships`,
+`invitations`, dazu `audit_entries`. Die Berechtigungen liegen als reine
+Funktionen in `src/domain/organisation/permissions.ts`; geprüft wird trotzdem
+dort, wo die Daten gelesen werden – die Funktionen beschreiben die Regel
+einheitlich, sie ersetzen die Prüfung nicht.
+
+Server Actions prüfen die Mitgliedschaft jedes Mal neu. Dass die aufrufende
+Seite schon geprüft hat, genügt nicht: Server Actions sind eigene
+Einstiegspunkte und lassen sich unabhängig von der Seite aufrufen, auf der ihr
+Knopf steht.
+
+### Funktionsschalter
+
+Vier Schalter über Umgebungsvariablen, gelesen in `src/server/feature-flags.ts`
+und über einen Kontext an den Browser gereicht. Es gibt bewusst keinen Weg, sie
+im Browser zu ändern: Ein Schalter, den die Oberfläche selbst setzen kann, ist
+keine Betriebsentscheidung mehr.
+
+Fehlt der Kontext – etwa in einem einzeln gerenderten Baustein –, gilt alles als
+eingeschaltet. Ein fehlender Kontext soll Funktionen nicht stillschweigend
+verschwinden lassen; das wäre schwerer zu finden als eine Funktion, die einmal
+zu viel erscheint.
+
+### Service Worker
+
+Liegt als gewöhnliche Datei unter `public/sw.js` und wird nicht gebündelt.
+Zwischengespeichert werden ausschließlich unveränderliche Bausteine; für
+Seitenaufrufe gilt „immer aus dem Netz, sonst Offlineseite". Die Begründung
+steht in Abschnitt 16 des README und im Quelltext.

@@ -166,3 +166,51 @@ Bewertung an den eigenen Server übermittelt und dort als Teil der Abgabe
 gespeichert, aber an keinen Dritten weitergegeben. Die Python-Laufzeit liegt
 selbst gehostet vor; es wird kein CDN kontaktiert, sodass auch kein Dritter
 erfährt, wer die Anwendung nutzt.
+
+---
+
+## Nachtrag: Sichtbarkeit in Kohorten
+
+Mit dem Organisationsbereich kommt eine Frage hinzu, die es vorher nicht gab:
+Wer darf den Lernstand einer Person sehen?
+
+Die Antwort ist gestuft.
+
+**Ohne Einwilligung** fließt eine Person ausschließlich in Summenwerte ein.
+Ihr Name erscheint in keiner Ansicht. Summenwerte werden zudem erst ab drei
+Mitgliedern ausgewiesen – bei weniger wären sie keine Summen mehr, sondern
+Aussagen über einzelne Menschen. Und ein Konzept taucht in der Auswertung „woran
+die Gruppe hängt" nur auf, wenn mindestens die Hälfte der Gruppe es begonnen
+hat; sonst stünde dort, was genau eine Person angefangen hat.
+
+**Mit Einwilligung** sehen Lehrkräfte den Namen, die Anzahl abgeschlossener
+Lektionen, die Anzahl gelöster Aufgaben und den Tag der letzten Aktivität.
+Mehr nicht.
+
+**Unabhängig von jeder Einwilligung** gibt es keine Funktion, die einzelne
+Versuche, Bearbeitungszeiten, Fehlermeldungen oder eingereichten Code
+herausgibt. Eine Lehrkraft sieht den Stand, nicht den Weg dorthin. Das ist
+keine Einstellung, sondern eine Eigenschaft der Anwendung.
+
+Die Einwilligung
+
+- steht im Profil neben Export und Löschung, weil sie dorthin gehört,
+- ist standardmäßig aus,
+- lässt sich jederzeit zurücknehmen und wirkt sofort,
+- wird mit Zeitpunkt festgehalten, damit nachvollziehbar bleibt, ab wann sie
+  galt.
+
+## Nachtrag: Prüfprotokoll
+
+Das Prüfprotokoll einer Organisation hält fest, wer wann was verwaltet hat –
+Kohorte angelegt, Einladung erstellt, Einladung eingelöst. Es hält
+ausdrücklich nicht fest, was jemand gelernt hat. Es dient der
+Nachvollziehbarkeit von Verwaltungshandlungen und ist kein
+Beobachtungswerkzeug.
+
+## Nachtrag: Zwischenspeicher im Browser
+
+Der Service Worker legt keine Seite des angemeldeten Bereichs im Browser ab.
+Der Verzicht ist bewusst: Solche Seiten enthalten personenbezogene Daten, und
+ein Browser-Cache überdauert das Abmelden. Zwischengespeichert wird nur, was
+für alle gleich ist – die Python-Laufzeit und die statischen Bausteine.
