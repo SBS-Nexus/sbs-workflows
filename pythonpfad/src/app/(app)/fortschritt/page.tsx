@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { requireUser } from '@/server/auth/session';
 import { getDashboardData } from '@/server/services/progress-service';
+import { getMotivationSummary } from '@/server/services/motivation-service';
+import { LearningRhythm } from '@/components/motivation/learning-rhythm';
+import { MilestoneList } from '@/components/motivation/milestone-list';
 import {
   Badge,
   ButtonLink,
@@ -9,7 +12,6 @@ import {
   EmptyState,
   ProgressBar,
   SectionHeading,
-  cx,
 } from '@/components/ui/primitives';
 
 export const metadata: Metadata = { title: 'Fortschritt' };
@@ -24,7 +26,10 @@ const BAND_TONE = {
 
 export default async function ProgressPage(): Promise<React.ReactElement> {
   const user = await requireUser();
-  const data = await getDashboardData(user.id);
+  const [data, motivation] = await Promise.all([
+    getDashboardData(user.id),
+    getMotivationSummary(user.id),
+  ]);
 
   const maxActivity = Math.max(1, ...data.weeklyActivity.map((d) => d.activities));
 
@@ -71,6 +76,8 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
         </dl>
       </section>
 
+      <LearningRhythm rhythm={motivation.rhythm} />
+
       {/* --- Wochenübersicht ----------------------------------------------- */}
       <section aria-labelledby="woche">
         <SectionHeading
@@ -99,7 +106,6 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
               </li>
             ))}
           </ul>
-          <p className="mt-4 text-sm text-[var(--text-muted)]">{data.streak.message}</p>
         </Card>
       </section>
 
@@ -231,37 +237,7 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
         </Card>
       </section>
 
-      {/* --- Meilensteine ------------------------------------------------------ */}
-      <section aria-labelledby="meilensteine">
-        <SectionHeading
-          id="meilensteine"
-          description="Ruhige Marken ohne Punktesammeln. Nichts davon läuft ab oder geht verloren."
-        >
-          Meilensteine
-        </SectionHeading>
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {data.milestones.map((milestone) => (
-            <li
-              key={milestone.id}
-              className={cx(
-                'rounded-lg border p-4',
-                milestone.reached
-                  ? 'border-[var(--success)] bg-[var(--success-soft)]'
-                  : 'border-dashed border-[var(--border-strong)]',
-              )}
-            >
-              <p className="flex items-center gap-2 font-medium">
-                <span aria-hidden="true">{milestone.reached ? '✓' : '○'}</span>
-                <span>
-                  <span className="sr-only">{milestone.reached ? 'Erreicht: ' : 'Offen: '}</span>
-                  {milestone.label}
-                </span>
-              </p>
-              <p className="mt-1 text-sm text-[var(--text-muted)]">{milestone.description}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <MilestoneList milestones={motivation.milestones} next={motivation.next} />
 
       <p className="text-sm text-[var(--text-muted)]">
         Alle hier gezeigten Daten kannst du unter{' '}

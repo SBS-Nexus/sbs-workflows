@@ -21,6 +21,7 @@ import {
   touchLearningSession,
 } from '@/server/services/progress-service';
 import { getReviewCenterData } from '@/server/services/review-service';
+import { getMotivationSummary } from '@/server/services/motivation-service';
 import { rebuildLearningPath } from '@/server/actions/onboarding-actions';
 
 /**
@@ -436,7 +437,47 @@ describe('Dashboard und Wiederholungscenter', () => {
     expect(data.totals.exercisesPassed).toBe(1);
     expect(data.weeklyActivity).toHaveLength(7);
     expect(data.moduleProgress.length).toBeGreaterThanOrEqual(3);
-    expect(data.milestones.some((m) => m.id === 'first-lesson')).toBe(true);
+  });
+
+  it('vergibt Meilensteine und schreibt sie dauerhaft fest', async () => {
+    // Der Abschluss einer Lektion setzt voraus, dass jede ihrer Aufgaben
+    // einmal selbst gelöst wurde – das ist an anderer Stelle geprüft. Hier
+    // geht es um die Vergabe des Meilensteins, deshalb wird der Zustand
+    // direkt gesetzt.
+    const lektion = await prisma.lesson.findUniqueOrThrow({
+      where: { slug: 'was-ist-ein-programm' },
+      select: { id: true },
+    });
+    await prisma.lessonProgress.create({
+      data: { userId, lessonId: lektion.id, state: 'COMPLETED', completedAt: new Date() },
+    });
+
+    const erste = await getMotivationSummary(userId);
+    const ersteLektion = erste.milestones.find((m) => m.key === 'erste-lektion');
+    expect(ersteLektion?.reached).toBe(true);
+    expect(ersteLektion?.awardedAt).toBeInstanceOf(Date);
+    expect(erste.freshlyAwarded.map((m) => m.key)).toContain('erste-lektion');
+
+    // Beim zweiten Aufruf gilt er als bekannt und nicht mehr als frisch.
+    const zweite = await getMotivationSummary(userId);
+    expect(zweite.milestones.find((m) => m.key === 'erste-lektion')?.reached).toBe(true);
+    expect(zweite.freshlyAwarded).toHaveLength(0);
+
+    // Genau ein Eintrag, auch nach mehreren Aufrufen.
+    const eintraege = await prisma.milestoneAward.count({
+      where: { userId, key: 'erste-lektion' },
+    });
+    expect(eintraege).toBe(1);
+  });
+
+  it('nimmt einen Meilenstein nicht zurück, wenn der Wert später sinkt', async () => {
+    await prisma.milestoneAward.create({ data: { userId, key: 'zehn-aufgaben' } });
+
+    // Es sind keine zehn Aufgaben bestanden – der Meilenstein bleibt trotzdem
+    // erreicht. Eine Auszeichnung zu entziehen wäre genau die Verlustmechanik,
+    // die dieses Produkt nicht haben soll.
+    const summary = await getMotivationSummary(userId);
+    expect(summary.milestones.find((m) => m.key === 'zehn-aufgaben')?.reached).toBe(true);
   });
 
   it('sammelt Fehlermuster für die Rückmeldung', async () => {

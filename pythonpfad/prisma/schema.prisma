@@ -179,9 +179,30 @@ model User {
   learningSessions    LearningSession[]
   tutorInteractions   TutorInteraction[]
   reviewItems         ReviewQueueItem[]
+  milestoneAwards     MilestoneAward[]
 
   @@index([role])
   @@map("users")
+}
+
+/// Ein erreichter Meilenstein.
+///
+/// Wird einmal vergeben und nie wieder entzogen. Ein Kompetenzwert kann durch
+/// Vergessen sinken, aber die Person hat das damals wirklich gekonnt – eine
+/// Auszeichnung zurückzunehmen wäre genau die Verlustmechanik, die dieses
+/// Produkt nicht haben soll.
+model MilestoneAward {
+  id        String   @id @default(cuid())
+  userId    String
+  /// Schlüssel aus src/domain/motivation/milestones.ts.
+  key       String
+  awardedAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@map("milestone_awards")
 }
 
 /// Opake Sitzungstoken. In der Datenbank liegt nur der SHA-256-Hash, damit ein
