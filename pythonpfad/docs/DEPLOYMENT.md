@@ -219,3 +219,75 @@ Dateinamen sorgen dafür, dass Browser die neue Fassung laden.
 - [ ] Aufbewahrungsfrist mit der Datenschutzerklärung abgeglichen
 - [ ] `npm run verify` läuft in der Auslieferungskette
 - [ ] `npm audit` in der Auslieferungskette
+
+---
+
+## Nachtrag: Überwachung, Schalter und Prüfkette
+
+### Endpunkte in die Überwachung aufnehmen
+
+| Pfad          | Prüfung                      | Erwartung                           |
+| ------------- | ---------------------------- | ----------------------------------- |
+| `/api/health` | Prozess nimmt Anfragen an    | HTTP 200, `{"status":"ok"}`         |
+| `/api/ready`  | Datenbank **und** Inhalte da | HTTP 200, `lessons` größer als null |
+
+Für Kubernetes: `/api/health` als Liveness-Probe, `/api/ready` als
+Readiness-Probe. Die Trennung ist wichtig – ein Neustart, nur weil die
+Datenbank kurz nicht erreichbar war, verlängert den Ausfall.
+
+Beide Antworten tragen `Cache-Control: no-store`. Ein zwischengespeichertes
+Lebenszeichen wäre schlimmer als keines.
+
+### Funktionsschalter
+
+Vier Bereiche lassen sich ohne neue Fassung abschalten:
+
+```bash
+FEATURE_AUSFUEHRUNGS_VISUALISIERER="false"   # Zeitleiste abschalten
+FEATURE_WISSENSLANDKARTE="false"             # Konzeptgraph und Prognose
+FEATURE_ORGANISATIONEN="false"               # nur Einzelkonten
+FEATURE_EDITOR_VORSCHLAEGE="false"           # Vorschlagsliste im Editor
+```
+
+Wirksam nach einem Neustart. Gelesen werden nur die ausdrücklichen Werte
+`true` und `false`; alles andere führt zum Standard, nicht zu zufälligem
+Verhalten. Ohne jede gesetzte Variable funktioniert die Anwendung vollständig.
+
+Abgeschaltete Bereiche werden nicht nur ausgeblendet: Die Wissenslandkarte wird
+gar nicht erst berechnet, und die Organisationsseiten antworten wie nicht
+vorhanden.
+
+### Protokolle einsammeln
+
+Ausgabe ist eine JSON-Zeile je Ereignis auf stdout, Fehler auf stderr. Felder:
+`ts`, `level`, `message`, dazu `requestId` und je nach Ereignis `durationMs`.
+Personenbezogene Felder werden vor dem Schreiben entfernt.
+
+Wer eine Fehlerüberwachung anbindet, sollte prüfen, dass sie nicht zusätzlich
+Anfragekörper mitschickt – die Sperrliste greift nur für die eigenen
+Protokollzeilen.
+
+### Prüfkette
+
+`.github/workflows/pythonpfad.yml` läuft bei jeder Änderung unterhalb von
+`pythonpfad/` und deckt die vollständige Kette ab: Migrationen, Seeding,
+Typecheck, Lint, Formatprüfung, Vitest, Prüfung aller Musterlösungen gegen ihre
+eigenen Tests, Prüfung der Ausführungsaufzeichnung gegen das echte Gerüst,
+Produktionsbuild und Playwright. Bei einem Fehlschlag wird der Playwright-Bericht
+sieben Tage lang aufbewahrt.
+
+Vor dem Ausrollen genügt lokal:
+
+```bash
+npm run verify        # Typecheck, Lint, Tests, Build
+npm run test:e2e      # gegen den Produktionsbuild
+python3 scripts/verify_tracer.py
+```
+
+### Nach dem Ausrollen einer neuen Fassung
+
+Der Service Worker trägt eine Versionskennung im Namen seines Speichers. Wird
+sie in `public/sw.js` erhöht, räumt die Anwendung beim nächsten Besuch alle
+älteren Speicher ab. Das ist nötig, wenn sich die Struktur der
+zwischengespeicherten Bausteine ändert – bei einer gewöhnlichen Aktualisierung
+nicht, weil Next.js seine Dateinamen ohnehin mit einer Prüfsumme versieht.

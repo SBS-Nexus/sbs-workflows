@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Card, cx } from '@/components/ui/primitives';
 import { PythonWorkbench } from '@/components/editor/python-workbench';
+import { clearLabHandoff, readLabHandoff } from '@/lib/runner/lab-handoff';
 
 const STARTER = `# Probiere hier alles aus, was dir einfaellt.
 # Nichts davon wird bewertet.
@@ -42,8 +43,17 @@ const SNIPPETS = [
 ] as const;
 
 export function CodeLab(): React.ReactElement {
-  const [code, setCode] = useState(STARTER);
+  // Aus einer Lektion übernommener Code hat Vorrang vor der Vorlage.
+  const [code, setCode] = useState(() => readLabHandoff() ?? STARTER);
   const [activeSnippet, setActiveSnippet] = useState<string | null>(null);
+
+  // Aufgeräumt wird erst nach dem Rendern. Stünde das Löschen im Initialisierer
+  // oben, ginge der Wert verloren, sobald React einen Render verwirft und neu
+  // beginnt – und im Editor stünde dann die Standardvorlage statt des
+  // Beispiels aus der Lektion.
+  useEffect(() => {
+    clearLabHandoff();
+  }, []);
 
   return (
     <div className="space-y-5">

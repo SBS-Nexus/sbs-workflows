@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/server/auth/session';
 import { getDashboardData } from '@/server/services/progress-service';
+import { getMotivationSummary } from '@/server/services/motivation-service';
+import { LearningRhythm } from '@/components/motivation/learning-rhythm';
 import { prisma } from '@/server/db/prisma';
 import {
   Badge,
@@ -21,7 +23,10 @@ export default async function LearningPathPage(): Promise<React.ReactElement> {
   const user = await requireUser();
   if (!user.onboardingCompleted) redirect('/onboarding');
 
-  const data = await getDashboardData(user.id);
+  const [data, motivation] = await Promise.all([
+    getDashboardData(user.id),
+    getMotivationSummary(user.id),
+  ]);
 
   if (data.lessons.length === 0) {
     return (
@@ -78,6 +83,8 @@ export default async function LearningPathPage(): Promise<React.ReactElement> {
           />
         </div>
       </Card>
+
+      <LearningRhythm rhythm={motivation.rhythm} variant="compact" />
 
       {data.dueReviews > 0 ? (
         <Callout tone="info" title="Wiederholungen stehen an">

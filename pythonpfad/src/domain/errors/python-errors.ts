@@ -328,9 +328,13 @@ export function explainPythonError(traceback: string): PythonErrorInfo {
 
 /** Findet die letzte Zeilennummer, die sich auf den Code der lernenden Person bezieht. */
 export function extractLineNumber(traceback: string): number | null {
-  // Pyodide meldet den Nutzercode als "<exec>" oder "<string>".
+  // Pyodide meldet den Nutzercode als "<exec>" oder "<string>". Bei der
+  // schrittweisen Ausführung trägt er "<lernprogramm>" – dort muss er von
+  // Pyodides eigenen Rahmen unterscheidbar sein, die ebenfalls "<exec>" heißen.
   const matches = [
-    ...traceback.matchAll(/File "(?:<exec>|<string>|<stdin>|main\.py)", line (\d+)/g),
+    ...traceback.matchAll(
+      /File "(?:<exec>|<lernprogramm>|<string>|<stdin>|main\.py)", line (\d+)/g,
+    ),
   ];
   const last = matches.at(-1);
   if (last?.[1]) return Number.parseInt(last[1], 10);

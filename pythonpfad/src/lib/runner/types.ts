@@ -60,6 +60,62 @@ export interface RunOptions {
   timeoutMs?: number;
 }
 
+// ---------------------------------------------------------------------------
+// Schrittweise Ausführung
+// ---------------------------------------------------------------------------
+
+export interface TraceVariable {
+  name: string;
+  /** Bereits als Python-Text dargestellt und auf Länge gekürzt. */
+  value: string;
+  /** Python-Typname, etwa `int`. Die deutsche Bezeichnung entsteht in der Domainschicht. */
+  type: string;
+}
+
+export interface TraceStep {
+  /** Zeile, die als Nächstes ausgeführt wird (1-basiert). */
+  line: number;
+  event: 'line' | 'return';
+  /** `<module>` auf oberster Ebene, sonst der Funktionsname. */
+  function: string;
+  /** Verschachtelungstiefe eigener Funktionsaufrufe. 0 = oberste Ebene. */
+  depth: number;
+  /** Zustand *vor* dieser Zeile, nach Namen sortiert. */
+  variables: TraceVariable[];
+  /** Länge der bis hierhin erzeugten Ausgabe – erlaubt das Ausschneiden des Zuwachses. */
+  stdoutLength: number;
+  /** Nur bei `return` gesetzt. */
+  returnValue?: string;
+}
+
+export interface TraceResult {
+  stdout: string;
+  error: RunnerError | null;
+  steps: TraceStep[];
+  /** Wurde die Aufzeichnung wegen der Höchstzahl abgeschnitten? */
+  truncated: boolean;
+  durationMs: number;
+  timedOut: boolean;
+  cancelled: boolean;
+}
+
+export interface TraceOptions {
+  code: string;
+  stdin?: string[];
+  timeoutMs?: number;
+  /** Höchstzahl aufgezeichneter Schritte. */
+  maxSteps?: number;
+}
+
+/**
+ * Obergrenze der Aufzeichnung.
+ *
+ * 1500 Schritte decken jede Aufgabe des Kurses mit großem Abstand ab. Eine
+ * Endlosschleife läuft dagegen sofort dagegen – und wird sauber als
+ * abgeschnitten gemeldet, statt den Browser vollzuschreiben.
+ */
+export const DEFAULT_MAX_TRACE_STEPS = 1_500;
+
 export type RunnerStatus =
   | { phase: 'idle' }
   | { phase: 'loading'; message: string; progress: number | null }
@@ -71,6 +127,14 @@ export interface PythonRunner {
   /** Lädt die Laufzeit. Mehrfachaufrufe sind unschädlich. */
   init(): Promise<void>;
   run(options: RunOptions): Promise<RunResult>;
+  /**
+   * Führt aus und zeichnet jeden Schritt auf.
+   *
+   * Bewusst eine eigene Methode und kein Schalter an `run`: Ein späterer
+   * Container-Runner kann die Aufzeichnung anders oder gar nicht anbieten,
+   * ohne dass sich die Signatur des normalen Laufs ändert.
+   */
+  trace(options: TraceOptions): Promise<TraceResult>;
   /** Bricht die laufende Ausführung ab. */
   stop(): Promise<void>;
   /** Verwirft den Zustand vollständig und startet die Laufzeit neu. */

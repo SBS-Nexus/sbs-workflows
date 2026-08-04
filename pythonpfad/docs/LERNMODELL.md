@@ -310,3 +310,90 @@ Lektion → Projekte. Festigen vor Erweitern.
 - **Keine Ranglisten und keine künstliche Dringlichkeit.**
 - **Keine scheinwissenschaftliche Genauigkeit.** Bänder statt Nachkommastellen,
   mit ausdrücklichem Hinweis auf die Grenzen der Aussage.
+
+---
+
+## Nachtrag: Ausführung sichtbar machen
+
+Die erste Lektion erklärt ein Programm als Rezept, das ein sehr genauer
+Mitarbeiter Schritt für Schritt abarbeitet. Das ist ein gutes mentales Modell –
+aber solange es nur behauptet wird, bleibt es Glaubenssache.
+
+Der Ausführungs-Visualisierer macht daraus etwas Beobachtbares. Er zeichnet
+über `sys.settrace` jeden Schritt auf und zeigt
+
+- welche Zeile als Nächstes läuft,
+- welche Variablen es gibt, mit welchem Wert und welchem Typ,
+- was sich seit dem letzten Schritt geändert hat,
+- was bis hierhin ausgegeben wurde.
+
+Zwei Entscheidungen darin sind didaktisch begründet.
+
+**Der Zustand _vor_ der Zeile.** Aufgezeichnet wird nicht die Wirkung einer
+Zeile, sondern der Zustand, bevor sie läuft. Die Wirkung ist damit der
+Unterschied zwischen zwei Schritten – und genau dieser Unterschied ist das,
+was beim Programmieren begriffen werden muss. Wer nur Endzustände sieht, lernt
+Ergebnisse auswendig statt Abläufe zu verstehen.
+
+**Die nie ausgeführten Zeilen.** Sie werden abgeblendet dargestellt. Erfahrungs-
+gemäß ist das der schnellste Weg zu der Frage, warum eine Bedingung nicht
+greift: Ein ganzer `else`-Zweig, der blass bleibt, erklärt sich von selbst.
+
+Der Visualisierer ersetzt die redaktionell geschriebene Schrittliste unter dem
+Beispiel nicht. Diese ist geprüft und liest sich wie eine Erklärung. Was ihr
+fehlte, war die Möglichkeit, etwas zu verändern und nachzusehen – dafür gibt es
+den Knopf daneben und die Übernahme ins Code-Labor.
+
+## Nachtrag: Behaltensprognose
+
+Der Fortschrittsbereich zeigt, wie sich die geschätzte Abrufwahrscheinlichkeit
+über dreißig Tage entwickelt, wenn nichts weiter geübt wird. Grundlage ist die
+Vergessenskurve in der Exponentialform R = e^(−t/S). Die Stabilität S stammt
+aus dem bestehenden Kompetenzmodell und wird nicht neu erfunden – sie wächst
+dort mit jedem erfolgreichen Abruf, und genau das ist der Grund, warum
+verteilte Wiederholung wirkt.
+
+Zwei Feinheiten:
+
+- Der Kompetenzwert deckelt die Kurve. Wer ein Konzept halb beherrscht, kann es
+  auch unmittelbar nach dem Üben nicht sicher abrufen. Ohne diese Deckelung sähe
+  jedes gerade geübte Konzept nach hundert Prozent aus.
+- Gemittelt wird nur über begonnene Konzepte. Nie geübte mitzuzählen würde die
+  Kurve mit jedem neuen Kursthema nach unten ziehen und den Eindruck erwecken,
+  es ginge bergab – während in Wirklichkeit gerade etwas dazugekommen ist.
+
+Die Zielschwelle liegt bei 85 Prozent: hoch genug, dass der Abruf gelingt,
+niedrig genug, dass er Anstrengung kostet. Diese Anstrengung ist es, die das
+Behalten stärkt.
+
+Die Anzeige benennt die Kurve ausdrücklich als Modellrechnung und nicht als
+Messung. Sie taugt zur Auswahl der nächsten Übung, nicht als Aussage über eine
+einzelne Person an einem einzelnen Tag.
+
+## Nachtrag: Motivation ohne Dunkelmuster
+
+Der Lernrhythmus setzt eine Produktentscheidung um, die im Quelltext begründet
+steht, damit sie beim nächsten Umbau nicht versehentlich wegfällt.
+
+**Die Hauptzahl ist die Anzahl der Lerntage der letzten dreißig Tage, nicht die
+Serie.** Sie kann nur wachsen, schrumpft nicht durch eine Pause, bildet
+unregelmäßiges Lernen fair ab und belohnt nicht das Abhaken um Mitternacht. Die
+Serie steht nachrangig daneben und wird nie als Verlust formuliert.
+
+**Das Tagesziel wird bei hundert Prozent gedeckelt.** Es gibt keine Anzeige für
+„Ziel übertroffen": Wer sein Ziel erreicht hat, soll nicht das Gefühl bekommen,
+es sei zu niedrig gewesen.
+
+**Meilensteine hängen ausnahmslos an Fähigkeiten.** Es gibt bewusst keinen für
+„sieben Tage in Folge" – das wäre eine Belohnung für Anwesenheit, und
+Anwesenheit ist keine Kompetenz. Wer in zwei langen Sitzungen so weit kommt wie
+jemand anders in zwei Wochen, hat dasselbe gelernt.
+
+**Ein vergebener Meilenstein wird nie entzogen**, auch wenn der zugrunde
+liegende Wert später sinkt. Ein Kompetenzwert kann durch Vergessen zurückgehen,
+aber die Person hat das damals wirklich gekonnt.
+
+Jede Formulierung im Rhythmusbereich ist daraufhin geprüft, ob sie auch dann
+noch in Ordnung ist, wenn jemand drei Wochen nicht da war und heute zum ersten
+Mal wieder hereinschaut. Mehrere Tests prüfen genau das und lassen weder
+„nicht aufgeben" noch „schon wieder" noch ein Ausrufezeichen durch.

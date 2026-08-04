@@ -1,10 +1,14 @@
 import {
+  DEFAULT_MAX_TRACE_STEPS,
   DEFAULT_TIMEOUT_MS,
   type PythonRunner,
   type RunOptions,
   type RunResult,
   type RunnerStatus,
   type RunnerTestResult,
+  type TraceOptions,
+  type TraceResult,
+  type TraceStep,
 } from './types';
 
 /**
@@ -241,6 +245,134 @@ export class PyodideRunner implements PythonRunner {
                 traceback: error instanceof Error ? error.message : String(error),
               },
         testResults: [],
+        durationMs: Math.round(performance.now() - startedAt),
+        timedOut,
+        cancelled,
+      };
+    }
+  }
+
+  /**
+   * Führt aus und zeichnet jeden Schritt auf.
+   *
+   * Bewusst ohne Zwischenmeldungen: Die Zeitleiste wird erst angezeigt, wenn
+   * die Aufzeichnung vollständig vorliegt. Ein halb gefüllter Schieberegler,
+   * dessen Ende sich noch verschiebt, wäre schwerer zu bedienen als eine
+   * kurze Wartezeit.
+   */
+  async trace(options: TraceOptions): Promise<TraceResult> {
+    const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    const maxSteps = options.maxSteps ?? DEFAULT_MAX_TRACE_STEPS;
+    const startedAt = performance.now();
+
+    this.#buffer = { stdout: '', stderr: '' };
+
+    try {
+      await this.init();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        stdout: '',
+        error: { type: 'Startfehler', message, line: null, traceback: message },
+        steps: [],
+        truncated: false,
+        durationMs: Math.round(performance.now() - startedAt),
+        timedOut: false,
+        cancelled: false,
+      };
+    }
+
+    const worker = this.#worker;
+    if (!worker) {
+      return {
+        stdout: '',
+        error: {
+          type: 'Startfehler',
+          message: 'Kein Worker verfügbar.',
+          line: null,
+          traceback: 'Kein Worker verfügbar.',
+        },
+        steps: [],
+        truncated: false,
+        durationMs: 0,
+        timedOut: false,
+        cancelled: false,
+      };
+    }
+
+    this.#setStatus({ phase: 'running' });
+
+    const id = crypto.randomUUID();
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+    const payloadPromise = new Promise<string>((resolve, reject) => {
+      this.#pending = { id, resolve, reject };
+      timeoutHandle = setTimeout(() => {
+        reject(new TimeoutError());
+      }, timeoutMs);
+    });
+
+    worker.postMessage({
+      type: 'trace',
+      id,
+      code: options.code,
+      stdin: options.stdin ?? [],
+      maxSteps,
+    });
+
+    try {
+      const payload = await payloadPromise;
+      clearTimeout(timeoutHandle);
+      this.#setStatus({ phase: 'ready', pythonVersion: this.#pythonVersion });
+
+      const parsed = JSON.parse(payload) as {
+        stdout: string;
+        error: { type: string; message: string; line: number | null; traceback: string } | null;
+        steps: TraceStep[];
+        truncated: boolean;
+      };
+
+      return {
+        stdout: parsed.stdout,
+        error: parsed.error,
+        steps: parsed.steps,
+        truncated: parsed.truncated,
+        durationMs: Math.round(performance.now() - startedAt),
+        timedOut: false,
+        cancelled: false,
+      };
+    } catch (error) {
+      clearTimeout(timeoutHandle);
+      this.#pending = null;
+
+      const timedOut = error instanceof TimeoutError;
+      const cancelled = error instanceof CancelledError;
+      if (timedOut || cancelled) await this.reset();
+
+      // Beim Abbruch geht die Aufzeichnung verloren: Sie liegt im Worker, der
+      // gerade hart beendet wurde. Das ist der bewusst in Kauf genommene Preis
+      // dafür, dass eine Endlosschleife garantiert stoppt. Die Meldung sagt
+      // deshalb klar, was passiert ist, statt eine leere Leiste zu zeigen.
+      const message = timedOut
+        ? `Die Aufzeichnung wurde nach ${Math.round(timeoutMs / 1000)} Sekunden abgebrochen. Das Programm läuft vermutlich endlos.`
+        : cancelled
+          ? 'Die Aufzeichnung wurde gestoppt.'
+          : error instanceof Error
+            ? error.message
+            : String(error);
+
+      return {
+        stdout: this.#buffer.stdout,
+        error: cancelled
+          ? null
+          : {
+              type: timedOut ? 'Zeitüberschreitung' : 'Laufzeitfehler',
+              message,
+              line: null,
+              traceback: message,
+            },
+        steps: [],
+        truncated: false,
         durationMs: Math.round(performance.now() - startedAt),
         timedOut,
         cancelled,

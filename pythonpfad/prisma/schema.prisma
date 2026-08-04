@@ -12,12 +12,12 @@
 //    "Konto löschen" vollständig und ohne Restdaten funktioniert.
 
 generator client {
-  provider                = "prisma-client"
-  output                  = "../src/generated/prisma"
-  runtime                 = "nodejs"
-  moduleFormat            = "esm"
-  generatedFileExtension  = "ts"
-  importFileExtension     = ""
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  runtime                = "nodejs"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = ""
 }
 
 datasource db {
@@ -139,14 +139,14 @@ enum LessonState {
 // ---------------------------------------------------------------------------
 
 model User {
-  id                  String          @id @default(cuid())
-  email               String          @unique
+  id           String @id @default(cuid())
+  email        String @unique
   /// scrypt-Hash im Format  scrypt$N$r$p$salt$hash  – nie im Klartext.
-  passwordHash        String
-  name                String
-  role                Role            @default(LEARNER)
-  locale              String          @default("de-DE")
-  timezone            String          @default("Europe/Berlin")
+  passwordHash String
+  name         String
+  role         Role   @default(LEARNER)
+  locale       String @default("de-DE")
+  timezone     String @default("Europe/Berlin")
 
   onboardingCompleted Boolean         @default(false)
   experience          ExperienceLevel @default(NONE)
@@ -162,42 +162,66 @@ model User {
   placementScore      Int?
 
   /// Ausdrückliche Einwilligung, Code an einen externen KI-Anbieter zu senden.
-  aiTutorConsent      Boolean         @default(false)
-  reduceMotion        Boolean         @default(false)
-  theme               String          @default("system")
+  aiTutorConsent Boolean @default(false)
+  reduceMotion   Boolean @default(false)
+  theme          String  @default("system")
 
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  currentPath         LearningPath?   @relation("UserCurrentPath", fields: [currentPathId], references: [id], onDelete: SetNull)
-  sessions            AuthSession[]
-  paths               LearningPath[]  @relation("UserPaths")
-  attempts            Attempt[]
-  mastery             ConceptMastery[]
-  lessonProgress      LessonProgress[]
-  projectSubmissions  ProjectSubmission[]
-  learningSessions    LearningSession[]
-  tutorInteractions   TutorInteraction[]
-  reviewItems         ReviewQueueItem[]
+  currentPath        LearningPath?       @relation("UserCurrentPath", fields: [currentPathId], references: [id], onDelete: SetNull)
+  sessions           AuthSession[]
+  paths              LearningPath[]      @relation("UserPaths")
+  attempts           Attempt[]
+  mastery            ConceptMastery[]
+  lessonProgress     LessonProgress[]
+  projectSubmissions ProjectSubmission[]
+  learningSessions   LearningSession[]
+  tutorInteractions  TutorInteraction[]
+  reviewItems        ReviewQueueItem[]
+  milestoneAwards    MilestoneAward[]
+  memberships        Membership[]
+  cohortMemberships  CohortMembership[]
+  auditEntries       AuditEntry[]        @relation("AuditActor")
 
   @@index([role])
   @@map("users")
 }
 
+/// Ein erreichter Meilenstein.
+///
+/// Wird einmal vergeben und nie wieder entzogen. Ein Kompetenzwert kann durch
+/// Vergessen sinken, aber die Person hat das damals wirklich gekonnt – eine
+/// Auszeichnung zurückzunehmen wäre genau die Verlustmechanik, die dieses
+/// Produkt nicht haben soll.
+model MilestoneAward {
+  id        String   @id @default(cuid())
+  userId    String
+  /// Schlüssel aus src/domain/motivation/milestones.ts.
+  key       String
+  awardedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@map("milestone_awards")
+}
+
 /// Opake Sitzungstoken. In der Datenbank liegt nur der SHA-256-Hash, damit ein
 /// Datenbankleck keine übernehmbaren Sitzungen preisgibt.
 model AuthSession {
-  id           String   @id @default(cuid())
-  userId       String
-  tokenHash    String   @unique
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
   /// Zufallswert für das CSRF-Double-Submit-Verfahren.
-  csrfSecret   String
-  userAgent    String?
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
-  lastSeenAt   DateTime @default(now())
+  csrfSecret String
+  userAgent  String?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
@@ -218,8 +242,8 @@ model Course {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  modules     CourseModule[]
-  paths       LearningPath[]
+  modules CourseModule[]
+  paths   LearningPath[]
 
   @@index([status])
   @@map("courses")
@@ -227,21 +251,21 @@ model Course {
 
 /// "Module" ist in Prisma/JS ein belegter Begriff – daher CourseModule.
 model CourseModule {
-  id             String        @id @default(cuid())
-  courseId       String
-  slug           String        @unique
-  title          String
-  summary        String
+  id               String        @id @default(cuid())
+  courseId         String
+  slug             String        @unique
+  title            String
+  summary          String
   /// Kurze Begründung, warum dieses Modul an dieser Stelle steht.
-  rationale      String
-  order          Int
-  status         ContentStatus @default(PUBLISHED)
+  rationale        String
+  order            Int
+  status           ContentStatus @default(PUBLISHED)
   /// Slugs der Module, die vorher sinnvoll sind (weiche Reihenfolge).
-  prerequisiteIds String[]     @default([])
-  estimatedMinutes Int         @default(0)
+  prerequisiteIds  String[]      @default([])
+  estimatedMinutes Int           @default(0)
 
-  course         Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  lessons        Lesson[]
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
 
   @@unique([courseId, order])
   @@index([courseId])
@@ -249,32 +273,32 @@ model CourseModule {
 }
 
 model Lesson {
-  id                    String        @id @default(cuid())
-  moduleId              String
-  slug                  String        @unique
-  title                 String
+  id                     String        @id @default(cuid())
+  moduleId               String
+  slug                   String        @unique
+  title                  String
   /// Konkrete, überprüfbare Lernziele (Abschnitt A der Lektion).
-  learningObjectives    String[]
+  learningObjectives     String[]
   /// Abschnitt B: Alltagsproblem.
-  everydayProblem       String
+  everydayProblem        String
   /// Abschnitt C: mentales Modell / Analogie.
-  mentalModel           String
+  mentalModel            String
   /// Abschnitt D: durchgerechnetes Beispiel mit Zeilenkommentaren (JSON).
-  workedExample         Json
+  workedExample          Json
   /// Abschnitt K: Reflexionsfragen.
-  reflectionPrompts     String[]
+  reflectionPrompts      String[]
   /// Häufige Denkfehler mit Richtigstellung (JSON-Liste).
-  commonMistakes        Json
-  estimatedMinutes      Int           @default(12)
-  order                 Int
-  contentVersion        String        @default("1.0.0")
-  status                ContentStatus @default(PUBLISHED)
-  prerequisiteConceptIds String[]     @default([])
+  commonMistakes         Json
+  estimatedMinutes       Int           @default(12)
+  order                  Int
+  contentVersion         String        @default("1.0.0")
+  status                 ContentStatus @default(PUBLISHED)
+  prerequisiteConceptIds String[]      @default([])
 
-  module                CourseModule  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  exercises             Exercise[]
-  concepts              LessonConcept[]
-  progress              LessonProgress[]
+  module    CourseModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  exercises Exercise[]
+  concepts  LessonConcept[]
+  progress  LessonProgress[]
 
   @@unique([moduleId, order])
   @@index([moduleId])
@@ -292,9 +316,9 @@ model Concept {
   difficulty      Int      @default(1)
   prerequisiteIds String[] @default([])
 
-  lessons         LessonConcept[]
-  exercises       ExerciseConcept[]
-  mastery         ConceptMastery[]
+  lessons   LessonConcept[]
+  exercises ExerciseConcept[]
+  mastery   ConceptMastery[]
 
   @@index([difficulty])
   @@map("concepts")
@@ -306,8 +330,8 @@ model LessonConcept {
   /// true, wenn das Konzept in dieser Lektion erstmals eingeführt wird.
   isPrimary Boolean @default(false)
 
-  lesson    Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  concept   Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  lesson  Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
 
   @@id([lessonId, conceptId])
   @@index([conceptId])
@@ -344,11 +368,11 @@ model Exercise {
   contentVersion  String        @default("1.0.0")
   status          ContentStatus @default(PUBLISHED)
 
-  lesson          Lesson?       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  concepts        ExerciseConcept[]
-  attempts        Attempt[]
-  reviewItems     ReviewQueueItem[]
-  reviewSetItems  ReviewSetItem[]
+  lesson         Lesson?           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  concepts       ExerciseConcept[]
+  attempts       Attempt[]
+  reviewItems    ReviewQueueItem[]
+  reviewSetItems ReviewSetItem[]
 
   @@index([lessonId])
   @@index([type])
@@ -360,10 +384,10 @@ model ExerciseConcept {
   exerciseId String
   conceptId  String
   /// Gewicht 0.0–1.0: wie stark zahlt diese Aufgabe auf das Konzept ein?
-  weight     Float    @default(1.0)
+  weight     Float  @default(1.0)
 
-  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-  concept    Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  concept  Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
 
   @@id([exerciseId, conceptId])
   @@index([conceptId])
@@ -372,17 +396,17 @@ model ExerciseConcept {
 
 /// Kuratiertes Wiederholungsset (Interleaving über mehrere Lektionen hinweg).
 model ReviewSet {
-  id              String        @id @default(cuid())
-  slug            String        @unique
-  title           String
-  description     String
+  id                  String        @id @default(cuid())
+  slug                String        @unique
+  title               String
+  description         String
   /// Frühestens so viele Tage nach Abschluss der Voraussetzungen anbieten.
-  unlockAfterDays Int           @default(1)
+  unlockAfterDays     Int           @default(1)
   /// Slugs der Lektionen, die vorher abgeschlossen sein müssen.
-  requiredLessonSlugs String[]  @default([])
-  status          ContentStatus @default(PUBLISHED)
+  requiredLessonSlugs String[]      @default([])
+  status              ContentStatus @default(PUBLISHED)
 
-  items           ReviewSetItem[]
+  items ReviewSetItem[]
 
   @@map("review_sets")
 }
@@ -392,8 +416,8 @@ model ReviewSetItem {
   exerciseId  String
   order       Int
 
-  reviewSet   ReviewSet @relation(fields: [reviewSetId], references: [id], onDelete: Cascade)
-  exercise    Exercise  @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  reviewSet ReviewSet @relation(fields: [reviewSetId], references: [id], onDelete: Cascade)
+  exercise  Exercise  @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
   @@id([reviewSetId, exerciseId])
   @@index([exerciseId])
@@ -401,28 +425,28 @@ model ReviewSetItem {
 }
 
 model Project {
-  id           String        @id @default(cuid())
-  slug         String        @unique
-  title        String
-  description  String
+  id               String        @id @default(cuid())
+  slug             String        @unique
+  title            String
+  description      String
   /// 1–5.
-  difficulty   Int           @default(2)
+  difficulty       Int           @default(2)
   /// Fachliche Anforderungen als Liste.
-  requirements String[]
+  requirements     String[]
   /// Meilensteine mit Prüfkriterien (JSON-Liste).
-  milestones   Json
+  milestones       Json
   /// Startdateien: [{ path, content, readOnly }].
-  starterFiles Json
+  starterFiles     Json
   /// Bewertungsraster (JSON-Liste aus Kriterium + Beschreibung).
-  rubric       Json
+  rubric           Json
   /// Automatisierte Tests über alle Meilensteine hinweg.
-  tests        Json          @default("[]")
-  estimatedMinutes Int       @default(45)
-  status       ContentStatus @default(PUBLISHED)
+  tests            Json          @default("[]")
+  estimatedMinutes Int           @default(45)
+  status           ContentStatus @default(PUBLISHED)
   /// Slugs der benötigten Konzepte.
-  conceptSlugs String[]      @default([])
+  conceptSlugs     String[]      @default([])
 
-  submissions  ProjectSubmission[]
+  submissions ProjectSubmission[]
 
   @@index([status])
   @@map("projects")
@@ -434,40 +458,40 @@ model Project {
 
 /// Individuell zusammengestellte Reihenfolge von Lektionen.
 model LearningPath {
-  id            String   @id @default(cuid())
-  userId        String
-  courseId      String
-  title         String
+  id          String   @id @default(cuid())
+  userId      String
+  courseId    String
+  title       String
   /// Geordnete Lektions-Slugs. Wird bei Änderungen am Ziel neu berechnet.
-  lessonSlugs   String[]
+  lessonSlugs String[]
   /// Begründung, warum der Pfad so aussieht (wird im UI angezeigt).
-  rationale     String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  rationale   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  user          User     @relation("UserPaths", fields: [userId], references: [id], onDelete: Cascade)
-  course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  currentOf     User[]   @relation("UserCurrentPath")
+  user      User   @relation("UserPaths", fields: [userId], references: [id], onDelete: Cascade)
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  currentOf User[] @relation("UserCurrentPath")
 
   @@index([userId])
   @@map("learning_paths")
 }
 
 model LessonProgress {
-  id            String      @id @default(cuid())
-  userId        String
-  lessonId      String
-  state         LessonState @default(NOT_STARTED)
+  id          String      @id @default(cuid())
+  userId      String
+  lessonId    String
+  state       LessonState @default(NOT_STARTED)
   /// Zuletzt geöffneter Abschnitt – ermöglicht Fortsetzen auf anderem Gerät.
-  lastSection   String      @default("objective")
+  lastSection String      @default("objective")
   /// Zwischenstand im Editor je Aufgabe: { [exerciseSlug]: code }.
-  draftCode     Json        @default("{}")
-  completedAt   DateTime?
-  startedAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  draftCode   Json        @default("{}")
+  completedAt DateTime?
+  startedAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lesson        Lesson      @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@unique([userId, lessonId])
   @@index([userId, state])
@@ -494,8 +518,8 @@ model Attempt {
   isReview         Boolean       @default(false)
   createdAt        DateTime      @default(now())
 
-  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercise         Exercise      @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([userId, exerciseId])
@@ -505,27 +529,27 @@ model Attempt {
 }
 
 model ConceptMastery {
-  id                   String   @id @default(cuid())
+  id                   String    @id @default(cuid())
   userId               String
   conceptId            String
   /// 0–100. Bewusst als Orientierung, nicht als Messwert kommuniziert.
-  masteryScore         Float    @default(0)
+  masteryScore         Float     @default(0)
   /// Gedächtnisstabilität in Tagen – steuert das nächste Intervall.
-  stability            Float    @default(1)
+  stability            Float     @default(1)
   /// Personenbezogene Schwierigkeit 1.0–5.0 (höher = braucht mehr Wiederholung).
-  difficulty           Float    @default(2.5)
+  difficulty           Float     @default(2.5)
   lastPracticedAt      DateTime?
   nextReviewAt         DateTime?
-  successfulRetrievals Int      @default(0)
-  failedRetrievals     Int      @default(0)
+  successfulRetrievals Int       @default(0)
+  failedRetrievals     Int       @default(0)
   /// Anzahl bestandener Transferaufgaben – Kernbeleg für echtes Verständnis.
-  transferSuccesses    Int      @default(0)
+  transferSuccesses    Int       @default(0)
   /// Version des Kompetenzalgorithmus, mit dem der Wert entstanden ist.
-  algorithmVersion     String   @default("1.0.0")
-  updatedAt            DateTime @updatedAt
+  algorithmVersion     String    @default("1.0.0")
+  updatedAt            DateTime  @updatedAt
 
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  concept              Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
 
   @@unique([userId, conceptId])
   @@index([userId, nextReviewAt])
@@ -534,19 +558,19 @@ model ConceptMastery {
 
 /// Konkret eingeplante Wiederholung einer einzelnen Aufgabe.
 model ReviewQueueItem {
-  id           String   @id @default(cuid())
-  userId       String
-  exerciseId   String
-  dueAt        DateTime
+  id          String    @id @default(cuid())
+  userId      String
+  exerciseId  String
+  dueAt       DateTime
   /// Wievielte Wiederholung ist das? 0 = Erstlernen.
-  repetition   Int      @default(0)
+  repetition  Int       @default(0)
   /// Warum wurde diese Wiederholung geplant? Für Transparenz im UI.
-  reason       String   @default("Regulärer Wiederholungsplan")
-  completedAt  DateTime?
-  createdAt    DateTime @default(now())
+  reason      String    @default("Regulärer Wiederholungsplan")
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercise     Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
   @@unique([userId, exerciseId])
   @@index([userId, dueAt])
@@ -569,8 +593,8 @@ model ProjectSubmission {
   updatedAt       DateTime         @updatedAt
   createdAt       DateTime         @default(now())
 
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([userId, projectId])
   @@index([userId, status])
@@ -589,7 +613,7 @@ model LearningSession {
   activitiesCompleted Int       @default(0)
   activeMinutes       Int       @default(0)
 
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, startedAt])
   @@map("learning_sessions")
@@ -606,7 +630,7 @@ model TutorInteraction {
   provider   String   @default("rule-based")
   createdAt  DateTime @default(now())
 
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@map("tutor_interactions")
@@ -629,4 +653,151 @@ model AnalyticsEvent {
 
   @@index([eventType, occurredOn])
   @@map("analytics_events")
+}
+
+// ---------------------------------------------------------------------------
+// Organisationen, Kohorten, Lehrkräfte
+// ---------------------------------------------------------------------------
+
+/// Rolle innerhalb einer Organisation.
+///
+/// Bewusst getrennt von der globalen Rolle in `User`: Wer in einer Schule
+/// Lehrkraft ist, ist deswegen weder Administrator der Anwendung noch
+/// Lehrkraft in einer anderen Organisation.
+enum OrgRole {
+  /// Verwaltet die Organisation, kann Mitglieder und Kohorten anlegen.
+  OWNER
+  /// Sieht Kohorten und kann einladen, verwaltet die Organisation aber nicht.
+  TEACHER
+  /// Lernt in einer oder mehreren Kohorten.
+  MEMBER
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  /// Freitext für die Startseite der Organisation.
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships Membership[]
+  cohorts     Cohort[]
+  invitations Invitation[]
+  auditLog    AuditEntry[]
+
+  @@map("organizations")
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrgRole  @default(MEMBER)
+  joinedAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId, role])
+  @@map("memberships")
+}
+
+model Cohort {
+  id             String    @id @default(cuid())
+  organizationId String
+  slug           String
+  name           String
+  description    String    @default("")
+  /// Archivierte Kohorten bleiben lesbar, nehmen aber niemanden mehr auf.
+  archivedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      CohortMembership[]
+  invitations  Invitation[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@map("cohorts")
+}
+
+/// Zugehörigkeit einer lernenden Person zu einer Kohorte.
+model CohortMembership {
+  id       String   @id @default(cuid())
+  cohortId String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  /// Einwilligung, den eigenen Fortschritt namentlich sichtbar zu machen.
+  ///
+  /// Standardmäßig aus. Ohne Einwilligung fließt die Person ausschließlich in
+  /// Summenwerte ein und taucht in keiner Einzelansicht auf. Die Einwilligung
+  /// ist jederzeit widerrufbar; der Zeitpunkt wird festgehalten, damit
+  /// nachvollziehbar bleibt, ab wann sie galt.
+  shareProgressWithTeachers Boolean   @default(false)
+  consentChangedAt          DateTime?
+
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, userId])
+  @@index([userId])
+  @@map("cohort_memberships")
+}
+
+/// Einladung in eine Organisation, wahlweise direkt in eine Kohorte.
+///
+/// Wie bei den Sitzungen liegt nur der SHA-256-Hash des Tokens in der
+/// Datenbank. Ein Datenbankleck gibt damit keine einlösbaren Einladungen preis.
+model Invitation {
+  id             String    @id @default(cuid())
+  organizationId String
+  cohortId       String?
+  /// Rolle, die die eingeladene Person erhält.
+  role           OrgRole   @default(MEMBER)
+  tokenHash      String    @unique
+  /// Optionale Bindung an eine Adresse. Leer bedeutet: für alle einlösbar,
+  /// die den Link haben.
+  email          String?
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  acceptedById   String?
+  createdById    String
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cohort       Cohort?      @relation(fields: [cohortId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([expiresAt])
+  @@map("invitations")
+}
+
+/// Prüfprotokoll für Eingriffe in einer Organisation.
+///
+/// Festgehalten wird, wer wann was getan hat – nicht, was jemand gelernt hat.
+/// Das Protokoll dient der Nachvollziehbarkeit von Verwaltungshandlungen und
+/// ist ausdrücklich kein Beobachtungswerkzeug.
+model AuditEntry {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorId        String
+  /// Maschinenlesbare Kennung, etwa `cohort.created`.
+  action         String
+  /// Art des betroffenen Gegenstands, etwa `cohort` oder `invitation`.
+  targetType     String
+  targetId       String?
+  /// Kurze Beschreibung in ganzen Sätzen, für die Anzeige.
+  summary        String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User         @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@map("audit_entries")
 }

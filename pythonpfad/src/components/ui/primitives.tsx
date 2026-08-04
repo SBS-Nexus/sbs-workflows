@@ -66,14 +66,26 @@ export function Card({
   className,
   id,
   children,
+  ...aria
 }: {
   as?: 'div' | 'section' | 'article' | 'li';
   className?: string;
   id?: string;
   children: ReactNode;
+  /**
+   * Beschriftung des Bereichs.
+   *
+   * Ohne Beschriftung ist ein `<section>` für Hilfstechnik kein benannter
+   * Bereich, sondern ein anonymer Kasten – er taucht dann in keiner
+   * Bereichsübersicht auf und lässt sich nicht ansteuern. Diese beiden
+   * Attribute werden deshalb ausdrücklich durchgereicht.
+   */
+  'aria-labelledby'?: string;
+  'aria-label'?: string;
 }): ReactNode {
   return (
     <Component
+      {...aria}
       id={id}
       className={cx(
         'rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-5 sm:p-6',
@@ -332,6 +344,48 @@ export function EmptyState({
       <p className="mx-auto mt-2 max-w-prose text-[var(--text-muted)]">{description}</p>
       {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
     </div>
+  );
+}
+
+/**
+ * Ladeplatzhalter.
+ *
+ * Der umgebende Bereich muss `aria-busy="true"` tragen; die Kästchen selbst
+ * sind für Hilfstechnik unsichtbar. Ein vorgelesenes „Bild, Bild, Bild" wäre
+ * keine Information, sondern Lärm.
+ */
+export function Skeleton({
+  className,
+  /** Anzahl Zeilen. Die letzte wird verkürzt, damit es wie Text aussieht. */
+  lines = 1,
+}: {
+  className?: string;
+  lines?: number;
+}): ReactNode {
+  if (lines <= 1) {
+    return <div aria-hidden="true" className={cx('skeleton h-4 w-full', className)} />;
+  }
+
+  return (
+    <div aria-hidden="true" className={cx('space-y-2', className)}>
+      {Array.from({ length: lines }, (_, index) => (
+        <div key={index} className={cx('skeleton h-4', index === lines - 1 ? 'w-2/3' : 'w-full')} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Taste in einer Bedienhilfe, etwa „Strg + K".
+ *
+ * `<kbd>` ist das dafür vorgesehene Element; die Gestaltung macht es nur
+ * erkennbar, ändert aber nichts an der Bedeutung.
+ */
+export function Kbd({ children }: { children: ReactNode }): ReactNode {
+  return (
+    <kbd className="inline-flex min-w-6 items-center justify-center rounded border border-[var(--border-strong)] bg-[var(--surface-sunken)] px-1.5 py-0.5 font-mono text-[0.75rem] font-medium text-[var(--text-muted)]">
+      {children}
+    </kbd>
   );
 }
 

@@ -59,10 +59,17 @@ export interface DashboardData {
     projectsAccepted: number;
   };
   calibration: CalibrationSummary;
-  /** Freiwillige Serie – ohne Druck dargestellt. */
-  streak: { currentDays: number; longestDays: number; message: string };
-  milestones: Array<{ id: string; label: string; reached: boolean; description: string }>;
 }
+
+/*
+ * Lernrhythmus und Meilensteine stehen bewusst nicht mehr hier.
+ *
+ * Sie lagen früher als zwei Hilfsfunktionen am Ende dieser Datei. Inzwischen
+ * gibt es dafür eine eigene, ohne Datenbank prüfbare Domainschicht
+ * (src/domain/motivation) und einen eigenen Fachdienst. Zwei Umsetzungen
+ * derselben Regeln wären eine Fehlerquelle: Sobald sich eine Formulierung oder
+ * eine Schwelle ändert, driften sie auseinander.
+ */
 
 const ERROR_LABELS: Record<string, { label: string; advice: string }> = {
   SYNTAX: {
@@ -255,9 +262,6 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
   // --- Wochenübersicht ------------------------------------------------------
   const weeklyActivity = buildWeeklyActivity(attempts, sessions, now);
 
-  // --- Serie ---------------------------------------------------------------
-  const streak = buildStreak(attempts, now);
-
   // --- Metakognition --------------------------------------------------------
   const calibration = summarizeCalibration(
     attempts
@@ -312,8 +316,6 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     weeklyActivity,
     totals,
     calibration,
-    streak,
-    milestones: buildMilestones(totals, mastery.length),
   };
 }
 
@@ -346,83 +348,6 @@ function buildWeeklyActivity(
   }
 
   return days;
-}
-
-function buildStreak(attempts: Array<{ createdAt: Date }>, now: Date): DashboardData['streak'] {
-  const activeDays = new Set(attempts.map((a) => a.createdAt.toISOString().slice(0, 10)));
-
-  let current = 0;
-  const cursor = new Date(now);
-  cursor.setHours(0, 0, 0, 0);
-
-  // Der heutige Tag zählt nur mit, wenn schon etwas passiert ist – sonst würde
-  // die Serie fälschlich als unterbrochen erscheinen, bevor der Tag vorbei ist.
-  if (!activeDays.has(cursor.toISOString().slice(0, 10))) {
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  while (activeDays.has(cursor.toISOString().slice(0, 10))) {
-    current += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-
-  const sorted = [...activeDays].sort();
-  let longest = 0;
-  let run = 0;
-  let previous: Date | null = null;
-  for (const day of sorted) {
-    const date = new Date(`${day}T00:00:00Z`);
-    if (previous && date.getTime() - previous.getTime() === 24 * 3600 * 1000) run += 1;
-    else run = 1;
-    longest = Math.max(longest, run);
-    previous = date;
-  }
-
-  const message =
-    current === 0
-      ? 'Heute noch nichts geübt. Das ist völlig in Ordnung – auch zehn Minuten zählen.'
-      : current === 1
-        ? 'Heute schon geübt.'
-        : `${current} Tage in Folge geübt.`;
-
-  return { currentDays: current, longestDays: longest, message };
-}
-
-function buildMilestones(
-  totals: DashboardData['totals'],
-  conceptsTouched: number,
-): DashboardData['milestones'] {
-  return [
-    {
-      id: 'first-lesson',
-      label: 'Erste Lektion abgeschlossen',
-      reached: totals.lessonsCompleted >= 1,
-      description: 'Der Anfang ist gemacht.',
-    },
-    {
-      id: 'ten-exercises',
-      label: 'Zehn Aufgaben bestanden',
-      reached: totals.exercisesPassed >= 10,
-      description: 'Genug Übung, dass sich Muster zu zeigen beginnen.',
-    },
-    {
-      id: 'first-module',
-      label: 'Ein ganzes Modul abgeschlossen',
-      reached: totals.lessonsCompleted >= 5,
-      description: 'Ein zusammenhängendes Themengebiet vollständig bearbeitet.',
-    },
-    {
-      id: 'ten-concepts',
-      label: 'Zehn Konzepte begonnen',
-      reached: conceptsTouched >= 10,
-      description: 'Die Bausteine für eigene Programme sind beisammen.',
-    },
-    {
-      id: 'first-project',
-      label: 'Erstes Projekt abgenommen',
-      reached: totals.projectsAccepted >= 1,
-      description: 'Ein vollständiges kleines Programm selbst gebaut.',
-    },
-  ];
 }
 
 /** Nach so vielen Minuten ohne Aktivität gilt eine Lernsitzung als beendet. */

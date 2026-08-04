@@ -31,6 +31,13 @@ type WorkerRequest =
         expectedStdout?: string;
         assertion?: string;
       }>;
+    }
+  | {
+      type: 'trace';
+      id: string;
+      code: string;
+      stdin: string[];
+      maxSteps: number;
     };
 
 type WorkerResponse =
@@ -131,6 +138,21 @@ async function handleRun(request: Extract<WorkerRequest, { type: 'run' }>): Prom
   post({ type: 'result', id: request.id, payload });
 }
 
+async function handleTrace(request: Extract<WorkerRequest, { type: 'trace' }>): Promise<void> {
+  await init();
+  const py = pyodide;
+  if (!py) throw new Error('Die Python-Laufzeit ist nicht bereit.');
+
+  const script = `run_traced(__import__("json").loads(${escapeForPython(
+    request.code,
+  )}), __import__("json").loads(${escapeForPython(request.stdin)}), ${Math.trunc(
+    request.maxSteps,
+  )})`;
+
+  const payload = String(py.runPython(script));
+  post({ type: 'result', id: request.id, payload });
+}
+
 ctx.addEventListener('message', (event: MessageEvent<WorkerRequest>) => {
   const request = event.data;
 
@@ -147,6 +169,17 @@ ctx.addEventListener('message', (event: MessageEvent<WorkerRequest>) => {
 
   if (request.type === 'run') {
     handleRun(request).catch((error: unknown) => {
+      post({
+        type: 'failure',
+        id: request.id,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    });
+    return;
+  }
+
+  if (request.type === 'trace') {
+    handleTrace(request).catch((error: unknown) => {
       post({
         type: 'failure',
         id: request.id,

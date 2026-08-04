@@ -1,0 +1,106 @@
+name: PythonPfad
+
+# Läuft für jede Änderung unterhalb von pythonpfad/. Das Repository enthält
+# auch andere Projekte; ein Lauf der gesamten Prüfkette bei jeder fremden
+# Änderung wäre reine Wartezeit.
+on:
+  push:
+    branches: [main]
+    paths: ['pythonpfad/**', '.github/workflows/pythonpfad.yml']
+  pull_request:
+    paths: ['pythonpfad/**', '.github/workflows/pythonpfad.yml']
+
+defaults:
+  run:
+    working-directory: pythonpfad
+
+jobs:
+  pruefen:
+    name: Typecheck, Lint, Tests, Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pythonpfad
+          POSTGRES_PASSWORD: pythonpfad
+          POSTGRES_DB: pythonpfad
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U pythonpfad"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://pythonpfad:pythonpfad@localhost:5432/pythonpfad?schema=public
+      TEST_DATABASE_URL: postgresql://pythonpfad:pythonpfad@localhost:5432/pythonpfad_test?schema=public
+      # Nur für den Lauf. Ein echtes Geheimnis gehört nicht in eine Datei im
+      # Repository – hier steht ein Wert, der nichts schützt und nichts öffnet.
+      AUTH_SECRET: ci-lauf-geheimnis-ohne-jede-bedeutung-0123456789
+      APP_URL: http://localhost:3000
+      SEED_DEMO_USERS: 'false'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: pythonpfad/package-lock.json
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Testdatenbank anlegen
+        run: |
+          PGPASSWORD=pythonpfad psql -h localhost -U pythonpfad -d pythonpfad \
+            -c "CREATE DATABASE pythonpfad_test OWNER pythonpfad;"
+
+      - name: Migrationen anwenden
+        run: |
+          npm run db:deploy
+          DATABASE_URL="$TEST_DATABASE_URL" npm run db:deploy
+
+      - name: Inhalte einspielen
+        run: npm run db:seed
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Formatprüfung
+        run: npm run format:check
+
+      - name: Unit- und Integrationstests
+        run: npm run test
+
+      - name: Musterlösungen prüfen
+        run: |
+          npx tsx scripts/dump-code-exercises.ts > /tmp/exercises.json
+          python3 scripts/verify_solutions.py /tmp/exercises.json scripts/project-reference-solutions.json
+
+      - name: Aufzeichnung der Ausführung prüfen
+        run: python3 scripts/verify_tracer.py
+
+      - name: Produktionsbuild
+        run: npm run build
+
+      - name: Browser für die E2E-Tests
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-End-Tests
+        run: npm run test:e2e
+
+      - name: Testbericht sichern
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-bericht
+          path: pythonpfad/playwright-report/
+          retention-days: 7

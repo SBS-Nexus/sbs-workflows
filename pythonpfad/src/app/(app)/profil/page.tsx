@@ -5,6 +5,8 @@ import { isExternalAiConfigured } from '@/server/env';
 import { SettingsForm } from './settings-form';
 import { DataControls } from './data-controls';
 import { Card, SectionHeading } from '@/components/ui/primitives';
+import { ConsentControls } from '@/components/organisation/consent-controls';
+import { listOwnCohorts } from '@/server/services/organisation-service';
 
 export const metadata: Metadata = { title: 'Profil und Einstellungen' };
 
@@ -28,6 +30,7 @@ export default async function ProfilePage(): Promise<React.ReactElement> {
   });
 
   const externalAi = isExternalAiConfigured();
+  const eigeneKohorten = await listOwnCohorts(user.id);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-8 sm:px-6">
@@ -51,6 +54,16 @@ export default async function ProfilePage(): Promise<React.ReactElement> {
         }}
         externalAiConfigured={externalAi}
       />
+
+      <section aria-labelledby="kohorten">
+        <SectionHeading
+          id="kohorten"
+          description="Wenn du zu einer Kohorte gehörst, entscheidest du hier, was deine Lehrkräfte sehen. Ohne deine Freigabe erscheinst du in keiner namentlichen Ansicht."
+        >
+          Kohorten und Sichtbarkeit
+        </SectionHeading>
+        <ConsentControls cohorts={eigeneKohorten} />
+      </section>
 
       <section aria-labelledby="daten">
         <SectionHeading

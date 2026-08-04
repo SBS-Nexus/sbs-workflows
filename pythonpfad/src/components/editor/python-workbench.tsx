@@ -1,11 +1,13 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Callout, cx } from '@/components/ui/primitives';
 import { usePythonRunner } from './use-python-runner';
+import { ExecutionTimeline } from './execution-timeline';
 import { explainPythonError } from '@/domain/errors/python-errors';
-import type { RunnerTestCase, RunnerTestResult, RunResult } from '@/lib/runner/types';
+import { useFeature } from '@/components/config/feature-context';
+import type { RunnerTestCase, RunnerTestResult, RunResult, TraceResult } from '@/lib/runner/types';
 import { DEFAULT_TIMEOUT_MS, TEST_TIMEOUT_MS } from '@/lib/runner/types';
 
 /**
@@ -44,6 +46,14 @@ export interface PythonWorkbenchProps {
   minHeight?: string;
   /** Eingaben für input(), eine Zeile je Eingabe. */
   allowStdin?: boolean;
+  /**
+   * Schaltfläche für die schrittweise Ausführung anbieten.
+   *
+   * Standardmäßig an. Ausgeschaltet wird sie dort, wo der Blick auf den Ablauf
+   * die Aufgabe verrät – etwa wenn eine Aufgabe ausdrücklich verlangt, die
+   * Ausgabe vorherzusagen.
+   */
+  allowTrace?: boolean;
 }
 
 export function PythonWorkbench({
@@ -57,11 +67,16 @@ export function PythonWorkbench({
   actions,
   minHeight = '16rem',
   allowStdin = true,
+  allowTrace = true,
 }: PythonWorkbenchProps): React.ReactElement {
   const runner = usePythonRunner();
+  // Der Betriebsschalter wiegt schwerer als die Eigenschaft: Wo die
+  // Aufzeichnung abgeschaltet ist, taucht sie nirgends auf.
+  const traceEnabled = useFeature('AUSFUEHRUNGS_VISUALISIERER') && allowTrace;
   const [stdin, setStdin] = useState('');
   const [testResults, setTestResults] = useState<RunnerTestResult[]>([]);
   const [showLimits, setShowLimits] = useState(false);
+  const [trace, setTrace] = useState<{ code: string; result: TraceResult } | null>(null);
   const outputRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -69,6 +84,7 @@ export function PythonWorkbench({
   }, [runner.output]);
 
   const handleRun = async (withTests: boolean): Promise<void> => {
+    setTrace(null);
     const result = await runner.run({
       code,
       stdin: stdin.length > 0 ? stdin.split('\n') : [],
@@ -79,12 +95,26 @@ export function PythonWorkbench({
     onRunComplete?.(result);
   };
 
-  const errorInfo = runner.lastResult?.error
-    ? explainPythonError(
-        runner.lastResult.error.traceback ||
-          `${runner.lastResult.error.type}: ${runner.lastResult.error.message}`,
-      )
-    : null;
+  const handleTrace = async (): Promise<void> => {
+    const result = await runner.trace({
+      code,
+      stdin: stdin.length > 0 ? stdin.split('\n') : [],
+    });
+    // Der Code wird mitgespeichert: Die Zeitleiste zeigt weiterhin den Stand,
+    // der aufgezeichnet wurde, auch wenn im Editor daneben schon weitergetippt
+    // wird. Eine Markierung auf einer inzwischen verschobenen Zeile wäre
+    // schlimmer als gar keine.
+    setTrace({ code, result });
+  };
+
+  // Gemerkt statt bei jedem Rendern neu berechnet: Das Ergebnis wandert als
+  // Fehlermarkierung in den Editor. Ein bei jedem Tastendruck frisch erzeugtes
+  // Objekt würde dort jedes Mal eine neue Diagnose auslösen.
+  const errorInfo = useMemo(() => {
+    const error = runner.lastResult?.error;
+    if (!error) return null;
+    return explainPythonError(error.traceback || `${error.type}: ${error.message}`);
+  }, [runner.lastResult]);
 
   const stdoutText = runner.output
     .filter((chunk) => chunk.stream === 'stdout')
@@ -97,6 +127,22 @@ export function PythonWorkbench({
 
   const combinedStdout = stdoutText || runner.lastResult?.stdout || '';
 
+  /*
+   * Fehlerzeile im Editor markieren.
+   *
+   * Die Meldung ist bewusst die deutsche Erklärung und nicht die englische
+   * Originalmeldung: An dieser Stelle geht es darum, überhaupt zur richtigen
+   * Zeile zu finden. Die vollständige Erklärung samt Ursachen und Suchstrategie
+   * steht weiterhin unter der Ausgabe.
+   */
+  const errorMarker = useMemo(
+    () =>
+      errorInfo && errorInfo.line !== null
+        ? { line: errorInfo.line, message: `${errorInfo.pythonType}: ${errorInfo.meaning}` }
+        : null,
+    [errorInfo],
+  );
+
   return (
     <div className="space-y-3">
       <CodeEditor
@@ -105,11 +151,13 @@ export function PythonWorkbench({
         ariaLabel={ariaLabel}
         minHeight={minHeight}
         onRun={() => void handleRun(visibleTests.length > 0)}
+        errorMarker={errorMarker}
       />
 
       <p className="text-xs text-[var(--text-muted)]">
         Tastatur: Tab rückt ein. Mit Escape und danach Tab verlässt du den Editor. Strg + Eingabe
-        (auf dem Mac ⌘ + Eingabe) führt den Code aus.
+        (auf dem Mac ⌘ + Eingabe) führt den Code aus. Strg + Leertaste schlägt Python-Bausteine mit
+        deutscher Erklärung vor.
       </p>
 
       {allowStdin ? (
@@ -144,6 +192,17 @@ export function PythonWorkbench({
           <span aria-hidden="true">▶</span>
           {runner.isRunning ? 'Läuft …' : 'Ausführen'}
         </Button>
+
+        {traceEnabled ? (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void handleTrace()}
+            disabled={runner.isRunning}
+          >
+            <span aria-hidden="true">◫</span> Schritt für Schritt
+          </Button>
+        ) : null}
 
         {visibleTests.length > 0 ? (
           <Button
@@ -183,6 +242,10 @@ export function PythonWorkbench({
       </div>
 
       <RunnerStatusLine status={runner.status} />
+
+      {trace ? (
+        <ExecutionTimeline code={trace.code} result={trace.result} onClose={() => setTrace(null)} />
+      ) : null}
 
       {/* --- Ausgabe ---------------------------------------------------- */}
       <section aria-labelledby="ausgabe-titel" className="space-y-2">

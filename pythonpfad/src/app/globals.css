@@ -58,6 +58,21 @@
   --color-alert-500: #c62f22;
   --color-alert-700: #99231a;
   --color-alert-900: #6b1812;
+
+  /*
+   * Bewegungssystem.
+   *
+   * Drei Dauern statt beliebiger Werte, damit sich die Oberfläche einheitlich
+   * anfühlt. Die Kurven sind bewusst gedämpft: `--ease-emphasis` schwingt ganz
+   * leicht über das Ziel hinaus, ohne zu wippen. Alles darunter wird von
+   * `prefers-reduced-motion` und der Kontoeinstellung ausgeschaltet.
+   */
+  --duration-fast: 120ms;
+  --duration-base: 220ms;
+  --duration-slow: 380ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0, 1);
+  --ease-emphasis: cubic-bezier(0.2, 0.9, 0.25, 1.06);
 }
 
 :root {
@@ -79,7 +94,22 @@
   --alert: var(--color-alert-700);
   --alert-soft: var(--color-alert-100);
   --focus-ring: var(--color-accent-600);
+  /* Grundton aller Schatten. Nur diese Zeile unterscheidet sich je Farbschema. */
+  --shadow-tint: 217 33% 11%;
   color-scheme: light;
+}
+
+/*
+ * Höhenstufen. Drei reichen: aufliegend (Karte mit Betonung), schwebend
+ * (Menü, Popover) und abgehoben (Dialog). Sie leiten sich alle aus
+ * `--shadow-tint` ab, damit im dunklen Schema nichts milchig wirkt.
+ */
+:root {
+  --elevation-1: 0 1px 2px hsl(var(--shadow-tint) / 0.06), 0 1px 3px hsl(var(--shadow-tint) / 0.08);
+  --elevation-2:
+    0 2px 4px hsl(var(--shadow-tint) / 0.06), 0 8px 16px -4px hsl(var(--shadow-tint) / 0.12);
+  --elevation-3:
+    0 4px 8px hsl(var(--shadow-tint) / 0.08), 0 24px 48px -12px hsl(var(--shadow-tint) / 0.24);
 }
 
 :root[data-theme='dark'],
@@ -102,6 +132,7 @@
   --alert: #f79289;
   --alert-soft: #3a1512;
   --focus-ring: var(--color-accent-300);
+  --shadow-tint: 220 60% 2%;
   color-scheme: dark;
 }
 
@@ -125,6 +156,7 @@
     --alert: #f79289;
     --alert-soft: #3a1512;
     --focus-ring: var(--color-accent-300);
+    --shadow-tint: 220 60% 2%;
     color-scheme: dark;
   }
 }
@@ -245,6 +277,79 @@ body {
   border-left-color: var(--text);
 }
 
+/* Vorschlagsliste – ruhig gehalten, mit lesbarer Erklärung daneben. */
+.cm-tooltip.cm-tooltip-autocomplete {
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  background-color: var(--surface-raised);
+  box-shadow: var(--elevation-2);
+  overflow: hidden;
+}
+
+.cm-tooltip-autocomplete > ul > li {
+  padding: 0.35rem 0.6rem;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background-color: var(--accent-soft);
+  color: var(--accent);
+}
+
+.cm-completionDetail {
+  margin-left: 0.75rem;
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.cm-tooltip.cm-completionInfo {
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  background-color: var(--surface-raised);
+  box-shadow: var(--elevation-2);
+  padding: 0.6rem 0.75rem;
+  max-width: 22rem;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  white-space: pre-line;
+  color: var(--text);
+}
+
+/* Fehlermarkierung. Zusätzlich zur Farbe steht die Meldung im Text – die
+ * Unterstreichung allein wäre eine rein farbliche Auszeichnung. */
+.cm-lintRange-error {
+  background: none;
+  border-bottom: 2px wavy var(--alert);
+}
+
+.cm-tooltip.cm-tooltip-lint {
+  border: 1px solid var(--alert);
+  border-radius: 0.5rem;
+  background-color: var(--surface-raised);
+  box-shadow: var(--elevation-2);
+  max-width: 24rem;
+}
+
+.cm-diagnostic {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text);
+  padding: 0.5rem 0.75rem;
+}
+
+.cm-diagnostic-error {
+  border-left: 4px solid var(--alert);
+}
+
+.cm-gutter-lint .cm-gutterElement {
+  color: var(--alert);
+}
+
 /* Syntaxfarben mit ausreichendem Kontrast in beiden Schemata. */
 .cm-editor .tok-keyword {
   color: var(--accent);
@@ -279,6 +384,140 @@ body {
   }
 }
 
+@keyframes pp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pp-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pp-sheet-up {
+  from {
+    transform: translateY(1.5rem);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes pp-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Kurzes Aufleuchten, wenn sich ein Wert geändert hat – etwa eine Variable im
+ * Ausführungs-Visualisierer. Endet von selbst, wiederholt sich nie. */
+@keyframes pp-flash {
+  from {
+    background-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
 @utility animate-enter {
-  animation: pp-fade-in 220ms ease-out;
+  animation: pp-fade-in var(--duration-base) var(--ease-standard);
+}
+
+@utility animate-rise {
+  animation: pp-rise var(--duration-slow) var(--ease-decelerate);
+}
+
+@utility animate-scale-in {
+  animation: pp-scale-in var(--duration-base) var(--ease-emphasis);
+}
+
+@utility animate-sheet-up {
+  animation: pp-sheet-up var(--duration-base) var(--ease-decelerate);
+}
+
+@utility animate-flash {
+  animation: pp-flash var(--duration-slow) var(--ease-standard);
+}
+
+/*
+ * Ladeplatzhalter. Bewusst ohne Textinhalt: Der begleitende Bereich meldet
+ * seinen Ladezustand über aria-busy, damit Screenreader nicht sinnlose
+ * Kästchen vorgelesen bekommen.
+ */
+@utility skeleton {
+  background-image: linear-gradient(
+    90deg,
+    var(--surface-sunken) 25%,
+    color-mix(in srgb, var(--surface-sunken) 60%, var(--surface-raised)) 37%,
+    var(--surface-sunken) 63%
+  );
+  background-size: 200% 100%;
+  animation: pp-shimmer 1.4s linear infinite;
+  border-radius: 0.5rem;
+}
+
+@utility elevation-1 {
+  box-shadow: var(--elevation-1);
+}
+
+@utility elevation-2 {
+  box-shadow: var(--elevation-2);
+}
+
+@utility elevation-3 {
+  box-shadow: var(--elevation-3);
+}
+
+/* --------------------------------------------------------------------------
+ * Überlagerungen (Befehlspalette, Dialoge)
+ * -------------------------------------------------------------------------- */
+
+.pp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background-color: hsl(var(--shadow-tint) / 0.45);
+  backdrop-filter: blur(2px);
+  animation: pp-fade-in var(--duration-fast) var(--ease-standard);
+}
+
+/* Solange ein Dialog offen ist, darf der Hintergrund nicht mitscrollen. */
+body[data-overlay-open='true'] {
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+ * Reduzierte Bewegung – gilt für alles oben Definierte
+ * -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background-image: none;
+    background-color: var(--surface-sunken);
+  }
+}
+
+:root[data-reduce-motion='true'] .skeleton {
+  animation: none;
+  background-image: none;
+  background-color: var(--surface-sunken);
 }
