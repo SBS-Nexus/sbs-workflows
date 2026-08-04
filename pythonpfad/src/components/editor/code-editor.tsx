@@ -31,6 +31,7 @@ import {
 import { lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint';
 import { tags } from '@lezer/highlight';
 import { KIND_LABELS, matchVocabulary } from '@/domain/python/vocabulary';
+import { useFeature } from '@/components/config/feature-context';
 
 /**
  * Code-Editor auf Basis von CodeMirror 6.
@@ -126,6 +127,7 @@ export default function CodeEditor({
   onRun,
   errorMarker = null,
 }: CodeEditorProps): React.ReactElement {
+  const suggestionsEnabled = useFeature('EDITOR_VORSCHLAEGE');
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -160,7 +162,10 @@ export default function CodeEditor({
       // überlegt, wie eine Zeile heißen soll, wird von einer aufspringenden
       // Liste gestört. Strg + Leertaste holt sie bei Bedarf.
       autocompletion({
-        override: [germanCompletions],
+        // Ist der Schalter aus, liefert die Quelle nichts – die Liste bleibt
+        // dann auch auf Strg + Leertaste leer, statt fremde Vorschläge aus
+        // CodeMirrors Voreinstellung anzuzeigen.
+        override: [suggestionsEnabled ? germanCompletions : () => null],
         activateOnTyping: false,
         icons: false,
       }),
@@ -207,7 +212,7 @@ export default function CodeEditor({
     // Der Editor wird bewusst nur einmal aufgebaut. Wertänderungen von außen
     // laufen über den zweiten Effekt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ariaLabel, readOnly, placeholder]);
+  }, [ariaLabel, readOnly, placeholder, suggestionsEnabled]);
 
   // Änderungen von außen (Reset, Musterlösung übernehmen) einspielen.
   useEffect(() => {

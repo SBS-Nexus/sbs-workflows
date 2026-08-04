@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { isEnabled } from '@/server/feature-flags';
 import { requireUser } from '@/server/auth/session';
 import { getCohortOverview, getOrgContext } from '@/server/services/organisation-service';
 import { can } from '@/domain/organisation/permissions';
@@ -22,6 +23,8 @@ export default async function CohortPage({
   params: Promise<{ slug: string; cohort: string }>;
 }): Promise<React.ReactElement> {
   const { slug, cohort: cohortSlug } = await params;
+  // Abschaltbar für Installationen, die ausschließlich Einzelkonten führen.
+  if (!isEnabled('ORGANISATIONEN')) notFound();
   const user = await requireUser();
 
   const context = await getOrgContext(user.id, slug);

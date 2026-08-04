@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { requireUser } from '@/server/auth/session';
+import { isEnabled } from '@/server/feature-flags';
 import { Card } from '@/components/ui/primitives';
 import { AcceptInvitationForm } from './accept-invitation-form';
 
@@ -23,6 +25,8 @@ export default async function InvitationPage({
   params: Promise<{ token: string }>;
 }): Promise<React.ReactElement> {
   const { token } = await params;
+  // Abschaltbar für Installationen, die ausschließlich Einzelkonten führen.
+  if (!isEnabled('ORGANISATIONEN')) notFound();
   const user = await requireUser();
 
   return (

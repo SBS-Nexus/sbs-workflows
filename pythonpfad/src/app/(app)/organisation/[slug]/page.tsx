@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { isEnabled } from '@/server/feature-flags';
 import { requireUser } from '@/server/auth/session';
 import { getAuditLog, getOrgContext, listCohorts } from '@/server/services/organisation-service';
 import { ROLE_LABELS, can } from '@/domain/organisation/permissions';
@@ -15,6 +16,8 @@ export default async function OrganisationDetailPage({
   params: Promise<{ slug: string }>;
 }): Promise<React.ReactElement> {
   const { slug } = await params;
+  // Abschaltbar für Installationen, die ausschließlich Einzelkonten führen.
+  if (!isEnabled('ORGANISATIONEN')) notFound();
   const user = await requireUser();
 
   const context = await getOrgContext(user.id, slug);

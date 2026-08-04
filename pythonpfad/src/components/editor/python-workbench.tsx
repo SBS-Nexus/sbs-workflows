@@ -6,6 +6,7 @@ import { Badge, Button, Callout, cx } from '@/components/ui/primitives';
 import { usePythonRunner } from './use-python-runner';
 import { ExecutionTimeline } from './execution-timeline';
 import { explainPythonError } from '@/domain/errors/python-errors';
+import { useFeature } from '@/components/config/feature-context';
 import type { RunnerTestCase, RunnerTestResult, RunResult, TraceResult } from '@/lib/runner/types';
 import { DEFAULT_TIMEOUT_MS, TEST_TIMEOUT_MS } from '@/lib/runner/types';
 
@@ -69,6 +70,9 @@ export function PythonWorkbench({
   allowTrace = true,
 }: PythonWorkbenchProps): React.ReactElement {
   const runner = usePythonRunner();
+  // Der Betriebsschalter wiegt schwerer als die Eigenschaft: Wo die
+  // Aufzeichnung abgeschaltet ist, taucht sie nirgends auf.
+  const traceEnabled = useFeature('AUSFUEHRUNGS_VISUALISIERER') && allowTrace;
   const [stdin, setStdin] = useState('');
   const [testResults, setTestResults] = useState<RunnerTestResult[]>([]);
   const [showLimits, setShowLimits] = useState(false);
@@ -189,7 +193,7 @@ export function PythonWorkbench({
           {runner.isRunning ? 'Läuft …' : 'Ausführen'}
         </Button>
 
-        {allowTrace ? (
+        {traceEnabled ? (
           <Button
             type="button"
             variant="secondary"

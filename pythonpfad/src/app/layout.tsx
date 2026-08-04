@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { getCurrentUser } from '@/server/auth/session';
+import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
 
 export const metadata: Metadata = {
   title: {
@@ -11,6 +12,9 @@ export const metadata: Metadata = {
     'Interaktive Lernplattform für Python-Anfängerinnen und -Anfänger: verständliche Erklärungen, Code direkt im Browser ausführen, Fehler systematisch verstehen und Gelerntes zum richtigen Zeitpunkt wiederholen.',
   applicationName: 'PythonPfad',
   robots: { index: true, follow: true },
+  manifest: '/manifest.webmanifest',
+  icons: { icon: [{ url: '/icon.svg', type: 'image/svg+xml' }] },
+  appleWebApp: { capable: true, title: 'PythonPfad', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {
@@ -63,6 +67,7 @@ export default async function RootLayout({
         <a href="#hauptinhalt" className="skip-link">
           Direkt zum Hauptinhalt springen
         </a>
+        <ServiceWorkerRegistration />
         {children}
       </body>
     </html>

@@ -505,9 +505,7 @@ export async function getCohortOverview(
   };
 }
 
-export async function listCohorts(
-  context: OrgContext,
-): Promise<
+export async function listCohorts(context: OrgContext): Promise<
   Array<{
     slug: string;
     name: string;

@@ -1,0 +1,33 @@
+{
+  "name": "PythonPfad – Python verstehen. Selbst schreiben. Wirklich anwenden.",
+  "short_name": "PythonPfad",
+  "description": "Interaktive Lernplattform für Python-Anfängerinnen und -Anfänger. Python läuft direkt im Browser.",
+  "lang": "de",
+  "dir": "ltr",
+  "start_url": "/lernen",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f6f7f9",
+  "theme_color": "#1d3fc4",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Weiterlernen", "url": "/lernen" },
+    { "name": "Wiederholen", "url": "/wiederholen" },
+    { "name": "Code-Labor", "url": "/labor" }
+  ]
+}

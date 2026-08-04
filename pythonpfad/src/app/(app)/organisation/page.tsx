@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { requireUser } from '@/server/auth/session';
+import { isEnabled } from '@/server/feature-flags';
 import { listOrganisations } from '@/server/services/organisation-service';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/domain/organisation/permissions';
 import { Badge, Card, EmptyState, SectionHeading } from '@/components/ui/primitives';
@@ -17,6 +19,8 @@ export const metadata: Metadata = { title: 'Organisationen' };
  * Profil und über die Befehlspalette.
  */
 export default async function OrganisationsPage(): Promise<React.ReactElement> {
+  // Abschaltbar für Installationen, die ausschließlich Einzelkonten führen.
+  if (!isEnabled('ORGANISATIONEN')) notFound();
   const user = await requireUser();
   const organisations = await listOrganisations(user.id);
 

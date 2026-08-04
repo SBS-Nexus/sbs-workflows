@@ -4,6 +4,7 @@ import { requireUser } from '@/server/auth/session';
 import { getDashboardData } from '@/server/services/progress-service';
 import { getMotivationSummary } from '@/server/services/motivation-service';
 import { getKnowledgeMap } from '@/server/services/knowledge-service';
+import { isEnabled } from '@/server/feature-flags';
 import { ConceptMap } from '@/components/knowledge/concept-map';
 import { RetentionForecast } from '@/components/knowledge/retention-forecast';
 import { LearningRhythm } from '@/components/motivation/learning-rhythm';
@@ -29,10 +30,13 @@ const BAND_TONE = {
 
 export default async function ProgressPage(): Promise<React.ReactElement> {
   const user = await requireUser();
+  // Ist die Landkarte abgeschaltet, wird sie gar nicht erst berechnet. Ein
+  // Schalter, der nur die Anzeige unterdrückt, spart nichts.
+  const landkarteAn = isEnabled('WISSENSLANDKARTE');
   const [data, motivation, knowledge] = await Promise.all([
     getDashboardData(user.id),
     getMotivationSummary(user.id),
-    getKnowledgeMap(user.id),
+    landkarteAn ? getKnowledgeMap(user.id) : Promise.resolve(null),
   ]);
 
   const maxActivity = Math.max(1, ...data.weeklyActivity.map((d) => d.activities));
@@ -113,13 +117,17 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
         </Card>
       </section>
 
-      <ConceptMap data={knowledge} />
+      {knowledge ? (
+        <>
+          <ConceptMap data={knowledge} />
 
-      <RetentionForecast
-        points={knowledge.forecast}
-        message={knowledge.forecastMessage}
-        targetPercent={knowledge.targetRetentionPercent}
-      />
+          <RetentionForecast
+            points={knowledge.forecast}
+            message={knowledge.forecastMessage}
+            targetPercent={knowledge.targetRetentionPercent}
+          />
+        </>
+      ) : null}
 
       {/* --- Kompetenzen ---------------------------------------------------- */}
       <section aria-labelledby="konzepte">
