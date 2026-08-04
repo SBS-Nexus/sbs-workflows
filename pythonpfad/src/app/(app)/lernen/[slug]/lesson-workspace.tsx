@@ -12,6 +12,7 @@ import {
   cx,
 } from '@/components/ui/primitives';
 import { ExercisePanel } from '@/components/exercise/exercise-panel';
+import { WorkedExampleRunner } from '@/components/editor/worked-example-runner';
 import {
   completeLessonAction,
   saveSectionAction,
@@ -215,6 +216,14 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
                 </ol>
               </>
             ) : null}
+
+            {/*
+             * Die Liste oben ist von Hand geschrieben und redaktionell geprüft.
+             * Der Knopf darunter führt dasselbe Beispiel wirklich aus – und
+             * lädt vor allem dazu ein, etwas zu verändern und nachzusehen, was
+             * dann passiert.
+             */}
+            <WorkedExampleRunner code={lesson.workedExample.code} />
           </Card>
 
           <Card as="section">

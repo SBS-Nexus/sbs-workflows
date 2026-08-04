@@ -277,6 +277,79 @@ body {
   border-left-color: var(--text);
 }
 
+/* Vorschlagsliste – ruhig gehalten, mit lesbarer Erklärung daneben. */
+.cm-tooltip.cm-tooltip-autocomplete {
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  background-color: var(--surface-raised);
+  box-shadow: var(--elevation-2);
+  overflow: hidden;
+}
+
+.cm-tooltip-autocomplete > ul > li {
+  padding: 0.35rem 0.6rem;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background-color: var(--accent-soft);
+  color: var(--accent);
+}
+
+.cm-completionDetail {
+  margin-left: 0.75rem;
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.cm-tooltip.cm-completionInfo {
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  background-color: var(--surface-raised);
+  box-shadow: var(--elevation-2);
+  padding: 0.6rem 0.75rem;
+  max-width: 22rem;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  white-space: pre-line;
+  color: var(--text);
+}
+
+/* Fehlermarkierung. Zusätzlich zur Farbe steht die Meldung im Text – die
+ * Unterstreichung allein wäre eine rein farbliche Auszeichnung. */
+.cm-lintRange-error {
+  background: none;
+  border-bottom: 2px wavy var(--alert);
+}
+
+.cm-tooltip.cm-tooltip-lint {
+  border: 1px solid var(--alert);
+  border-radius: 0.5rem;
+  background-color: var(--surface-raised);
+  box-shadow: var(--elevation-2);
+  max-width: 24rem;
+}
+
+.cm-diagnostic {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text);
+  padding: 0.5rem 0.75rem;
+}
+
+.cm-diagnostic-error {
+  border-left: 4px solid var(--alert);
+}
+
+.cm-gutter-lint .cm-gutterElement {
+  color: var(--alert);
+}
+
 /* Syntaxfarben mit ausreichendem Kontrast in beiden Schemata. */
 .cm-editor .tok-keyword {
   color: var(--accent);

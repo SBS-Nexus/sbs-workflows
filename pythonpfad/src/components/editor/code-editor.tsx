@@ -19,8 +19,18 @@ import {
   syntaxHighlighting,
   HighlightStyle,
 } from '@codemirror/language';
-import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
+import {
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+  type Completion,
+  type CompletionContext,
+  type CompletionResult,
+} from '@codemirror/autocomplete';
+import { lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint';
 import { tags } from '@lezer/highlight';
+import { KIND_LABELS, matchVocabulary } from '@/domain/python/vocabulary';
 
 /**
  * Code-Editor auf Basis von CodeMirror 6.
@@ -50,6 +60,41 @@ const highlightStyle = HighlightStyle.define([
   },
 ]);
 
+/**
+ * Vorschläge aus dem deutschen Kursvokabular.
+ *
+ * Bewusst keine Vervollständigung eigener Variablennamen und keine Analyse
+ * des Programms: Beim Lernen ist es wichtig, den selbst vergebenen Namen noch
+ * einmal zu tippen. Vorgeschlagen wird nur, was die Sprache mitbringt und im
+ * Kurs vorkommt – mit einer Erklärung, die beim Verstehen hilft.
+ */
+function germanCompletions(context: CompletionContext): CompletionResult | null {
+  const word = context.matchBefore(/[A-Za-z_][A-Za-z0-9_]*/);
+  if (!word) return null;
+  // Ohne ausdrückliche Anforderung erst ab zwei Zeichen: Nach einem einzelnen
+  // Buchstaben wäre die Liste lang und der Vorschlag meistens falsch.
+  if (word.from === word.to || (word.text.length < 2 && !context.explicit)) return null;
+
+  const matches = matchVocabulary(word.text);
+  if (matches.length === 0) return null;
+
+  const options: Completion[] = matches.map((entry) => ({
+    label: entry.name,
+    type:
+      entry.kind === 'keyword'
+        ? 'keyword'
+        : entry.kind === 'constant'
+          ? 'constant'
+          : entry.kind === 'method'
+            ? 'method'
+            : 'function',
+    detail: KIND_LABELS[entry.kind],
+    info: `${entry.description}\n\nBeispiel: ${entry.example}`,
+  }));
+
+  return { from: word.from, options, filter: false };
+}
+
 export interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -60,6 +105,15 @@ export interface CodeEditorProps {
   minHeight?: string;
   /** Wird bei Strg+Enter ausgelöst. */
   onRun?: () => void;
+  /**
+   * Zeile und Meldung des letzten Fehlers.
+   *
+   * Wird als Markierung im Editor angezeigt: farbige Unterstreichung,
+   * Symbol in der Randspalte und Erklärung beim Zeigen darauf. Ohne diese
+   * Verbindung müssen Lernende die Zeilennummer aus dem Traceback von Hand
+   * im Editor suchen – ein Zwischenschritt, an dem viele hängen bleiben.
+   */
+  errorMarker?: { line: number; message: string } | null;
 }
 
 export default function CodeEditor({
@@ -70,6 +124,7 @@ export default function CodeEditor({
   placeholder,
   minHeight = '14rem',
   onRun,
+  errorMarker = null,
 }: CodeEditorProps): React.ReactElement {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -101,6 +156,15 @@ export default function CodeEditor({
       indentUnit.of('    '),
       python(),
       syntaxHighlighting(highlightStyle),
+      // Die Vorschlagsliste öffnet sich nicht von selbst beim Tippen: Wer noch
+      // überlegt, wie eine Zeile heißen soll, wird von einer aufspringenden
+      // Liste gestört. Strg + Leertaste holt sie bei Bedarf.
+      autocompletion({
+        override: [germanCompletions],
+        activateOnTyping: false,
+        icons: false,
+      }),
+      lintGutter(),
       EditorView.lineWrapping,
       keymap.of([
         {
@@ -112,6 +176,7 @@ export default function CodeEditor({
           },
         },
         ...closeBracketsKeymap,
+        ...completionKeymap,
         ...defaultKeymap,
         ...historyKeymap,
         indentWithTab,
@@ -155,6 +220,36 @@ export default function CodeEditor({
       changes: { from: 0, to: current.length, insert: value },
     });
   }, [value]);
+
+  /*
+   * Fehlermarkierung setzen oder entfernen.
+   *
+   * Der Bereich umfasst die ganze Zeile. Eine genauere Spalte gibt Python
+   * nicht immer her, und eine falsch gesetzte Markierung wäre irreführender
+   * als eine großzügige.
+   */
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    const diagnostics: Diagnostic[] = [];
+    if (errorMarker) {
+      const lineCount = view.state.doc.lines;
+      // Der Traceback kann auf eine Zeile zeigen, die es nach einer Änderung
+      // nicht mehr gibt. Dann lieber keine Markierung als eine an falscher Stelle.
+      if (errorMarker.line >= 1 && errorMarker.line <= lineCount) {
+        const line = view.state.doc.line(errorMarker.line);
+        diagnostics.push({
+          from: line.from,
+          to: line.to,
+          severity: 'error',
+          message: errorMarker.message,
+        });
+      }
+    }
+
+    view.dispatch(setDiagnostics(view.state, diagnostics));
+  }, [errorMarker]);
 
   return (
     <div

@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Callout, cx } from '@/components/ui/primitives';
 import { usePythonRunner } from './use-python-runner';
 import { ExecutionTimeline } from './execution-timeline';
@@ -103,12 +103,14 @@ export function PythonWorkbench({
     setTrace({ code, result });
   };
 
-  const errorInfo = runner.lastResult?.error
-    ? explainPythonError(
-        runner.lastResult.error.traceback ||
-          `${runner.lastResult.error.type}: ${runner.lastResult.error.message}`,
-      )
-    : null;
+  // Gemerkt statt bei jedem Rendern neu berechnet: Das Ergebnis wandert als
+  // Fehlermarkierung in den Editor. Ein bei jedem Tastendruck frisch erzeugtes
+  // Objekt würde dort jedes Mal eine neue Diagnose auslösen.
+  const errorInfo = useMemo(() => {
+    const error = runner.lastResult?.error;
+    if (!error) return null;
+    return explainPythonError(error.traceback || `${error.type}: ${error.message}`);
+  }, [runner.lastResult]);
 
   const stdoutText = runner.output
     .filter((chunk) => chunk.stream === 'stdout')
@@ -121,6 +123,22 @@ export function PythonWorkbench({
 
   const combinedStdout = stdoutText || runner.lastResult?.stdout || '';
 
+  /*
+   * Fehlerzeile im Editor markieren.
+   *
+   * Die Meldung ist bewusst die deutsche Erklärung und nicht die englische
+   * Originalmeldung: An dieser Stelle geht es darum, überhaupt zur richtigen
+   * Zeile zu finden. Die vollständige Erklärung samt Ursachen und Suchstrategie
+   * steht weiterhin unter der Ausgabe.
+   */
+  const errorMarker = useMemo(
+    () =>
+      errorInfo && errorInfo.line !== null
+        ? { line: errorInfo.line, message: `${errorInfo.pythonType}: ${errorInfo.meaning}` }
+        : null,
+    [errorInfo],
+  );
+
   return (
     <div className="space-y-3">
       <CodeEditor
@@ -129,11 +147,13 @@ export function PythonWorkbench({
         ariaLabel={ariaLabel}
         minHeight={minHeight}
         onRun={() => void handleRun(visibleTests.length > 0)}
+        errorMarker={errorMarker}
       />
 
       <p className="text-xs text-[var(--text-muted)]">
         Tastatur: Tab rückt ein. Mit Escape und danach Tab verlässt du den Editor. Strg + Eingabe
-        (auf dem Mac ⌘ + Eingabe) führt den Code aus.
+        (auf dem Mac ⌘ + Eingabe) führt den Code aus. Strg + Leertaste schlägt Python-Bausteine mit
+        deutscher Erklärung vor.
       </p>
 
       {allowStdin ? (
