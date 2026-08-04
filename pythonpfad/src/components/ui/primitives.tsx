@@ -335,6 +335,48 @@ export function EmptyState({
   );
 }
 
+/**
+ * Ladeplatzhalter.
+ *
+ * Der umgebende Bereich muss `aria-busy="true"` tragen; die Kästchen selbst
+ * sind für Hilfstechnik unsichtbar. Ein vorgelesenes „Bild, Bild, Bild" wäre
+ * keine Information, sondern Lärm.
+ */
+export function Skeleton({
+  className,
+  /** Anzahl Zeilen. Die letzte wird verkürzt, damit es wie Text aussieht. */
+  lines = 1,
+}: {
+  className?: string;
+  lines?: number;
+}): ReactNode {
+  if (lines <= 1) {
+    return <div aria-hidden="true" className={cx('skeleton h-4 w-full', className)} />;
+  }
+
+  return (
+    <div aria-hidden="true" className={cx('space-y-2', className)}>
+      {Array.from({ length: lines }, (_, index) => (
+        <div key={index} className={cx('skeleton h-4', index === lines - 1 ? 'w-2/3' : 'w-full')} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Taste in einer Bedienhilfe, etwa „Strg + K".
+ *
+ * `<kbd>` ist das dafür vorgesehene Element; die Gestaltung macht es nur
+ * erkennbar, ändert aber nichts an der Bedeutung.
+ */
+export function Kbd({ children }: { children: ReactNode }): ReactNode {
+  return (
+    <kbd className="inline-flex min-w-6 items-center justify-center rounded border border-[var(--border-strong)] bg-[var(--surface-sunken)] px-1.5 py-0.5 font-mono text-[0.75rem] font-medium text-[var(--text-muted)]">
+      {children}
+    </kbd>
+  );
+}
+
 export function SectionHeading({
   children,
   description,

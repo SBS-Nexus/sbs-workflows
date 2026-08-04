@@ -189,9 +189,9 @@ test('gibt Hinweise nur stufenweise frei', async ({ page }) => {
   // planmäßig fehl.
   await karte.getByRole('button', { name: 'Lösung einreichen' }).click();
   await waitForPythonReady(page);
-  await expect(karte.getByRole('heading', { name: /Noch nicht richtig|Teilweise richtig/ })).toBeVisible(
-    { timeout: 90_000 },
-  );
+  await expect(
+    karte.getByRole('heading', { name: /Noch nicht richtig|Teilweise richtig/ }),
+  ).toBeVisible({ timeout: 90_000 });
 
   await expect(stufe2).toBeEnabled();
   await stufe2.click();

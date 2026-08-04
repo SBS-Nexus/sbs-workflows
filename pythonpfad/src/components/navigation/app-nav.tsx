@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { logoutAction } from '@/server/actions/auth-actions';
-import { cx } from '@/components/ui/primitives';
+import { Kbd, cx } from '@/components/ui/primitives';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { useCommandCenter } from '@/components/navigation/command-center';
 
 /**
  * Hauptnavigation.
@@ -35,6 +36,7 @@ export function AppNav({
 }): React.ReactElement {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { openPalette, openShortcuts } = useCommandCenter();
 
   const isActive = (href: string): boolean => pathname === href || pathname.startsWith(`${href}/`);
 
@@ -90,6 +92,20 @@ export function AppNav({
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
+            {/*
+             * Sichtbarer Einstieg in die Befehlspalette. Ohne ihn wäre die
+             * Funktion nur denen bekannt, die das Kürzel ohnehin schon kennen –
+             * eine versteckte Funktion ist für Anfängerinnen und Anfänger keine.
+             */}
+            <button
+              type="button"
+              onClick={openPalette}
+              className="hidden min-h-10 items-center gap-2 rounded-lg border border-[var(--border)] px-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text)] md:flex"
+            >
+              <span aria-hidden="true">⌕</span>
+              <span>Suchen</span>
+              <Kbd>Strg K</Kbd>
+            </button>
             <ThemeToggle />
             <div className="relative">
               <button
@@ -123,6 +139,28 @@ export function AppNav({
                   >
                     Code-Labor
                   </Link>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      openPalette();
+                    }}
+                    className="w-full rounded px-3 py-2 text-left text-sm hover:bg-[var(--surface-sunken)] md:hidden"
+                  >
+                    Suchen und springen
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      openShortcuts();
+                    }}
+                    className="w-full rounded px-3 py-2 text-left text-sm hover:bg-[var(--surface-sunken)]"
+                  >
+                    Tastaturkürzel
+                  </button>
                   <form action={logoutAction}>
                     <button
                       type="submit"
