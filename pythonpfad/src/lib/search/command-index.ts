@@ -84,6 +84,14 @@ export const STATIC_COMMANDS: readonly CommandEntry[] = [
     icon: '⌨',
   },
   {
+    id: 'bereich-organisation',
+    title: 'Organisationen',
+    keywords: 'kohorte klasse kurs team lehrkraft einladung schule',
+    group: 'Bereiche',
+    href: '/organisation',
+    icon: '⌗',
+  },
+  {
     id: 'bereich-profil',
     title: 'Profil und Einstellungen',
     keywords: 'konto daten export loeschen einstellungen darstellung',

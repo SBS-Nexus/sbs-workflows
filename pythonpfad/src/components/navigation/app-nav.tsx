@@ -139,6 +139,14 @@ export function AppNav({
                   >
                     Code-Labor
                   </Link>
+                  <Link
+                    href="/organisation"
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded px-3 py-2 text-sm hover:bg-[var(--surface-sunken)]"
+                  >
+                    Organisationen
+                  </Link>
                   <button
                     type="button"
                     role="menuitem"
