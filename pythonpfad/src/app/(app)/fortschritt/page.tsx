@@ -3,6 +3,9 @@ import Link from 'next/link';
 import { requireUser } from '@/server/auth/session';
 import { getDashboardData } from '@/server/services/progress-service';
 import { getMotivationSummary } from '@/server/services/motivation-service';
+import { getKnowledgeMap } from '@/server/services/knowledge-service';
+import { ConceptMap } from '@/components/knowledge/concept-map';
+import { RetentionForecast } from '@/components/knowledge/retention-forecast';
 import { LearningRhythm } from '@/components/motivation/learning-rhythm';
 import { MilestoneList } from '@/components/motivation/milestone-list';
 import {
@@ -26,9 +29,10 @@ const BAND_TONE = {
 
 export default async function ProgressPage(): Promise<React.ReactElement> {
   const user = await requireUser();
-  const [data, motivation] = await Promise.all([
+  const [data, motivation, knowledge] = await Promise.all([
     getDashboardData(user.id),
     getMotivationSummary(user.id),
+    getKnowledgeMap(user.id),
   ]);
 
   const maxActivity = Math.max(1, ...data.weeklyActivity.map((d) => d.activities));
@@ -108,6 +112,14 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
           </ul>
         </Card>
       </section>
+
+      <ConceptMap data={knowledge} />
+
+      <RetentionForecast
+        points={knowledge.forecast}
+        message={knowledge.forecastMessage}
+        targetPercent={knowledge.targetRetentionPercent}
+      />
 
       {/* --- Kompetenzen ---------------------------------------------------- */}
       <section aria-labelledby="konzepte">

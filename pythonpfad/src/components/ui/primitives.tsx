@@ -66,14 +66,26 @@ export function Card({
   className,
   id,
   children,
+  ...aria
 }: {
   as?: 'div' | 'section' | 'article' | 'li';
   className?: string;
   id?: string;
   children: ReactNode;
+  /**
+   * Beschriftung des Bereichs.
+   *
+   * Ohne Beschriftung ist ein `<section>` für Hilfstechnik kein benannter
+   * Bereich, sondern ein anonymer Kasten – er taucht dann in keiner
+   * Bereichsübersicht auf und lässt sich nicht ansteuern. Diese beiden
+   * Attribute werden deshalb ausdrücklich durchgereicht.
+   */
+  'aria-labelledby'?: string;
+  'aria-label'?: string;
 }): ReactNode {
   return (
     <Component
+      {...aria}
       id={id}
       className={cx(
         'rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-5 sm:p-6',
