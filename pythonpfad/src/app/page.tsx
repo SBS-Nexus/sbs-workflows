@@ -12,6 +12,22 @@ import {
 import { AuroraBackdrop, HeroVisual } from '@/components/marketing/hero-visual';
 import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
 import { contentStats } from '@/content';
+import { BRAND } from '@/lib/brand';
+import type { Metadata } from 'next';
+
+/**
+ * Kanonische Adresse.
+ *
+ * Die Startseite ist über mehrere Wege erreichbar – mit und ohne `www`, mit
+ * und ohne Anhängsel wie `?geloescht=1`. Ohne diesen Verweis behandeln
+ * Suchmaschinen jede Variante als eigene Seite und verteilen die Bewertung
+ * darauf. Er gehört auf die Seite und nicht ins Layout, sonst würde jede
+ * Unterseite behaupten, sie sei die Startseite.
+ */
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+  openGraph: { url: '/', title: BRAND.title, description: BRAND.description },
+};
 
 /**
  * Landingpage.
@@ -308,7 +324,10 @@ export default async function LandingPage({
         {/* ---------------------------------------------------------------- */}
         {/* Haltung: was hier gemacht wird – und was nicht                    */}
         {/* ---------------------------------------------------------------- */}
-        <section aria-labelledby="haltung" className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
+        <section
+          aria-labelledby="haltung"
+          className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28"
+        >
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="reveal-on-scroll rounded-3xl border-2 border-[var(--border)] bg-[var(--surface-raised)] p-7 sm:p-9">
               <h2 id="haltung" className="text-2xl font-black tracking-tight">
@@ -342,9 +361,18 @@ export default async function LandingPage({
               <h2 className="text-2xl font-black tracking-tight">Und was du hier nicht findest</h2>
               <ul className="mt-6 space-y-5">
                 {[
-                  ['Keine Verlustmechanik', 'Keine Herzen, die aufgebraucht werden, und nichts, was beim Fehler verschwindet.'],
-                  ['Keine Drucknachrichten', 'Eine unterbrochene Serie wird nicht kommentiert. Du fängst dort an, wo du aufgehört hast.'],
-                  ['Keine Ranglisten', 'Dein Fortschritt wird mit niemandem verglichen. Er gehört dir.'],
+                  [
+                    'Keine Verlustmechanik',
+                    'Keine Herzen, die aufgebraucht werden, und nichts, was beim Fehler verschwindet.',
+                  ],
+                  [
+                    'Keine Drucknachrichten',
+                    'Eine unterbrochene Serie wird nicht kommentiert. Du fängst dort an, wo du aufgehört hast.',
+                  ],
+                  [
+                    'Keine Ranglisten',
+                    'Dein Fortschritt wird mit niemandem verglichen. Er gehört dir.',
+                  ],
                 ].map(([titel, text]) => (
                   <li key={titel} className="flex gap-3.5">
                     <span

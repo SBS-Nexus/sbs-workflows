@@ -103,7 +103,14 @@ export function IllustrationLoop({ className, tone }: IllustrationProps): ReactN
         fill="none"
         strokeLinecap="round"
       />
-      <path d="M160 96l6 14 14-6" stroke={farbe} strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M160 96l6 14 14-6"
+        stroke={farbe}
+        strokeWidth="5"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       <circle cx="120" cy="28" r="9" fill={farbe} />
       <circle cx="68" cy="80" r="7" fill={farbe} opacity="0.5" />
       <circle cx="120" cy="132" r="7" fill={farbe} opacity="0.35" />
@@ -143,7 +150,13 @@ export function IllustrationEmpty({ className, tone }: IllustrationProps): React
         opacity="0.5"
       />
       <circle cx="120" cy="80" r="16" stroke={farbe} strokeWidth="3" fill="none" opacity="0.7" />
-      <path d="M120 72v16M112 80h16" stroke={farbe} strokeWidth="3" strokeLinecap="round" opacity="0.7" />
+      <path
+        d="M120 72v16M112 80h16"
+        stroke={farbe}
+        strokeWidth="3"
+        strokeLinecap="round"
+        opacity="0.7"
+      />
     </svg>
   );
 }

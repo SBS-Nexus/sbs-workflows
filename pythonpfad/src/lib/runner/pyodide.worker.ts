@@ -68,6 +68,98 @@ const PYODIDE_INDEX_URL = '/pyodide/';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
+/**
+ * Echter Ladefortschritt statt drehendem Rädchen.
+ *
+ * Pyodide holt seine Laufzeit selbst per `fetch` – rund 13 MB. Von außen ist
+ * davon nichts zu sehen; die einzige Rückmeldung wäre ein Rädchen, das sich
+ * zwanzig Sekunden dreht. Für jemanden, der zum ersten Mal auf „Ausführen"
+ * drückt, ist das kaum von „kaputt" zu unterscheiden – und der häufigste
+ * Grund, eine Seite zu schließen.
+ *
+ * Deshalb wird `fetch` im Worker für die Dauer des Ladens eingepackt. Der
+ * Ersatz liest den Antwortstrom mit und zählt die Bytes.
+ *
+ * Wogegen gezählt wird, ist der heikle Punkt. Die naheliegende
+ * `Content-Length`-Kopfzeile fehlt hier: Sobald der Server gzip einsetzt – und
+ * Browser fragen es immer an – kommt die Antwort in Stücken und ohne
+ * Längenangabe. Der Strom, den `fetch` herausgibt, ist dagegen bereits
+ * ausgepackt. Deshalb liefert `manifest.json` die unkomprimierten Größen; sie
+ * werden beim Abgleich der Laufzeit festgeschrieben und ändern sich nur mit
+ * der Pyodide-Fassung.
+ *
+ * Der Eingriff ist auf den Worker beschränkt und gilt nur während des Ladens.
+ * Danach wird die ursprüngliche Funktion zurückgesetzt – ein dauerhaft
+ * verbogenes `fetch` wäre eine Falle für jeden, der später hier etwas ergänzt.
+ */
+interface PyodideManifest {
+  sizes?: Record<string, number>;
+}
+
+async function ladeGroessen(): Promise<Record<string, number>> {
+  try {
+    const antwort = await fetch(`${PYODIDE_INDEX_URL}manifest.json`);
+    if (!antwort.ok) return {};
+    const manifest = (await antwort.json()) as PyodideManifest;
+    return manifest.sizes ?? {};
+  } catch {
+    // Ohne Manifest bleibt es beim unbestimmten Balken. Das ist unschön, aber
+    // kein Grund, das Laden der Laufzeit scheitern zu lassen.
+    return {};
+  }
+}
+
+function beobachteLadefortschritt(
+  groessen: Record<string, number>,
+  melde: (anteil: number) => void,
+): () => void {
+  const original = ctx.fetch.bind(ctx);
+
+  // Alles, was laut Manifest kommen wird. Gezählt wird über alle Dateien
+  // zusammen – eine Anzeige, die je Datei von vorn beginnt, wäre schlimmer
+  // als gar keine.
+  const gesamt = Object.values(groessen).reduce((summe, wert) => summe + wert, 0);
+  let gelesenGesamt = 0;
+
+  ctx.fetch = (async (eingabe: RequestInfo | URL, init?: RequestInit) => {
+    const antwort = await original(eingabe, init);
+
+    const adresse =
+      typeof eingabe === 'string' ? eingabe : String((eingabe as Request).url ?? eingabe);
+    const name = adresse.split('?')[0]?.split('/').pop() ?? '';
+    const erwartet = groessen[name];
+
+    if (!gesamt || !erwartet || !antwort.body) return antwort;
+
+    const leser = antwort.body.getReader();
+    const strom = new ReadableStream<Uint8Array>({
+      async pull(regler) {
+        const { done, value } = await leser.read();
+        if (done) {
+          regler.close();
+          return;
+        }
+        gelesenGesamt += value.byteLength;
+        melde(Math.min(1, gelesenGesamt / gesamt));
+        regler.enqueue(value);
+      },
+      cancel(grund) {
+        void leser.cancel(grund);
+      },
+    });
+
+    return new Response(strom, {
+      status: antwort.status,
+      statusText: antwort.statusText,
+      headers: antwort.headers,
+    });
+  }) as typeof ctx.fetch;
+
+  return () => {
+    ctx.fetch = original;
+  };
+}
+
 function post(message: WorkerResponse): void {
   ctx.postMessage(message);
 }
@@ -82,6 +174,21 @@ async function init(): Promise<void> {
   initPromise = (async () => {
     post({ type: 'loading', message: 'Python-Laufzeit wird geladen …', progress: null });
 
+    // Nicht bei jedem gelesenen Stück melden: Das wären hunderte Nachrichten
+    // je Sekunde für eine Anzeige, die ohnehin nur ganze Prozente zeigt.
+    const groessen = await ladeGroessen();
+    let zuletztGemeldet = -1;
+    const beenden = beobachteLadefortschritt(groessen, (anteil) => {
+      const prozent = Math.floor(anteil * 100);
+      if (prozent === zuletztGemeldet) return;
+      zuletztGemeldet = prozent;
+      post({
+        type: 'loading',
+        message: 'Python-Laufzeit wird geladen …',
+        progress: anteil,
+      });
+    });
+
     // Der Pfad zeigt auf die selbst gehostete Kopie unter /public/pyodide.
     // Der Ignore-Kommentar verhindert, dass der Bundler die Datei einbindet –
     // sie soll zur Laufzeit geladen und vom Browser zwischengespeichert werden.
@@ -93,6 +200,11 @@ async function init(): Promise<void> {
     };
 
     const instance = await mod.loadPyodide({ indexURL: PYODIDE_INDEX_URL });
+    beenden();
+
+    // Der letzte Schritt ist kurz, aber nicht sofort vorbei – und ohne eigene
+    // Meldung stünde die Anzeige hier scheinbar bei 100 % still.
+    post({ type: 'loading', message: 'Lernumgebung wird vorbereitet …', progress: 1 });
 
     instance.setStdout({ batched: (text) => post({ type: 'output', stream: 'stdout', text }) });
     instance.setStderr({ batched: (text) => post({ type: 'output', stream: 'stderr', text }) });

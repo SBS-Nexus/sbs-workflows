@@ -326,8 +326,7 @@ export function ExecutionTimeline({
                       </p>
                     ) : variable.change === 'changed' ? (
                       <p className="mt-1 text-xs text-[var(--accent)]">
-                        <Icon name="wiederholen" size={13} className="inline align-[-2px]" />{' '}
-                        vorher{' '}
+                        <Icon name="wiederholen" size={13} className="inline align-[-2px]" /> vorher{' '}
                         <code className="font-mono">{variable.previousValue}</code>
                       </p>
                     ) : null}

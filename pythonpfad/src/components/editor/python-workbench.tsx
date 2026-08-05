@@ -8,6 +8,7 @@ import { ExecutionTimeline } from './execution-timeline';
 import { explainPythonError } from '@/domain/errors/python-errors';
 import { useFeature } from '@/components/config/feature-context';
 import { Icon } from '@/components/ui/icon';
+import { useFeedback } from '@/components/feedback/use-feedback';
 import type { RunnerTestCase, RunnerTestResult, RunResult, TraceResult } from '@/lib/runner/types';
 import { DEFAULT_TIMEOUT_MS, TEST_TIMEOUT_MS } from '@/lib/runner/types';
 
@@ -79,6 +80,7 @@ export function PythonWorkbench({
   const [showLimits, setShowLimits] = useState(false);
   const [trace, setTrace] = useState<{ code: string; result: TraceResult } | null>(null);
   const outputRef = useRef<HTMLDivElement | null>(null);
+  const melde = useFeedback();
 
   useEffect(() => {
     outputRef.current?.scrollTo({ top: outputRef.current.scrollHeight });
@@ -93,6 +95,10 @@ export function PythonWorkbench({
       timeoutMs: withTests ? TEST_TIMEOUT_MS : DEFAULT_TIMEOUT_MS,
     });
     setTestResults(result.testResults);
+    // Ein kurzes „fertig", wenn das Programm ohne Fehler durchgelaufen ist.
+    // Nicht bei einem Fehler: Dort steht die Erklärung im Vordergrund, und ein
+    // Signal würde nur die Aufmerksamkeit davon abziehen.
+    if (!result.error) melde('lauf-fertig');
     onRunComplete?.(result);
   };
 
@@ -427,12 +433,49 @@ function RunnerStatusLine({
   if (status.phase === 'idle') return null;
 
   if (status.phase === 'loading') {
+    const prozent = status.progress === null ? null : Math.round(status.progress * 100);
+
     return (
-      <p role="status" className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-        <Icon name="wiederholen" size={16} className="animate-spin" />
-        {status.message} Beim ersten Mal werden rund 13 MB geladen, danach kommt alles aus dem
-        Browser-Cache.
-      </p>
+      <div className="space-y-2">
+        <p role="status" className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+          <Icon name="wiederholen" size={16} className="animate-spin" />
+          <span>
+            {status.message}
+            {prozent === null ? null : (
+              <span className="ml-1 font-semibold tabular-nums text-[var(--text)]">
+                {prozent}&nbsp;%
+              </span>
+            )}
+          </span>
+        </p>
+
+        {/*
+         * Der Balken zeigt einen gemessenen Wert, keinen geschätzten. Solange
+         * die Länge der Datei noch nicht bekannt ist, läuft er bewusst
+         * unbestimmt weiter, statt eine Zahl zu behaupten – ein Balken, der bei
+         * 90 % stehen bleibt, ist schlimmer als gar keiner.
+         */}
+        <div
+          role="progressbar"
+          aria-label="Fortschritt beim Laden der Python-Laufzeit"
+          {...(prozent === null
+            ? {}
+            : { 'aria-valuenow': prozent, 'aria-valuemin': 0, 'aria-valuemax': 100 })}
+          className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]"
+        >
+          <div
+            className={cx(
+              'h-full rounded-full bg-[var(--accent)] transition-[width] duration-200',
+              prozent === null && 'w-1/3 animate-pulse',
+            )}
+            {...(prozent === null ? {} : { style: { width: `${prozent}%` } })}
+          />
+        </div>
+
+        <p className="text-xs text-[var(--text-muted)]">
+          Beim ersten Mal werden rund 13 MB geladen, danach kommt alles aus dem Browser-Cache.
+        </p>
+      </div>
     );
   }
 

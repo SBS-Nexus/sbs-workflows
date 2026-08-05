@@ -13,6 +13,7 @@ import {
 import { PythonWorkbench } from '@/components/editor/python-workbench';
 import { TutorPanel } from '@/components/tutor/tutor-panel';
 import { Icon } from '@/components/ui/icon';
+import { useFeedback } from '@/components/feedback/use-feedback';
 import {
   CodeCompletionInput,
   FindErrorInput,
@@ -111,6 +112,7 @@ export function ExercisePanel({
   // idempotent und würde bei jedem erneuten Rendern abweichen.
   const startedAtRef = useRef<number>(0);
   const feedbackRef = useRef<HTMLDivElement | null>(null);
+  const melde = useFeedback();
 
   const revealedLevel = hints.reduce((max, h) => Math.max(max, h.level), 0);
 
@@ -257,6 +259,10 @@ export function ExercisePanel({
 
       if (response.grading.outcome === 'PASSED') {
         setPassed(true);
+        // Spürbare Rückmeldung ausschließlich hier – im Zweig des Gelingens.
+        // Für „nicht bestanden" gibt es bewusst kein Gegenstück: Ein Geräusch
+        // beim Fehlschlag würde das Misslingen zum Ereignis machen.
+        melde('aufgabe-geloest');
         onPassed?.();
       }
       startedAtRef.current = Date.now();
@@ -270,6 +276,7 @@ export function ExercisePanel({
     exercise.slug,
     isReview,
     lessonSlug,
+    melde,
     onPassed,
     revealedLevel,
   ]);
@@ -631,7 +638,9 @@ export function ExercisePanel({
               >
                 <span aria-hidden="true" className="mt-0.5 shrink-0">
                   <Icon
-                    name={item.tone === 'success' ? 'haken' : item.tone === 'issue' ? 'vor' : 'info'}
+                    name={
+                      item.tone === 'success' ? 'haken' : item.tone === 'issue' ? 'vor' : 'info'
+                    }
                     size={16}
                   />
                 </span>

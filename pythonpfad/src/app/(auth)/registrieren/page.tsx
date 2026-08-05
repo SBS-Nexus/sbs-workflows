@@ -5,7 +5,10 @@ import { getCurrentUser } from '@/server/auth/session';
 import { AuthShell } from '@/components/marketing/auth-shell';
 import { RegisterForm } from './register-form';
 
-export const metadata: Metadata = { title: 'Konto anlegen' };
+export const metadata: Metadata = {
+  title: 'Konto anlegen',
+  alternates: { canonical: '/registrieren' },
+};
 
 export default async function RegisterPage(): Promise<React.ReactElement> {
   const user = await getCurrentUser();

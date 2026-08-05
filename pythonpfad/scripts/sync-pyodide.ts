@@ -10,7 +10,7 @@
  * sind (~13 MB) – nicht das komplette Paket mit Beispielseiten und Sourcemaps.
  */
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,9 +58,29 @@ async function main(): Promise<void> {
   // Eine kleine Manifestdatei erlaubt es dem Client, die Version anzuzeigen und
   // den Browser-Cache gezielt zu invalidieren.
   const wasm = await readFile(path.join(targetDir, 'pyodide.asm.wasm'));
+
+  /*
+   * Die unkomprimierten Größen – Grundlage der Fortschrittsanzeige.
+   *
+   * Der naheliegende Weg wäre die `Content-Length`-Kopfzeile. Die gibt es hier
+   * aber nicht: Sobald der Server gzip einsetzt – und Browser fragen es immer
+   * an – liefert er die Antwort in Stücken und lässt die Längenangabe weg.
+   * Der Strom, den `fetch` im Worker herausgibt, ist dagegen schon ausgepackt.
+   *
+   * Also wird gegen die Größe der Datei auf der Platte gezählt. Sie steht
+   * beim Abgleich fest und ändert sich nur mit der Pyodide-Fassung – dann
+   * wird auch dieses Manifest neu geschrieben.
+   */
+  const groessen: Record<string, number> = {};
+  for (const file of REQUIRED_FILES) {
+    groessen[file] = (await stat(path.join(targetDir, file))).size;
+  }
+
   const manifest = {
     pyodideVersion: pkg.version,
     files: REQUIRED_FILES,
+    /** Dateiname → unkomprimierte Größe in Byte. */
+    sizes: groessen,
     wasmSha256: createHash('sha256').update(wasm).digest('hex'),
     generatedAt: new Date().toISOString(),
   };

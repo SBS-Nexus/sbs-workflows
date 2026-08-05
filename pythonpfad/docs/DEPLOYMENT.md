@@ -281,8 +281,28 @@ Vor dem Ausrollen genügt lokal:
 ```bash
 npm run verify        # Typecheck, Lint, Tests, Build
 npm run test:e2e      # gegen den Produktionsbuild
+npm run perf          # Leistungsbudget, braucht einen laufenden Server
 python3 scripts/verify_tracer.py
 ```
+
+Zum Leistungsbudget: `perf-budget.json` legt fest, wie viel JavaScript und CSS
+eine Seite beim ersten Aufruf höchstens laden darf. Gemessen wird nicht ein
+Manifest, sondern was der Browser tatsächlich über die Leitung holt
+(`encodedBodySize`, also komprimiert). Der wichtigste Fall, den das abfängt:
+Der Code-Editor oder die Python-Laufzeit landen über einen Umweg im Bündel der
+Startseite – beide sind ein Vielfaches der Grenzen und fielen sonst erst in der
+Ladezeit der Nutzenden auf.
+
+Der Server muss dafür laufen:
+
+```bash
+npm run build && npm run start &
+npm run perf
+```
+
+Wer eine Grenze anhebt, begründet das im Commit. Mit `npm run perf -- --schreibe`
+lassen sich die Grenzen an den gemessenen Stand anpassen – das ist zum Einrichten
+gedacht, nicht zum Wegdrücken einer Warnung.
 
 ### Nach dem Ausrollen einer neuen Fassung
 

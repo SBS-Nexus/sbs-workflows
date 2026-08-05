@@ -7,6 +7,20 @@ import { ToastProvider } from '@/components/ui/toast';
 import { buildCommandIndex } from '@/server/services/navigation-service';
 import { FeatureProvider } from '@/components/config/feature-context';
 import { allFlags } from '@/server/feature-flags';
+import type { Metadata } from 'next';
+
+/**
+ * Kein Eintrag in Suchmaschinen für den angemeldeten Bereich.
+ *
+ * `robots.txt` bittet Krabbler bereits, hier nicht hineinzugehen. Diese Angabe
+ * wirkt eine Stufe später und schärfer: Sie steht in der Seite selbst und gilt
+ * auch dann, wenn ein Krabbler über einen geteilten Verweis hereinkommt, ohne
+ * vorher `robots.txt` gelesen zu haben. Zwei unabhängige Wege, weil ein
+ * versehentlich indizierter Lernstand nicht zurückzuholen wäre.
+ */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false, nocache: true },
+};
 
 /**
  * Rahmen für alle angemeldeten Bereiche.

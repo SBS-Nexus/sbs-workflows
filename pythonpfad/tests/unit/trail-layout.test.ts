@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { layoutTrail } from '@/domain/design/trail-layout';
-import { MODULE_THEMES, PROJECT_THEME, REVIEW_THEME, moduleTheme, themeStyle } from '@/domain/design/module-theme';
+import {
+  MODULE_THEMES,
+  PROJECT_THEME,
+  REVIEW_THEME,
+  moduleTheme,
+  themeStyle,
+} from '@/domain/design/module-theme';
 
 describe('Strecke des Lernpfads', () => {
   it('liefert für null Stationen nichts zu zeichnen', () => {
