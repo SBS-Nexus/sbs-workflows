@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "next dev --turbopack",
+    "einrichten": "node scripts/einrichten.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
