@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/primitives';
 import { PageHero } from '@/components/ui/page-hero';
 import { ProgressRing } from '@/components/ui/progress-ring';
+import { AnimatedNumber } from '@/components/ui/animated-number';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
 
@@ -45,28 +46,38 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
 
   const maxActivity = Math.max(1, ...data.weeklyActivity.map((d) => d.activities));
 
+  /*
+   * Die Bereichsfarbe gilt für die ganze Seite, nicht nur für den Kopf. Ohne
+   * sie erbt alles darunter die allgemeine Akzentfarbe – der Kopf wäre in der
+   * Bereichsfarbe und die Überschrift zwei Zentimeter darunter blau. Von hier
+   * aus greifen Abschnittsüberschriften, Symbolkacheln und Hervorhebungen auf
+   * `--akzent` zu.
+   */
   return (
-    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6">
+    <div
+      style={themeStyle(moduleTheme(3))}
+      className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6"
+    >
       <PageHero
         theme={moduleTheme(3)}
         icon="fortschritt"
         title="Dein Lernstand"
         description="Die Zahlen hier sind Orientierungswerte aus deinem bisherigen Verlauf. Sie messen nicht, wie gut du programmieren kannst – sie helfen dabei, die nächste Übung sinnvoll auszuwählen."
       >
-        <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-[var(--surface-raised)] p-4">
+        <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-white/12 p-4 backdrop-blur-sm">
           <span
             aria-hidden="true"
-            className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--akzent)] text-[var(--text-inverse)]"
+            className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white/20"
           >
             <Icon name="funke" size={22} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
+            <p className="text-xs font-bold uppercase tracking-widest text-white/60">
               Empfehlung für jetzt
             </p>
             <p className="truncate text-lg font-bold">{data.nextStep.label}</p>
           </div>
-          <ButtonLink href={data.nextStep.href}>
+          <ButtonLink href={data.nextStep.href} variant="onDark">
             Öffnen
             <Icon name="vor" size={16} />
           </ButtonLink>
@@ -75,7 +86,9 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
 
       {/* --- Kennzahlen ---------------------------------------------------- */}
       <section aria-labelledby="ueberblick">
-        <SectionHeading id="ueberblick">Überblick</SectionHeading>
+        <SectionHeading id="ueberblick" icon="fortschritt">
+          Überblick
+        </SectionHeading>
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {(
             [
@@ -86,30 +99,33 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
               },
               {
                 label: 'Aufgaben eigenständig gelöst',
-                value: data.totals.exercisesPassed,
+                value: <AnimatedNumber value={data.totals.exercisesPassed} />,
                 icon: 'haken',
               },
               {
                 label: 'Projekte abgenommen',
-                value: data.totals.projectsAccepted,
+                value: <AnimatedNumber value={data.totals.projectsAccepted} />,
                 icon: 'projekte',
               },
               {
                 label: 'Aktive Lernzeit',
-                value: `${data.totals.activeMinutes} Minuten`,
+                value: <AnimatedNumber value={data.totals.activeMinutes} suffix=" Minuten" />,
                 icon: 'zeit',
               },
             ] satisfies ReadonlyArray<{ label: string; value: React.ReactNode; icon: IconName }>
           ).map((item, index) => (
-            <Card key={item.label} style={themeStyle(moduleTheme(index))} className="hover-lift">
-              <span
-                aria-hidden="true"
-                className="flex size-10 items-center justify-center rounded-xl bg-[var(--akzent-soft)] text-[var(--akzent)]"
-              >
-                <Icon name={item.icon} size={20} />
+            <Card
+              key={item.label}
+              style={{ ...themeStyle(moduleTheme(index)), animationDelay: `${index * 70}ms` }}
+              className="card-accent hover-lift hover-glow animate-in group"
+            >
+              <span aria-hidden="true" className="icon-tile size-11">
+                <Icon name={item.icon} size={21} />
               </span>
               <dt className="mt-3 text-sm text-[var(--text-muted)]">{item.label}</dt>
-              <dd className="mt-0.5 text-2xl font-black tracking-tight">{item.value}</dd>
+              <dd className="mt-0.5 text-2xl font-black tracking-tight text-[var(--akzent)]">
+                {item.value}
+              </dd>
             </Card>
           ))}
         </dl>
@@ -121,6 +137,7 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
       <section aria-labelledby="woche">
         <SectionHeading
           id="woche"
+          icon="zeit"
           description="Wie viele Aufgaben du an den letzten sieben Tagen bearbeitet hast."
         >
           Diese Woche
@@ -164,6 +181,7 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
       <section aria-labelledby="konzepte">
         <SectionHeading
           id="konzepte"
+          icon="karte"
           description="Je Konzept ein Stand aus deinem Verlauf. Ein niedriger Wert bedeutet nur, dass es noch wenig Gelegenheit zum eigenständigen Anwenden gab."
         >
           Konzepte
@@ -181,8 +199,8 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
               <Card
                 as="li"
                 key={concept.slug}
-                style={themeStyle(moduleTheme(index))}
-                className="p-4"
+                style={{ ...themeStyle(moduleTheme(index)), animationDelay: `${index * 40}ms` }}
+                className="hover-glow animate-in p-4"
               >
                 <div className="flex items-start gap-4">
                   <ProgressRing value={concept.score} label={concept.name} />
@@ -213,14 +231,16 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
 
       {/* --- Module ---------------------------------------------------------- */}
       <section aria-labelledby="module">
-        <SectionHeading id="module">Fortschritt nach Themen</SectionHeading>
+        <SectionHeading id="module" icon="lernen">
+          Fortschritt nach Themen
+        </SectionHeading>
         <ul className="grid gap-3 sm:grid-cols-2">
           {data.moduleProgress.map((mod, index) => (
             <Card
               as="li"
               key={mod.slug}
-              style={themeStyle(moduleTheme(index))}
-              className="glow-soft hover-lift"
+              style={{ ...themeStyle(moduleTheme(index)), animationDelay: `${index * 60}ms` }}
+              className="card-accent hover-lift hover-glow animate-in"
             >
               <p className="font-bold tracking-tight text-[var(--akzent)]">{mod.title}</p>
               <p className="mt-1 text-sm text-[var(--text-muted)]">
@@ -244,6 +264,7 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
         <section aria-labelledby="fehler">
           <SectionHeading
             id="fehler"
+            icon="gluehbirne"
             description="Fehler sind Lernmaterial. Diese Übersicht zeigt, woran du am häufigsten hängen bleibst – und was dabei hilft."
           >
             Häufige Fehlerarten
@@ -264,7 +285,9 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
 
       {/* --- Selbsteinschätzung ------------------------------------------------ */}
       <section aria-labelledby="einschaetzung">
-        <SectionHeading id="einschaetzung">Selbsteinschätzung und Ergebnis</SectionHeading>
+        <SectionHeading id="einschaetzung" icon="profil">
+          Selbsteinschätzung und Ergebnis
+        </SectionHeading>
         <Card>
           <p className="text-[0.95rem]">{data.calibration.message}</p>
           {data.calibration.samples >= 5 ? (

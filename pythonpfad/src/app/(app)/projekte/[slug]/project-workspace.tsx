@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Badge, Button, Callout, Card, ProgressBar, cx } from '@/components/ui/primitives';
+import { Button, Callout, Card, ProgressBar, cx } from '@/components/ui/primitives';
 import { Icon } from '@/components/ui/icon';
-import { PROJECT_THEME, themeStyle } from '@/domain/design/module-theme';
+import { PROJECT_THEME, heroGradient, themeStyle } from '@/domain/design/module-theme';
 import { PythonWorkbench } from '@/components/editor/python-workbench';
 import { TutorPanel } from '@/components/tutor/tutor-panel';
 import {
@@ -99,16 +99,32 @@ export function ProjectWorkspace({ project }: { project: ProjectView }): React.R
 
   return (
     <div className="space-y-6" style={themeStyle(PROJECT_THEME)}>
-      <header className="overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--akzent-soft)] p-6 sm:p-8">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="neutral">Schwierigkeit {project.difficulty} von 5</Badge>
-          <Badge tone="neutral">etwa {project.estimatedMinutes} Minuten</Badge>
-          {result?.status === 'ACCEPTED' ? <Badge tone="success">abgenommen</Badge> : null}
+      <header
+        style={{ backgroundImage: heroGradient(PROJECT_THEME) }}
+        className="relative isolate overflow-hidden rounded-3xl p-6 text-white sm:p-8"
+      >
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-20 -top-24 -z-10 size-64 rounded-full bg-white opacity-20 blur-3xl"
+        />
+        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+          <span className="rounded-full bg-white/15 px-3 py-1">
+            Schwierigkeit {project.difficulty} von 5
+          </span>
+          <span className="rounded-full bg-white/15 px-3 py-1">
+            etwa {project.estimatedMinutes} Minuten
+          </span>
+          {result?.status === 'ACCEPTED' ? (
+            <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[var(--color-success-700)]">
+              <Icon name="haken" size={14} />
+              abgenommen
+            </span>
+          ) : null}
         </div>
         <div className="mt-3 flex flex-wrap items-start gap-4">
           <span
             aria-hidden="true"
-            className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--akzent)] text-[var(--text-inverse)]"
+            className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm"
           >
             <Icon name="projekte" size={26} />
           </span>
@@ -116,7 +132,7 @@ export function ProjectWorkspace({ project }: { project: ProjectView }): React.R
             <h1 className="text-2xl font-black leading-tight tracking-tight sm:text-4xl">
               {project.title}
             </h1>
-            <p className="mt-2 max-w-prose text-[var(--text-muted)]">{project.description}</p>
+            <p className="mt-2 max-w-prose text-white/80">{project.description}</p>
           </div>
         </div>
       </header>

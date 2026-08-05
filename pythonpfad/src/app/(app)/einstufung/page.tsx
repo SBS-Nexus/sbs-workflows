@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { requireUser } from '@/server/auth/session';
 import { placementQuestions } from '@/content/placement';
 import { PlacementQuiz } from './placement-quiz';
+import { Schrittanzeige } from '@/components/ui/schrittanzeige';
+import { heroGradient, moduleTheme } from '@/domain/design/module-theme';
 
 export const metadata: Metadata = { title: 'Einstufung' };
 
@@ -22,15 +24,24 @@ export default async function PlacementPage(): Promise<React.ReactElement> {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
-      <header className="mb-8">
-        <p className="text-sm font-semibold text-[var(--accent)]">Schritt 2 von 2</p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Kurze Einstufung</h1>
-        <p className="mt-3 text-[var(--text-muted)]">
+      <header
+        style={{ backgroundImage: heroGradient(moduleTheme(3)) }}
+        className="relative isolate mb-8 overflow-hidden rounded-3xl p-6 text-white sm:p-8"
+      >
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-20 -top-24 -z-10 size-64 rounded-full bg-white opacity-20 blur-3xl"
+        />
+        <Schrittanzeige aktuell={2} />
+        <h1 className="mt-4 text-display-sm font-black leading-tight tracking-[-0.02em]">
+          Kurze Einstufung
+        </h1>
+        <p className="mt-3 max-w-prose text-white/80">
           Acht Fragen, kein Zeitlimit. Die ersten kommen ganz ohne Programmierbegriffe aus. „Weiß
           ich noch nicht“ ist überall eine gleichwertige Antwort und wird nicht schlechter bewertet
           als ein Rateversuch.
         </p>
-        <p className="mt-2 text-[var(--text-muted)]">
+        <p className="mt-2 max-w-prose text-white/80">
           Das Ergebnis entscheidet nicht darüber, was du lernen darfst – es bestimmt nur, wie
           ausführlich einzelne Lektionen für dich aufbereitet werden.
         </p>

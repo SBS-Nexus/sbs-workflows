@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Badge, Button, Callout, Card, CodeBlock, cx } from '@/components/ui/primitives';
 import { Icon } from '@/components/ui/icon';
-import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
+import { heroGradient, moduleTheme, themeStyle } from '@/domain/design/module-theme';
 import { useFeedback } from '@/components/feedback/use-feedback';
 import { ExercisePanel } from '@/components/exercise/exercise-panel';
 import { WorkedExampleRunner } from '@/components/editor/worked-example-runner';
@@ -97,12 +97,19 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
        * erkennt daran sofort, in welchem Modul er gelandet ist, noch bevor er
        * die Überschrift gelesen hat.
        */}
-      <header className="mb-6 overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--akzent-soft)]">
+      <header
+        style={{ backgroundImage: heroGradient(moduleTheme(lesson.moduleOrder)) }}
+        className="relative isolate mb-6 overflow-hidden rounded-3xl text-white"
+      >
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-20 -top-24 -z-10 size-64 rounded-full bg-white opacity-20 blur-3xl"
+        />
         <div className="p-6 sm:p-8">
           <div className="flex flex-wrap items-start gap-4">
             <span
               aria-hidden="true"
-              className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--akzent)] text-[var(--text-inverse)]"
+              className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm"
             >
               <Icon name="lernen" size={26} />
             </span>
@@ -110,7 +117,7 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
               <h1 className="text-2xl font-black leading-tight tracking-tight sm:text-4xl">
                 {lesson.title}
               </h1>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--text-muted)]">
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-white/70">
                 <span className="flex items-center gap-1.5">
                   <Icon name="zeit" size={14} />
                   etwa {lesson.estimatedMinutes} Minuten
@@ -145,9 +152,9 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
                     'h-2.5 flex-1 rounded-full transition-colors duration-500',
                     passedSlugs.has(exercise.slug)
                       ? isComplete
-                        ? 'bg-[var(--success)]'
-                        : 'bg-[var(--akzent)]'
-                      : 'bg-[var(--border-strong)]',
+                        ? 'bg-[var(--color-success-500)]'
+                        : 'bg-white'
+                      : 'bg-white/25',
                   )}
                 />
               ))}
@@ -183,10 +190,10 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         {/* --- Lerninhalt ------------------------------------------------ */}
         <div className="space-y-5 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-2">
-          <Card as="section" id="abschnitt-ziel">
+          <Card as="section" id="abschnitt-ziel" className="card-accent group">
             <h2 className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
-              <span aria-hidden="true" className="text-[var(--akzent)]">
-                <Icon name="karte" size={20} />
+              <span aria-hidden="true" className="icon-tile size-9">
+                <Icon name="karte" size={19} />
               </span>
               Was du nach dieser Lektion kannst
             </h2>
@@ -216,30 +223,30 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
             ) : null}
           </Card>
 
-          <Card as="section" id="abschnitt-problem">
+          <Card as="section" id="abschnitt-problem" className="card-accent group">
             <h2 className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
-              <span aria-hidden="true" className="text-[var(--akzent)]">
-                <Icon name="gluehbirne" size={20} />
+              <span aria-hidden="true" className="icon-tile size-9">
+                <Icon name="gluehbirne" size={19} />
               </span>
               Das Problem
             </h2>
             <p className="mt-2 text-[0.95rem]">{lesson.everydayProblem}</p>
           </Card>
 
-          <Card as="section" id="abschnitt-modell">
+          <Card as="section" id="abschnitt-modell" className="card-accent group">
             <h2 className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
-              <span aria-hidden="true" className="text-[var(--akzent)]">
-                <Icon name="funke" size={20} />
+              <span aria-hidden="true" className="icon-tile size-9">
+                <Icon name="funke" size={19} />
               </span>
               So kannst du es dir vorstellen
             </h2>
             <p className="mt-2 text-[0.95rem]">{lesson.mentalModel}</p>
           </Card>
 
-          <Card as="section" id="abschnitt-beispiel">
+          <Card as="section" id="abschnitt-beispiel" className="card-accent group">
             <h2 className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
-              <span aria-hidden="true" className="text-[var(--akzent)]">
-                <Icon name="code" size={20} />
+              <span aria-hidden="true" className="icon-tile size-9">
+                <Icon name="code" size={19} />
               </span>
               Beispiel, Zeile für Zeile
             </h2>
@@ -299,10 +306,10 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
             <WorkedExampleRunner code={lesson.workedExample.code} />
           </Card>
 
-          <Card as="section">
+          <Card as="section" className="card-accent group">
             <h2 className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
-              <span aria-hidden="true" className="text-[var(--akzent)]">
-                <Icon name="achtung" size={20} />
+              <span aria-hidden="true" className="icon-tile size-9">
+                <Icon name="achtung" size={19} />
               </span>
               Typische Stolperstellen
             </h2>
@@ -331,8 +338,8 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
         <div className="space-y-5" id="abschnitt-aufgaben">
           <div>
             <h2 className="flex items-center gap-2.5 text-xl font-black tracking-tight">
-              <span aria-hidden="true" className="text-[var(--akzent)]">
-                <Icon name="tastatur" size={22} />
+              <span aria-hidden="true" className="icon-tile size-9">
+                <Icon name="tastatur" size={19} />
               </span>
               Aufgaben
             </h2>
@@ -368,10 +375,10 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
           ))}
 
           {/* --- Reflexion und Abschluss ----------------------------------- */}
-          <Card as="section" id="abschnitt-reflexion">
+          <Card as="section" id="abschnitt-reflexion" className="card-accent group">
             <h2 className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
-              <span aria-hidden="true" className="text-[var(--akzent)]">
-                <Icon name="profil" size={20} />
+              <span aria-hidden="true" className="icon-tile size-9">
+                <Icon name="profil" size={19} />
               </span>
               Kurz nachdenken
             </h2>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Badge, Card, cx } from '@/components/ui/primitives';
+import { Icon } from '@/components/ui/icon';
 import type { KnowledgeMapData, KnowledgeNode } from '@/server/services/knowledge-service';
 
 /**
@@ -57,10 +58,16 @@ export function ConceptMap({ data }: { data: KnowledgeMapData }): React.ReactEle
   }
 
   return (
-    <Card as="section" aria-labelledby="landkarte-titel">
+    <Card as="section" aria-labelledby="landkarte-titel" className="card-accent group">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 id="landkarte-titel" className="text-lg font-semibold">
+          <h2
+            id="landkarte-titel"
+            className="flex items-center gap-2.5 text-lg font-bold tracking-tight"
+          >
+            <span aria-hidden="true" className="icon-tile size-9">
+              <Icon name="karte" size={19} />
+            </span>
             Wissenslandkarte
           </h2>
           <p className="mt-1 text-sm text-[var(--text-muted)]">

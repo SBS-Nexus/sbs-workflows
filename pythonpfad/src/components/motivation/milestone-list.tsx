@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { Card, ProgressBar, cx } from '@/components/ui/primitives';
 import { Icon } from '@/components/ui/icon';
+import { AnimatedNumber } from '@/components/ui/animated-number';
+import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
 import type { MilestoneState } from '@/domain/motivation/milestones';
 
 /**
@@ -25,29 +27,46 @@ export function MilestoneList({
   const offen = milestones.filter((state) => !state.reached);
 
   return (
-    <Card as="section" aria-labelledby="meilensteine-titel">
-      <h2 id="meilensteine-titel" className="text-lg font-semibold">
-        Meilensteine
-      </h2>
-      <p className="mt-1 text-sm text-[var(--text-muted)]">
-        {erreicht.length} von {milestones.length} erreicht. Jeder steht für eine Fähigkeit, nicht
-        für aufgewendete Zeit – deshalb gibt es keinen für Regelmäßigkeit.
-      </p>
+    <Card
+      as="section"
+      aria-labelledby="meilensteine-titel"
+      style={themeStyle(moduleTheme(0))}
+      className="card-accent group"
+    >
+      <div className="flex items-start gap-4">
+        <span aria-hidden="true" className="icon-tile mt-0.5 size-11">
+          <Icon name="karte" size={22} />
+        </span>
+        <div className="min-w-0">
+          <h2 id="meilensteine-titel" className="text-lg font-bold tracking-tight">
+            Meilensteine
+          </h2>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">
+            <span className="font-bold text-[var(--akzent)]">
+              <AnimatedNumber value={erreicht.length} /> von {milestones.length}
+            </span>{' '}
+            erreicht. Jeder steht für eine Fähigkeit, nicht für aufgewendete Zeit – deshalb gibt es
+            keinen für Regelmäßigkeit.
+          </p>
+        </div>
+      </div>
 
       {next ? (
-        <div className="mt-4 rounded-lg border border-[var(--accent)] bg-[var(--accent-soft)] p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">
+        <div className="mt-5 rounded-2xl border-2 border-[var(--akzent)] bg-[var(--akzent-soft)] p-4">
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--akzent)]">
+            <Icon name="funke" size={15} />
             Als Nächstes erreichbar
           </p>
-          <p className="mt-1 font-semibold">{next.label}</p>
+          <p className="mt-1.5 font-bold tracking-tight">{next.label}</p>
           <p className="mt-1 text-sm">{next.description}</p>
           <div className="mt-3">
             <ProgressBar
               value={next.current}
               max={next.target}
               label={`${next.label}: ${next.current} von ${next.target}`}
+              tone="module"
             />
-            <p className="mt-1 text-sm text-[var(--text-muted)]">
+            <p className="mt-1.5 text-sm font-semibold tabular-nums text-[var(--akzent)]">
               {next.current} von {next.target}
             </p>
           </div>
@@ -60,14 +79,16 @@ export function MilestoneList({
       )}
 
       <ul className="mt-5 space-y-2">
-        {[...erreicht, ...offen].map((state) => (
+        {[...erreicht, ...offen].map((state, index) => (
           <li
             key={state.key}
+            style={{ animationDelay: `${index * 45}ms` }}
             className={cx(
-              'flex items-start gap-3 rounded-lg border px-3 py-2.5',
+              'animate-in flex items-start gap-3 rounded-xl border-2 px-3.5 py-3',
+              'transition-colors duration-200',
               state.reached
                 ? 'border-[var(--success)] bg-[var(--success-soft)]'
-                : 'border-[var(--border)]',
+                : 'border-[var(--border)] hover:border-[var(--akzent)]',
             )}
           >
             <span
@@ -75,14 +96,14 @@ export function MilestoneList({
               className={cx(
                 'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full',
                 state.reached
-                  ? 'bg-[var(--success)] text-[var(--surface-raised)]'
-                  : 'border border-[var(--border-strong)] text-[var(--text-muted)]',
+                  ? 'bg-[var(--success)] text-[var(--text-inverse)]'
+                  : 'border-2 border-[var(--border-strong)] text-[var(--text-muted)]',
               )}
             >
               <Icon name={state.reached ? 'haken' : 'kreis'} size={14} />
             </span>
             <div className="min-w-0">
-              <p className="font-medium">
+              <p className="font-bold tracking-tight">
                 <span className="sr-only">{state.reached ? 'Erreicht: ' : 'Noch offen: '}</span>
                 {state.label}
               </p>

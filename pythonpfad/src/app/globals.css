@@ -749,6 +749,31 @@ body[data-overlay-open='true'] {
   }
 }
 
+/*
+ * Ruhiger Puls.
+ *
+ * Für genau eine Stelle je Seite: die Station, an der es weitergeht. Der Ring
+ * wächst und verblasst – er zieht den Blick, ohne zu blinken. Ein blinkendes
+ * Element wäre nicht nur unruhig, sondern bei bestimmten Frequenzen auch ein
+ * Auslöser für Anfälle; dieser Puls bleibt weit darunter (eine Runde je zwei
+ * Sekunden) und ändert die Helligkeit nur weich.
+ */
+@keyframes pp-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  70%,
+  100% {
+    transform: scale(1.45);
+    opacity: 0;
+  }
+}
+
+@utility animate-pulse-ring {
+  animation: pp-pulse 2.2s var(--ease-decelerate) infinite;
+}
+
 @utility animate-float {
   animation: pp-float 6s var(--ease-standard) infinite;
 }
@@ -768,6 +793,90 @@ body[data-overlay-open='true'] {
 @utility animate-draw {
   stroke-dasharray: var(--laenge, 1000);
   animation: pp-draw 1.4s var(--ease-decelerate) forwards;
+}
+
+/* --------------------------------------------------------------------------
+ * Farbe und Leben in gewöhnlichen Karten
+ *
+ * Eine weiße Fläche mit dünnem Rahmen ist korrekt und sagt nichts. Die
+ * folgenden Bausteine geben jeder Karte, die für etwas steht, eine sichtbare
+ * Zugehörigkeit – ohne dass dafür jedes Mal ein Dutzend Klassen nötig wären.
+ * -------------------------------------------------------------------------- */
+
+/*
+ * Farbkante am oberen Rand.
+ *
+ * Vier Pixel genügen. Sie tragen die Leitfarbe des Bereichs an eine Stelle, die
+ * beim Überfliegen ohnehin gestreift wird, und lassen die Fläche darunter ruhig
+ * – anders als eine flächige Einfärbung, die Fließtext den Kontrast nimmt.
+ */
+@utility card-accent {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-accent::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--akzent, var(--accent)) 0%,
+    color-mix(in oklab, var(--akzent, var(--accent)) 35%, transparent) 60%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/*
+ * Erscheinen mit Verzögerung.
+ *
+ * `backwards` ist hier der entscheidende Teil: Ohne diesen Füllmodus wäre ein
+ * Element mit Verzögerung bis zum Start voll sichtbar und würde dann erst
+ * anfangen – das sieht aus wie ein Ruckler und nicht wie ein Aufbau. Die
+ * Verzögerung setzen die Aufrufstellen je Element als Stilangabe.
+ */
+@utility animate-in {
+  animation: pp-rise var(--duration-slow) var(--ease-decelerate) backwards;
+}
+
+/* Farbiges Leuchten beim Zeigen – für Karten, die zu etwas führen. */
+@utility hover-glow {
+  transition:
+    border-color var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.hover-glow:hover {
+  border-color: var(--akzent, var(--accent));
+  box-shadow:
+    0 0 0 1px var(--akzent, var(--accent)),
+    0 12px 28px -14px color-mix(in oklab, var(--akzent, var(--accent)) 60%, transparent);
+}
+
+/*
+ * Kachel für ein Symbol.
+ *
+ * Kommt so oft vor, dass die immer gleiche Kombination aus Rundung, weicher
+ * Fläche und Akzentfarbe einen eigenen Namen verdient. Beim Zeigen wächst sie
+ * leicht – das ist der Unterschied zwischen einem Bild und einem Element, das
+ * antwortet.
+ */
+@utility icon-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 0.875rem;
+  background-color: var(--akzent-soft, var(--accent-soft));
+  color: var(--akzent, var(--accent));
+  transition: transform var(--duration-base) var(--ease-emphasis);
+}
+
+.group:hover .icon-tile {
+  transform: scale(1.08);
 }
 
 /* Anheben beim Zeigen. Nur für Flächen, die wirklich zu etwas führen. */
@@ -813,11 +922,21 @@ body[data-overlay-open='true'] {
   .animate-float,
   .animate-drift,
   .animate-caret,
+  .animate-pulse-ring,
   .reveal-on-scroll {
     animation: none !important;
   }
 
-  .hover-lift:hover {
+  /* Beim Erscheinen darf die Bewegung weg – der Inhalt muss bleiben. Deshalb
+     nicht `animation: none`, sondern eine Dauer nahe null: Der Füllmodus
+     `backwards` würde das Element sonst dauerhaft unsichtbar halten. */
+  .animate-in {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+  }
+
+  .hover-lift:hover,
+  .group:hover .icon-tile {
     transform: none;
   }
 }
@@ -825,8 +944,18 @@ body[data-overlay-open='true'] {
 :root[data-reduce-motion='true'] .animate-float,
 :root[data-reduce-motion='true'] .animate-drift,
 :root[data-reduce-motion='true'] .animate-caret,
+:root[data-reduce-motion='true'] .animate-pulse-ring,
 :root[data-reduce-motion='true'] .reveal-on-scroll {
   animation: none !important;
+}
+
+:root[data-reduce-motion='true'] .animate-in {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0ms !important;
+}
+
+:root[data-reduce-motion='true'] .group:hover .icon-tile {
+  transform: none;
 }
 
 :root[data-reduce-motion='true'] .hover-lift:hover {

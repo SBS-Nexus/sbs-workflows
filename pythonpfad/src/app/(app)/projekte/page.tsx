@@ -5,6 +5,7 @@ import { listProjects } from '@/server/services/project-service';
 import { Badge, Card, ProgressBar } from '@/components/ui/primitives';
 import { PageHero, HeroStat } from '@/components/ui/page-hero';
 import { Icon } from '@/components/ui/icon';
+import { AnimatedNumber } from '@/components/ui/animated-number';
 import { IllustrationBuild } from '@/components/ui/illustration';
 import { PROJECT_THEME, themeStyle } from '@/domain/design/module-theme';
 
@@ -25,8 +26,18 @@ export default async function ProjectsPage(): Promise<React.ReactElement> {
   const user = await requireUser();
   const projects = await listProjects(user.id);
 
+  /*
+   * Die Bereichsfarbe gilt für die ganze Seite, nicht nur für den Kopf. Ohne
+   * sie erbt alles darunter die allgemeine Akzentfarbe – der Kopf wäre in der
+   * Bereichsfarbe und die Überschrift zwei Zentimeter darunter blau. Von hier
+   * aus greifen Abschnittsüberschriften, Symbolkacheln und Hervorhebungen auf
+   * `--akzent` zu.
+   */
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
+    <div
+      style={themeStyle(PROJECT_THEME)}
+      className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6"
+    >
       <PageHero
         theme={PROJECT_THEME}
         icon="projekte"
@@ -34,33 +45,40 @@ export default async function ProjectsPage(): Promise<React.ReactElement> {
         description="In einem Projekt gibt es keine Lösungsschritte, sondern nur Anforderungen. Du entscheidest, wie du sie erfüllst. Die Meilensteine werden automatisch geprüft; abgenommen ist ein Projekt erst, wenn außerdem deine Reflexion vorliegt."
       >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <HeroStat value={projects.length} label="Projekte" />
+          <HeroStat value={<AnimatedNumber value={projects.length} />} label="Projekte" index={0} />
           <HeroStat
-            value={projects.filter((project) => project.status === 'ACCEPTED').length}
+            value={
+              <AnimatedNumber
+                value={projects.filter((project) => project.status === 'ACCEPTED').length}
+              />
+            }
             label="abgenommen"
+            index={1}
           />
           <HeroStat
-            value={projects.filter((project) => project.status === 'IN_PROGRESS').length}
+            value={
+              <AnimatedNumber
+                value={projects.filter((project) => project.status === 'IN_PROGRESS').length}
+              />
+            }
             label="in Arbeit"
+            index={2}
           />
         </div>
       </PageHero>
 
       <ul className="space-y-4">
-        {projects.map((project) => {
+        {projects.map((project, index) => {
           const status = STATUS_LABELS[project.status] ?? STATUS_LABELS.NOT_STARTED;
           return (
             <Card
               as="li"
               key={project.slug}
-              style={themeStyle(PROJECT_THEME)}
-              className="hover-lift glow-soft"
+              style={{ ...themeStyle(PROJECT_THEME), animationDelay: `${index * 70}ms` }}
+              className="card-accent hover-lift hover-glow animate-in group"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <span
-                  aria-hidden="true"
-                  className="hidden size-16 shrink-0 items-center justify-center rounded-2xl bg-[var(--akzent-soft)] p-2 sm:flex"
-                >
+                <span aria-hidden="true" className="icon-tile hidden size-16 p-2 sm:flex">
                   <IllustrationBuild tone="var(--akzent)" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -93,7 +111,7 @@ export default async function ProjectsPage(): Promise<React.ReactElement> {
                     value={project.milestonesDone}
                     max={project.milestoneCount}
                     label={`${project.milestonesDone} von ${project.milestoneCount} Meilensteinen erfüllt`}
-                    tone={project.milestonesDone === project.milestoneCount ? 'success' : 'accent'}
+                    tone={project.milestonesDone === project.milestoneCount ? 'success' : 'module'}
                   />
                 </div>
               ) : null}

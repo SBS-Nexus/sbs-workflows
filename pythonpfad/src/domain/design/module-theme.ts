@@ -20,26 +20,80 @@ export interface ModuleTheme {
   soft: string;
   /** Kurzbezeichnung, falls die Farbe benannt werden muss. */
   label: string;
+  /**
+   * Verlauf für große Kopfbereiche, von dunkel nach kräftig.
+   *
+   * Hier stehen ausnahmsweise feste Farbwerte statt Variablen. Der Grund: Ein
+   * solcher Kopfbereich trägt weiße Schrift und ist in beiden Farbschemata
+   * dunkel. Die Modulfarben werden im dunklen Schema aber aufgehellt – ein
+   * Verlauf aus Variablen würde dort zu Pastell, und Weiß darauf wäre nicht
+   * mehr lesbar.
+   */
+  heroFrom: string;
+  heroTo: string;
 }
 
 const THEMES: readonly ModuleTheme[] = [
-  { color: 'var(--color-modul-0)', soft: 'var(--color-modul-0-soft)', label: 'Violett' },
-  { color: 'var(--color-modul-1)', soft: 'var(--color-modul-1-soft)', label: 'Petrol' },
-  { color: 'var(--color-modul-2)', soft: 'var(--color-modul-2-soft)', label: 'Orange' },
-  { color: 'var(--color-modul-3)', soft: 'var(--color-modul-3-soft)', label: 'Blau' },
+  {
+    color: 'var(--color-modul-0)',
+    soft: 'var(--color-modul-0-soft)',
+    label: 'Violett',
+    heroFrom: '#3b0764',
+    heroTo: '#7c3aed',
+  },
+  {
+    color: 'var(--color-modul-1)',
+    soft: 'var(--color-modul-1-soft)',
+    label: 'Petrol',
+    heroFrom: '#134e4a',
+    heroTo: '#0d9488',
+  },
+  {
+    color: 'var(--color-modul-2)',
+    soft: 'var(--color-modul-2-soft)',
+    label: 'Orange',
+    heroFrom: '#7c2d12',
+    heroTo: '#ea580c',
+  },
+  {
+    color: 'var(--color-modul-3)',
+    soft: 'var(--color-modul-3-soft)',
+    label: 'Blau',
+    heroFrom: '#172554',
+    heroTo: '#2563eb',
+  },
 ];
 
 export const PROJECT_THEME: ModuleTheme = {
   color: 'var(--color-projekt)',
   soft: 'var(--color-projekt-soft)',
   label: 'Magenta',
+  heroFrom: '#500724',
+  heroTo: '#db2777',
 };
 
 export const REVIEW_THEME: ModuleTheme = {
   color: 'var(--color-wiederholen)',
   soft: 'var(--color-wiederholen-soft)',
   label: 'Blattgrün',
+  heroFrom: '#1a2e05',
+  heroTo: '#4d7c0f',
 };
+
+/**
+ * Fertiger Verlauf für einen Kopfbereich.
+ *
+ * Zwei Farbwolken über einer Grundschräge – dieselbe Machart wie auf der
+ * Startseite, nur im Ton des jeweiligen Bereichs. Der Verlauf allein wäre
+ * flach; die beiden Wolken geben ihm Tiefe.
+ */
+export function heroGradient(theme: ModuleTheme): string {
+  return [
+    `radial-gradient(at 15% 15%, color-mix(in oklab, ${theme.heroTo} 70%, transparent) 0px, transparent 55%)`,
+    `radial-gradient(at 85% 85%, color-mix(in oklab, ${theme.heroFrom} 85%, transparent) 0px, transparent 55%)`,
+    `linear-gradient(135deg, ${theme.heroFrom} 0%, ${theme.heroTo} 100%)`,
+  ].join(', ');
+}
 
 /**
  * Farbe zu einer Modulnummer.
