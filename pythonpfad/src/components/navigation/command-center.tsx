@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/ui/dialog';
 import { Kbd, cx } from '@/components/ui/primitives';
+import { Icon } from '@/components/ui/icon';
 import { useToast } from '@/components/ui/toast';
 import { cycleTheme, THEME_LABELS, toggleReduceMotion } from '@/lib/preferences/appearance';
 import { rankEntries, splitByRanges, type MatchRange } from '@/lib/search/fuzzy';
@@ -432,13 +433,14 @@ function CommandPalette({
                     )}
                   >
                     <span
-                      aria-hidden="true"
                       className={cx(
-                        'w-5 shrink-0 text-center',
-                        isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]',
+                        'flex size-7 shrink-0 items-center justify-center rounded-lg',
+                        isActive
+                          ? 'bg-[var(--accent)] text-[var(--text-inverse)]'
+                          : 'bg-[var(--surface-sunken)] text-[var(--text-muted)]',
                       )}
                     >
-                      {result.item.icon ?? '›'}
+                      <Icon name={result.item.icon ?? 'vor'} size={15} />
                     </span>
                     <span className="min-w-0 flex-1 truncate text-[0.95rem]">
                       {splitByRanges(result.item.title, result.ranges).map((part, partIndex) =>

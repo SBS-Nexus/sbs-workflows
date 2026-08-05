@@ -4,6 +4,9 @@ import { prisma } from '@/server/db/prisma';
 import { getPublicExercise } from '@/server/services/exercise-service';
 import { PracticeRunner } from './practice-runner';
 import { EmptyState, ButtonLink, SectionHeading } from '@/components/ui/primitives';
+import { PageHero } from '@/components/ui/page-hero';
+import { ProgressRing } from '@/components/ui/progress-ring';
+import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
 import { describeMastery } from '@/domain/mastery/mastery';
 
 export const metadata: Metadata = { title: 'Üben' };
@@ -29,7 +32,13 @@ export default async function PracticePage(): Promise<React.ReactElement> {
   if (weakest.length === 0) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-        <h1 className="mb-6 text-2xl font-bold tracking-tight sm:text-3xl">Üben</h1>
+        <PageHero
+          theme={moduleTheme(1)}
+          icon="ueben"
+          title="Üben"
+          description="Gezielte Arbeit an den Konzepten, die bei dir gerade am wenigsten gefestigt sind."
+          className="mb-6"
+        />
         <EmptyState
           title="Noch keine Übungsvorschläge"
           description="Der Übungsmodus stellt Aufgaben zu den Konzepten zusammen, die bei dir noch wackeln. Dafür braucht er ein paar bearbeitete Aufgaben aus dem Lernpfad."
@@ -64,27 +73,32 @@ export default async function PracticePage(): Promise<React.ReactElement> {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Üben</h1>
-        <p className="mt-3 max-w-prose text-[var(--text-muted)]">
-          Gezielte Arbeit an den Konzepten, die bei dir gerade am wenigsten gefestigt sind. Es kommt
-          nichts vor, das du noch nicht in einer Lektion gesehen hast.
-        </p>
-      </header>
+      <PageHero
+        theme={moduleTheme(1)}
+        icon="ueben"
+        title="Üben"
+        description="Gezielte Arbeit an den Konzepten, die bei dir gerade am wenigsten gefestigt sind. Es kommt nichts vor, das du noch nicht in einer Lektion gesehen hast."
+      />
 
       <section aria-labelledby="schwerpunkte">
         <SectionHeading id="schwerpunkte">Aktuelle Schwerpunkte</SectionHeading>
         <ul className="grid gap-3 sm:grid-cols-3">
-          {weakest.map((entry) => {
+          {weakest.map((entry, index) => {
             const description = describeMastery(entry.masteryScore);
             return (
               <li
                 key={entry.id}
-                className="rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4"
+                style={themeStyle(moduleTheme(index))}
+                className="hover-lift rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-5"
               >
-                <p className="font-semibold">{entry.concept.name}</p>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">{description.label}</p>
-                <p className="mt-2 text-sm">{description.nextStep}</p>
+                <div className="flex items-center gap-4">
+                  <ProgressRing value={entry.masteryScore} label={entry.concept.name} />
+                  <div className="min-w-0">
+                    <p className="font-bold tracking-tight">{entry.concept.name}</p>
+                    <p className="mt-0.5 text-sm text-[var(--text-muted)]">{description.label}</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-sm">{description.nextStep}</p>
               </li>
             );
           })}

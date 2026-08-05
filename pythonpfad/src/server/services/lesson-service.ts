@@ -26,6 +26,8 @@ export interface LessonView {
   title: string;
   moduleTitle: string;
   moduleSlug: string;
+  /** Reihenfolge des Moduls im Kurs – bestimmt die Leitfarbe der Seite. */
+  moduleOrder: number;
   learningObjectives: string[];
   everydayProblem: string;
   mentalModel: string;
@@ -52,7 +54,7 @@ export async function getLessonView(
   const lesson = await prisma.lesson.findUnique({
     where: { slug: lessonSlug },
     include: {
-      module: { select: { title: true, slug: true } },
+      module: { select: { title: true, slug: true, order: true } },
       concepts: { include: { concept: true } },
       exercises: { where: { status: 'PUBLISHED' }, orderBy: { order: 'asc' } },
     },
@@ -85,6 +87,7 @@ export async function getLessonView(
     title: lesson.title,
     moduleTitle: lesson.module.title,
     moduleSlug: lesson.module.slug,
+    moduleOrder: lesson.module.order,
     learningObjectives: lesson.learningObjectives,
     everydayProblem: lesson.everydayProblem,
     mentalModel: lesson.mentalModel,

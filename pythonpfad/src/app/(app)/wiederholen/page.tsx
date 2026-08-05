@@ -5,6 +5,9 @@ import { getReviewCenterData } from '@/server/services/review-service';
 import { getPublicExercise } from '@/server/services/exercise-service';
 import { ReviewRunner } from './review-runner';
 import { Badge, ButtonLink, Card, EmptyState, SectionHeading } from '@/components/ui/primitives';
+import { PageHero, HeroStat } from '@/components/ui/page-hero';
+import { Icon } from '@/components/ui/icon';
+import { REVIEW_THEME } from '@/domain/design/module-theme';
 
 export const metadata: Metadata = { title: 'Wiederholen' };
 
@@ -20,14 +23,21 @@ export default async function ReviewPage(): Promise<React.ReactElement> {
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 px-4 py-8 sm:px-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Wiederholungscenter</h1>
-        <p className="mt-3 max-w-prose text-[var(--text-muted)]">
-          Hier kommt zurück, was du schon einmal konntest – zu dem Zeitpunkt, an dem das Erinnern
-          gerade eben noch gelingt. Genau dieser Moment festigt am stärksten. Dass sich etwas nicht
-          sofort abrufen lässt, ist Teil des Verfahrens und kein Rückschritt.
-        </p>
-      </header>
+      <PageHero
+        theme={REVIEW_THEME}
+        icon="wiederholen"
+        title="Wiederholungscenter"
+        description="Hier kommt zurück, was du schon einmal konntest – zu dem Zeitpunkt, an dem das Erinnern gerade eben noch gelingt. Genau dieser Moment festigt am stärksten. Dass sich etwas nicht sofort abrufen lässt, ist Teil des Verfahrens und kein Rückschritt."
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <HeroStat value={exercises.length} label="heute fällig" />
+          <HeroStat value={data.upcoming.length} label="in den nächsten Tagen" />
+          <HeroStat
+            value={data.sets.filter((set) => set.available).length}
+            label="Sets verfügbar"
+          />
+        </div>
+      </PageHero>
 
       {exercises.length > 0 ? (
         <section aria-labelledby="faellig">
@@ -78,9 +88,9 @@ export default async function ReviewPage(): Promise<React.ReactElement> {
         </SectionHeading>
         <ul className="grid gap-3 sm:grid-cols-2">
           {data.sets.map((set) => (
-            <Card as="li" key={set.slug}>
+            <Card as="li" key={set.slug} className="hover-lift">
               <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold">{set.title}</h3>
+                <h3 className="font-bold tracking-tight">{set.title}</h3>
                 <Badge tone={set.available ? 'success' : 'neutral'}>
                   {set.available ? 'verfügbar' : 'gesperrt'}
                 </Badge>
@@ -95,9 +105,9 @@ export default async function ReviewPage(): Promise<React.ReactElement> {
                   Set starten
                 </Link>
               ) : (
-                <p className="mt-3 text-sm text-[var(--text-muted)]">
-                  <span aria-hidden="true">🔒 </span>
-                  {set.blockedReason}
+                <p className="mt-3 flex items-start gap-2 text-sm text-[var(--text-muted)]">
+                  <Icon name="schloss" size={16} className="mt-0.5 shrink-0" />
+                  <span>{set.blockedReason}</span>
                 </p>
               )}
             </Card>

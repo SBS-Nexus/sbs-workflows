@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Callout, Kbd, cx } from '@/components/ui/primitives';
+import { Icon } from '@/components/ui/icon';
 import {
   countLineVisits,
   describeStep,
@@ -243,11 +244,11 @@ export function ExecutionTimeline({
                     <span
                       aria-hidden="true"
                       className={cx(
-                        'w-4 shrink-0 select-none text-center',
+                        'flex w-4 shrink-0 select-none justify-center',
                         isCurrent ? 'text-[var(--accent)]' : 'text-transparent',
                       )}
                     >
-                      ▸
+                      <Icon name="vor" size={13} />
                     </span>
                     <span className="w-6 shrink-0 select-none text-right text-[var(--text-muted)]">
                       {lineNumber}
@@ -320,11 +321,13 @@ export function ExecutionTimeline({
                     </code>
                     {variable.change === 'new' ? (
                       <p className="mt-1 text-xs text-[var(--accent)]">
-                        <span aria-hidden="true">＋</span> neu entstanden
+                        <Icon name="funke" size={13} className="inline align-[-2px]" /> neu
+                        entstanden
                       </p>
                     ) : variable.change === 'changed' ? (
                       <p className="mt-1 text-xs text-[var(--accent)]">
-                        <span aria-hidden="true">↻</span> vorher{' '}
+                        <Icon name="wiederholen" size={13} className="inline align-[-2px]" />{' '}
+                        vorher{' '}
                         <code className="font-mono">{variable.previousValue}</code>
                       </p>
                     ) : null}
@@ -383,7 +386,7 @@ export function ExecutionTimeline({
             onClick={() => goTo(0)}
             disabled={safeIndex === 0}
           >
-            <span aria-hidden="true">⏮</span>
+            <Icon name="anfang" size={18} />
             <span className="sr-only">Zum ersten Schritt</span>
           </Button>
           <Button
@@ -392,10 +395,10 @@ export function ExecutionTimeline({
             onClick={() => goTo(safeIndex - 1)}
             disabled={safeIndex === 0}
           >
-            <span aria-hidden="true">◀</span> Zurück
+            <Icon name="zurueck" size={18} /> Zurück
           </Button>
           <Button type="button" onClick={() => setPlaying((current) => !current)} disabled={atEnd}>
-            <span aria-hidden="true">{isPlaying ? '⏸' : '▶'}</span>
+            <Icon name={isPlaying ? 'anhalten' : 'abspielen'} size={18} />
             {isPlaying ? 'Anhalten' : 'Abspielen'}
           </Button>
           <Button
@@ -404,7 +407,7 @@ export function ExecutionTimeline({
             onClick={() => goTo(safeIndex + 1)}
             disabled={safeIndex >= lastIndex}
           >
-            Weiter <span aria-hidden="true">▶</span>
+            Weiter <Icon name="vor" size={18} />
           </Button>
           <Button
             type="button"
@@ -412,7 +415,7 @@ export function ExecutionTimeline({
             onClick={() => goTo(lastIndex)}
             disabled={safeIndex >= lastIndex}
           >
-            <span aria-hidden="true">⏭</span>
+            <Icon name="ende" size={18} />
             <span className="sr-only">Zum letzten Schritt</span>
           </Button>
 

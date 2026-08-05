@@ -17,6 +17,10 @@ import {
   ProgressBar,
   SectionHeading,
 } from '@/components/ui/primitives';
+import { PageHero } from '@/components/ui/page-hero';
+import { ProgressRing } from '@/components/ui/progress-ring';
+import { Icon, type IconName } from '@/components/ui/icon';
+import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
 
 export const metadata: Metadata = { title: 'Fortschritt' };
 
@@ -43,42 +47,69 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Dein Lernstand</h1>
-        <p className="mt-2 text-[var(--text-muted)]">
-          Die Zahlen hier sind Orientierungswerte aus deinem bisherigen Verlauf. Sie messen nicht,
-          wie gut du programmieren kannst – sie helfen dabei, die nächste Übung sinnvoll
-          auszuwählen.
-        </p>
-      </header>
-
-      {/* --- Nächster Schritt --------------------------------------------- */}
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm text-[var(--text-muted)]">Empfehlung für jetzt</p>
-            <p className="text-lg font-semibold">{data.nextStep.label}</p>
+      <PageHero
+        theme={moduleTheme(3)}
+        icon="fortschritt"
+        title="Dein Lernstand"
+        description="Die Zahlen hier sind Orientierungswerte aus deinem bisherigen Verlauf. Sie messen nicht, wie gut du programmieren kannst – sie helfen dabei, die nächste Übung sinnvoll auszuwählen."
+      >
+        <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-[var(--surface-raised)] p-4">
+          <span
+            aria-hidden="true"
+            className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--akzent)] text-[var(--text-inverse)]"
+          >
+            <Icon name="funke" size={22} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
+              Empfehlung für jetzt
+            </p>
+            <p className="truncate text-lg font-bold">{data.nextStep.label}</p>
           </div>
-          <ButtonLink href={data.nextStep.href}>Öffnen</ButtonLink>
+          <ButtonLink href={data.nextStep.href}>
+            Öffnen
+            <Icon name="vor" size={16} />
+          </ButtonLink>
         </div>
-      </Card>
+      </PageHero>
 
       {/* --- Kennzahlen ---------------------------------------------------- */}
       <section aria-labelledby="ueberblick">
         <SectionHeading id="ueberblick">Überblick</SectionHeading>
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            {
-              label: 'Lektionen abgeschlossen',
-              value: `${data.totals.lessonsCompleted} von ${data.totals.lessonsTotal}`,
-            },
-            { label: 'Aufgaben eigenständig gelöst', value: data.totals.exercisesPassed },
-            { label: 'Projekte abgenommen', value: data.totals.projectsAccepted },
-            { label: 'Aktive Lernzeit', value: `${data.totals.activeMinutes} Minuten` },
-          ].map((item) => (
-            <Card key={item.label}>
-              <dt className="text-sm text-[var(--text-muted)]">{item.label}</dt>
-              <dd className="mt-1 text-2xl font-bold">{item.value}</dd>
+          {(
+            [
+              {
+                label: 'Lektionen abgeschlossen',
+                value: `${data.totals.lessonsCompleted} von ${data.totals.lessonsTotal}`,
+                icon: 'lernen',
+              },
+              {
+                label: 'Aufgaben eigenständig gelöst',
+                value: data.totals.exercisesPassed,
+                icon: 'haken',
+              },
+              {
+                label: 'Projekte abgenommen',
+                value: data.totals.projectsAccepted,
+                icon: 'projekte',
+              },
+              {
+                label: 'Aktive Lernzeit',
+                value: `${data.totals.activeMinutes} Minuten`,
+                icon: 'zeit',
+              },
+            ] satisfies ReadonlyArray<{ label: string; value: React.ReactNode; icon: IconName }>
+          ).map((item, index) => (
+            <Card key={item.label} style={themeStyle(moduleTheme(index))} className="hover-lift">
+              <span
+                aria-hidden="true"
+                className="flex size-10 items-center justify-center rounded-xl bg-[var(--akzent-soft)] text-[var(--akzent)]"
+              >
+                <Icon name={item.icon} size={20} />
+              </span>
+              <dt className="mt-3 text-sm text-[var(--text-muted)]">{item.label}</dt>
+              <dd className="mt-0.5 text-2xl font-black tracking-tight">{item.value}</dd>
             </Card>
           ))}
         </dl>
@@ -100,9 +131,9 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
               <li key={day.date} className="flex flex-1 flex-col items-center gap-1.5">
                 <span className="text-xs font-medium">{day.activities}</span>
                 <div
-                  className="w-full rounded-t bg-[var(--accent)]"
+                  className="w-full rounded-lg bg-gradient-to-t from-[var(--color-modul-3)] to-[var(--color-modul-0)] transition-[height] duration-500"
                   style={{
-                    height: `${Math.max(4, (day.activities / maxActivity) * 80)}px`,
+                    height: `${Math.max(6, (day.activities / maxActivity) * 96)}px`,
                     opacity: day.activities === 0 ? 0.18 : 1,
                   }}
                   aria-hidden="true"
@@ -146,26 +177,23 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
           />
         ) : (
           <ul className="space-y-2">
-            {data.masteryByConcept.map((concept) => (
-              <Card as="li" key={concept.slug} className="p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium">{concept.name}</p>
-                  <Badge tone={BAND_TONE[concept.band]}>{concept.label}</Badge>
+            {data.masteryByConcept.map((concept, index) => (
+              <Card
+                as="li"
+                key={concept.slug}
+                style={themeStyle(moduleTheme(index))}
+                className="p-4"
+              >
+                <div className="flex items-start gap-4">
+                  <ProgressRing value={concept.score} label={concept.name} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-bold tracking-tight">{concept.name}</p>
+                      <Badge tone={BAND_TONE[concept.band]}>{concept.label}</Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-[var(--text-muted)]">{concept.meaning}</p>
+                  </div>
                 </div>
-                <div className="mt-2">
-                  <ProgressBar
-                    value={concept.score}
-                    label={`${concept.name}: ${concept.label}`}
-                    tone={
-                      concept.band === 'solid' || concept.band === 'durable'
-                        ? 'success'
-                        : concept.band === 'new'
-                          ? 'caution'
-                          : 'accent'
-                    }
-                  />
-                </div>
-                <p className="mt-2 text-sm text-[var(--text-muted)]">{concept.meaning}</p>
                 <p className="mt-1 text-sm">
                   <span className="font-medium">Nächster Schritt:</span> {concept.nextStep}
                 </p>
@@ -187,9 +215,14 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
       <section aria-labelledby="module">
         <SectionHeading id="module">Fortschritt nach Themen</SectionHeading>
         <ul className="grid gap-3 sm:grid-cols-2">
-          {data.moduleProgress.map((mod) => (
-            <Card as="li" key={mod.slug}>
-              <p className="font-medium">{mod.title}</p>
+          {data.moduleProgress.map((mod, index) => (
+            <Card
+              as="li"
+              key={mod.slug}
+              style={themeStyle(moduleTheme(index))}
+              className="glow-soft hover-lift"
+            >
+              <p className="font-bold tracking-tight text-[var(--akzent)]">{mod.title}</p>
               <p className="mt-1 text-sm text-[var(--text-muted)]">
                 {mod.completed} von {mod.total} Lektionen abgeschlossen
               </p>
@@ -198,7 +231,7 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
                   value={mod.completed}
                   max={mod.total}
                   label={`${mod.title}: ${mod.completed} von ${mod.total} Lektionen`}
-                  tone={mod.completed === mod.total ? 'success' : 'accent'}
+                  tone={mod.completed === mod.total ? 'success' : 'module'}
                 />
               </div>
             </Card>

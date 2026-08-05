@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { cx, type Tone } from '@/components/ui/primitives';
+import { Icon, type IconName } from '@/components/ui/icon';
 
 /**
  * Kurzmeldungen.
@@ -82,11 +83,11 @@ export function ToastProvider({ children }: { children: ReactNode }): ReactNode 
   );
 }
 
-const TONE_ICON: Record<Tone, string> = {
-  info: 'ℹ',
-  success: '✓',
-  caution: '!',
-  alert: '✕',
+const TONE_ICON: Record<Tone, IconName> = {
+  info: 'info',
+  success: 'haken',
+  caution: 'achtung',
+  alert: 'fehler',
 };
 
 const TONE_BORDER: Record<Tone, string> = {
@@ -126,9 +127,7 @@ function ToastItem({
         TONE_BORDER[tone],
       )}
     >
-      <span aria-hidden="true" className="mt-0.5 shrink-0 font-semibold">
-        {TONE_ICON[tone]}
-      </span>
+      <Icon name={TONE_ICON[tone]} size={18} className="mt-0.5 shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="text-[0.9375rem] font-medium">{toast.message}</p>
         {toast.detail ? (
@@ -140,7 +139,7 @@ function ToastItem({
         onClick={() => onDismiss(toast.id)}
         className="-mr-1 -mt-1 shrink-0 rounded-lg px-2 py-1 text-[var(--text-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]"
       >
-        <span aria-hidden="true">✕</span>
+        <Icon name="schliessen" size={16} />
         <span className="sr-only">Meldung schließen</span>
       </button>
     </div>

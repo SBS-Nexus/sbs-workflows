@@ -5,17 +5,10 @@ import { requireUser } from '@/server/auth/session';
 import { getDashboardData } from '@/server/services/progress-service';
 import { getMotivationSummary } from '@/server/services/motivation-service';
 import { LearningRhythm } from '@/components/motivation/learning-rhythm';
+import { LessonTrail, type TrailModule } from '@/components/path/lesson-trail';
+import { Icon } from '@/components/ui/icon';
 import { prisma } from '@/server/db/prisma';
-import {
-  Badge,
-  ButtonLink,
-  Callout,
-  Card,
-  EmptyState,
-  ProgressBar,
-  SectionHeading,
-  cx,
-} from '@/components/ui/primitives';
+import { ButtonLink, Callout, EmptyState, SectionHeading } from '@/components/ui/primitives';
 
 export const metadata: Metadata = { title: 'Mein Lernpfad' };
 
@@ -49,40 +42,85 @@ export default async function LearningPathPage(): Promise<React.ReactElement> {
 
   const stateBySlug = new Map(data.lessons.map((l) => [l.slug, l.state]));
   const completed = data.totals.lessonsCompleted;
+  const anteil = Math.round((completed / data.lessons.length) * 100);
+
+  const trailModules: TrailModule[] = modules
+    .map((mod) => ({
+      slug: mod.slug,
+      title: mod.title,
+      summary: mod.summary,
+      order: mod.order,
+      lessons: mod.lessons
+        .filter((lesson) => stateBySlug.has(lesson.slug))
+        .map((lesson) => ({
+          slug: lesson.slug,
+          title: lesson.title,
+          estimatedMinutes: lesson.estimatedMinutes,
+          state: stateBySlug.get(lesson.slug) ?? 'NOT_STARTED',
+        })),
+    }))
+    .filter((mod) => mod.lessons.length > 0);
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 px-4 py-8 sm:px-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+      {/* ------------------------------------------------------------------ */}
+      {/* Kopf: der nächste Schritt, groß und farbig                          */}
+      {/* ------------------------------------------------------------------ */}
+      <header className="gradient-hero relative isolate overflow-hidden rounded-3xl p-6 text-white sm:p-8">
+        <div
+          aria-hidden="true"
+          className="animate-drift absolute -right-16 -top-24 -z-10 size-72 rounded-full bg-white opacity-15 blur-3xl"
+        />
+        <h1 className="text-display-sm font-black leading-tight tracking-[-0.02em]">
           {data.path?.title ?? 'Mein Lernpfad'}
         </h1>
         {data.path?.rationale ? (
-          <p className="mt-3 max-w-prose text-[var(--text-muted)]">{data.path.rationale}</p>
+          <p className="mt-3 max-w-prose text-white/80">{data.path.rationale}</p>
         ) : null}
-      </header>
 
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm text-[var(--text-muted)]">Nächster Schritt</p>
-            <p className="text-lg font-semibold">{data.nextStep.label}</p>
+        {/* Fortschritt. Der Wert steht als Text daneben – der Balken allein
+            wäre eine rein visuelle Angabe. */}
+        <div className="mt-6">
+          <p className="flex items-baseline justify-between gap-3 text-sm font-semibold">
+            <span>
+              {completed} von {data.lessons.length} Lektionen abgeschlossen
+            </span>
+            <span className="text-2xl font-black tabular-nums">{anteil}&nbsp;%</span>
+          </p>
+          <div
+            role="progressbar"
+            aria-valuenow={completed}
+            aria-valuemin={0}
+            aria-valuemax={data.lessons.length}
+            aria-label={`Lernpfad: ${completed} von ${data.lessons.length} Lektionen abgeschlossen`}
+            className="mt-2 h-3 overflow-hidden rounded-full bg-white/20"
+          >
+            <div
+              className="h-full rounded-full bg-white transition-[width] duration-500"
+              style={{ width: `${anteil}%` }}
+            />
           </div>
-          <ButtonLink href={data.nextStep.href}>
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
+          <span
+            aria-hidden="true"
+            className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white/20"
+          >
+            <Icon name={data.nextStep.kind === 'review' ? 'wiederholen' : 'abspielen'} size={22} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-white/60">
+              Nächster Schritt
+            </p>
+            <p className="truncate text-lg font-bold">{data.nextStep.label}</p>
+          </div>
+          <ButtonLink href={data.nextStep.href} variant="onDark">
             {data.nextStep.kind === 'review' ? 'Wiederholen' : 'Öffnen'}
+            <Icon name="vor" size={16} />
           </ButtonLink>
         </div>
-        <div className="mt-4 space-y-1.5">
-          <p className="text-sm">
-            {completed} von {data.lessons.length} Lektionen abgeschlossen
-          </p>
-          <ProgressBar
-            value={completed}
-            max={data.lessons.length}
-            label={`Lernpfad: ${completed} von ${data.lessons.length} Lektionen abgeschlossen`}
-            tone="success"
-          />
-        </div>
-      </Card>
+      </header>
 
       <LearningRhythm rhythm={motivation.rhythm} variant="compact" />
 
@@ -103,72 +141,7 @@ export default async function LearningPathPage(): Promise<React.ReactElement> {
           Alle Lektionen
         </SectionHeading>
 
-        <div className="space-y-6">
-          {modules.map((mod) => {
-            const lessonsInModule = mod.lessons.filter((l) => stateBySlug.has(l.slug));
-            if (lessonsInModule.length === 0) return null;
-
-            const doneInModule = lessonsInModule.filter(
-              (l) => stateBySlug.get(l.slug) === 'COMPLETED',
-            ).length;
-
-            return (
-              <section key={mod.id} aria-labelledby={`modul-${mod.slug}`}>
-                <div className="mb-3">
-                  <h3 id={`modul-${mod.slug}`} className="flex items-center gap-2 font-semibold">
-                    {mod.title}
-                    <Badge tone={doneInModule === lessonsInModule.length ? 'success' : 'neutral'}>
-                      {doneInModule}/{lessonsInModule.length}
-                    </Badge>
-                  </h3>
-                  <p className="mt-1 text-sm text-[var(--text-muted)]">{mod.summary}</p>
-                </div>
-
-                <ol className="space-y-2">
-                  {lessonsInModule.map((lesson, index) => {
-                    const state = stateBySlug.get(lesson.slug) ?? 'NOT_STARTED';
-                    return (
-                      <li key={lesson.id}>
-                        <Link
-                          href={`/lernen/${lesson.slug}`}
-                          className={cx(
-                            'flex items-center gap-3 rounded-lg border p-3 transition-colors',
-                            state === 'COMPLETED'
-                              ? 'border-[var(--success)] bg-[var(--success-soft)]'
-                              : state === 'IN_PROGRESS'
-                                ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
-                                : 'border-[var(--border)] hover:bg-[var(--surface-sunken)]',
-                          )}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className="flex size-8 shrink-0 items-center justify-center rounded-full border border-current text-sm font-semibold"
-                          >
-                            {state === 'COMPLETED' ? '✓' : index + 1}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-medium">{lesson.title}</span>
-                            <span className="block text-sm text-[var(--text-muted)]">
-                              etwa {lesson.estimatedMinutes} Minuten
-                              {state === 'COMPLETED'
-                                ? ' · abgeschlossen'
-                                : state === 'IN_PROGRESS'
-                                  ? ' · begonnen'
-                                  : ''}
-                            </span>
-                          </span>
-                          <span aria-hidden="true" className="shrink-0 text-[var(--text-muted)]">
-                            →
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </section>
-            );
-          })}
-        </div>
+        <LessonTrail modules={trailModules} />
       </section>
     </div>
   );

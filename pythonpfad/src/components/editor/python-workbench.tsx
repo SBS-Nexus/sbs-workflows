@@ -7,6 +7,7 @@ import { usePythonRunner } from './use-python-runner';
 import { ExecutionTimeline } from './execution-timeline';
 import { explainPythonError } from '@/domain/errors/python-errors';
 import { useFeature } from '@/components/config/feature-context';
+import { Icon } from '@/components/ui/icon';
 import type { RunnerTestCase, RunnerTestResult, RunResult, TraceResult } from '@/lib/runner/types';
 import { DEFAULT_TIMEOUT_MS, TEST_TIMEOUT_MS } from '@/lib/runner/types';
 
@@ -189,7 +190,7 @@ export function PythonWorkbench({
 
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" onClick={() => void handleRun(false)} disabled={runner.isRunning}>
-          <span aria-hidden="true">▶</span>
+          <Icon name="abspielen" size={17} />
           {runner.isRunning ? 'Läuft …' : 'Ausführen'}
         </Button>
 
@@ -200,7 +201,7 @@ export function PythonWorkbench({
             onClick={() => void handleTrace()}
             disabled={runner.isRunning}
           >
-            <span aria-hidden="true">◫</span> Schritt für Schritt
+            <Icon name="schritte" size={17} /> Schritt für Schritt
           </Button>
         ) : null}
 
@@ -221,7 +222,7 @@ export function PythonWorkbench({
           onClick={() => void runner.stop()}
           disabled={!runner.isRunning}
         >
-          <span aria-hidden="true">■</span> Stopp
+          <Icon name="stopp" size={17} /> Stopp
         </Button>
 
         {starterCode !== undefined ? (
@@ -358,8 +359,23 @@ export function PythonWorkbench({
                   )}
                 >
                   <p className="flex items-start gap-2 font-medium">
-                    <span aria-hidden="true">
-                      {result === undefined ? '○' : result.passed ? '✓' : '✕'}
+                    <span
+                      aria-hidden="true"
+                      className={cx(
+                        'mt-0.5 shrink-0',
+                        result === undefined
+                          ? 'text-[var(--text-muted)]'
+                          : result.passed
+                            ? 'text-[var(--success)]'
+                            : 'text-[var(--alert)]',
+                      )}
+                    >
+                      <Icon
+                        name={
+                          result === undefined ? 'kreis' : result.passed ? 'haken' : 'schliessen'
+                        }
+                        size={16}
+                      />
                     </span>
                     <span>
                       <span className="sr-only">
@@ -413,7 +429,7 @@ function RunnerStatusLine({
   if (status.phase === 'loading') {
     return (
       <p role="status" className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-        <span aria-hidden="true">⟳</span>
+        <Icon name="wiederholen" size={16} className="animate-spin" />
         {status.message} Beim ersten Mal werden rund 13 MB geladen, danach kommt alles aus dem
         Browser-Cache.
       </p>

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Callout } from '@/components/ui/primitives';
+import { Icon } from '@/components/ui/icon';
 import { ExecutionTimeline } from './execution-timeline';
 import { usePythonRunner } from './use-python-runner';
 import { LAB_HANDOFF_KEY } from '@/lib/runner/lab-handoff';
@@ -44,7 +45,7 @@ export function WorkedExampleRunner({ code }: { code: string }): React.ReactElem
     <div className="mt-4 space-y-3 border-t border-[var(--border)] pt-4">
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" onClick={() => void start()} disabled={runner.isRunning}>
-          <span aria-hidden="true">◫</span>
+          <Icon name="schritte" size={17} />
           {runner.isRunning ? 'Wird ausgeführt …' : 'Beispiel wirklich ausführen'}
         </Button>
         <Button type="button" variant="secondary" onClick={openInLab}>

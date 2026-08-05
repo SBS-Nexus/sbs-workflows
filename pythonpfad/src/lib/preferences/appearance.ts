@@ -23,10 +23,15 @@ export const THEME_LABELS: Record<Theme, string> = {
   dark: 'Dunkel',
 };
 
-export const THEME_ICONS: Record<Theme, string> = {
-  system: '◐',
-  light: '☀',
-  dark: '☾',
+/**
+ * Icon-Namen aus dem eigenen Satz. Bewusst keine Unicode-Zeichen: Die sehen je
+ * nach Betriebssystem völlig anders aus und lassen sich nicht auf die
+ * Strichstärke der übrigen Oberfläche abstimmen.
+ */
+export const THEME_ICONS: Record<Theme, 'halbmond' | 'sonne' | 'mond'> = {
+  system: 'halbmond',
+  light: 'sonne',
+  dark: 'mond',
 };
 
 const listeners = new Set<() => void>();
