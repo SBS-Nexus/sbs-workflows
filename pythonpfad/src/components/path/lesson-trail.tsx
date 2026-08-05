@@ -163,27 +163,33 @@ function TrailNode({ lesson, nummer }: { lesson: TrailLesson; nummer: number }):
       href={`/lernen/${lesson.slug}`}
       className="group flex flex-col items-center gap-1.5 rounded-2xl focus-visible:outline-offset-4"
     >
-      <span
-        aria-hidden="true"
-        className={cx(
-          'flex items-center justify-center rounded-full font-black transition-transform',
-          'duration-200 group-hover:scale-110 group-active:translate-y-1',
-          fertig &&
-            'size-16 border-b-4 border-[var(--akzent)] bg-[var(--akzent)] text-[var(--text-inverse)]',
-          aktiv &&
-            'animate-float size-[4.5rem] border-4 border-[var(--akzent)] bg-[var(--surface-raised)] text-[var(--akzent)] shadow-[0_0_0_6px_var(--akzent-soft)]',
-          !fertig &&
-            !aktiv &&
-            'size-16 border-b-4 border-[var(--border-strong)] bg-[var(--surface-sunken)] text-[var(--text-muted)]',
-        )}
-      >
-        {fertig ? (
-          <Icon name="haken" size={30} />
-        ) : aktiv ? (
-          <Icon name="abspielen" size={26} />
-        ) : (
-          <span className="text-xl">{nummer}</span>
-        )}
+      <span aria-hidden="true" className="relative flex items-center justify-center">
+        {/* Der Puls liegt hinter der Station und wird von ihr überdeckt. Er
+            markiert genau eine Stelle je Modul: die, an der es weitergeht. */}
+        {aktiv ? (
+          <span className="animate-pulse-ring absolute size-[4.5rem] rounded-full bg-[var(--akzent)]" />
+        ) : null}
+        <span
+          className={cx(
+            'relative flex items-center justify-center rounded-full font-black transition-transform',
+            'duration-200 group-hover:scale-110 group-active:translate-y-1',
+            fertig &&
+              'size-16 border-b-4 border-[var(--akzent)] bg-[var(--akzent)] text-[var(--text-inverse)]',
+            aktiv &&
+              'animate-float size-[4.5rem] border-4 border-[var(--akzent)] bg-[var(--surface-raised)] text-[var(--akzent)] shadow-[0_0_0_6px_var(--akzent-soft)]',
+            !fertig &&
+              !aktiv &&
+              'size-16 border-b-4 border-[var(--border-strong)] bg-[var(--surface-sunken)] text-[var(--text-muted)]',
+          )}
+        >
+          {fertig ? (
+            <Icon name="haken" size={30} />
+          ) : aktiv ? (
+            <Icon name="abspielen" size={26} />
+          ) : (
+            <span className="text-xl">{nummer}</span>
+          )}
+        </span>
       </span>
 
       {/*

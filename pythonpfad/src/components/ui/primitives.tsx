@@ -380,6 +380,15 @@ export function CodeBlock({
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Leerer Zustand.
+ *
+ * Mit Zeichnung statt mit einem leeren gestrichelten Kasten. Ein leerer
+ * Bereich ist der Moment, in dem eine Anwendung am ehesten wie ein Fehler
+ * aussieht – dabei ist er meistens völlig in Ordnung („heute steht keine
+ * Wiederholung an"). Die Zeichnung nimmt der Fläche das Kaputte und lässt
+ * Raum für den Satz, der erklärt, warum das so ist.
+ */
 export function EmptyState({
   title,
   description,
@@ -390,10 +399,16 @@ export function EmptyState({
   action?: ReactNode;
 }): ReactNode {
   return (
-    <div className="rounded-xl border border-dashed border-[var(--border-strong)] px-6 py-10 text-center">
-      <p className="text-lg font-semibold">{title}</p>
+    <div className="animate-in rounded-2xl border-2 border-dashed border-[var(--border-strong)] bg-[var(--akzent-soft,var(--surface-raised))] px-6 py-10 text-center">
+      <span
+        aria-hidden="true"
+        className="animate-float mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-[var(--surface-raised)] text-[var(--akzent,var(--accent))]"
+      >
+        <Icon name="gluehbirne" size={32} />
+      </span>
+      <p className="text-lg font-black tracking-tight">{title}</p>
       <p className="mx-auto mt-2 max-w-prose text-[var(--text-muted)]">{description}</p>
-      {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
+      {action ? <div className="mt-6 flex justify-center">{action}</div> : null}
     </div>
   );
 }
@@ -440,21 +455,47 @@ export function Kbd({ children }: { children: ReactNode }): ReactNode {
   );
 }
 
+/**
+ * Überschrift eines Abschnitts.
+ *
+ * Mit optionalem Symbol in der Leitfarbe. Ohne Symbol bleibt es bei der reinen
+ * Überschrift – nicht jeder Abschnitt braucht eines, und ein Symbol, das nur
+ * da ist, weil ein Platz dafür vorgesehen war, ist Lärm.
+ *
+ * Der kurze farbige Strich links vom Text ist dagegen immer da. Er kostet vier
+ * Pixel und macht aus einer Zeile Fettschrift eine sichtbare Zäsur.
+ */
 export function SectionHeading({
   children,
   description,
   id,
+  icon,
 }: {
   children: ReactNode;
   description?: string;
   id?: string;
+  icon?: IconName;
 }): ReactNode {
   return (
-    <div className="mb-4">
-      <h2 id={id} className="text-xl font-semibold tracking-tight sm:text-2xl">
-        {children}
-      </h2>
-      {description ? <p className="mt-1 text-[var(--text-muted)]">{description}</p> : null}
+    <div className="mb-5">
+      <div className="flex items-center gap-3">
+        {icon ? (
+          <span aria-hidden="true" className="icon-tile size-10">
+            <Icon name={icon} size={20} />
+          </span>
+        ) : (
+          <span
+            aria-hidden="true"
+            className="h-7 w-1.5 shrink-0 rounded-full bg-[var(--akzent,var(--accent))]"
+          />
+        )}
+        <h2 id={id} className="text-xl font-black tracking-tight sm:text-2xl">
+          {children}
+        </h2>
+      </div>
+      {description ? (
+        <p className="mt-2 pl-[calc(0.375rem+0.75rem)] text-[var(--text-muted)]">{description}</p>
+      ) : null}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/primitives';
+import { Icon } from '@/components/ui/icon';
 import type { ForecastPoint } from '@/domain/knowledge/retention';
 
 /**
@@ -27,8 +28,14 @@ export function RetentionForecast({
   const gestartet = points.some((point) => point.retention > 0);
 
   return (
-    <Card as="section" aria-labelledby="prognose-titel">
-      <h2 id="prognose-titel" className="text-lg font-semibold">
+    <Card as="section" aria-labelledby="prognose-titel" className="card-accent group">
+      <h2
+        id="prognose-titel"
+        className="flex items-center gap-2.5 text-lg font-bold tracking-tight"
+      >
+        <span aria-hidden="true" className="icon-tile size-9">
+          <Icon name="zeit" size={19} />
+        </span>
         Wie lange bleibt es abrufbar?
       </h2>
       <p className="mt-1 text-sm text-[var(--text-muted)]">{message}</p>

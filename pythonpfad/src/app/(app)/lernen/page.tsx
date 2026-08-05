@@ -7,6 +7,7 @@ import { getMotivationSummary } from '@/server/services/motivation-service';
 import { LearningRhythm } from '@/components/motivation/learning-rhythm';
 import { LessonTrail, type TrailModule } from '@/components/path/lesson-trail';
 import { Icon } from '@/components/ui/icon';
+import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
 import { prisma } from '@/server/db/prisma';
 import { ButtonLink, Callout, EmptyState, SectionHeading } from '@/components/ui/primitives';
 
@@ -61,8 +62,18 @@ export default async function LearningPathPage(): Promise<React.ReactElement> {
     }))
     .filter((mod) => mod.lessons.length > 0);
 
+  /*
+   * Die Bereichsfarbe gilt für die ganze Seite, nicht nur für den Kopf. Ohne
+   * sie erbt alles darunter die allgemeine Akzentfarbe – der Kopf wäre in der
+   * Bereichsfarbe und die Überschrift zwei Zentimeter darunter blau. Von hier
+   * aus greifen Abschnittsüberschriften, Symbolkacheln und Hervorhebungen auf
+   * `--akzent` zu.
+   */
   return (
-    <div className="mx-auto max-w-4xl space-y-8 px-4 py-8 sm:px-6">
+    <div
+      style={themeStyle(moduleTheme(0))}
+      className="mx-auto max-w-4xl space-y-8 px-4 py-8 sm:px-6"
+    >
       {/* ------------------------------------------------------------------ */}
       {/* Kopf: der nächste Schritt, groß und farbig                          */}
       {/* ------------------------------------------------------------------ */}
@@ -137,7 +148,10 @@ export default async function LearningPathPage(): Promise<React.ReactElement> {
       ) : null}
 
       <section>
-        <SectionHeading description="Die Reihenfolge ergibt sich aus deiner Einstufung. Frühere Lektionen sind Voraussetzung für spätere.">
+        <SectionHeading
+          icon="karte"
+          description="Die Reihenfolge ergibt sich aus deiner Einstufung. Frühere Lektionen sind Voraussetzung für spätere."
+        >
           Alle Lektionen
         </SectionHeading>
 

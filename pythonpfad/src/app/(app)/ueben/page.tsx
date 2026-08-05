@@ -71,8 +71,18 @@ export default async function PracticePage(): Promise<React.ReactElement> {
     if (view) exercises.push(view);
   }
 
+  /*
+   * Die Bereichsfarbe gilt für die ganze Seite, nicht nur für den Kopf. Ohne
+   * sie erbt alles darunter die allgemeine Akzentfarbe – der Kopf wäre in der
+   * Bereichsfarbe und die Überschrift zwei Zentimeter darunter blau. Von hier
+   * aus greifen Abschnittsüberschriften, Symbolkacheln und Hervorhebungen auf
+   * `--akzent` zu.
+   */
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
+    <div
+      style={themeStyle(moduleTheme(1))}
+      className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6"
+    >
       <PageHero
         theme={moduleTheme(1)}
         icon="ueben"
@@ -81,15 +91,17 @@ export default async function PracticePage(): Promise<React.ReactElement> {
       />
 
       <section aria-labelledby="schwerpunkte">
-        <SectionHeading id="schwerpunkte">Aktuelle Schwerpunkte</SectionHeading>
+        <SectionHeading id="schwerpunkte" icon="ueben">
+          Aktuelle Schwerpunkte
+        </SectionHeading>
         <ul className="grid gap-3 sm:grid-cols-3">
           {weakest.map((entry, index) => {
             const description = describeMastery(entry.masteryScore);
             return (
               <li
                 key={entry.id}
-                style={themeStyle(moduleTheme(index))}
-                className="hover-lift rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-5"
+                style={{ ...themeStyle(moduleTheme(index)), animationDelay: `${index * 70}ms` }}
+                className="card-accent hover-lift hover-glow animate-in overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-5"
               >
                 <div className="flex items-center gap-4">
                   <ProgressRing value={entry.masteryScore} label={entry.concept.name} />
