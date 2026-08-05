@@ -168,7 +168,8 @@ function TrailNode({ lesson, nummer }: { lesson: TrailLesson; nummer: number }):
         className={cx(
           'flex items-center justify-center rounded-full font-black transition-transform',
           'duration-200 group-hover:scale-110 group-active:translate-y-1',
-          fertig && 'size-16 border-b-4 border-[var(--akzent)] bg-[var(--akzent)] text-[var(--text-inverse)]',
+          fertig &&
+            'size-16 border-b-4 border-[var(--akzent)] bg-[var(--akzent)] text-[var(--text-inverse)]',
           aktiv &&
             'animate-float size-[4.5rem] border-4 border-[var(--akzent)] bg-[var(--surface-raised)] text-[var(--akzent)] shadow-[0_0_0_6px_var(--akzent-soft)]',
           !fertig &&
@@ -194,7 +195,11 @@ function TrailNode({ lesson, nummer }: { lesson: TrailLesson; nummer: number }):
         className={cx(
           'line-clamp-2 rounded-lg bg-[var(--surface)] px-1.5 text-[0.8125rem] font-bold leading-snug',
           'group-hover:underline',
-          aktiv ? 'text-[var(--akzent)]' : fertig ? 'text-[var(--text)]' : 'text-[var(--text-muted)]',
+          aktiv
+            ? 'text-[var(--akzent)]'
+            : fertig
+              ? 'text-[var(--text)]'
+              : 'text-[var(--text-muted)]',
         )}
       >
         {lesson.title}

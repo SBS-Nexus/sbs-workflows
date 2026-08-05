@@ -4,6 +4,7 @@ import { prisma } from '@/server/db/prisma';
 import { isExternalAiConfigured } from '@/server/env';
 import { SettingsForm } from './settings-form';
 import { DataControls } from './data-controls';
+import { FeedbackSettings } from '@/components/feedback/feedback-settings';
 import { Card, SectionHeading } from '@/components/ui/primitives';
 import { ConsentControls } from '@/components/organisation/consent-controls';
 import { listOwnCohorts } from '@/server/services/organisation-service';
@@ -54,6 +55,8 @@ export default async function ProfilePage(): Promise<React.ReactElement> {
         }}
         externalAiConfigured={externalAi}
       />
+
+      <FeedbackSettings />
 
       <section aria-labelledby="kohorten">
         <SectionHeading

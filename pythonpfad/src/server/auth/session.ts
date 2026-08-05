@@ -4,6 +4,7 @@ import { cookies, headers } from 'next/headers';
 import { cache } from 'react';
 import { prisma } from '@/server/db/prisma';
 import { getEnv } from '@/server/env';
+import { isSecureDeployment } from '@/server/site';
 import type { UserModel } from '@/generated/prisma/models';
 
 /**
@@ -19,7 +20,8 @@ import type { UserModel } from '@/generated/prisma/models';
  *  - Das Sitzungstoken ist ein zufälliger 32-Byte-Wert (opak, ohne Inhalt).
  *  - In der Datenbank liegt nur dessen SHA-256-Hash. Ein Datenbankleck gibt
  *    damit keine übernehmbaren Sitzungen preis.
- *  - Das Cookie ist httpOnly, SameSite=Lax und in Produktion secure.
+ *  - Das Cookie ist httpOnly, SameSite=Lax und secure, sobald APP_URL auf
+ *    https zeigt.
  *  - Zusätzlich zum SameSite-Schutz wird für Formulare ein
  *    Double-Submit-CSRF-Token verwendet.
  */
@@ -48,8 +50,24 @@ function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-function isProduction(): boolean {
-  return process.env.NODE_ENV === 'production';
+/**
+ * Darf das `Secure`-Merkmal auf die Cookies?
+ *
+ * Es hängt an der konfigurierten Adresse und nicht mehr an `NODE_ENV`. Der
+ * Unterschied ist keine Feinheit, sondern schlägt in beide Richtungen zu:
+ *
+ * Wer die Anwendung mit `NODE_ENV=production` hinter einfachem HTTP betreibt –
+ * etwa zum Ausprobieren im Heimnetz – bekam bisher `Secure`-Cookies, die der
+ * Browser über HTTP nie zurückschickt. Die Anmeldung meldet dann Erfolg und
+ * wirft einen sofort wieder hinaus, ohne Fehlermeldung. Umgekehrt lief eine
+ * Vorschauumgebung unter HTTPS ohne `Secure` und gab ihre Sitzungscookies
+ * damit auch über eine unverschlüsselte Verbindung preis.
+ *
+ * `APP_URL` beschreibt, wie die Anwendung tatsächlich erreichbar ist. Genau
+ * das ist die Frage, um die es hier geht.
+ */
+function cookiesNeedSecureFlag(): boolean {
+  return isSecureDeployment();
 }
 
 /** Legt eine neue Sitzung an und setzt die Cookies. */
@@ -69,7 +87,7 @@ export async function createSession(userId: string): Promise<void> {
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: isProduction(),
+    secure: cookiesNeedSecureFlag(),
     path: '/',
     expires: expiresAt,
   });
@@ -79,7 +97,7 @@ export async function createSession(userId: string): Promise<void> {
   cookieStore.set(CSRF_COOKIE, csrfSecret, {
     httpOnly: false,
     sameSite: 'lax',
-    secure: isProduction(),
+    secure: cookiesNeedSecureFlag(),
     path: '/',
     expires: expiresAt,
   });

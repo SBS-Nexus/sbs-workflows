@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PythonPfad">
+  <title>PythonPfad</title>
+  <!--
+    Fassung für „maskable“ Symbole.
+
+    Android und andere Systeme schneiden aus einem solchen Bild eine eigene
+    Form aus – einen Kreis, ein abgerundetes Quadrat, einen Tropfen. Verlassen
+    darf man sich nur auf den inneren Kreis mit 80 % Durchmesser; alles
+    außerhalb kann wegfallen.
+
+    Deshalb ist es hier nicht dasselbe Bild wie in icon.svg: Die Fläche geht
+    randlos über das ganze Quadrat, und die Zeichnung ist verkleinert und
+    zentriert, damit sie in jeder Ausschnittsform vollständig sichtbar bleibt.
+  -->
+  <rect width="512" height="512" fill="#1d3fc4"/>
+  <g transform="translate(256 256) scale(0.78) translate(-256 -300)">
+    <path d="M104 392 L196 392 L196 300 L288 300 L288 208 L408 208"
+          fill="none" stroke="#ffffff" stroke-width="34"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="104" cy="392" r="26" fill="#93b4fd"/>
+    <circle cx="408" cy="208" r="26" fill="#ffffff"/>
+  </g>
+</svg>

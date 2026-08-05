@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Badge, Button, Callout, Card, CodeBlock, cx } from '@/components/ui/primitives';
 import { Icon } from '@/components/ui/icon';
 import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
+import { useFeedback } from '@/components/feedback/use-feedback';
 import { ExercisePanel } from '@/components/exercise/exercise-panel';
 import { WorkedExampleRunner } from '@/components/editor/worked-example-runner';
 import {
@@ -45,6 +46,7 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
   const [reflection, setReflection] = useState('');
   const [completion, setCompletion] = useState<{ ok: boolean; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const melde = useFeedback();
 
   useEffect(() => {
     void startLessonAction(lesson.slug);
@@ -61,6 +63,9 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
     try {
       const result = await completeLessonAction({ lessonSlug: lesson.slug, reflection });
       setCompletion({ ok: result.ok, message: result.message });
+      // Nur, wenn die Lektion wirklich abgeschlossen wurde. Bei „noch Aufgaben
+      // offen" ist die Antwort eine Information, kein Anlass zum Feiern.
+      if (result.ok) melde('lektion-fertig');
     } finally {
       setBusy(false);
     }
@@ -132,10 +137,7 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
            * es überhaupt gibt, nicht nur einen Anteil.
            */}
           <div className="mt-6">
-            <ol
-              aria-hidden="true"
-              className="flex gap-1.5"
-            >
+            <ol aria-hidden="true" className="flex gap-1.5">
               {lesson.exercises.map((exercise) => (
                 <li
                   key={exercise.slug}

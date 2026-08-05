@@ -32,6 +32,13 @@ const contentSecurityPolicy = [
   'upgrade-insecure-requests',
 ].join('; ');
 
+/*
+ * Hinweis zu `Strict-Transport-Security`: Diese Kopfzeile steht bewusst NICHT
+ * hier, sondern in src/proxy.ts. Next wertet `headers()` beim Übersetzen aus
+ * und schreibt das Ergebnis in das Routen-Manifest – die Kopfzeile hinge damit
+ * an der Umgebung des Übersetzungsvorgangs, nicht an der des Betriebs. Genau
+ * das soll sie nicht.
+ */
 const securityHeaders = [
   { key: 'Content-Security-Policy', value: contentSecurityPolicy },
   { key: 'X-Content-Type-Options', value: 'nosniff' },

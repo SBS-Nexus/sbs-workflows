@@ -2,20 +2,38 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { getCurrentUser } from '@/server/auth/session';
 import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
+import { BRAND } from '@/lib/brand';
+import { siteUrl } from '@/server/site';
 
-export const metadata: Metadata = {
-  title: {
-    default: 'PythonPfad – Python verstehen. Selbst schreiben. Wirklich anwenden.',
-    template: '%s · PythonPfad',
-  },
-  description:
-    'Interaktive Lernplattform für Python-Anfängerinnen und -Anfänger: verständliche Erklärungen, Code direkt im Browser ausführen, Fehler systematisch verstehen und Gelerntes zum richtigen Zeitpunkt wiederholen.',
-  applicationName: 'PythonPfad',
-  robots: { index: true, follow: true },
-  manifest: '/manifest.webmanifest',
-  icons: { icon: [{ url: '/icon.svg', type: 'image/svg+xml' }] },
-  appleWebApp: { capable: true, title: 'PythonPfad', statusBarStyle: 'default' },
-};
+/**
+ * `metadataBase` ist der Grund, warum hier eine Funktion und keine Konstante
+ * steht: Die Adresse kommt aus der Umgebung und ist beim Übersetzen noch nicht
+ * bekannt. Ohne sie erzeugt Next relative Verweise auf das Vorschaubild – und
+ * relative Adressen versteht kein Messenger, der eine Vorschau bauen will.
+ */
+export function generateMetadata(): Metadata {
+  const basis = siteUrl();
+  return {
+    metadataBase: new URL(basis),
+    title: { default: BRAND.title, template: `%s · ${BRAND.name}` },
+    description: BRAND.description,
+    applicationName: BRAND.name,
+    robots: { index: true, follow: true },
+    manifest: '/manifest.webmanifest',
+    icons: { icon: [{ url: '/icon.svg', type: 'image/svg+xml' }] },
+    appleWebApp: { capable: true, title: BRAND.name, statusBarStyle: 'default' },
+    openGraph: {
+      type: 'website',
+      locale: 'de_DE',
+      siteName: BRAND.name,
+      title: BRAND.title,
+      description: BRAND.description,
+      url: basis,
+    },
+    twitter: { card: 'summary_large_image', title: BRAND.title, description: BRAND.description },
+    formatDetection: { telephone: false },
+  };
+}
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -23,8 +41,8 @@ export const viewport: Viewport = {
   // Zoom wird ausdrücklich nicht gesperrt (WCAG 1.4.4).
   maximumScale: 5,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f6f7f9' },
-    { media: '(prefers-color-scheme: dark)', color: '#0d1017' },
+    { media: '(prefers-color-scheme: light)', color: BRAND.colors.surfaceLight },
+    { media: '(prefers-color-scheme: dark)', color: BRAND.colors.surfaceDark },
   ],
 };
 

@@ -1,0 +1,45 @@
+{
+  "$kommentar": [
+    "Leistungsbudget: Obergrenzen für das, was der Browser beim ersten Aufruf",
+    "einer Seite wirklich herunterlädt – JavaScript und CSS, in Kilobyte,",
+    "komprimiert übertragen (encodedBodySize aus der Resource-Timing-API).",
+    "",
+    "Warum Budgets und nicht nur Messwerte: Ein Messwert sagt, wie es heute ist.",
+    "Ein Budget sagt, wie es bleiben soll. Ohne Grenze wächst ein Bündel bei",
+    "jeder Änderung um ein paar Kilobyte, und niemand kann später sagen, welche",
+    "Änderung es war.",
+    "",
+    "Die Grenzen liegen rund zehn Prozent über dem heutigen Stand: genug Luft für",
+    "gewöhnliche Arbeit, zu wenig für ein versehentlich mitgezogenes Großpaket.",
+    "Der wichtigste Fall, den dieses Budget abfängt: Der Code-Editor (CodeMirror)",
+    "oder die Python-Laufzeit landen über einen Umweg im Bündel der Startseite.",
+    "Beide sind ein Vielfaches der hier gesetzten Grenzen – ein solcher Fehler",
+    "fällt sofort auf, statt erst in der Ladezeit der Nutzenden.",
+    "",
+    "Wer eine Grenze anhebt, soll das im Commit begründen.",
+    "",
+    "Nicht enthalten ist die Python-Laufzeit selbst. Sie wird erst geladen, wenn",
+    "wirklich Code ausgeführt werden soll, liegt danach unveränderlich im Cache",
+    "und gehört deshalb nicht in das Budget der ersten Ladung."
+  ],
+  "routen": [
+    {
+      "pfad": "/",
+      "beschreibung": "Startseite – der erste Eindruck, und der einzige Aufruf, den viele je machen",
+      "javascriptKb": 175,
+      "cssKb": 15
+    },
+    {
+      "pfad": "/anmelden",
+      "beschreibung": "Anmeldung – muss auch auf schlechter Verbindung schnell da sein",
+      "javascriptKb": 175,
+      "cssKb": 15
+    },
+    {
+      "pfad": "/registrieren",
+      "beschreibung": "Registrierung",
+      "javascriptKb": 175,
+      "cssKb": 15
+    }
+  ]
+}

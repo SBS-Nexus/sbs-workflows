@@ -5,7 +5,7 @@ import { getCurrentUser } from '@/server/auth/session';
 import { AuthShell } from '@/components/marketing/auth-shell';
 import { LoginForm } from './login-form';
 
-export const metadata: Metadata = { title: 'Anmelden' };
+export const metadata: Metadata = { title: 'Anmelden', alternates: { canonical: '/anmelden' } };
 
 export default async function LoginPage(): Promise<React.ReactElement> {
   const user = await getCurrentUser();

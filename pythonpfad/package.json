@@ -28,6 +28,7 @@
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:e2e": "playwright test",
+    "perf": "node scripts/pruefe-leistungsbudget.mjs",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
     "postinstall": "prisma generate && tsx scripts/sync-pyodide.ts"
   },
