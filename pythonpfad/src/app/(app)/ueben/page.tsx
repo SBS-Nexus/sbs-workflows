@@ -8,6 +8,7 @@ import { PageHero } from '@/components/ui/page-hero';
 import { ProgressRing } from '@/components/ui/progress-ring';
 import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
 import { describeMastery } from '@/domain/mastery/mastery';
+import { IllustrationSchleifen } from '@/components/ui/illustration';
 
 export const metadata: Metadata = { title: 'Üben' };
 
@@ -40,6 +41,7 @@ export default async function PracticePage(): Promise<React.ReactElement> {
           className="mb-6"
         />
         <EmptyState
+          illustration={<IllustrationSchleifen />}
           title="Noch keine Übungsvorschläge"
           description="Der Übungsmodus stellt Aufgaben zu den Konzepten zusammen, die bei dir noch wackeln. Dafür braucht er ein paar bearbeitete Aufgaben aus dem Lernpfad."
           action={<ButtonLink href="/lernen">Zum Lernpfad</ButtonLink>}
@@ -121,6 +123,7 @@ export default async function PracticePage(): Promise<React.ReactElement> {
         <PracticeRunner exercises={exercises} />
       ) : (
         <EmptyState
+          illustration={<IllustrationSchleifen />}
           title="Keine passenden Übungsaufgaben gefunden"
           description="Arbeite zunächst eine weitere Lektion durch. Danach stehen hier Aufgaben zu deinen Schwerpunkten bereit."
           action={<ButtonLink href="/lernen">Zum Lernpfad</ButtonLink>}

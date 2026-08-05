@@ -388,24 +388,38 @@ export function CodeBlock({
  * aussieht – dabei ist er meistens völlig in Ordnung („heute steht keine
  * Wiederholung an"). Die Zeichnung nimmt der Fläche das Kaputte und lässt
  * Raum für den Satz, der erklärt, warum das so ist.
+ *
+ * Welche Zeichnung, entscheidet die aufrufende Stelle. Ein einziges Motiv für
+ * alle leeren Zustände wäre bequem und falsch: „Hier ist noch nichts" und
+ * „hier ist gerade nichts zu tun" sind verschiedene Aussagen, und die
+ * Zeichnung ist das Erste, was gelesen wird.
  */
 export function EmptyState({
   title,
   description,
   action,
+  illustration,
 }: {
   title: string;
   description: string;
   action?: ReactNode;
+  /** Zeichnung aus `@/components/ui/illustration`. Ohne Angabe nur ein Symbol. */
+  illustration?: ReactNode;
 }): ReactNode {
   return (
-    <div className="animate-in rounded-2xl border-2 border-dashed border-[var(--border-strong)] bg-[var(--akzent-soft,var(--surface-raised))] px-6 py-10 text-center">
-      <span
-        aria-hidden="true"
-        className="animate-float mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-[var(--surface-raised)] text-[var(--akzent,var(--accent))]"
-      >
-        <Icon name="gluehbirne" size={32} />
-      </span>
+    <div className="animate-in muster-punkte muster-verlauf rounded-2xl border-2 border-dashed border-[var(--border-strong)] bg-[var(--akzent-soft,var(--surface-raised))] px-6 py-10 text-center">
+      {illustration ? (
+        <div aria-hidden="true" className="mx-auto mb-6 max-w-[13rem]">
+          {illustration}
+        </div>
+      ) : (
+        <span
+          aria-hidden="true"
+          className="animate-float mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-[var(--surface-raised)] text-[var(--akzent,var(--accent))]"
+        >
+          <Icon name="gluehbirne" size={32} />
+        </span>
+      )}
       <p className="text-lg font-black tracking-tight">{title}</p>
       <p className="mx-auto mt-2 max-w-prose text-[var(--text-muted)]">{description}</p>
       {action ? <div className="mt-6 flex justify-center">{action}</div> : null}

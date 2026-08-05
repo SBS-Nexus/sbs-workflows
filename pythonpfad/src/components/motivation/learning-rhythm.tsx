@@ -57,7 +57,7 @@ export function LearningRhythm({
       as="section"
       aria-labelledby="rhythmus-titel"
       style={themeStyle(theme)}
-      className="card-accent group"
+      className="card-accent muster-punkte muster-verlauf-ecke group"
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 gap-4">

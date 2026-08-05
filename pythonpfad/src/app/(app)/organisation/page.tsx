@@ -7,6 +7,7 @@ import { listOrganisations } from '@/server/services/organisation-service';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/domain/organisation/permissions';
 import { Badge, Card, EmptyState, SectionHeading } from '@/components/ui/primitives';
 import { CreateOrganisationForm } from './create-organisation-form';
+import { IllustrationBuild } from '@/components/ui/illustration';
 
 export const metadata: Metadata = { title: 'Organisationen' };
 
@@ -37,6 +38,7 @@ export default async function OrganisationsPage(): Promise<React.ReactElement> {
 
       {organisations.length === 0 ? (
         <EmptyState
+          illustration={<IllustrationBuild />}
           title="Du gehörst noch keiner Organisation an"
           description="Wenn dich jemand eingeladen hat, öffne einfach den Einladungslink. Du kannst hier auch selbst eine Organisation anlegen – zum Beispiel für einen Kurs, den du gibst."
         />

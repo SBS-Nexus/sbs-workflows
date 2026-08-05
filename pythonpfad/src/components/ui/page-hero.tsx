@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { cx } from '@/components/ui/primitives';
+import { EckBoegen } from '@/components/ui/zierformen';
 import { type ModuleTheme, heroGradient, themeStyle } from '@/domain/design/module-theme';
 
 /**
@@ -29,6 +30,7 @@ export function PageHero({
   description,
   children,
   className,
+  muster = 'raster',
 }: {
   theme: ModuleTheme;
   icon: IconName;
@@ -37,36 +39,41 @@ export function PageHero({
   /** Zusätzliche Angaben, etwa Kennzahlen oder ein Knopf. */
   children?: ReactNode;
   className?: string;
+  /** Grundstruktur der Fläche. `raster` wirkt sachlich, `punkte` leichter. */
+  muster?: 'raster' | 'punkte';
 }): ReactNode {
   return (
     <header
       style={{ ...themeStyle(theme), backgroundImage: heroGradient(theme) }}
       className={cx(
         'relative isolate overflow-hidden rounded-3xl p-6 text-white sm:p-8',
+        'muster-verlauf',
+        muster === 'punkte' ? 'muster-punkte-hell' : 'muster-raster-hell',
         className,
       )}
     >
       {/*
-       * Zwei schmückende Elemente: eine Farbwolke und das Bereichszeichen als
-       * große, blasse Zeichnung.
+       * Drei schmückende Ebenen, alle ohne Dauerbewegung:
        *
-       * Die Wolke steht bewusst still. Ein weichgezeichneter Kreis von
-       * 18 rem, der sich dauerhaft bewegt, muss bei jedem Bildaufbau neu
-       * durch den Weichzeichner – mal sechs Seiten summiert sich das zu
-       * spürbarer Grundlast. In einem Testlauf liefen darüber sogar
-       * Serveraufrufe ins Zeitlimit. Farbe und Tiefe bleiben ohne die
-       * Bewegung vollständig erhalten; bewegt wird nur noch die Zeichnung,
-       * die keinen Weichzeichner braucht.
+       *  1. ein Raster, das zur Mitte hin ausläuft – gibt der Fläche Struktur.
+       *     Es steckt in den `muster-`Klassen oben und liegt auf `::after`,
+       *  2. konzentrische Bögen in der Ecke,
+       *  3. das Bereichszeichen als große, blasse Zeichnung.
+       *
+       * Nichts davon bewegt sich. Eine frühere Fassung ließ hier eine
+       * weichgezeichnete Wolke wandern; das kostete bei jedem Bildaufbau
+       * Rechenzeit und brachte in einem Testlauf sogar Serveraufrufe ins
+       * Zeitlimit. Struktur wirkt auch stehend.
        */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-24 -top-28 -z-10 size-72 rounded-full bg-white opacity-20 blur-3xl"
+      <EckBoegen
+        farbe="#ffffff"
+        className="pointer-events-none absolute -right-6 -top-10 -z-10 size-64 opacity-70"
       />
       <span
         aria-hidden="true"
-        className="animate-float pointer-events-none absolute -right-8 -top-10 -z-10 text-white opacity-15"
+        className="animate-float pointer-events-none absolute -bottom-10 right-6 -z-10 text-white opacity-[0.13]"
       >
-        <Icon name={icon} size={190} />
+        <Icon name={icon} size={170} />
       </span>
 
       <div className="flex flex-wrap items-start gap-4">

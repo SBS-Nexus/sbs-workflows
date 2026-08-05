@@ -75,7 +75,13 @@ export default async function ProjectsPage(): Promise<React.ReactElement> {
               as="li"
               key={project.slug}
               style={{ ...themeStyle(PROJECT_THEME), animationDelay: `${index * 70}ms` }}
-              className="card-accent hover-lift hover-glow animate-in group"
+              /*
+               * Karopapier als Grundstruktur: das Blatt, auf dem man einen
+               * Entwurf skizziert, bevor man ihn tippt. Es füllt außerdem die
+               * rechte Hälfte der Karte, die sonst als leere Fläche neben dem
+               * Text stehen bleibt.
+               */
+              className="card-accent muster-raster muster-verlauf-ecke hover-lift hover-glow animate-in group"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <span aria-hidden="true" className="icon-tile hidden size-16 p-2 sm:flex">

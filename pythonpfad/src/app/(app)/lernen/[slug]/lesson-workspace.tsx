@@ -14,6 +14,7 @@ import {
   startLessonAction,
 } from '@/server/actions/lesson-actions';
 import type { LessonView } from '@/server/services/lesson-service';
+import { EckStufen } from '@/components/ui/zierformen';
 
 /**
  * Lektionsoberfläche.
@@ -99,11 +100,11 @@ export function LessonWorkspace({ lesson }: { lesson: LessonView }): React.React
        */}
       <header
         style={{ backgroundImage: heroGradient(moduleTheme(lesson.moduleOrder)) }}
-        className="relative isolate mb-6 overflow-hidden rounded-3xl text-white"
+        className="relative isolate mb-6 overflow-hidden rounded-3xl text-white muster-punkte-hell muster-verlauf"
       >
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-20 -top-24 -z-10 size-64 rounded-full bg-white opacity-20 blur-3xl"
+        <EckStufen
+          farbe="#ffffff"
+          className="pointer-events-none absolute -right-2 -top-4 -z-10 size-40 opacity-80"
         />
         <div className="p-6 sm:p-8">
           <div className="flex flex-wrap items-start gap-4">

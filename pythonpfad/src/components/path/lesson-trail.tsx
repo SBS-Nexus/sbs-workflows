@@ -79,8 +79,10 @@ function ModuleSection({ mod }: { mod: TrailModule }): ReactNode {
   return (
     <section aria-labelledby={`modul-${mod.slug}`} style={themeStyle(theme)}>
       {/* Modulkopf. Die Farbe ist die Leitfarbe des Moduls und kommt auf der
-          Lektionsseite wieder – daran erkennt man, wo man ist. */}
-      <div className="glow-soft flex flex-wrap items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--akzent-soft)] p-5">
+          Lektionsseite wieder – daran erkennt man, wo man ist. Die Stufen im
+          Hintergrund greifen das Bildzeichen der Anwendung auf: ein Weg, der
+          nach oben führt. */}
+      <div className="glow-soft muster-stufen muster-verlauf-ecke flex flex-wrap items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--akzent-soft)] p-5">
         <span
           aria-hidden="true"
           className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--akzent)] text-[var(--text-inverse)]"
