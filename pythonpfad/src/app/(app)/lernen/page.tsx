@@ -10,6 +10,8 @@ import { Icon } from '@/components/ui/icon';
 import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
 import { prisma } from '@/server/db/prisma';
 import { ButtonLink, Callout, EmptyState, SectionHeading } from '@/components/ui/primitives';
+import { EckBoegen, PunktStreuung } from '@/components/ui/zierformen';
+import { IllustrationSequence } from '@/components/ui/illustration';
 
 export const metadata: Metadata = { title: 'Mein Lernpfad' };
 
@@ -26,6 +28,7 @@ export default async function LearningPathPage(): Promise<React.ReactElement> {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
         <EmptyState
+          illustration={<IllustrationSequence />}
           title="Noch kein Lernpfad vorhanden"
           description="Die Einstufung stellt deinen persönlichen Pfad zusammen. Sie dauert nur wenige Minuten."
           action={<ButtonLink href="/einstufung">Zur Einstufung</ButtonLink>}
@@ -77,10 +80,14 @@ export default async function LearningPathPage(): Promise<React.ReactElement> {
       {/* ------------------------------------------------------------------ */}
       {/* Kopf: der nächste Schritt, groß und farbig                          */}
       {/* ------------------------------------------------------------------ */}
-      <header className="gradient-hero relative isolate overflow-hidden rounded-3xl p-6 text-white sm:p-8">
-        <div
-          aria-hidden="true"
-          className="animate-drift absolute -right-16 -top-24 -z-10 size-72 rounded-full bg-white opacity-15 blur-3xl"
+      <header className="gradient-hero relative isolate overflow-hidden rounded-3xl p-6 text-white sm:p-8 muster-raster-hell muster-verlauf">
+        <EckBoegen
+          farbe="#ffffff"
+          className="pointer-events-none absolute -right-8 -top-12 -z-10 size-72 opacity-60"
+        />
+        <PunktStreuung
+          farbe="#ffffff"
+          className="pointer-events-none absolute -bottom-8 -left-8 -z-10 size-44 opacity-70"
         />
         <h1 className="text-display-sm font-black leading-tight tracking-[-0.02em]">
           {data.path?.title ?? 'Mein Lernpfad'}

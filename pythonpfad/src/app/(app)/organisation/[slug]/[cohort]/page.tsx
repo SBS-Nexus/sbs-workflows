@@ -7,6 +7,7 @@ import { requireUser } from '@/server/auth/session';
 import { getCohortOverview, getOrgContext } from '@/server/services/organisation-service';
 import { can } from '@/domain/organisation/permissions';
 import { Badge, Card, EmptyState, ProgressBar, SectionHeading } from '@/components/ui/primitives';
+import { IllustrationEmpty } from '@/components/ui/illustration';
 
 export const metadata: Metadata = { title: 'Kohorte' };
 
@@ -63,6 +64,7 @@ export default async function CohortPage({
 
       {insights.aggregates === null ? (
         <EmptyState
+          illustration={<IllustrationEmpty />}
           title="Noch keine Auswertung"
           description={`Diese Kohorte hat ${insights.memberCount} ${insights.memberCount === 1 ? 'Mitglied' : 'Mitglieder'}. Summenwerte werden erst ab drei angezeigt – bei weniger wären es keine Summen mehr, sondern Aussagen über einzelne Menschen.`}
         />

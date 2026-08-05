@@ -796,6 +796,194 @@ body[data-overlay-open='true'] {
 }
 
 /* --------------------------------------------------------------------------
+ * Muster
+ *
+ * Flächen brauchen Struktur, sonst bleiben sie leere Rechtecke. Die folgenden
+ * Muster bestehen ausschließlich aus CSS-Verläufen – keine Bilddateien, keine
+ * SVG-Anhängsel, kein zusätzlicher Abruf. Sie werden einmal gezeichnet und
+ * danach vom Browser wie jede andere Hintergrundfarbe behandelt; anders als
+ * bewegte, weichgezeichnete Flächen kosten sie im Betrieb nichts.
+ *
+ * Alle nehmen `--akzent` an, gehören also automatisch zum Bereich, in dem sie
+ * stehen. Die Deckkraft bleibt sehr niedrig: Ein Muster, das man bewusst
+ * wahrnimmt, konkurriert mit dem Text darüber.
+ *
+ * Jedes Muster sollte zum Rand hin auslaufen (`muster-verlauf`). Ein hart
+ * abgeschnittenes Raster sieht aus wie ein Darstellungsfehler; ein
+ * auslaufendes wirkt wie Papier, auf dem etwas steht.
+ *
+ * Warum jedes Muster auf einem eigenen `::after` liegt und nicht einfach als
+ * Hintergrund auf dem Element selbst: Das Auslaufen braucht eine Maske, und
+ * `mask-image` gilt für das Element *samt allen Kindern*. Auf einer Karte
+ * gesetzt hätte es also nicht das Raster ausgeblendet, sondern den Text
+ * darauf. Genau das ist beim ersten Anlauf passiert – die Wochenübersicht war
+ * eine leere Karte mit einem blassen Schleier in der Ecke.
+ *
+ * Die Ebene liegt auf `z-index: -1`, das Element selbst auf `isolation:
+ * isolate`. Damit sitzt das Muster über der eigenen Hintergrundfarbe, unter
+ * jedem Inhalt, und der negative Wert kann nicht aus der Karte ausbrechen.
+ * `::before` ist tabu: Das gehört bereits `card-accent`.
+ * -------------------------------------------------------------------------- */
+
+/*
+ * Die Musterebene.
+ *
+ * Bewusst als gewöhnliche Regel und nicht als eigene Klasse, die man
+ * zusätzlich setzen müsste: Ein Muster, das nur zusammen mit einer zweiten
+ * Klasse erscheint, wird irgendwann ohne sie gesetzt und fehlt dann
+ * wortlos. Dieselbe Bauart benutzt weiter unten `card-accent`.
+ */
+.muster-punkte,
+.muster-raster,
+.muster-schraffur,
+.muster-boegen,
+.muster-stufen,
+.muster-punkte-hell,
+.muster-raster-hell {
+  position: relative;
+  isolation: isolate;
+}
+
+.muster-punkte::after,
+.muster-raster::after,
+.muster-schraffur::after,
+.muster-boegen::after,
+.muster-stufen::after,
+.muster-punkte-hell::after,
+.muster-raster-hell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image: var(--muster-bild, none);
+  background-size: var(--muster-groesse, auto);
+  -webkit-mask-image: var(--muster-maske, none);
+  mask-image: var(--muster-maske, none);
+}
+
+/* Punktraster – die ruhigste Struktur, taugt als Grundlage überall. */
+@utility muster-punkte {
+  --muster-bild: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in oklab, var(--akzent, var(--accent)) 26%, transparent) 1px,
+    transparent 0
+  );
+  --muster-groesse: 22px 22px;
+}
+
+/*
+ * Karopapier.
+ *
+ * Für eine Lernanwendung mehr als Zierde: Rechenkaro ist das Blatt, auf dem
+ * man Dinge durchdenkt, bevor man sie tippt.
+ */
+@utility muster-raster {
+  --muster-bild:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--akzent, var(--accent)) 14%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--akzent, var(--accent)) 14%, transparent) 1px,
+      transparent 1px
+    );
+  --muster-groesse: 28px 28px;
+}
+
+/* Schraffur – gerichtet, gibt einer Fläche Bewegung ohne Animation. */
+@utility muster-schraffur {
+  --muster-bild: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklab, var(--akzent, var(--accent)) 12%, transparent) 0 2px,
+    transparent 2px 11px
+  );
+}
+
+/*
+ * Konzentrische Bögen.
+ *
+ * Das Bild der Wiederholung: derselbe Kreis, immer wieder, in wachsendem
+ * Abstand – genau das, was zeitversetztes Wiederholen mit dem Stoff macht.
+ */
+@utility muster-boegen {
+  --muster-bild: repeating-radial-gradient(
+    circle at 0% 100%,
+    transparent 0 34px,
+    color-mix(in oklab, var(--akzent, var(--accent)) 16%, transparent) 34px 36px
+  );
+}
+
+/*
+ * Stufen.
+ *
+ * Aufsteigende Kanten – dasselbe Bildzeichen wie im Symbol der Anwendung.
+ * Passt überall dort, wo es um Fortschritt geht.
+ */
+@utility muster-stufen {
+  --muster-bild:
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--akzent, var(--accent)) 10%, transparent) 25%,
+      transparent 25%
+    ),
+    linear-gradient(
+      225deg,
+      color-mix(in oklab, var(--akzent, var(--accent)) 10%, transparent) 25%,
+      transparent 25%
+    );
+  --muster-groesse: 32px 32px;
+}
+
+/*
+ * Auslaufen lassen.
+ *
+ * Setzt nur die Maske für die Musterebene. Für sich allein bewirkt die Klasse
+ * nichts – das ist Absicht: So kann sie den Inhalt nicht versehentlich
+ * mitnehmen, egal wohin sie gerät.
+ */
+@utility muster-verlauf {
+  --muster-maske: radial-gradient(ellipse 120% 90% at 50% 0%, #000 35%, transparent 78%);
+}
+
+@utility muster-verlauf-ecke {
+  --muster-maske: radial-gradient(ellipse 90% 100% at 100% 0%, #000 15%, transparent 72%);
+}
+
+/*
+ * Ausblendung zur unteren linken Ecke hin – für `muster-boegen`.
+ *
+ * Die Bögen entspringen dort. Blendete man sie stattdessen von rechts oben ein,
+ * sähe man nur ihre äußersten, fast geraden Enden: aus konzentrischen Kreisen
+ * würden schräge Striche, und das Bild wäre nicht mehr das der Wiederholung.
+ */
+@utility muster-verlauf-ecke-unten {
+  --muster-maske: radial-gradient(ellipse 85% 100% at 0% 100%, #000 15%, transparent 72%);
+}
+
+/*
+ * Muster auf dunklem Verlauf.
+ *
+ * Dort ist `--akzent` die falsche Quelle: Auf einem dunklen Kopfbereich muss
+ * das Muster hell sein, unabhängig vom Farbschema. Deshalb eine eigene
+ * Fassung in Weiß.
+ */
+@utility muster-punkte-hell {
+  --muster-bild: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.2) 1px, transparent 0);
+  --muster-groesse: 22px 22px;
+}
+
+@utility muster-raster-hell {
+  --muster-bild:
+    linear-gradient(to right, rgb(255 255 255 / 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.1) 1px, transparent 1px);
+  --muster-groesse: 30px 30px;
+}
+
+/* --------------------------------------------------------------------------
  * Farbe und Leben in gewöhnlichen Karten
  *
  * Eine weiße Fläche mit dünnem Rahmen ist korrekt und sagt nichts. Die

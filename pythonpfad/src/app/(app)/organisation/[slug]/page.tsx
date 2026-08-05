@@ -7,6 +7,7 @@ import { getAuditLog, getOrgContext, listCohorts } from '@/server/services/organ
 import { ROLE_LABELS, can } from '@/domain/organisation/permissions';
 import { Badge, Card, EmptyState, SectionHeading } from '@/components/ui/primitives';
 import { CohortAndInviteForms } from './cohort-and-invite-forms';
+import { IllustrationBuild } from '@/components/ui/illustration';
 
 export const metadata: Metadata = { title: 'Organisation' };
 
@@ -65,6 +66,7 @@ export default async function OrganisationDetailPage({
 
         {cohorts.length === 0 ? (
           <EmptyState
+            illustration={<IllustrationBuild />}
             title="Noch keine Kohorte"
             description={
               darfVerwalten

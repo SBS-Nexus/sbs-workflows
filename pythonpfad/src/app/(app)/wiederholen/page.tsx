@@ -9,6 +9,7 @@ import { PageHero, HeroStat } from '@/components/ui/page-hero';
 import { Icon } from '@/components/ui/icon';
 import { AnimatedNumber } from '@/components/ui/animated-number';
 import { REVIEW_THEME, themeStyle } from '@/domain/design/module-theme';
+import { IllustrationRuhe } from '@/components/ui/illustration';
 
 export const metadata: Metadata = { title: 'Wiederholen' };
 
@@ -69,6 +70,7 @@ export default async function ReviewPage(): Promise<React.ReactElement> {
         </section>
       ) : (
         <EmptyState
+          illustration={<IllustrationRuhe />}
           title="Heute steht keine Wiederholung an"
           description="Das ist kein Versäumnis – der Plan richtet sich nach deinem Verlauf. Nutze die Zeit für eine neue Lektion oder ein Projekt."
           action={<ButtonLink href="/lernen">Zum Lernpfad</ButtonLink>}
@@ -120,10 +122,16 @@ export default async function ReviewPage(): Promise<React.ReactElement> {
               as="li"
               key={set.slug}
               style={{ ...themeStyle(REVIEW_THEME), animationDelay: `${index * 60}ms` }}
+              /*
+               * Konzentrische Bögen als Grundstruktur: derselbe Kreis, immer
+               * wieder, in wachsendem Abstand. Genau das macht zeitversetztes
+               * Wiederholen mit dem Stoff – das Muster ist hier nicht bloß
+               * Zierde, sondern das Bild der Sache.
+               */
               className={
                 set.available
-                  ? 'card-accent hover-lift hover-glow animate-in group'
-                  : 'animate-in opacity-75'
+                  ? 'card-accent muster-boegen muster-verlauf-ecke-unten hover-lift hover-glow animate-in group'
+                  : 'muster-boegen muster-verlauf-ecke-unten animate-in opacity-75'
               }
             >
               <div className="flex items-start justify-between gap-2">

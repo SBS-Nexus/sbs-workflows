@@ -31,7 +31,7 @@ export function MilestoneList({
       as="section"
       aria-labelledby="meilensteine-titel"
       style={themeStyle(moduleTheme(0))}
-      className="card-accent group"
+      className="card-accent muster-stufen muster-verlauf-ecke group"
     >
       <div className="flex items-start gap-4">
         <span aria-hidden="true" className="icon-tile mt-0.5 size-11">

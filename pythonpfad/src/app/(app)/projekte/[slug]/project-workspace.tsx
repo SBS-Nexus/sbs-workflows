@@ -14,6 +14,7 @@ import {
 import type { ProjectView } from '@/server/services/project-service';
 import type { RunResult } from '@/lib/runner/types';
 import type { ProjectSubmitResult } from '@/server/services/project-service';
+import { EckBoegen } from '@/components/ui/zierformen';
 
 /**
  * Arbeitsbereich für ein Projekt.
@@ -101,11 +102,11 @@ export function ProjectWorkspace({ project }: { project: ProjectView }): React.R
     <div className="space-y-6" style={themeStyle(PROJECT_THEME)}>
       <header
         style={{ backgroundImage: heroGradient(PROJECT_THEME) }}
-        className="relative isolate overflow-hidden rounded-3xl p-6 text-white sm:p-8"
+        className="relative isolate overflow-hidden rounded-3xl p-6 text-white sm:p-8 muster-raster-hell muster-verlauf"
       >
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-20 -top-24 -z-10 size-64 rounded-full bg-white opacity-20 blur-3xl"
+        <EckBoegen
+          farbe="#ffffff"
+          className="pointer-events-none absolute -right-6 -top-10 -z-10 size-60 opacity-60"
         />
         <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
           <span className="rounded-full bg-white/15 px-3 py-1">

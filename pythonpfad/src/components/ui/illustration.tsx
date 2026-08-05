@@ -188,6 +188,111 @@ export function IllustrationSuccess({ className, tone }: IllustrationProps): Rea
   );
 }
 
+/**
+ * Ruhepause: eine Fläche, auf der nichts ansteht.
+ *
+ * Für den Fall „heute keine Wiederholung fällig". Der Unterschied zu
+ * `IllustrationEmpty` ist die Aussage: Dort fehlt etwas, hier ist etwas
+ * erledigt. Deshalb geschlossene Formen statt gestrichelter Umrisse.
+ */
+export function IllustrationRuhe({ className, tone }: IllustrationProps): ReactNode {
+  const farbe = tone ?? 'var(--akzent, var(--accent))';
+  return (
+    <svg viewBox="0 0 240 160" aria-hidden="true" className={`${BASIS} ${className ?? ''}`}>
+      <path d="M20 118h200" stroke={farbe} strokeWidth="4" strokeLinecap="round" opacity="0.35" />
+      <rect x="48" y="86" width="46" height="32" rx="10" fill={farbe} opacity="0.3" />
+      <rect x="104" y="62" width="46" height="56" rx="10" fill={farbe} opacity="0.5" />
+      <rect x="160" y="94" width="46" height="24" rx="10" fill={farbe} opacity="0.25" />
+      <circle cx="127" cy="34" r="13" fill={farbe} opacity="0.8" />
+      <path
+        d="M108 34a19 19 0 0 0 38 0"
+        stroke={farbe}
+        strokeWidth="3"
+        fill="none"
+        strokeLinecap="round"
+        opacity="0.4"
+      />
+    </svg>
+  );
+}
+
+/**
+ * Zusammenhang: Punkte, die durch Linien verbunden sind.
+ *
+ * Für die Wissenslandkarte und alles, was mit Voraussetzungen zu tun hat.
+ */
+export function IllustrationNetz({ className, tone }: IllustrationProps): ReactNode {
+  const farbe = tone ?? 'var(--akzent, var(--accent))';
+  const knoten: ReadonlyArray<[number, number, number]> = [
+    [40, 108, 10],
+    [92, 62, 12],
+    [104, 126, 8],
+    [156, 90, 11],
+    [204, 48, 9],
+    [198, 128, 7],
+  ];
+  const kanten: ReadonlyArray<[number, number]> = [
+    [0, 1],
+    [0, 2],
+    [1, 3],
+    [2, 3],
+    [3, 4],
+    [3, 5],
+  ];
+  return (
+    <svg viewBox="0 0 240 160" aria-hidden="true" className={`${BASIS} ${className ?? ''}`}>
+      {kanten.map(([von, nach], index) => {
+        const a = knoten[von]!;
+        const b = knoten[nach]!;
+        return (
+          <line
+            key={index}
+            x1={a[0]}
+            y1={a[1]}
+            x2={b[0]}
+            y2={b[1]}
+            stroke={farbe}
+            strokeWidth="3"
+            opacity="0.35"
+          />
+        );
+      })}
+      {knoten.map(([x, y, r], index) => (
+        <circle key={index} cx={x} cy={y} r={r} fill={farbe} opacity={0.4 + (index % 3) * 0.2} />
+      ))}
+    </svg>
+  );
+}
+
+/**
+ * Übung: dieselbe Form mehrfach, immer klarer werdend.
+ *
+ * Für den Übungsbereich – das Bild dessen, was Wiederholung mit Können macht.
+ */
+export function IllustrationSchleifen({ className, tone }: IllustrationProps): ReactNode {
+  const farbe = tone ?? 'var(--akzent, var(--accent))';
+  return (
+    <svg viewBox="0 0 240 160" aria-hidden="true" className={`${BASIS} ${className ?? ''}`}>
+      {[0, 1, 2, 3].map((stufe) => (
+        <rect
+          key={stufe}
+          x={26 + stufe * 52}
+          y={104 - stufe * 8}
+          width="38"
+          height={38 + stufe * 8}
+          rx="12"
+          fill="none"
+          stroke={farbe}
+          strokeWidth="3"
+          strokeDasharray={stufe === 3 ? undefined : `${4 + stufe * 6} ${10 - stufe * 3}`}
+          opacity={0.35 + stufe * 0.2}
+        />
+      ))}
+      <path d="M26 138h188" stroke={farbe} strokeWidth="3" strokeLinecap="round" opacity="0.25" />
+    </svg>
+  );
+}
+
 /** Fehler als Lernstoff: eine Lupe über einer Zeile. Kein Warndreieck. */
 export function IllustrationInspect({ className, tone }: IllustrationProps): ReactNode {
   const farbe = tone ?? 'var(--caution)';

@@ -20,8 +20,11 @@ import {
 import { PageHero } from '@/components/ui/page-hero';
 import { ProgressRing } from '@/components/ui/progress-ring';
 import { AnimatedNumber } from '@/components/ui/animated-number';
+import { SaeulenDiagramm } from '@/components/charts/saeulen-diagramm';
+import { KompetenzRing } from '@/components/charts/kompetenz-ring';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
+import { IllustrationNetz } from '@/components/ui/illustration';
 
 export const metadata: Metadata = { title: 'Fortschritt' };
 
@@ -43,8 +46,6 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
     getMotivationSummary(user.id),
     landkarteAn ? getKnowledgeMap(user.id) : Promise.resolve(null),
   ]);
-
-  const maxActivity = Math.max(1, ...data.weeklyActivity.map((d) => d.activities));
 
   /*
    * Die Bereichsfarbe gilt für die ganze Seite, nicht nur für den Kopf. Ohne
@@ -142,26 +143,16 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
         >
           Diese Woche
         </SectionHeading>
-        <Card>
-          <ul className="flex items-end justify-between gap-2">
-            {data.weeklyActivity.map((day) => (
-              <li key={day.date} className="flex flex-1 flex-col items-center gap-1.5">
-                <span className="text-xs font-medium">{day.activities}</span>
-                <div
-                  className="w-full rounded-lg bg-gradient-to-t from-[var(--color-modul-3)] to-[var(--color-modul-0)] transition-[height] duration-500"
-                  style={{
-                    height: `${Math.max(6, (day.activities / maxActivity) * 96)}px`,
-                    opacity: day.activities === 0 ? 0.18 : 1,
-                  }}
-                  aria-hidden="true"
-                />
-                <span className="text-xs text-[var(--text-muted)]">{day.label}</span>
-                <span className="sr-only">
-                  {day.label}, {day.date}: {day.activities} Aufgaben
-                </span>
-              </li>
-            ))}
-          </ul>
+        <Card className="card-accent muster-punkte muster-verlauf-ecke">
+          <SaeulenDiagramm
+            daten={data.weeklyActivity.map((day) => ({
+              label: day.label,
+              wert: day.activities,
+              beschreibung: `${day.label}, ${day.date}`,
+            }))}
+            einheit="Aufgaben"
+            beschriftung="Bearbeitete Aufgaben der letzten sieben Tage."
+          />
         </Card>
       </section>
 
@@ -187,8 +178,35 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
           Konzepte
         </SectionHeading>
 
+        {/*
+         * Erst die Zusammenfassung, dann die Einzelheiten. Die Liste darunter
+         * beantwortet „wie steht es um Schleifen?", der Ring beantwortet „wie
+         * steht es insgesamt?" – dafür müsste man sonst dreißig Einträge
+         * durchzählen.
+         */}
+        {data.masteryByConcept.length > 0 ? (
+          <Card className="card-accent muster-schraffur muster-verlauf-ecke mb-4">
+            <KompetenzRing
+              stufen={(
+                [
+                  ['durable', 'sicher abrufbar', 'var(--color-success-500)'],
+                  ['solid', 'gefestigt', 'var(--color-success-700)'],
+                  ['usable', 'anwendbar', 'var(--color-modul-3)'],
+                  ['building', 'im Aufbau', 'var(--color-caution-500)'],
+                  ['new', 'noch neu', 'var(--border-strong)'],
+                ] as const
+              ).map(([band, label, farbe]) => ({
+                label,
+                farbe,
+                anzahl: data.masteryByConcept.filter((concept) => concept.band === band).length,
+              }))}
+            />
+          </Card>
+        ) : null}
+
         {data.masteryByConcept.length === 0 ? (
           <EmptyState
+            illustration={<IllustrationNetz />}
             title="Noch keine Konzeptdaten"
             description="Sobald du die ersten Aufgaben bearbeitest, entsteht hier eine Übersicht deiner Konzepte."
             action={<ButtonLink href="/lernen">Zur ersten Lektion</ButtonLink>}

@@ -5,6 +5,7 @@ import { prisma } from '@/server/db/prisma';
 import { OnboardingForm } from './onboarding-form';
 import { Schrittanzeige } from '@/components/ui/schrittanzeige';
 import { heroGradient, moduleTheme } from '@/domain/design/module-theme';
+import { EckStufen } from '@/components/ui/zierformen';
 
 export const metadata: Metadata = { title: 'Willkommen' };
 
@@ -35,11 +36,11 @@ export default async function OnboardingPage(): Promise<React.ReactElement> {
        */}
       <header
         style={{ backgroundImage: heroGradient(moduleTheme(0)) }}
-        className="relative isolate mb-8 overflow-hidden rounded-3xl p-6 text-white sm:p-8"
+        className="relative isolate mb-8 overflow-hidden rounded-3xl p-6 text-white sm:p-8 muster-punkte-hell muster-verlauf"
       >
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-20 -top-24 -z-10 size-64 rounded-full bg-white opacity-20 blur-3xl"
+        <EckStufen
+          farbe="#ffffff"
+          className="pointer-events-none absolute -right-4 -top-6 -z-10 size-52 opacity-80"
         />
         <Schrittanzeige aktuell={1} />
         <h1 className="mt-4 text-display-sm font-black leading-tight tracking-[-0.02em]">
