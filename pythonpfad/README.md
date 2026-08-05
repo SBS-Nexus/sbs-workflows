@@ -265,6 +265,25 @@ npm run dev
 
 ### Vollständiger Ablauf von null
 
+Der kurze Weg – zwei Befehle:
+
+```bash
+npm install
+npm run einrichten
+npm run dev
+```
+
+`npm run einrichten` erledigt alles dazwischen: Es prüft die Node-Fassung,
+legt die `.env` aus der Vorlage an, erzeugt einen zufälligen `AUTH_SECRET`,
+startet die Datenbank über Docker (falls vorhanden und noch nicht laufend),
+wendet die Migrationen an und lädt die Beispieldaten. Eine bestehende `.env`
+wird nie überschrieben.
+
+Findet es keine Datenbank und kein Docker, beschreibt es beide Auswege, statt
+mit einer Verbindungsfehlermeldung abzubrechen.
+
+Von Hand geht es weiterhin genauso:
+
 ```bash
 cp .env.example .env          # AUTH_SECRET ersetzen
 npm install
@@ -273,6 +292,25 @@ npm run db:deploy
 npm run db:seed
 npm run dev
 ```
+
+### Unter Windows
+
+Es gilt derselbe Ablauf; drei Dinge unterscheiden sich:
+
+- **PowerShell statt Eingabeaufforderung.** In der klassischen
+  Eingabeaufforderung (`cmd`) fehlen einige der hier genannten Befehle.
+- **`openssl` gibt es nicht.** Deshalb erzeugt `npm run einrichten` den
+  Schlüssel selbst – von Hand ginge es mit
+  `[Convert]::ToBase64String((1..48 | %{Get-Random -Max 256}))`.
+- **Nach der Node-Installation ein neues Fenster öffnen.** Ein bereits
+  geöffnetes Terminal kennt den neuen Pfad nicht und meldet weiterhin
+  „node wird nicht erkannt".
+
+Ohne Docker Desktop reicht ein normal installiertes PostgreSQL 16. Beim
+Installieren wird ein Passwort für den Benutzer `postgres` vergeben; danach
+zwei Datenbanken anlegen (`pythonpfad`, `pythonpfad_test`) und in der `.env`
+`DATABASE_URL` und `TEST_DATABASE_URL` auf diesen Benutzer und dieses Passwort
+umstellen.
 
 ---
 
