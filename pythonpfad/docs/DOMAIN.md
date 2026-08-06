@@ -35,6 +35,11 @@ Domain, die auf ein leeres Verzeichnis zeigt.
 Die Domain wird in allen drei Fällen bei Strato bestellt. Unterschiedlich ist
 nur, worauf sie zeigt.
 
+> **Für `pythonpfad.de` ist Weg B gewählt: Betrieb auf Vercel.** Die genaue
+> Anleitung dafür – Datenbank, Umgebungsvariablen, DNS-Werte, Prüfschritte –
+> steht in [VERCEL.md](./VERCEL.md). Die folgenden Abschnitte beschreiben die
+> Grundlagen, die für alle drei Wege gelten.
+
 ---
 
 ## 2. Welche Domain
