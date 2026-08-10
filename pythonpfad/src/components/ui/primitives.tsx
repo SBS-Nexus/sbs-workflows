@@ -138,10 +138,13 @@ export function Card({
       {...aria}
       id={id}
       style={style}
-      className={cx(
-        'rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-5 sm:p-6',
-        className,
-      )}
+      /*
+       * `karte-flaeche` färbt Fläche und Rahmen mit der Bereichsfarbe ein –
+       * siehe globals.css. Die größere Rundung gehört dazu: Ein Radius von
+       * 16 Pixeln wirkt sachlich, einer von 24 wirkt zugewandt, und das ist
+       * bei einer Lernanwendung für Anfänger keine Geschmacksfrage.
+       */
+      className={cx('karte-flaeche rounded-3xl border p-5 sm:p-6', className)}
     >
       {children}
     </Component>

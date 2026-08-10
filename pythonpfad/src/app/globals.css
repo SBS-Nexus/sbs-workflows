@@ -28,17 +28,30 @@
   --font-mono:
     ui-monospace, 'SFMono-Regular', 'JetBrains Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
 
-  --color-ink-50: #f6f7f9;
-  --color-ink-100: #eceef2;
-  --color-ink-200: #d6dae2;
-  --color-ink-300: #b2b9c7;
-  --color-ink-400: #7d8698;
-  --color-ink-500: #5b6478;
-  --color-ink-600: #454d5e;
-  --color-ink-700: #353c4b;
-  --color-ink-800: #232936;
-  --color-ink-900: #161b25;
-  --color-ink-950: #0d1017;
+  /*
+   * Die Grundskala.
+   *
+   * Sie war vorher ein neutrales Kaltgrau (#f6f7f9 bis #161b25). Damit stand
+   * jede Farbe der Anwendung auf einer grauen Fläche, und die Seiten wirkten
+   * wie ein unverputztes Haus: Der Schmuck war da, der Untergrund nicht.
+   *
+   * Jetzt trägt die ganze Skala einen Indigoanteil. Der Unterschied ist im
+   * einzelnen Farbwert kaum zu benennen und in der Fläche sofort zu sehen –
+   * die hellen Töne wirken wie getöntes Papier statt wie Bildschirmweiß, die
+   * dunklen wie Tinte statt wie Ruß. Für eine Anwendung, die man abends nach
+   * der Arbeit freiwillig öffnen soll, ist das kein Beiwerk.
+   */
+  --color-ink-50: #f4f2fb;
+  --color-ink-100: #e9e5f6;
+  --color-ink-200: #ded9f0;
+  --color-ink-300: #bdb5dd;
+  --color-ink-400: #8981ae;
+  --color-ink-500: #565080;
+  --color-ink-600: #423c66;
+  --color-ink-700: #332e52;
+  --color-ink-800: #2a2545;
+  --color-ink-900: #211d47;
+  --color-ink-950: #12102b;
 
   --color-accent-50: #eef4ff;
   --color-accent-100: #dbe6fe;
@@ -244,12 +257,59 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/*
+ * Der Untergrund.
+ *
+ * Eine einfarbige Fläche über die ganze Höhe wirkt selbst in einem freundlichen
+ * Ton noch wie eine Wand. Deshalb liegen drei sehr weiche Farbwolken darauf –
+ * oben links, oben rechts, unten. Sie sind so blass, dass man sie nicht als
+ * Kreise erkennt; man merkt nur, dass die Fläche nicht überall gleich ist.
+ *
+ * Drei Entscheidungen, die hier festgehalten gehören:
+ *
+ *  - Das Feld liegt auf einer fest stehenden eigenen Ebene, nicht als
+ *    `background-attachment: fixed` auf dem Körper. Der naheliegende Weg war
+ *    der erste Versuch und hinterließ auf langen Seiten eine sichtbare Kante:
+ *    Ein festgehefteter Hintergrund ist so groß wie das Sichtfenster, darunter
+ *    bleibt die Fläche einfarbig. Eine Ebene mit `position: fixed` deckt
+ *    dagegen immer genau das ab, was man gerade sieht.
+ *  - Es bewegt sich nichts. Eine frühere Fassung ließ hier weichgezeichnete
+ *    Flächen wandern. Das hat zweimal Serveraufrufe ins Zeitlimit getrieben,
+ *    weil dauerhaftes Neuzeichnen großer, unscharfer Flächen die
+ *    Rechenzeit auffrisst. Ein stehender Verlauf wird einmal gezeichnet.
+ *  - Die Farben stammen aus den Modulfarben, nicht aus einer eigenen Palette.
+ *    Damit bleibt der Untergrund derselbe Klang wie alles darüber.
+ */
 body {
   background-color: var(--surface);
   color: var(--text);
   font-family: var(--font-sans);
   line-height: 1.65;
   min-height: 100dvh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      ellipse 80% 55% at 12% 0%,
+      color-mix(in oklab, var(--color-modul-0) 13%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 92% 6%,
+      color-mix(in oklab, var(--color-modul-1) 12%, transparent),
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse 90% 45% at 50% 100%,
+      color-mix(in oklab, var(--color-modul-3) 10%, transparent),
+      transparent 72%
+    );
 }
 
 /* Sichtbarer Fokus – Grundvoraussetzung für Tastaturbedienung. */
@@ -998,6 +1058,28 @@ body[data-overlay-open='true'] {
  * beim Überfliegen ohnehin gestreift wird, und lassen die Fläche darunter ruhig
  * – anders als eine flächige Einfärbung, die Fließtext den Kontrast nimmt.
  */
+/*
+ * Kartenfläche.
+ *
+ * Karten waren bisher alle reinweiß. Bei zwei Karten fällt das nicht auf, bei
+ * fünfzehn untereinander schon: Die Seite wird zu einem Stapel gleicher weißer
+ * Rechtecke, und die Farbe der Kopfbereiche wirkt wie aufgeklebt.
+ *
+ * Jede Karte nimmt deshalb einen Hauch ihrer Bereichsfarbe auf – vier Prozent,
+ * also weit unterhalb dessen, was man bewusst als „eingefärbt" wahrnimmt. Der
+ * Rahmen bekommt achtzehn Prozent. Zusammen genügt das, damit eine Karte im
+ * Lernbereich sichtbar zu einer anderen Familie gehört als eine im
+ * Projektbereich, ohne dass irgendwo Buntheit entsteht.
+ *
+ * Der Anteil ist bewusst so niedrig: Er muss auch dann tragen, wenn zwanzig
+ * Karten übereinanderstehen. Was bei einer Karte hübsch aussieht, ist bei
+ * zwanzig ein Farbeimer.
+ */
+.karte-flaeche {
+  background-color: color-mix(in oklab, var(--akzent, var(--accent)) 4%, var(--surface-raised));
+  border-color: color-mix(in oklab, var(--akzent, var(--accent)) 18%, var(--border));
+}
+
 @utility card-accent {
   position: relative;
   overflow: hidden;
