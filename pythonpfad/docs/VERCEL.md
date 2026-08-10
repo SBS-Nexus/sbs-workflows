@@ -104,14 +104,22 @@ Vercel führt beim Bauen **keine** Datenbankmigrationen aus – bewusst, denn ei
 Build, der nebenbei das Schema ändert, ist bei einem Rückbau nicht mehr
 umkehrbar.
 
-Einmalig vom eigenen Rechner aus, mit der Verbindungszeichenfolge der
-Produktionsdatenbank:
+Einmalig vom eigenen Rechner aus – hier mit der **direkten**, nicht der
+gepoolten Verbindungszeichenfolge:
 
 ```bash
 cd pythonpfad
-DATABASE_URL="postgresql://…-pooler…" npm run db:deploy   # Schema anlegen
-DATABASE_URL="postgresql://…-pooler…" npm run db:seed     # Lerninhalte einspielen
+DATABASE_URL="postgresql://…ohne -pooler…" npm run db:deploy   # Schema anlegen
+DATABASE_URL="postgresql://…ohne -pooler…" npm run db:seed     # Inhalte einspielen
 ```
+
+> **Hier gilt das Gegenteil von Abschnitt 3.** Die Anwendung braucht die
+> gepoolte Verbindung, Migrationen brauchen die direkte. Der Pooler arbeitet im
+> Transaktionsmodus und reicht die Sperren auf Sitzungsebene nicht durch, die
+> `prisma migrate` setzt. Über die gepoolte Adresse bleibt die Migration
+> hängen oder bricht mit einer Meldung ab, die nicht nach ihrer Ursache
+> aussieht. Bei Neon ist die direkte Adresse dieselbe ohne `-pooler` im
+> Hostnamen.
 
 `db:deploy` wendet nur vorhandene Migrationen an und erzeugt keine neuen. Das
 ist der richtige Befehl für Produktion; `db:migrate` ist es nicht.
