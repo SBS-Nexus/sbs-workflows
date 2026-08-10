@@ -182,7 +182,43 @@ Aufruf geladen und danach ein Jahr im Browser zwischengespeichert werden.
 
 ---
 
-## 7. Was danach automatisch läuft
+## 7. Wenn der Bau scheitert
+
+### `ENOENT: no such file or directory, open '…/.env'`
+
+```
+Failed to load config file "/vercel/path0/pythonpfad" as a TypeScript/JavaScript
+module. Error: ENOENT: no such file or directory, open '/vercel/path0/pythonpfad/.env'
+```
+
+Die Meldung nennt die Konfigurationsdatei, die Ursache steht aber erst am
+Zeilenende: Es fehlt die `.env`. In einer Bereitstellungsumgebung gibt es sie
+nie – die Werte stehen dort bereits in `process.env`.
+
+Behoben in `prisma.config.ts` und vier weiteren Stellen: `.env` wird nur noch
+geladen, wenn sie vorhanden ist. `tests/unit/konfiguration-ohne-env.test.ts`
+hält das fest. Tritt die Meldung erneut auf, ist irgendwo ein ungeprüftes
+`process.loadEnvFile` dazugekommen – das `?.` davor genügt **nicht**, es
+schützt nur gegen alte Node-Fassungen, nicht gegen die fehlende Datei.
+
+### `PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL`
+
+`prisma generate` braucht keine Datenbank, wertet aber `prisma.config.ts`
+vollständig aus. Steht die Verbindungszeichenfolge dort fest verdrahtet, bricht
+schon das Erzeugen des Clients ab. Ebenfalls behoben; die Angabe ist jetzt
+davon abhängig, ob die Variable gesetzt ist.
+
+Tritt die Meldung bei `migrate` oder `db seed` auf, ist sie dagegen richtig:
+Dort wird die Datenbank wirklich gebraucht.
+
+### Der Bau läuft, aber jede Seite meldet einen Fehler
+
+Dann fehlen die Migrationen. Schritt 4 nachholen. `/api/health` sagt es genauer
+als die Fehlerseite.
+
+---
+
+## 8. Was danach automatisch läuft
 
 Ist das Projekt einmal mit dem Repository verbunden, baut Vercel bei jedem Push
 auf `main` neu und schaltet die neue Fassung live. Pull Requests bekommen

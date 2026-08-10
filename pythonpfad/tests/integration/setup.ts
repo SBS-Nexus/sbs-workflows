@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { beforeAll } from 'vitest';
@@ -12,7 +13,13 @@ import { beforeAll } from 'vitest';
  */
 const projectRoot = path.resolve(import.meta.dirname, '..', '..');
 
-process.loadEnvFile?.(path.join(projectRoot, '.env'));
+/*
+ * `.env` nur laden, wenn sie da ist: `process.loadEnvFile` wirft sonst
+ * `ENOENT`, und das `?.` fängt das nicht ab. In Bereitstellungsumgebungen
+ * stehen die Werte bereits in `process.env`. Ausführlich in prisma.config.ts.
+ */
+const envDatei = path.join(projectRoot, '.env');
+if (existsSync(envDatei)) process.loadEnvFile?.(envDatei);
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 if (!testDatabaseUrl) {

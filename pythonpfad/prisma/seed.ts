@@ -8,6 +8,7 @@
  * dabei zum selben Inhaltsstand. Lernfortschritt bestehender Konten bleibt
  * erhalten, weil ausschließlich Inhalte per `upsert` geschrieben werden.
  */
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
@@ -15,7 +16,13 @@ import { parseContent, contentStats } from '../src/content';
 import { hashPassword } from '../src/server/auth/password';
 import { buildLearningPath } from '../src/domain/path/learning-path';
 
-process.loadEnvFile?.(path.join(import.meta.dirname, '..', '.env'));
+/*
+ * `.env` nur laden, wenn sie da ist: `process.loadEnvFile` wirft sonst
+ * `ENOENT`, und das `?.` fängt das nicht ab. In Bereitstellungsumgebungen
+ * stehen die Werte bereits in `process.env`. Ausführlich in prisma.config.ts.
+ */
+const envDatei = path.join(import.meta.dirname, '..', '.env');
+if (existsSync(envDatei)) process.loadEnvFile?.(envDatei);
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
