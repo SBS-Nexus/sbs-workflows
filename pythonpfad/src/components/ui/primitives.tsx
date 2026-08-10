@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Icon, type IconName } from '@/components/ui/icon';
+import { Emoji, type EmojiName } from '@/components/ui/emoji';
 
 /**
  * Kleine, zugängliche Bausteine.
@@ -487,16 +488,30 @@ export function SectionHeading({
   description,
   id,
   icon,
+  emoji,
 }: {
   children: ReactNode;
   description?: string;
   id?: string;
   icon?: IconName;
+  /**
+   * Emoji statt gezeichnetem Symbol.
+   *
+   * Für Abschnitte im Inhalt, wo ein bisschen Lockerheit hilft. In der
+   * Navigation ist das ausdrücklich nicht vorgesehen – dort sitzen gezeichnete
+   * Vollsymbole, weil eine Leiste auf jedem Gerät gleich aussehen muss.
+   * Ausführlich in `emoji.tsx`.
+   */
+  emoji?: EmojiName;
 }): ReactNode {
   return (
     <div className="mb-5">
       <div className="flex items-center gap-3">
-        {icon ? (
+        {emoji ? (
+          <span aria-hidden="true" className="icon-tile size-10 text-[1.25rem]">
+            <Emoji name={emoji} size="1.25rem" />
+          </span>
+        ) : icon ? (
           <span aria-hidden="true" className="icon-tile size-10">
             <Icon name={icon} size={20} />
           </span>

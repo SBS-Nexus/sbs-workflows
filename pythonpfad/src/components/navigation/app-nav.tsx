@@ -7,7 +7,8 @@ import { logoutAction } from '@/server/actions/auth-actions';
 import { Kbd, cx } from '@/components/ui/primitives';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useCommandCenter } from '@/components/navigation/command-center';
-import { Icon, type IconName } from '@/components/ui/icon';
+import { Icon } from '@/components/ui/icon';
+import { VollSymbol, type VollSymbolName } from '@/components/ui/icon-voll';
 import {
   PROJECT_THEME,
   REVIEW_THEME,
@@ -29,7 +30,12 @@ import {
  * Seite steht. Beim Wechsel sieht man dadurch schon in der Navigation, wohin
  * es geht, und nach dem Wechsel bestätigt die Seite die Farbe.
  */
-const ITEMS: ReadonlyArray<{ href: string; label: string; icon: IconName; theme: ModuleTheme }> = [
+const ITEMS: ReadonlyArray<{
+  href: string;
+  label: string;
+  icon: VollSymbolName;
+  theme: ModuleTheme;
+}> = [
   { href: '/lernen', label: 'Lernen', icon: 'lernen', theme: moduleTheme(0) },
   { href: '/ueben', label: 'Üben', icon: 'ueben', theme: moduleTheme(1) },
   { href: '/projekte', label: 'Projekte', icon: 'projekte', theme: PROJECT_THEME },
@@ -90,13 +96,24 @@ export function AppNav({
                     aria-current={isActive(item.href) ? 'page' : undefined}
                     style={themeStyle(item.theme)}
                     className={cx(
-                      'flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold transition-colors',
+                      'group/nav flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors',
                       isActive(item.href)
                         ? 'bg-[var(--akzent-soft)] text-[var(--akzent)]'
                         : 'text-[var(--text-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--akzent)]',
                     )}
                   >
-                    <Icon name={item.icon} size={17} />
+                    {/*
+                     * Das Symbol behält seine Bereichsfarbe auch dann, wenn der
+                     * Eintrag nicht aktiv ist. Nur die Beschriftung wird grau.
+                     * Andernfalls wäre die Leiste im Ruhezustand wieder eine
+                     * Reihe grauer Zeichen – also genau das, was hier weg
+                     * sollte. Die Farbe ist zugleich die schnellste
+                     * Orientierung: Wer die Bereichsfarbe einmal kennt, findet
+                     * den Eintrag, ohne zu lesen.
+                     */}
+                    <span className="text-[var(--akzent)] transition-transform group-hover/nav:scale-110">
+                      <VollSymbol name={item.icon} size={19} />
+                    </span>
                     {item.label}
                     {item.href === '/wiederholen' && dueReviews > 0 ? (
                       <span className="rounded-full bg-[var(--akzent)] px-1.5 text-xs font-bold text-[var(--text-inverse)]">
@@ -112,13 +129,17 @@ export function AppNav({
                   <Link
                     href="/admin"
                     aria-current={isActive('/admin') ? 'page' : undefined}
+                    style={themeStyle(moduleTheme(0))}
                     className={cx(
-                      'flex min-h-10 items-center rounded-lg px-3 text-sm font-medium',
+                      'group/nav flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors',
                       isActive('/admin')
-                        ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
-                        : 'text-[var(--text-muted)] hover:bg-[var(--surface-sunken)]',
+                        ? 'bg-[var(--akzent-soft)] text-[var(--akzent)]'
+                        : 'text-[var(--text-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--akzent)]',
                     )}
                   >
+                    <span className="text-[var(--akzent)] transition-transform group-hover/nav:scale-110">
+                      <VollSymbol name="karte" size={19} />
+                    </span>
                     Redaktion
                   </Link>
                 </li>

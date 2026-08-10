@@ -87,7 +87,7 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
 
       {/* --- Kennzahlen ---------------------------------------------------- */}
       <section aria-labelledby="ueberblick">
-        <SectionHeading id="ueberblick" icon="fortschritt">
+        <SectionHeading id="ueberblick" emoji="fortschritt">
           Überblick
         </SectionHeading>
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -138,7 +138,7 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
       <section aria-labelledby="woche">
         <SectionHeading
           id="woche"
-          icon="zeit"
+          emoji="fortschritt"
           description="Wie viele Aufgaben du an den letzten sieben Tagen bearbeitet hast."
         >
           Diese Woche
@@ -172,7 +172,7 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
       <section aria-labelledby="konzepte">
         <SectionHeading
           id="konzepte"
-          icon="karte"
+          emoji="landkarte"
           description="Je Konzept ein Stand aus deinem Verlauf. Ein niedriger Wert bedeutet nur, dass es noch wenig Gelegenheit zum eigenständigen Anwenden gab."
         >
           Konzepte

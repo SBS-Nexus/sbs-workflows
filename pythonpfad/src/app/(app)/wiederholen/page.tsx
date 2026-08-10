@@ -61,7 +61,7 @@ export default async function ReviewPage(): Promise<React.ReactElement> {
         <section aria-labelledby="faellig">
           <SectionHeading
             id="faellig"
-            icon="wiederholen"
+            emoji="wiederholung"
             description="Die Reihenfolge ist bewusst gemischt: Wechselnde Konzepte trainieren das Unterscheiden mit."
           >
             Heute fällig ({exercises.length})
@@ -81,7 +81,7 @@ export default async function ReviewPage(): Promise<React.ReactElement> {
         <section aria-labelledby="demnaechst">
           <SectionHeading
             id="demnaechst"
-            icon="zeit"
+            emoji="ruhe"
             description="Nur zur Orientierung – nichts davon ist überfällig."
           >
             Demnächst
@@ -111,7 +111,7 @@ export default async function ReviewPage(): Promise<React.ReactElement> {
       <section aria-labelledby="sets">
         <SectionHeading
           id="sets"
-          icon="projekte"
+          emoji="projekt"
           description="Zusammengestellte Runden, die mehrere Lektionen mischen. Sie werden erst nach einem zeitlichen Abstand frei."
         >
           Wiederholungssets
