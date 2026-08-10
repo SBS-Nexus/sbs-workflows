@@ -20,26 +20,32 @@
     "",
     "Nicht enthalten ist die Python-Laufzeit selbst. Sie wird erst geladen, wenn",
     "wirklich Code ausgeführt werden soll, liegt danach unveränderlich im Cache",
-    "und gehört deshalb nicht in das Budget der ersten Ladung."
+    "und gehört deshalb nicht in das Budget der ersten Ladung.",
+    "",
+    "Schriften zaehlen seit der Umstellung auf IBM Plex mit. Sie standen vorher",
+    "nicht im Budget - und genau so waechst eine Seite unbemerkt."
   ],
   "routen": [
     {
       "pfad": "/",
       "beschreibung": "Startseite – der erste Eindruck, und der einzige Aufruf, den viele je machen",
       "javascriptKb": 175,
-      "cssKb": 15
+      "cssKb": 15,
+      "schriftKb": 60
     },
     {
       "pfad": "/anmelden",
       "beschreibung": "Anmeldung – muss auch auf schlechter Verbindung schnell da sein",
       "javascriptKb": 175,
-      "cssKb": 15
+      "cssKb": 15,
+      "schriftKb": 60
     },
     {
       "pfad": "/registrieren",
       "beschreibung": "Registrierung",
       "javascriptKb": 175,
-      "cssKb": 15
+      "cssKb": 15,
+      "schriftKb": 60
     }
   ]
 }
