@@ -93,7 +93,7 @@ export default async function PracticePage(): Promise<React.ReactElement> {
       />
 
       <section aria-labelledby="schwerpunkte">
-        <SectionHeading id="schwerpunkte" icon="ueben">
+        <SectionHeading id="schwerpunkte" emoji="aufgabe">
           Aktuelle Schwerpunkte
         </SectionHeading>
         <ul className="grid gap-3 sm:grid-cols-3">

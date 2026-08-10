@@ -150,7 +150,7 @@ export default async function AdminPage(): Promise<React.ReactElement> {
 
       {/* --- Inhalte --------------------------------------------------------- */}
       <section aria-labelledby="inhalte">
-        <SectionHeading id="inhalte" icon="lernen">
+        <SectionHeading id="inhalte" emoji="lektion">
           Module und Lektionen
         </SectionHeading>
         <div className="space-y-4">
@@ -219,7 +219,7 @@ export default async function AdminPage(): Promise<React.ReactElement> {
       </section>
 
       <section aria-labelledby="weitere">
-        <SectionHeading id="weitere" icon="projekte">
+        <SectionHeading id="weitere" emoji="projekt">
           Projekte und Wiederholungssets
         </SectionHeading>
         <div className="grid gap-4 lg:grid-cols-2">

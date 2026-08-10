@@ -156,7 +156,7 @@ export default async function LearningPathPage(): Promise<React.ReactElement> {
 
       <section>
         <SectionHeading
-          icon="karte"
+          emoji="lektion"
           description="Die Reihenfolge ergibt sich aus deiner Einstufung. Frühere Lektionen sind Voraussetzung für spätere."
         >
           Alle Lektionen
