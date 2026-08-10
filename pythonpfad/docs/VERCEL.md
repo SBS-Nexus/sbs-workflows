@@ -133,14 +133,20 @@ Bei späteren Schemaänderungen läuft derselbe `db:deploy` vor dem Ausrollen.
 In Vercel unter **Settings → Domains** `pythonpfad.de` hinzufügen, danach
 `www.pythonpfad.de` mit Weiterleitung auf die Hauptdomain.
 
-Vercel zeigt daraufhin die einzutragenden DNS-Werte an. **Diese Anzeige ist
-maßgeblich** – die folgenden Werte sind der übliche Stand, können sich aber
-ändern:
+Vercel zeigt daraufhin die einzutragenden DNS-Werte an. **Nur diese Anzeige ist
+maßgeblich.** Zur Einordnung, was dort ungefähr steht – so sah es bei der
+Einrichtung von `pythonpfad.de` aus:
 
-| Typ     | Name  | Wert                    |
-| ------- | ----- | ----------------------- |
-| `A`     | `@`   | `76.76.21.21`           |
-| `CNAME` | `www` | `cname.vercel-dns.com.` |
+| Typ     | Name  | Wert                                   |
+| ------- | ----- | -------------------------------------- |
+| `A`     | `@`   | `216.150.1.1`                          |
+| `CNAME` | `www` | `7d02643914618aa2.vercel-dns-016.com.` |
+
+Beide Werte sind ausdrücklich **nicht** zum Abschreiben gedacht: Vercel hat die
+frühere Sammeladresse `76.76.21.21` abgelöst, und der `CNAME` enthält eine
+Kennung, die zu genau diesem Projekt gehört. Ein anderes Projekt bekommt eine
+andere. Wer hier abschreibt statt abzulesen, baut sich einen Fehler, der erst
+Wochen später auffällt.
 
 Einzutragen bei Strato: **Kundenlogin → Domainverwaltung → pythonpfad.de →
 DNS-Einstellungen**.
