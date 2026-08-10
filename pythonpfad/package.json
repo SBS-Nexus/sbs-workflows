@@ -31,7 +31,8 @@
     "test:e2e": "playwright test",
     "perf": "node scripts/pruefe-leistungsbudget.mjs",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
-    "postinstall": "prisma generate && tsx scripts/sync-pyodide.ts"
+    "postinstall": "prisma generate && tsx scripts/sync-pyodide.ts",
+    "konto": "tsx scripts/konto-anlegen.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
