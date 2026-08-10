@@ -62,7 +62,7 @@ async function messeRoute(browser, pfad) {
   await seite.goto(`${BASIS}${pfad}`, { waitUntil: 'networkidle', timeout: 60_000 });
 
   const summen = await seite.evaluate(() => {
-    const ergebnis = { javascript: 0, css: 0, dateien: 0, unbekannt: 0 };
+    const ergebnis = { javascript: 0, css: 0, schrift: 0, dateien: 0, unbekannt: 0 };
     const gesehen = new Set();
 
     for (const eintrag of performance.getEntriesByType('resource')) {
@@ -73,6 +73,10 @@ async function messeRoute(browser, pfad) {
       let art = null;
       if (pfadTeil.endsWith('.js') || pfadTeil.endsWith('.mjs')) art = 'javascript';
       else if (pfadTeil.endsWith('.css')) art = 'css';
+      // Schriften zaehlen mit. Sie standen vorher nicht im Budget, und genau so
+      // waechst eine Seite unbemerkt: Die Umstellung auf eine eigene Schrift
+      // brachte 80 kB mit, ohne dass der Waechter etwas gemeldet haette.
+      else if (/\.(woff2?|ttf|otf)$/.test(pfadTeil)) art = 'schrift';
       if (!art) continue;
 
       // Ohne verwertbare Größe: mitzählen, aber getrennt ausweisen. Eine
@@ -91,6 +95,7 @@ async function messeRoute(browser, pfad) {
   return {
     javascriptKb: kb(summen.javascript),
     cssKb: kb(summen.css),
+    schriftKb: kb(summen.schrift),
     dateien: summen.dateien,
     unbekannt: summen.unbekannt,
   };
@@ -111,14 +116,16 @@ async function main() {
 
     const jsOk = gemessen.javascriptKb <= eintrag.javascriptKb;
     const cssOk = gemessen.cssKb <= eintrag.cssKb;
-    if (!jsOk || !cssOk) ueberschritten += 1;
+    const schriftOk = gemessen.schriftKb <= eintrag.schriftKb;
+    if (!jsOk || !cssOk || !schriftOk) ueberschritten += 1;
 
-    zeilen.push({ eintrag, gemessen, jsOk, cssOk });
+    zeilen.push({ eintrag, gemessen, jsOk, cssOk, schriftOk });
 
     if (schreibmodus) {
       // Zehn Prozent Luft nach oben, aufgerundet auf glatte 5 kB.
       eintrag.javascriptKb = Math.ceil((gemessen.javascriptKb * 1.1) / 5) * 5;
       eintrag.cssKb = Math.ceil((gemessen.cssKb * 1.1) / 5) * 5;
+      eintrag.schriftKb = Math.ceil((gemessen.schriftKb * 1.1) / 5) * 5;
     }
   }
 
@@ -128,15 +135,17 @@ async function main() {
   const breite = Math.max(...budget.routen.map((r) => r.pfad.length), 6);
   console.info('');
   console.info(
-    `${'Route'.padEnd(breite)}  ${'JavaScript'.padStart(20)}  ${'CSS'.padStart(18)}  Dateien`,
+    `${'Route'.padEnd(breite)}  ${'JavaScript'.padStart(20)}  ${'CSS'.padStart(16)}  ${'Schrift'.padStart(16)}  Dateien`,
   );
-  console.info('-'.repeat(breite + 50));
+  console.info('-'.repeat(breite + 68));
 
-  for (const { eintrag, gemessen, jsOk, cssOk } of zeilen) {
+  for (const { eintrag, gemessen, jsOk, cssOk, schriftOk } of zeilen) {
     const js = `${gemessen.javascriptKb} / ${eintrag.javascriptKb} kB ${jsOk ? '  ' : '!!'}`;
     const css = `${gemessen.cssKb} / ${eintrag.cssKb} kB ${cssOk ? '  ' : '!!'}`;
+    const schrift = `${gemessen.schriftKb} / ${eintrag.schriftKb} kB ${schriftOk ? '  ' : '!!'}`;
     console.info(
-      `${eintrag.pfad.padEnd(breite)}  ${js.padStart(20)}  ${css.padStart(18)}  ${gemessen.dateien}`,
+      `${eintrag.pfad.padEnd(breite)}  ${js.padStart(20)}  ${css.padStart(16)}  ` +
+        `${schrift.padStart(16)}  ${gemessen.dateien}`,
     );
   }
   console.info('');
