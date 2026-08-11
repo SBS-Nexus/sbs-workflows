@@ -88,10 +88,24 @@ export const REVIEW_THEME: ModuleTheme = {
  * flach; die beiden Wolken geben ihm Tiefe.
  */
 export function heroGradient(theme: ModuleTheme): string {
+  /*
+   * Ein Ton, nicht drei.
+   *
+   * Vorher lagen hier zwei farbige Lichtkegel über einem Verlauf von einer
+   * Farbe in eine andere – zusammen also drei Buntheiten auf einer Fläche.
+   * Das ist die Bildsprache, die man inzwischen an jeder zweiten neuen
+   * Oberfläche sieht, und sie hat einen Grund: Sie entsteht, wenn man Farbe
+   * hinzufügt, bis es „lebendig" aussieht, statt eine auszuwählen.
+   *
+   * Jetzt bleibt es bei der Leitfarbe des Bereichs, aufgezogen von dunkel nach
+   * kräftig, mit einem einzigen aufhellenden Lichtkegel oben links – dort, wo
+   * die Überschrift steht. Das gibt Tiefe, ohne eine zweite Farbe einzuführen.
+   * Die Bereiche unterscheiden sich dadurch deutlicher voneinander, nicht
+   * weniger: Vorher trug jeder Kopfbereich dieselbe Mischung.
+   */
   return [
-    `radial-gradient(at 15% 15%, color-mix(in oklab, ${theme.heroTo} 70%, transparent) 0px, transparent 55%)`,
-    `radial-gradient(at 85% 85%, color-mix(in oklab, ${theme.heroFrom} 85%, transparent) 0px, transparent 55%)`,
-    `linear-gradient(135deg, ${theme.heroFrom} 0%, ${theme.heroTo} 100%)`,
+    `radial-gradient(at 12% 8%, color-mix(in oklab, ${theme.heroTo} 55%, white) 0px, transparent 62%)`,
+    `linear-gradient(160deg, ${theme.heroFrom} 0%, ${theme.heroTo} 100%)`,
   ].join(', ');
 }
 

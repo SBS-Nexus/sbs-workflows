@@ -680,24 +680,26 @@ body[data-overlay-open='true'] {
  * und die halten die hier gewählten Kombinationen ein.
  * -------------------------------------------------------------------------- */
 
+/*
+ * Verlauf der Startseite.
+ *
+ * Vorher lagen hier drei farbige Lichtkegel (Violett, Pink, Blau) über einem
+ * Verlauf von Marine über Indigo nach Violett. Sechs Farbstellen auf einer
+ * Fläche – die Bildsprache, an der man eine automatisch zusammengestellte
+ * Oberfläche am schnellsten erkennt.
+ *
+ * Jetzt: eine tiefe Tintenfläche als Grund, ein einziger Lichtkegel in der
+ * Leitfarbe. Der Verlauf trägt weiterhin große weiße Schrift, aber er will
+ * nicht mehr selbst die Hauptsache sein.
+ */
 @utility gradient-hero {
   background-image:
     radial-gradient(
-      at 18% 12%,
-      color-mix(in oklab, var(--color-modul-0) 85%, transparent) 0px,
-      transparent 55%
+      at 14% 6%,
+      color-mix(in oklab, var(--color-modul-0) 62%, transparent) 0px,
+      transparent 58%
     ),
-    radial-gradient(
-      at 82% 8%,
-      color-mix(in oklab, var(--color-projekt) 80%, transparent) 0px,
-      transparent 52%
-    ),
-    radial-gradient(
-      at 68% 88%,
-      color-mix(in oklab, var(--color-modul-3) 85%, transparent) 0px,
-      transparent 55%
-    ),
-    linear-gradient(140deg, #1e1b4b 0%, #312e81 42%, #4c1d95 100%);
+    linear-gradient(165deg, #16133a 0%, #221c56 55%, #2b2168 100%);
 }
 
 @utility gradient-text {

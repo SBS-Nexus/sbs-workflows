@@ -269,8 +269,20 @@ nicht.
   Prozent Überschwingen wird es sichtbar.
 - **Keine Dauerbewegung auf großen, weichgezeichneten Flächen.** Zweimal hat das
   hier Serveraufrufe ins Zeitlimit getrieben.
-- **Keine Karte in einer Karte.** Wenn alles hervorgehoben ist, ist nichts
-  hervorgehoben.
+- **Nicht alles in eine Karte packen.** Eine Tabelle in einem gerahmten Kasten
+  ergibt zwei Rahmen um dieselbe Sache; bei vier Abschnitten untereinander wird
+  die Seite zu einem Stapel Kisten. Für Übersichten genügt ein farbiger Strich
+  über dem Abschnitt. Karten sind für Dinge, die einzeln für sich stehen.
+  (Echte Verschachtelung – Karte in Karte – gibt es hier nicht; geprüft.)
+- **Keine mehrfarbigen Verläufe.** Zwei Lichtkegel über einem Zweifarbverlauf
+  ergeben sechs Farbstellen auf einer Fläche. Das entsteht, wenn man Farbe
+  hinzufügt, bis es „lebendig" aussieht, statt eine auszuwählen – und es ist
+  das Bild, an dem man eine automatisch zusammengestellte Oberfläche am
+  schnellsten erkennt. Eine Leitfarbe, ein Lichtkegel.
+- **Keine abgerundeten Symbolkacheln.** Ein Zeichen in einem farbigen Quadrat
+  sieht „gestaltet" aus, ohne dass eine Entscheidung dahintersteht. Ein
+  senkrechter Strich in der Bereichsfarbe ordnet die Überschrift einer Spalte
+  zu, statt einen zweiten Kasten neben den Text zu setzen.
 - **Keine strafende Bildsprache.** Kein Daumen nach unten, kein trauriges
   Gesicht, keine Flamme für Serien.
 

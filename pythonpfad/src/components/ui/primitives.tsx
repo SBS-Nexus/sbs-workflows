@@ -506,21 +506,35 @@ export function SectionHeading({
 }): ReactNode {
   return (
     <div className="mb-5">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
+        {/*
+         * Abschnittsmarke.
+         *
+         * Vorher saß das Zeichen in einer abgerundeten Quadratkachel mit
+         * Farbfläche. Diese Kachel ist ein Klischee: Sie taucht in praktisch
+         * jeder automatisch zusammengestellten Oberfläche auf, weil sie ein
+         * Symbol ohne jede Entscheidung „gestaltet" aussehen lässt.
+         *
+         * Stattdessen ein senkrechter Strich in der Bereichsfarbe und das
+         * Zeichen frei danebengestellt. Der Strich ist die ältere und ruhigere
+         * Lösung – er ordnet die Überschrift einer Spalte zu, statt einen
+         * zweiten Kasten neben den Text zu setzen. Auf einer Seite mit sechs
+         * Abschnitten macht das den Unterschied zwischen gegliedert und
+         * gekachelt.
+         */}
+        <span
+          aria-hidden="true"
+          className="h-7 w-1 shrink-0 rounded-full bg-[var(--akzent,var(--accent))]"
+        />
         {emoji ? (
-          <span aria-hidden="true" className="icon-tile size-10 text-[1.25rem]">
-            <Emoji name={emoji} size="1.25rem" />
+          <span aria-hidden="true" className="shrink-0 leading-none">
+            <Emoji name={emoji} size="1.375rem" />
           </span>
         ) : icon ? (
-          <span aria-hidden="true" className="icon-tile size-10">
-            <Icon name={icon} size={20} />
+          <span aria-hidden="true" className="shrink-0 text-[var(--akzent,var(--accent))]">
+            <Icon name={icon} size={22} />
           </span>
-        ) : (
-          <span
-            aria-hidden="true"
-            className="h-7 w-1.5 shrink-0 rounded-full bg-[var(--akzent,var(--accent))]"
-          />
-        )}
+        ) : null}
         <h2 id={id} className="text-xl font-black tracking-tight sm:text-2xl">
           {children}
         </h2>
