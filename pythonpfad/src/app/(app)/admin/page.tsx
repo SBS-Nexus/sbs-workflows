@@ -153,13 +153,24 @@ export default async function AdminPage(): Promise<React.ReactElement> {
         <SectionHeading id="inhalte" emoji="lektion">
           Module und Lektionen
         </SectionHeading>
-        <div className="space-y-4">
+        <div className="space-y-8">
           {modules.map((mod, index) => (
-            <Card
-              as="section"
+            /*
+             * Bewusst keine Karte.
+             *
+             * Eine Tabelle in einem gerahmten Kasten ergibt zwei Rahmen um
+             * dieselbe Sache. Bei vier Modulen untereinander wird die Seite
+             * dadurch zu einem Stapel Kisten, in denen jeweils ein Stapel
+             * Zeilen liegt.
+             *
+             * Stattdessen ein farbiger Strich über dem Abschnitt und Luft
+             * darunter. Das ist die Bauart, die Datenübersichten seit jeher
+             * benutzen - sie ordnet, ohne einzurahmen.
+             */
+            <section
               key={mod.id}
               style={{ ...themeStyle(moduleTheme(index)), animationDelay: `${index * 60}ms` }}
-              className="card-accent animate-in muster-stufen muster-verlauf-ecke"
+              className="animate-in border-t-2 border-[var(--akzent)] pt-4"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-lg font-black tracking-tight text-[var(--akzent)]">
@@ -213,7 +224,7 @@ export default async function AdminPage(): Promise<React.ReactElement> {
                   </tbody>
                 </table>
               </div>
-            </Card>
+            </section>
           ))}
         </div>
       </section>
