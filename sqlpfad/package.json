@@ -20,6 +20,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "konto": "tsx scripts/konto-anlegen.ts",
     "sql:up": "docker compose up -d",
     "sql:down": "docker compose down",
     "test": "vitest run",
