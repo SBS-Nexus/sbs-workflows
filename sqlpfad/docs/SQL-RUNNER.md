@@ -25,10 +25,10 @@ Daraus folgt der Rest dieses Dokuments.
 
 ## 2. Zwei strikt getrennte Datenebenen
 
-| Ebene | Inhalt | Wer führt dort SQL aus? |
-| --- | --- | --- |
+| Ebene          | Inhalt                                                                   | Wer führt dort SQL aus?      |
+| -------------- | ------------------------------------------------------------------------ | ---------------------------- |
 | **PostgreSQL** | Konten, Sitzungen, Fortschritt, Kompetenzstände, Inhalte, Organisationen | ausschließlich die Anwendung |
-| **SQL Server** | Übungsdaten | die Lernenden |
+| **SQL Server** | Übungsdaten                                                              | die Lernenden                |
 
 **Lernende führen niemals SQL gegen die Plattformdatenbank aus.** Das ist keine
 Ordnungsfrage, sondern die zentrale Sicherheitsgrenze: Wären beide in einem
@@ -99,16 +99,16 @@ andere Aufgaben:
 Ohne harte Grenzen kann eine einzige Abfrage den Übungsserver für alle
 blockieren – absichtlich oder aus Versehen.
 
-| Grenze | Zweck |
-| --- | --- |
-| Zeitlimit je Abfrage | verhindert Endlosläufe |
-| Abbruch (Cancel) | die Lernende kann selbst stoppen |
-| maximale Zeilenzahl | verhindert Ergebnisfluten |
-| maximale Anzahl Anweisungen je Anfrage | begrenzt Stapelverarbeitung |
-| gleichzeitige Ausführungen je Person | verhindert Selbstblockade |
-| gleichzeitige Ausführungen insgesamt | schützt den Server |
-| Lebensdauer der Sandbox | räumt vergessene Zustände auf |
-| Rate Limit | begrenzt automatisierte Last |
+| Grenze                                 | Zweck                            |
+| -------------------------------------- | -------------------------------- |
+| Zeitlimit je Abfrage                   | verhindert Endlosläufe           |
+| Abbruch (Cancel)                       | die Lernende kann selbst stoppen |
+| maximale Zeilenzahl                    | verhindert Ergebnisfluten        |
+| maximale Anzahl Anweisungen je Anfrage | begrenzt Stapelverarbeitung      |
+| gleichzeitige Ausführungen je Person   | verhindert Selbstblockade        |
+| gleichzeitige Ausführungen insgesamt   | schützt den Server               |
+| Lebensdauer der Sandbox                | räumt vergessene Zustände auf    |
+| Rate Limit                             | begrenzt automatisierte Last     |
 
 `WAITFOR` ist zusätzlich in der Statement-Policy gesperrt: Es ist der einfachste
 Weg, eine Verbindung ohne Rechenlast zu belegen.
@@ -161,12 +161,55 @@ Sandbox.
 
 ---
 
-## 8. Was Stand heute noch nicht implementiert ist
+## 8. Integrationstests ausführen
+
+Die Tests in `tests/sql/` sind der einzige Ort, an dem sich T-SQL-Semantik
+nachweisen lässt. Ohne Zugangsdaten werden sie **übersprungen, nicht
+bestanden** – ein grüner Lauf ohne Server wäre eine Auskunft, die nichts wert
+ist, und sie käme genau dann, wenn man sich auf sie verlässt.
+
+```bash
+docker compose up -d sqlserver
+
+SQL_SERVER_HOST=127.0.0.1 \
+SQL_SERVER_PORT=1433 \
+SQL_SERVER_SA_PASSWORD=… \
+npm run test:sql
+```
+
+Läuft kein Server, meldet der Lauf ausdrücklich, dass die T-SQL-Semantik in
+diesem Durchgang nicht geprüft wurde.
+
+---
+
+## 9. Konfiguration des Runner-Prozesses
+
+Diese Werte gehören in die Umgebung des **Runner-Prozesses**, nicht in die der
+Anwendung. Sie stehen deshalb nicht in `.env.example`: Die Anwendung liest sie
+nicht, und eine Datei, in der unbenutzte Zugangsdaten stehen, lädt dazu ein,
+sie irgendwann doch dort zu verwenden.
+
+| Wert                                 | Bedeutung                                                                                 |
+| ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `SQL_SERVER_HOST`, `SQL_SERVER_PORT` | Adresse des Übungsservers                                                                 |
+| Anmeldename für die Verwaltung       | darf Sandboxes anlegen und zurücksetzen – **nicht** derselbe, mit dem Lernenden-SQL läuft |
+| Verschlüsselung                      | außerhalb der lokalen Entwicklung immer eingeschaltet                                     |
+
+Die Anwendung selbst kennt nur `SQL_RUNNER_URL` und `SQL_RUNNER_TOKEN`. Sie
+spricht nie direkt Port 1433 – siehe Abschnitt 3.
+
+---
+
+## 10. Was Stand heute noch nicht implementiert ist
 
 Ehrlichkeitshalber, damit dieses Dokument nicht mehr verspricht als der Code
 hält:
 
-- der Runner-Dienst selbst (die Domainlogik für Policy und Grading steht)
-- die Sandbox-Bereitstellung samt Rücksetzstrategie
-- die SQL-Integrationstests gegen einen echten Server
+- der Runner-Dienst als eigener Prozess samt Schnittstelle zur Anwendung
+  (Domainlogik, Motor und Rücksetzstrategie stehen)
+- die Vergabe der Anmeldenamen je Sandbox mit minimalen Rechten
+- ein einmal grün gelaufener Durchgang der SQL-Integrationstests. Bis dahin
+  gilt `src/server/sql/mssql-motor.ts` als unbewiesen: Er ist nach der
+  Treiberdokumentation geschrieben, aber gegen keinen laufenden SQL Server
+  gelaufen.
 - die Entscheidung aus Abschnitt 6
