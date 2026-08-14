@@ -1,0 +1,10 @@
+{
+  "name": "sqlpfad",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:unit": "vitest run --project=unit",
+    "typecheck": "tsc --noEmit"
+  }
+}
