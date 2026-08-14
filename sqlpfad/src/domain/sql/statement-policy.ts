@@ -138,6 +138,85 @@ export function entferneKommentareUndLiterale(sql: string): string {
   return ergebnis;
 }
 
+/**
+ * Zerlegt eine Eingabe an den Semikola in einzelne Anweisungen.
+ *
+ * Ein einfaches `sql.split(';')` reicht dafür nicht: Ein Semikolon in
+ * `WHERE Bemerkung = 'a;b'` oder in einem Kommentar gehört nicht zur Struktur.
+ * Deshalb läuft hier derselbe Abtaster wie oben – nur behält er den
+ * Originaltext, damit die Lernende ihre Anweisung unverändert wiedersieht.
+ *
+ * Leere Teile (etwa durch ein abschließendes Semikolon) fallen weg.
+ */
+export function teileAnweisungen(sql: string): string[] {
+  const teile: string[] = [];
+  let start = 0;
+  let i = 0;
+  const n = sql.length;
+
+  const uebernimm = (bis: number): void => {
+    const teil = sql.slice(start, bis).trim();
+    if (teil === '') return;
+    // Ein Stück, das nur aus Kommentar besteht, ist keine Anweisung. Ohne
+    // diese Prüfung zählte „-- noch nichts" als eine auszuführende Anweisung.
+    if (entferneKommentareUndLiterale(teil).trim() === '') return;
+    teile.push(teil);
+  };
+
+  while (i < n) {
+    const zwei = sql.slice(i, i + 2);
+
+    if (zwei === '--') {
+      while (i < n && sql[i] !== '\n') i += 1;
+      continue;
+    }
+    if (zwei === '/*') {
+      let tiefe = 1;
+      i += 2;
+      while (i < n && tiefe > 0) {
+        if (sql.slice(i, i + 2) === '/*') {
+          tiefe += 1;
+          i += 2;
+        } else if (sql.slice(i, i + 2) === '*/') {
+          tiefe -= 1;
+          i += 2;
+        } else i += 1;
+      }
+      continue;
+    }
+    if (sql[i] === "'") {
+      i += 1;
+      while (i < n) {
+        if (sql[i] === "'") {
+          if (sql[i + 1] === "'") i += 2;
+          else {
+            i += 1;
+            break;
+          }
+        } else i += 1;
+      }
+      continue;
+    }
+    if (sql[i] === '[') {
+      const ende = sql.indexOf(']', i);
+      if (ende === -1) break;
+      i = ende + 1;
+      continue;
+    }
+    if (sql[i] === ';') {
+      uebernimm(i);
+      i += 1;
+      start = i;
+      continue;
+    }
+
+    i += 1;
+  }
+
+  uebernimm(n);
+  return teile;
+}
+
 /** Bestimmt die Klasse der ersten bedeutungstragenden Anweisung. */
 export function bestimmeKlasse(sql: string): AnweisungsKlasse {
   const sauber = entferneKommentareUndLiterale(sql).trim();
@@ -147,7 +226,10 @@ export function bestimmeKlasse(sql: string): AnweisungsKlasse {
   }
 
   // Ein führendes WITH gehört zu einem CTE; entscheidend ist, was danach kommt.
-  const ohneCte = sauber.replace(/^\s*;?\s*WITH\b[\s\S]*?\)\s*(?=SELECT|INSERT|UPDATE|DELETE)/i, '');
+  const ohneCte = sauber.replace(
+    /^\s*;?\s*WITH\b[\s\S]*?\)\s*(?=SELECT|INSERT|UPDATE|DELETE)/i,
+    '',
+  );
   const erstes = /\b([A-Z_]+)\b/i.exec(ohneCte)?.[1]?.toUpperCase() ?? '';
 
   if (erstes === 'SELECT') return 'SELECT';
@@ -218,13 +300,17 @@ function begruendeAblehnung(
             'kommt in einer späteren Lektion – hier genügt ein SELECT.'
         : 'Datenverändernde Anweisungen sind in dieser Aufgabe nicht vorgesehen.';
     case 'DDL':
-      return 'Diese Aufgabe arbeitet mit vorhandenen Tabellen. Tabellen anzulegen oder zu ' +
-        'ändern gehört zu einem eigenen Modul.';
+      return (
+        'Diese Aufgabe arbeitet mit vorhandenen Tabellen. Tabellen anzulegen oder zu ' +
+        'ändern gehört zu einem eigenen Modul.'
+      );
     case 'TRANSAKTION':
       return 'Transaktionen sind ein eigenes Thema und in dieser Aufgabe noch nicht nötig.';
     case 'PROGRAMMIERUNG':
-      return 'Variablen und Ablaufsteuerung gehören zum T-SQL-Modul. Diese Aufgabe lässt ' +
-        'sich mit einer einzigen Abfrage lösen.';
+      return (
+        'Variablen und Ablaufsteuerung gehören zum T-SQL-Modul. Diese Aufgabe lässt ' +
+        'sich mit einer einzigen Abfrage lösen.'
+      );
     default:
       return 'Diese Art von Anweisung ist in dieser Aufgabe nicht vorgesehen.';
   }

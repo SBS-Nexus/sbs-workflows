@@ -9,8 +9,7 @@ import { type Resultset, vergleicheResultsets } from '@/domain/sql/resultset';
 const ohneSortierung = { reihenfolgeZaehlt: false };
 const mitSortierung = { reihenfolgeZaehlt: true };
 
-const r = (spalten: string[], zeilen: unknown[][]): Resultset =>
-  ({ spalten, zeilen }) as Resultset;
+const r = (spalten: string[], zeilen: unknown[][]): Resultset => ({ spalten, zeilen }) as Resultset;
 
 describe('Multimengen-Vergleich', () => {
   it('erkennt gleiche Ergebnisse unabhängig von der Zeilenreihenfolge', () => {
@@ -66,8 +65,20 @@ describe('Sortierung', () => {
   it('meldet bei falscher Sortierung höchstens eine Abweichung je Zeile', () => {
     // Wer die Sortierrichtung verwechselt, soll nicht dreißig Meldungen
     // bekommen, die alle dieselbe Ursache haben.
-    const a = r(['A', 'B'], [[1, 'x'], [2, 'y']]);
-    const b = r(['A', 'B'], [[2, 'y'], [1, 'x']]);
+    const a = r(
+      ['A', 'B'],
+      [
+        [1, 'x'],
+        [2, 'y'],
+      ],
+    );
+    const b = r(
+      ['A', 'B'],
+      [
+        [2, 'y'],
+        [1, 'x'],
+      ],
+    );
     const ergebnis = vergleicheResultsets(a, b, mitSortierung);
     expect(ergebnis.abweichungen.filter((x) => x.art === 'wert')).toHaveLength(2);
   });

@@ -3,6 +3,7 @@ import {
   bestimmeKlasse,
   entferneKommentareUndLiterale,
   pruefeAnweisung,
+  teileAnweisungen,
 } from '@/domain/sql/statement-policy';
 
 const NUR_LESEN = ['SELECT'] as const;
@@ -11,7 +12,7 @@ describe('Kommentare und Literale entfernen', () => {
   it('lässt das Wort DELETE in einem Kommentar unberührt', () => {
     // Ohne diesen Schritt lehnt die Prüfung eine harmlose Abfrage ab, nur weil
     // in einer Notiz ein Schlüsselwort steht.
-    const sql = "SELECT Name FROM Kunden -- delete war hier mal\nWHERE Aktiv = 1";
+    const sql = 'SELECT Name FROM Kunden -- delete war hier mal\nWHERE Aktiv = 1';
     expect(bestimmeKlasse(sql)).toBe('SELECT');
   });
 
@@ -38,11 +39,44 @@ describe('Kommentare und Literale entfernen', () => {
   });
 });
 
+describe('Anweisungen trennen', () => {
+  it('trennt an den Semikola', () => {
+    expect(teileAnweisungen('SELECT 1; SELECT 2')).toEqual(['SELECT 1', 'SELECT 2']);
+  });
+
+  it('ignoriert ein abschließendes Semikolon', () => {
+    expect(teileAnweisungen('SELECT 1;')).toEqual(['SELECT 1']);
+  });
+
+  it('trennt nicht an einem Semikolon in einer Zeichenfolge', () => {
+    // Ein einfaches split(';') würde hier zwei kaputte Hälften erzeugen.
+    const sql = "SELECT * FROM Notizen WHERE Text = 'a;b'";
+    expect(teileAnweisungen(sql)).toEqual([sql]);
+  });
+
+  it('trennt nicht an einem Semikolon in einem Kommentar', () => {
+    const sql = 'SELECT 1 -- hier steht ein ; im Text\n';
+    expect(teileAnweisungen(sql)).toHaveLength(1);
+  });
+
+  it('gibt für eine leere Eingabe nichts zurück', () => {
+    expect(teileAnweisungen('  \n /* nur ein Kommentar */ \n ')).toEqual([]);
+  });
+
+  it('behält den Originaltext jeder Anweisung', () => {
+    // Die Lernende soll ihre Anweisung unverändert wiedersehen, nicht eine
+    // von Literalen befreite Fassung.
+    const teile = teileAnweisungen("SELECT 'O''Brien'; SELECT [Bestell Positionen].A FROM X");
+    expect(teile[0]).toBe("SELECT 'O''Brien'");
+    expect(teile[1]).toContain('[Bestell Positionen]');
+  });
+});
+
 describe('Anweisungsklassen', () => {
   it.each([
     ['SELECT Name FROM Kunden', 'SELECT'],
     ['  select 1', 'SELECT'],
-    ['INSERT INTO Kunden (Name) VALUES (\'A\')', 'DML'],
+    ["INSERT INTO Kunden (Name) VALUES ('A')", 'DML'],
     ['UPDATE Kunden SET Aktiv = 0', 'DML'],
     ['DELETE FROM Kunden WHERE KundeId = 1', 'DML'],
     ['CREATE TABLE T (A int)', 'DDL'],
@@ -63,12 +97,12 @@ describe('Anweisungsklassen', () => {
 
 describe('Serverweite Befehle', () => {
   it.each([
-    'EXEC xp_cmdshell \'dir\'',
-    'BACKUP DATABASE Uebung TO DISK = \'x\'',
-    'CREATE LOGIN hacker WITH PASSWORD = \'x\'',
+    "EXEC xp_cmdshell 'dir'",
+    "BACKUP DATABASE Uebung TO DISK = 'x'",
+    "CREATE LOGIN hacker WITH PASSWORD = 'x'",
     'USE master',
-    'SELECT * FROM OPENROWSET(\'x\',\'y\',\'z\')',
-    'EXECUTE AS LOGIN = \'sa\'',
+    "SELECT * FROM OPENROWSET('x','y','z')",
+    "EXECUTE AS LOGIN = 'sa'",
     'SHUTDOWN',
   ])('lehnt ab: %s', (sql) => {
     const ergebnis = pruefeAnweisung(sql, ['SELECT', 'DML', 'DDL']);
