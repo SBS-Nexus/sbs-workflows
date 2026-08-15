@@ -1,4 +1,4 @@
-import { bestimmeKlasse, pruefeAnweisung } from '@/domain/sql/statement-policy';
+import { bestimmeKlasse, pruefeAnweisung, teileAnweisungen } from '@/domain/sql/statement-policy';
 import type { Aufgabe, Lehrplan, Lektion } from './typen';
 
 /**
@@ -42,13 +42,25 @@ function pruefeMusterloesung(aufgabe: Aufgabe, ort: string, befunde: Befund[]): 
   if (!aufgabe.loesungSql) return;
 
   const erlaubte = aufgabe.erlaubteKlassen ?? ['SELECT'];
-  const ergebnis = pruefeAnweisung(aufgabe.loesungSql, erlaubte);
 
-  if (!ergebnis.erlaubt) {
+  /*
+   * Jede Anweisung einzeln - nicht nur die erste.
+   *
+   * Eine Musterlösung darf aus mehreren Anweisungen bestehen; die
+   * Transaktionslektion besteht ausdrücklich daraus. Wer nur die erste prüft,
+   * sieht bei `BEGIN TRANSACTION; UPDATE ...;` nur die Transaktion und lässt
+   * das UPDATE durch, auch wenn die Aufgabe DML gar nicht freigegeben hat.
+   * Der Runner prüft die Eingabe der Lernenden ebenso vollständig - beide
+   * Seiten müssen denselben Maßstab anlegen, sonst weicht die Musterlösung von
+   * dem ab, was die Aufgabe tatsächlich annimmt.
+   */
+  for (const anweisung of teileAnweisungen(aufgabe.loesungSql)) {
+    if (pruefeAnweisung(anweisung, erlaubte).erlaubt) continue;
+
     befunde.push({
       ort,
       problem:
-        `Die Musterlösung ist eine ${bestimmeKlasse(aufgabe.loesungSql)}-Anweisung, die Aufgabe ` +
+        `Die Musterlösung enthält eine ${bestimmeKlasse(anweisung)}-Anweisung, die Aufgabe ` +
         `lässt aber nur ${erlaubte.join(', ')} zu. Wer sie richtig löst, bekäme eine Ablehnung.`,
     });
   }

@@ -110,7 +110,106 @@ describe('Aufgaben nennen nur Tabellen und Spalten, die es gibt', () => {
     'avg',
     'min',
     'max',
+    // Ändern
+    'insert',
+    'into',
+    'values',
+    'update',
+    'set',
+    'delete',
+    // Transaktionen
+    'begin',
+    'commit',
+    'rollback',
+    'transaction',
+    'tran',
+    // Struktur
+    'create',
+    'alter',
+    'drop',
+    'table',
+    'add',
+    'column',
+    'constraint',
+    'primary',
+    'foreign',
+    'key',
+    'references',
+    'check',
+    'unique',
+    'identity',
+    // Datentypen
+    'int',
+    'bigint',
+    'smallint',
+    'bit',
+    'decimal',
+    'numeric',
+    'money',
+    'float',
+    'char',
+    'varchar',
+    'nchar',
+    'nvarchar',
+    'date',
+    'time',
+    'datetime',
+    'datetime2',
   ]);
+
+  /**
+   * Namen, die eine Anweisung selbst einführt.
+   *
+   * `CREATE TABLE Termine (…)` erfindet die Tabelle und ihre Spalten in
+   * demselben Satz, in dem sie zum ersten Mal vorkommen – sie können also gar
+   * kein Tippfehler gegen den Übungsdatensatz sein. Dasselbe gilt für Aliase
+   * nach AS, für selbst vergebene Namen nach CONSTRAINT und für die Spalte
+   * nach ALTER TABLE … ADD.
+   *
+   * Was die Anweisung *referenziert*, bleibt geprüft: Ein Tippfehler in
+   * `REFERENCES Auftraege(AuftragId)` fällt weiterhin auf.
+   */
+  const eingefuehrteNamen = (ohneLiterale: string, woerter: readonly string[]): Set<string> => {
+    const namen = new Set<string>();
+
+    for (const [index, wort] of woerter.entries()) {
+      const davor = woerter[index - 1];
+      if (davor === 'as' || davor === 'table' || davor === 'constraint' || davor === 'add') {
+        namen.add(wort);
+      }
+    }
+
+    // Die Spaltenliste einer CREATE TABLE: der erste Bezeichner jedes Teils,
+    // getrennt an den Kommas der äußersten Klammerebene.
+    const auf = /\bcreate\s+table\b[^(]*\(/i.exec(ohneLiterale);
+    if (auf) {
+      let tiefe = 0;
+      let teilAnfang = auf.index + auf[0].length;
+      const merkeTeil = (bis: number): void => {
+        const name = /[A-Za-zÄÖÜäöüß_][A-Za-zÄÖÜäöüß0-9_]*/.exec(
+          ohneLiterale.slice(teilAnfang, bis),
+        );
+        if (name) namen.add(name[0].toLowerCase());
+      };
+
+      for (let i = teilAnfang; i < ohneLiterale.length; i += 1) {
+        const zeichen = ohneLiterale[i];
+        if (zeichen === '(') tiefe += 1;
+        else if (zeichen === ')') {
+          if (tiefe === 0) {
+            merkeTeil(i);
+            break;
+          }
+          tiefe -= 1;
+        } else if (zeichen === ',' && tiefe === 0) {
+          merkeTeil(i);
+          teilAnfang = i + 1;
+        }
+      }
+    }
+
+    return namen;
+  };
 
   const mitSql = LEHRPLAN.module.flatMap((modul) =>
     modul.lektionen.flatMap((lektion) =>
@@ -130,15 +229,14 @@ describe('Aufgaben nennen nur Tabellen und Spalten, die es gibt', () => {
     );
 
     /*
-     * Selbst vergebene Aliase gelten überall in derselben Anweisung - auch im
-     * ORDER BY, wo sie zulässigerweise noch einmal auftauchen.
+     * Selbst eingeführte Namen gelten überall in derselben Anweisung - ein
+     * Alias auch im ORDER BY, eine neu angelegte Spalte auch in ihrer eigenen
+     * CHECK-Bedingung.
      */
-    const aliase = new Set(
-      woerter.filter((_wort, index) => woerter[index - 1] === 'as').map((wort) => wort),
-    );
+    const eigene = eingefuehrteNamen(ohneLiterale.toLowerCase(), woerter);
 
     const unbekannt = woerter.filter(
-      (wort) => !SCHLUESSELWOERTER.has(wort) && !bekannteNamen.has(wort) && !aliase.has(wort),
+      (wort) => !SCHLUESSELWOERTER.has(wort) && !bekannteNamen.has(wort) && !eigene.has(wort),
     );
 
     expect(unbekannt).toEqual([]);
@@ -151,6 +249,39 @@ describe('Aufgaben nennen nur Tabellen und Spalten, die es gibt', () => {
       .match(/[a-zäöüß_]+/g);
     expect(woerter).toContain('stadtt');
     expect(bekannteNamen.has('stadtt')).toBe(false);
+  });
+
+  it('lässt eine neu angelegte Tabelle durch, einen Verweis ins Leere aber nicht', () => {
+    /*
+     * Gegenprobe zur Ausnahme für selbst eingeführte Namen: Sie darf nur für
+     * das gelten, was die Anweisung anlegt - nicht für das, worauf sie
+     * verweist. Sonst hätte eine CREATE TABLE gar keine Prüfung mehr.
+     */
+    const pruefe = (sql: string): string[] => {
+      const ohneLiterale = entferneKommentareUndLiterale(sql);
+      const woerter = (ohneLiterale.match(/[A-Za-zÄÖÜäöüß_][A-Za-zÄÖÜäöüß0-9_]*/g) ?? []).map(
+        (wort) => wort.toLowerCase(),
+      );
+      const eigene = eingefuehrteNamen(ohneLiterale.toLowerCase(), woerter);
+      return woerter.filter(
+        (wort) => !SCHLUESSELWOERTER.has(wort) && !bekannteNamen.has(wort) && !eigene.has(wort),
+      );
+    };
+
+    expect(
+      pruefe(
+        'CREATE TABLE Termine (TerminId int NOT NULL CONSTRAINT PK_Termine PRIMARY KEY, ' +
+          'AuftragId int NOT NULL FOREIGN KEY REFERENCES Auftraege(AuftragId));',
+      ),
+    ).toEqual([]);
+
+    // Dieselbe Anweisung, nur die verwiesene Tabelle mit Tippfehler.
+    expect(
+      pruefe(
+        'CREATE TABLE Termine (TerminId int NOT NULL CONSTRAINT PK_Termine PRIMARY KEY, ' +
+          'AuftragId int NOT NULL FOREIGN KEY REFERENCES Auftraeger(AuftragId));',
+      ),
+    ).toEqual(['auftraeger']);
   });
 });
 
@@ -204,6 +335,21 @@ describe('Der Validator findet echte Fehler', () => {
       basis({ loesungSql: 'UPDATE Kunden SET Stadt = NULL;', erlaubteKlassen: ['SELECT'] }),
     );
     expect(befunde.some((befund) => befund.problem.includes('Ablehnung'))).toBe(true);
+  });
+
+  it('meldet auch die zweite Anweisung einer mehrteiligen Musterlösung', () => {
+    /*
+     * Die erste Anweisung ist zulässig, die zweite nicht. Wer nur die erste
+     * prüft, sieht hier eine Transaktion und lässt das UPDATE durch - und die
+     * Lernende, die es richtig macht, bekommt vom Runner eine Ablehnung.
+     */
+    const befunde = pruefeLehrplan(
+      basis({
+        loesungSql: 'BEGIN TRANSACTION; UPDATE Kunden SET Stadt = NULL; COMMIT TRANSACTION;',
+        erlaubteKlassen: ['SELECT', 'TRANSAKTION'],
+      }),
+    );
+    expect(befunde.some((befund) => befund.problem.includes('DML-Anweisung'))).toBe(true);
   });
 
   it('meldet einen Hinweis, der die Lösung verrät', () => {

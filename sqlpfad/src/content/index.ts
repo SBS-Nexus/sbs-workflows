@@ -2,6 +2,7 @@ import { KONZEPTE } from './konzepte';
 import { MODUL_1 } from './module/modul-1-tabellen';
 import { MODUL_2 } from './module/modul-2-abfragen';
 import { MODUL_3 } from './module/modul-3-verbinden';
+import { MODUL_4 } from './module/modul-4-aendern';
 import { HANDWERK } from './uebungsdaten/handwerk';
 import type { Lehrplan } from './typen';
 import type { UebungsDatensatz } from '@/domain/sql/schema';
@@ -13,15 +14,15 @@ import type { UebungsDatensatz } from '@/domain/sql/schema';
  * Startseite und für den Inhaltsvalidator. Ein zweiter Ort mit derselben
  * Aufzählung wäre der Anfang zweier Wahrheiten.
  *
- * **Stand:** Die Module 1 bis 3 sind fertig, Modul 4 folgt. Der Validator
- * zählt nicht, wie viele Module es geben *soll* – er prüft, was da ist. Eine
- * Prüfung auf „15 Lektionen" würde beim schrittweisen Schreiben nur rot
- * leuchten und wäre nach dem letzten Modul für immer bedeutungslos.
+ * **Stand:** Alle vier Module stehen. Der Validator zählt trotzdem nicht, wie
+ * viele Module es geben *soll* – er prüft, was da ist. Eine Prüfung auf „15
+ * Lektionen" hätte beim schrittweisen Schreiben nur rot geleuchtet und wäre
+ * bei jeder späteren Erweiterung wieder im Weg.
  */
 export const LEHRPLAN: Lehrplan = {
   version: '0.1.0',
   konzepte: KONZEPTE,
-  module: [MODUL_1, MODUL_2, MODUL_3],
+  module: [MODUL_1, MODUL_2, MODUL_3, MODUL_4],
   projekte: [
     {
       slug: 'projekt-kundenliste',
@@ -77,6 +78,28 @@ interessant, weil man sie anrufen könnte.
         'Du kannst erklären, warum hier ein LEFT JOIN nötig ist und ein INNER JOIN das Falsche täte.',
       ],
       startSql: '-- Umsatz je Kundin und Kunde:\n',
+    },
+    {
+      slug: 'projekt-terminbuch',
+      titel: 'Ein Terminbuch für den Betrieb',
+      modul: MODUL_4.slug,
+      auftrag: `
+Bisher stehen die Termine auf einem Zettel am Kühlschrank. Der Betrieb hätte
+sie gern in der Datenbank: zu welchem Auftrag, wann, wie lange. Wichtig ist
+dem Chef vor allem eines – dass niemand versehentlich einen Termin zu einem
+Auftrag einträgt, den es gar nicht gibt, und dass eine Dauer von null Minuten
+schlicht nicht möglich ist. Leg die Tabelle an, trag zwei Termine ein und
+probier aus, ob deine Regeln wirklich greifen.
+`.trim(),
+      abnahme: [
+        'Die Tabelle hat einen Primärschlüssel und einen Fremdschlüssel auf Auftraege.',
+        'Die Datentypen passen: Ein Beginn ist kein Text, eine Dauer keine Zeichenfolge.',
+        'Eine Dauer von null oder weniger wird von der Datenbank abgelehnt, nicht von dir.',
+        'Jede Einschränkung hat einen selbst vergebenen Namen.',
+        'Du hast einen Termin zu einem nicht vorhandenen Auftrag versucht und kannst die ' +
+          'Fehlermeldung erklären.',
+      ],
+      startSql: '-- Die Tabelle Termine:\nCREATE TABLE Termine (\n',
     },
   ],
 };

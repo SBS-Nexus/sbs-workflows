@@ -184,4 +184,65 @@ export const KONZEPTE: readonly Konzept[] = [
     beschreibung: 'Eine Abfrage innerhalb einer Abfrage – als einzelner Wert oder als Liste.',
     schwierigkeit: 4,
   },
+
+  // --- Modul 4: Ändern und Struktur ----------------------------------------
+  {
+    slug: 'einfuegen',
+    titel: 'INSERT',
+    beschreibung:
+      'Neue Zeilen hinzufügen. Welche Spalten genannt werden, entscheidet mit darüber, ob die ' +
+      'Anweisung morgen noch funktioniert.',
+    schwierigkeit: 3,
+  },
+  {
+    slug: 'aendern-mit-where',
+    titel: 'UPDATE und sein WHERE',
+    beschreibung:
+      'Ein UPDATE ohne WHERE ändert jede Zeile der Tabelle. Es ist kein Fehler, den die ' +
+      'Datenbank meldet – sie führt ihn aus.',
+    schwierigkeit: 4,
+  },
+  {
+    slug: 'loeschen',
+    titel: 'DELETE',
+    beschreibung:
+      'Zeilen entfernen. Vorher dieselbe Bedingung als SELECT zu lesen, ist keine Vorsicht, ' +
+      'sondern Handwerk.',
+    schwierigkeit: 4,
+  },
+  {
+    slug: 'transaktion',
+    titel: 'Transaktion',
+    beschreibung:
+      'Mehrere Anweisungen als eine Einheit: Entweder wirken alle, oder keine. Dazwischen gibt ' +
+      'es keinen Zustand, den jemand anderes sieht.',
+    schwierigkeit: 4,
+  },
+  {
+    slug: 'zuruecknehmen',
+    titel: 'ROLLBACK und COMMIT',
+    beschreibung:
+      'COMMIT macht die Änderungen endgültig, ROLLBACK nimmt sie zurück. Ohne eines von beiden ' +
+      'bleibt die Transaktion offen und hält Sperren.',
+    schwierigkeit: 4,
+  },
+  {
+    slug: 'tabelle-anlegen',
+    titel: 'CREATE TABLE',
+    beschreibung:
+      'Eine Tabelle entsteht als Beschreibung dessen, was in ihr stehen darf – nicht als leeres ' +
+      'Blatt, das alles annimmt.',
+    schwierigkeit: 3,
+  },
+  // Datentypen kommen schon in Modul 1 vor und bekommen hier keinen zweiten
+  // Eintrag: Ein Konzept, das zweimal in der Wissenslandkarte steht, misst
+  // dasselbe Wissen an zwei Stellen und ist an keiner von beiden vollständig.
+  {
+    slug: 'einschraenkung',
+    titel: 'Einschränkungen',
+    beschreibung:
+      'NOT NULL, PRIMARY KEY, FOREIGN KEY und CHECK sind Regeln, die die Datenbank selbst ' +
+      'durchsetzt – zuverlässiger als jede Anwendung davor.',
+    schwierigkeit: 4,
+  },
 ] as const;
