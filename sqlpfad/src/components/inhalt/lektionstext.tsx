@@ -1,4 +1,4 @@
-import { leseMarkdown, type Textteil } from '@/domain/inhalt/markdown';
+import { leseMarkdown, leseZeile, type Textteil } from '@/domain/inhalt/markdown';
 
 /**
  * Der Erklärtext einer Lektion.
@@ -34,6 +34,18 @@ function Teile({ teile }: { teile: readonly Textteil[] }): React.ReactElement {
       )}
     </>
   );
+}
+
+/**
+ * Eine einzelne Zeile mit Auszeichnung – für Aufgabenstellungen.
+ *
+ * Eine Aufgabenstellung wie „Wie sieht das Ergebnis von `SELECT Name FROM
+ * Mitarbeitende` aus?" enthält Code mitten im Satz. Ohne Auszeichnung stünden
+ * dort Backticks; mit dem vollen `Lektionstext` bekäme der Satz Absatzabstände,
+ * die er nicht braucht.
+ */
+export function Zeilentext({ text }: { text: string }): React.ReactElement {
+  return <Teile teile={leseZeile(text)} />;
 }
 
 export function Lektionstext({ text }: { text: string }): React.ReactElement {

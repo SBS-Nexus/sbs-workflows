@@ -18,6 +18,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { LEHRPLAN, UEBUNGSDATEN } from '../src/content';
 import { pruefeLehrplan } from '../src/content/validator';
+import { ART_IM_DATENMODELL } from '../src/domain/aufgabe/art';
 
 const envDatei = path.join(import.meta.dirname, '..', '.env');
 if (existsSync(envDatei)) process.loadEnvFile?.(envDatei);
@@ -277,22 +278,15 @@ async function seed(): Promise<void> {
   );
 }
 
-/** Die Aufgabenart des Inhalts auf die des Datenmodells abbilden. */
+/**
+ * Die Aufgabenart des Inhalts auf die des Datenmodells abbilden.
+ *
+ * Die Zuordnung selbst steht in `src/domain/aufgabe/art.ts` – dieselbe Tabelle
+ * braucht die Anwendung beim Lesen in der Gegenrichtung, und zwei Kopien davon
+ * laufen irgendwann auseinander.
+ */
 function alsPrismaArt(art: string): never {
-  const zuordnung: Record<string, string> = {
-    EINFACHAUSWAHL: 'SINGLE_CHOICE',
-    MEHRFACHAUSWAHL: 'MULTIPLE_CHOICE',
-    FREITEXT: 'FREE_TEXT',
-    ERGEBNIS_VORHERSAGEN: 'PREDICT_RESULT',
-    REIHENFOLGE: 'ORDER_CLAUSES',
-    ABFRAGE_ERGAENZEN: 'COMPLETE_QUERY',
-    FEHLER_FINDEN: 'FIND_ERROR',
-    FEHLER_ERKLAEREN: 'EXPLAIN_ERROR',
-    ABFRAGE_SCHREIBEN: 'WRITE_QUERY',
-    TRANSFER: 'TRANSFER',
-  };
-
-  const wert = zuordnung[art];
+  const wert = ART_IM_DATENMODELL[art as keyof typeof ART_IM_DATENMODELL];
   // Ein unbekannter Wert würde sonst als ungültiger Enum-Wert erst in der
   // Datenbank auffallen - mit einer Meldung, die den Inhalt nicht nennt.
   if (!wert) throw new Error(`Unbekannte Aufgabenart im Inhalt: ${art}`);

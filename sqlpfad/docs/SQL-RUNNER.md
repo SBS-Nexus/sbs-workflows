@@ -213,3 +213,22 @@ hält:
   Treiberdokumentation geschrieben, aber gegen keinen laufenden SQL Server
   gelaufen.
 - die Entscheidung aus Abschnitt 6
+
+### Was ohne Runner trotzdem geht
+
+Aufgaben sind bearbeitbar, und zwar nicht als Notlösung: Auswahl,
+Mehrfachauswahl, Reihenfolge und die Vorhersage der Zeilenzahl werden
+vollständig bewertet, ohne dass eine einzige Anweisung ausgeführt wird. Die
+Bewertung steht in `src/domain/aufgabe/bewertung.ts` und kennt weder Datenbank
+noch Netz.
+
+Nicht bewertbar sind die Aufgaben, die eine geschriebene Abfrage verlangen. Sie
+laufen durch die Statement-Policy – ein UPDATE in einer Leselektion wird also
+sofort erklärt –, bekommen danach aber die Auskunft „geprüft, aber nicht
+ausgeführt". Es wird ausdrücklich **nicht** behauptet, eine Abfrage sei richtig,
+weil sie richtig aussieht.
+
+Antworten in eigenen Worten bewertet die Lernende selbst neben der
+Musterantwort. Das ist keine Ersatzhandlung für fehlende Technik: Ein
+Textvergleich, der „ungefähr richtig" behauptet, wäre eine Anmaßung, und der
+eigene Vergleich ist ohnehin der lernwirksamere Teil.

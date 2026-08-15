@@ -8,6 +8,8 @@ import { SchemaExplorer } from '@/components/sql/schema-explorer';
 import { UEBUNGSDATEN } from '@/content';
 import { Card, SectionHeading } from '@/components/ui/primitives';
 import { Icon } from '@/components/ui/icon';
+import { AufgabenKarte, type AufgabenAnsicht } from '@/components/aufgabe/aufgaben-karte';
+import { ausDatenmodellArt } from '@/domain/aufgabe/art';
 
 export async function generateMetadata({
   params,
@@ -65,6 +67,40 @@ export default async function LektionsSeite({
   const datensatz = UEBUNGSDATEN.find((eintrag) => eintrag.slug === lektion.practiceSchema?.slug);
   const lernziele = Array.isArray(lektion.objectives) ? (lektion.objectives as string[]) : [];
 
+  /*
+   * Was an den Browser geht - und was ausdrücklich nicht.
+   *
+   * Die Nutzlast einer Aufgabe enthält neben den Optionen auch `richtig` und
+   * `aufloesung`. Beides bleibt hier: Ein Auswahlfeld, dessen richtige Antwort
+   * im Quelltext der Seite steht, prüft nichts. Deshalb wird die Ansicht Feld
+   * für Feld zusammengesetzt und nicht die Zeile durchgereicht - bei einem
+   * `...aufgabe` wäre die nächste hinzugefügte Spalte still mit dabei.
+   */
+  const aufgaben = lektion.exercises.flatMap((aufgabe): AufgabenAnsicht[] => {
+    const art = ausDatenmodellArt(aufgabe.type);
+    if (!art) return [];
+
+    const nutzlast = aufgabe.payload as { optionen?: unknown } | null;
+    const optionen = Array.isArray(nutzlast?.optionen)
+      ? nutzlast.optionen.filter((eintrag): eintrag is string => typeof eintrag === 'string')
+      : [];
+
+    return [
+      {
+        slug: aufgabe.slug,
+        art,
+        titel: aufgabe.title,
+        aufgabenstellung: aufgabe.prompt,
+        optionen,
+        startSql: aufgabe.starterSql ?? '',
+        hinweise: Array.isArray(aufgabe.hints)
+          ? aufgabe.hints.filter((eintrag): eintrag is string => typeof eintrag === 'string')
+          : [],
+        hatLoesung: Boolean(aufgabe.solutionSql ?? aufgabe.solutionNotes),
+      },
+    ];
+  });
+
   return (
     <div className="space-y-8">
       <div>
@@ -108,34 +144,21 @@ export default async function LektionsSeite({
           <section aria-labelledby="aufgaben">
             <SectionHeading id="aufgaben">Aufgaben</SectionHeading>
             <ol className="space-y-3">
-              {lektion.exercises.map((aufgabe, index) => (
-                <li key={aufgabe.id}>
-                  <Card className="border-2">
-                    <div className="flex items-baseline gap-3">
-                      <span className="text-sm font-bold text-[var(--text-muted)] tabular-nums">
-                        {index + 1}.
-                      </span>
-                      <div>
-                        <h3 className="font-bold tracking-tight">{aufgabe.title}</h3>
-                        <p className="mt-1 text-[0.95rem] text-[var(--text-muted)]">
-                          {aufgabe.prompt}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-                </li>
+              {aufgaben.map((aufgabe, index) => (
+                <AufgabenKarte
+                  key={aufgabe.slug}
+                  aufgabe={aufgabe}
+                  nummer={index + 1}
+                  datensatz={datensatz}
+                />
               ))}
             </ol>
-            {/*
-             * Die Aufgaben sind hier noch nicht bearbeitbar. Das steht als
-             * Satz da, statt eine Schaltfläche anzubieten, die nichts tut.
-             */}
             <p className="mt-4 text-sm text-[var(--text-muted)]">
-              Das Bearbeiten der Aufgaben kommt im nächsten Schritt. Bis dahin kannst du auf{' '}
+              Zum freien Ausprobieren mit denselben Tabellen gibt es{' '}
               <Link href="/abfrage" className="font-medium text-[var(--accent)] underline">
                 Abfrage schreiben
-              </Link>{' '}
-              frei mit denselben Tabellen arbeiten.
+              </Link>
+              .
             </p>
           </section>
         </div>
