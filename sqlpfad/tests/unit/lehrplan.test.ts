@@ -93,6 +93,23 @@ describe('Aufgaben nennen nur Tabellen und Spalten, die es gibt', () => {
     'desc',
     'distinct',
     'top',
+    // Verbinden
+    'inner',
+    'left',
+    'right',
+    'full',
+    'outer',
+    'cross',
+    'join',
+    'on',
+    // Zusammenfassen
+    'group',
+    'having',
+    'count',
+    'sum',
+    'avg',
+    'min',
+    'max',
   ]);
 
   const mitSql = LEHRPLAN.module.flatMap((modul) =>

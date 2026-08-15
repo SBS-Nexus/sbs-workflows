@@ -75,6 +75,15 @@ function pruefeAufgabe(aufgabe: Aufgabe, ort: string, konzepte: Set<string>): Be
     }
   }
 
+  if (
+    (aufgabe.art === 'FREITEXT' || aufgabe.art === 'FEHLER_ERKLAEREN') &&
+    typeof aufgabe.nutzlast?.['musterantwort'] !== 'string'
+  ) {
+    // Ohne Musterantwort gäbe es nach dem Absenden nichts zu vergleichen –
+    // die Aufgabe wäre eine Frage, auf die nie jemand antwortet.
+    befunde.push({ ort, problem: `Aufgabenart ${aufgabe.art} ohne Musterantwort.` });
+  }
+
   if (aufgabe.art === 'ERGEBNIS_VORHERSAGEN' && !aufgabe.erwartetesErgebnis) {
     befunde.push({
       ort,

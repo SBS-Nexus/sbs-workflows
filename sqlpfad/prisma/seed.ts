@@ -282,6 +282,7 @@ function alsPrismaArt(art: string): never {
   const zuordnung: Record<string, string> = {
     EINFACHAUSWAHL: 'SINGLE_CHOICE',
     MEHRFACHAUSWAHL: 'MULTIPLE_CHOICE',
+    FREITEXT: 'FREE_TEXT',
     ERGEBNIS_VORHERSAGEN: 'PREDICT_RESULT',
     REIHENFOLGE: 'ORDER_CLAUSES',
     ABFRAGE_ERGAENZEN: 'COMPLETE_QUERY',

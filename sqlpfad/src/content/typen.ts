@@ -26,6 +26,15 @@ export interface Konzept {
 export type Aufgabenart =
   | 'EINFACHAUSWAHL'
   | 'MEHRFACHAUSWAHL'
+  /**
+   * Eine Frage, die in eigenen Worten beantwortet wird.
+   *
+   * Für die Fälle, in denen das Verstehen zählt und nicht das Ergebnis –
+   * „wie viele Zeilen kommen dabei heraus und warum". Ein erwartetes
+   * Resultset gibt es dafür nicht; es gibt eine Musterantwort, mit der die
+   * eigene verglichen wird.
+   */
+  | 'FREITEXT'
   | 'ERGEBNIS_VORHERSAGEN'
   | 'REIHENFOLGE'
   | 'ABFRAGE_ERGAENZEN'

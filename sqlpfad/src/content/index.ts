@@ -1,6 +1,7 @@
 import { KONZEPTE } from './konzepte';
 import { MODUL_1 } from './module/modul-1-tabellen';
 import { MODUL_2 } from './module/modul-2-abfragen';
+import { MODUL_3 } from './module/modul-3-verbinden';
 import { HANDWERK } from './uebungsdaten/handwerk';
 import type { Lehrplan } from './typen';
 import type { UebungsDatensatz } from '@/domain/sql/schema';
@@ -12,7 +13,7 @@ import type { UebungsDatensatz } from '@/domain/sql/schema';
  * Startseite und für den Inhaltsvalidator. Ein zweiter Ort mit derselben
  * Aufzählung wäre der Anfang zweier Wahrheiten.
  *
- * **Stand:** Die Module 1 und 2 sind fertig, 3 und 4 folgen. Der Validator
+ * **Stand:** Die Module 1 bis 3 sind fertig, Modul 4 folgt. Der Validator
  * zählt nicht, wie viele Module es geben *soll* – er prüft, was da ist. Eine
  * Prüfung auf „15 Lektionen" würde beim schrittweisen Schreiben nur rot
  * leuchten und wäre nach dem letzten Modul für immer bedeutungslos.
@@ -20,7 +21,7 @@ import type { UebungsDatensatz } from '@/domain/sql/schema';
 export const LEHRPLAN: Lehrplan = {
   version: '0.1.0',
   konzepte: KONZEPTE,
-  module: [MODUL_1, MODUL_2],
+  module: [MODUL_1, MODUL_2, MODUL_3],
   projekte: [
     {
       slug: 'projekt-kundenliste',
@@ -57,6 +58,25 @@ sind besonders interessant, weil sie sonst liegen bleiben.
         'Du kannst erklären, warum du für „offen" IS NULL statt = NULL benutzt hast.',
       ],
       startSql: '-- Was liegt gerade offen?\n',
+    },
+    {
+      slug: 'projekt-umsatz-je-kunde',
+      titel: 'Wer bringt wie viel?',
+      modul: MODUL_3.slug,
+      auftrag: `
+Der Steuerberater fragt nach einer Aufstellung: Was hat jede Kundin dem
+Betrieb im Jahr eingebracht? Gemeint ist die Summe aller Positionen ihrer
+Aufträge. Kundinnen ohne Auftrag sollen mit auftauchen – gerade sie sind
+interessant, weil man sie anrufen könnte.
+`.trim(),
+      abnahme: [
+        'Alle Kundinnen und Kunden erscheinen, auch die ohne Auftrag.',
+        'Bei ihnen steht eine erkennbare Null oder ein gekennzeichnetes NULL, keine leere Zelle.',
+        'Die Summe stimmt: Menge mal Einzelpreis, über alle Positionen aller Aufträge.',
+        'Die Liste ist nach Summe absteigend sortiert.',
+        'Du kannst erklären, warum hier ein LEFT JOIN nötig ist und ein INNER JOIN das Falsche täte.',
+      ],
+      startSql: '-- Umsatz je Kundin und Kunde:\n',
     },
   ],
 };

@@ -126,4 +126,62 @@ export const KONZEPTE: readonly Konzept[] = [
       'der, in der man sie schreibt. Daraus folgt das meiste, was zunächst willkürlich wirkt.',
     schwierigkeit: 4,
   },
+
+  // --- Modul 3: Verbinden und Gruppieren -----------------------------------
+  {
+    slug: 'inner-join',
+    titel: 'INNER JOIN',
+    beschreibung:
+      'Zwei Tabellen über ihre Schlüssel verbinden. Es kommen nur Zeilen, die auf beiden Seiten ' +
+      'einen Partner haben.',
+    schwierigkeit: 3,
+  },
+  {
+    slug: 'join-bedingung',
+    titel: 'Die ON-Bedingung',
+    beschreibung:
+      'Woran hängen die beiden Tabellen zusammen? Fehlt die Antwort, verbindet die Datenbank ' +
+      'jede Zeile mit jeder.',
+    schwierigkeit: 3,
+  },
+  {
+    slug: 'left-join',
+    titel: 'LEFT JOIN',
+    beschreibung:
+      'Alle Zeilen der linken Tabelle behalten – auch die ohne Gegenstück. Dort steht dann NULL.',
+    schwierigkeit: 4,
+  },
+  {
+    slug: 'aggregatfunktion',
+    titel: 'Zusammenfassen',
+    beschreibung: 'COUNT, SUM, AVG, MIN und MAX machen aus vielen Zeilen einen Wert.',
+    schwierigkeit: 3,
+  },
+  {
+    slug: 'count-und-null',
+    titel: 'COUNT(*) und COUNT(Spalte)',
+    beschreibung:
+      'COUNT(*) zählt Zeilen, COUNT(Spalte) zählt Werte – und NULL ist keiner. Der Unterschied ' +
+      'ist eine der häufigsten stillen Fehlerquellen.',
+    schwierigkeit: 4,
+  },
+  {
+    slug: 'gruppierung',
+    titel: 'GROUP BY',
+    beschreibung: 'Zeilen zu Gruppen zusammenfassen und je Gruppe rechnen.',
+    schwierigkeit: 4,
+  },
+  {
+    slug: 'having',
+    titel: 'HAVING',
+    beschreibung:
+      'Auf Gruppen filtern statt auf Zeilen. WHERE kommt vor der Gruppierung, HAVING danach.',
+    schwierigkeit: 4,
+  },
+  {
+    slug: 'unterabfrage',
+    titel: 'Unterabfragen',
+    beschreibung: 'Eine Abfrage innerhalb einer Abfrage – als einzelner Wert oder als Liste.',
+    schwierigkeit: 4,
+  },
 ] as const;
