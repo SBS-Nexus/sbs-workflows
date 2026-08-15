@@ -1,9 +1,11 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
 import { ausDatenmodellArt } from '@/domain/aufgabe/art';
+import { istLektionAbgeschlossen, type AufgabenStand } from '@/domain/aufgabe/abschluss';
 import {
   alsVersuchsergebnis,
   bewerteAufgabe,
@@ -97,6 +99,8 @@ export async function gibAufgabeAb(daten: unknown): Promise<Abgabeantwort> {
         durationMs: geprueft.data.dauerMs,
       },
     });
+
+    await pruefeLektionsAbschluss(user.id, aufgabe.lektionId);
   }
 
   /*
@@ -159,6 +163,8 @@ export async function meldeSelbsteinschaetzung(daten: unknown): Promise<{ gespei
       confidenceAfter: ergebnis === 'PASSED' ? 'RATHER_SURE' : 'RATHER_UNSURE',
     },
   });
+
+  await pruefeLektionsAbschluss(user.id, aufgabe.lektionId);
 
   return { gespeichert: true };
 }
@@ -229,6 +235,7 @@ export async function zeigeLoesung(daten: unknown): Promise<Loesungsantwort> {
 
 interface GeladeneAufgabe {
   id: string;
+  lektionId: string | null;
   bewertbar: BewertbareAufgabe;
   hinweiseGesamt: number;
   loesungSql: string | null;
@@ -246,6 +253,7 @@ async function ladeAufgabe(slug: string): Promise<GeladeneAufgabe | null> {
 
   return {
     id: zeile.id,
+    lektionId: zeile.lessonId,
     hinweiseGesamt: hinweise.length,
     loesungSql: zeile.solutionSql,
     loesungsErklaerung: zeile.solutionNotes,
@@ -256,6 +264,67 @@ async function ladeAufgabe(slug: string): Promise<GeladeneAufgabe | null> {
       erlaubteKlassen: zeile.allowedStatementClasses as AnweisungsKlasse[],
     },
   };
+}
+
+/**
+ * Nach einem Versuch prüfen, ob die Lektion damit durch ist.
+ *
+ * Die Regel steht in `src/domain/aufgabe/abschluss.ts`. Hier wird nur der Stand
+ * beschafft und, falls sie greift, der Fortschritt gesetzt.
+ *
+ * Ein einmal erreichtes COMPLETED wird **nicht** zurückgenommen. Wer eine
+ * Aufgabe später noch einmal öffnet und danebenliegt, hat die Lektion trotzdem
+ * einmal gekonnt – ihm den Abschluss wieder wegzunehmen, wäre genau die
+ * Verlustmechanik, die dieses Produkt nicht haben soll.
+ */
+async function pruefeLektionsAbschluss(userId: string, lektionId: string | null): Promise<void> {
+  if (!lektionId) return;
+
+  const vorhanden = await prisma.lessonProgress.findUnique({
+    where: { userId_lessonId: { userId, lessonId: lektionId } },
+    select: { state: true },
+  });
+  if (vorhanden?.state === 'COMPLETED') return;
+
+  const aufgaben = await prisma.exercise.findMany({
+    where: { lessonId: lektionId, status: 'PUBLISHED' },
+    select: {
+      type: true,
+      attempts: {
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: { result: true },
+      },
+    },
+  });
+
+  const staende: AufgabenStand[] = [];
+  for (const aufgabe of aufgaben) {
+    const art = ausDatenmodellArt(aufgabe.type);
+    if (!art) continue;
+    staende.push({
+      art,
+      letztesErgebnis: aufgabe.attempts[0]?.result as AufgabenStand['letztesErgebnis'],
+    });
+  }
+
+  if (!istLektionAbgeschlossen(staende)) return;
+
+  await prisma.lessonProgress.upsert({
+    where: { userId_lessonId: { userId, lessonId: lektionId } },
+    create: {
+      userId,
+      lessonId: lektionId,
+      state: 'COMPLETED',
+      startedAt: new Date(),
+      completedAt: new Date(),
+    },
+    update: { state: 'COMPLETED', completedAt: new Date() },
+  });
+
+  revalidatePath('/lernen');
+  revalidatePath('/fortschritt');
 }
 
 function alsNutzlast(wert: unknown): Record<string, unknown> | null {

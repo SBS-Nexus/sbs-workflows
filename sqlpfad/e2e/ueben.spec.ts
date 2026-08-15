@@ -89,3 +89,48 @@ test('eine falsch beantwortete Aufgabe taucht im Wiederholen auf', async ({ page
   await expect(page.getByText('Nichts offen')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Antwort abgeben/i }).first()).toBeVisible();
 });
+
+test('eine Lektion lässt sich abschließen', async ({ page }) => {
+  /*
+   * Der Zustand COMPLETED stand im Datenmodell und wurde von niemandem
+   * gesetzt - der Lernpfad zeigte einen Haken an, den niemand je erreichen
+   * konnte. Dieser Test geht den Weg einmal ganz.
+   *
+   * Gelöst wird über die Musterlösung: Welche Option richtig ist, weiß der
+   * Browser nicht, also probiert der Test der Reihe nach.
+   */
+  await meldeAn(page);
+  await page.goto('/lernen/lektion-was-steht-in-einer-tabelle');
+
+  const karten = page.locator('ol > li');
+  const anzahl = await karten.count();
+
+  for (let index = 0; index < anzahl; index += 1) {
+    const karte = karten.nth(index);
+
+    const optionen = karte.getByRole('radio');
+    const zahlfeld = karte.locator('input[type=number]');
+
+    if ((await optionen.count()) > 0) {
+      for (let wahl = 0; wahl < (await optionen.count()); wahl += 1) {
+        await optionen.nth(wahl).check();
+        await karte.getByRole('button', { name: /Antwort abgeben/i }).click();
+        await expect(karte.getByText(/Stimmt|Noch nicht/)).toBeVisible();
+        if (await karte.getByText('Stimmt').isVisible()) break;
+      }
+    } else if ((await zahlfeld.count()) > 0) {
+      // Die Tabelle Mitarbeitende hat vier Zeilen - das steht in der Aufgabe.
+      for (const versuch of ['4', '8', '0', '12', '26']) {
+        await zahlfeld.fill(versuch);
+        await karte.getByRole('button', { name: /Antwort abgeben/i }).click();
+        await expect(karte.getByText(/Stimmt|Noch nicht/)).toBeVisible();
+        if (await karte.getByText('Stimmt').isVisible()) break;
+      }
+    }
+    // Schreibaufgaben bleiben offen: Sie brauchen den Übungsserver, und genau
+    // deshalb zählen sie für den Abschluss nicht mit.
+  }
+
+  await page.goto('/lernen');
+  await expect(page.getByText('Bearbeitet').first()).toBeVisible();
+});
