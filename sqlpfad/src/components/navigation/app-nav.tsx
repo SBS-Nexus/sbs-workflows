@@ -22,6 +22,7 @@ const ZIELE: ReadonlyArray<{ href: string; label: string; icon: IconName }> = [
   { href: '/fortschritt', label: 'Überblick', icon: 'fortschritt' },
   { href: '/lernen', label: 'Lernen', icon: 'lernen' },
   { href: '/ueben', label: 'Üben', icon: 'ueben' },
+  { href: '/projekte', label: 'Projekte', icon: 'projekte' },
   { href: '/wiederholen', label: 'Wiederholen', icon: 'wiederholen' },
   { href: '/profil', label: 'Profil', icon: 'profil' },
 ];
