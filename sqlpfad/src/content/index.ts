@@ -1,5 +1,6 @@
 import { KONZEPTE } from './konzepte';
 import { MODUL_1 } from './module/modul-1-tabellen';
+import { MODUL_2 } from './module/modul-2-abfragen';
 import { HANDWERK } from './uebungsdaten/handwerk';
 import type { Lehrplan } from './typen';
 import type { UebungsDatensatz } from '@/domain/sql/schema';
@@ -11,7 +12,7 @@ import type { UebungsDatensatz } from '@/domain/sql/schema';
  * Startseite und für den Inhaltsvalidator. Ein zweiter Ort mit derselben
  * Aufzählung wäre der Anfang zweier Wahrheiten.
  *
- * **Stand:** Modul 1 ist fertig, die Module 2 bis 4 folgen. Der Validator
+ * **Stand:** Die Module 1 und 2 sind fertig, 3 und 4 folgen. Der Validator
  * zählt nicht, wie viele Module es geben *soll* – er prüft, was da ist. Eine
  * Prüfung auf „15 Lektionen" würde beim schrittweisen Schreiben nur rot
  * leuchten und wäre nach dem letzten Modul für immer bedeutungslos.
@@ -19,7 +20,7 @@ import type { UebungsDatensatz } from '@/domain/sql/schema';
 export const LEHRPLAN: Lehrplan = {
   version: '0.1.0',
   konzepte: KONZEPTE,
-  module: [MODUL_1],
+  module: [MODUL_1, MODUL_2],
   projekte: [
     {
       slug: 'projekt-kundenliste',
@@ -38,6 +39,24 @@ und zwar so, dass niemand denkt, dort sei versehentlich etwas gelöscht worden.
         'Die Abfrage nennt die Spalten einzeln und benutzt kein *.',
       ],
       startSql: '-- Deine Abfrage für den Aushang:\n',
+    },
+    {
+      slug: 'projekt-offene-auftraege',
+      titel: 'Die Liste der offenen Aufträge',
+      modul: MODUL_2.slug,
+      auftrag: `
+Montagmorgen, Besprechung. Der Chef will wissen, was gerade offen ist – und
+zwar so, dass man es in zehn Sekunden überblickt: was es ist, seit wann es
+liegt, und das Älteste zuoberst. Aufträge, denen noch niemand zugeteilt ist,
+sind besonders interessant, weil sie sonst liegen bleiben.
+`.trim(),
+      abnahme: [
+        'Nur offene Aufträge, keine abgeschlossenen.',
+        'Die Liste ist nach dem Eingangsdatum sortiert, das älteste zuerst.',
+        'Die Spaltenüberschriften sind lesbar und auf Deutsch.',
+        'Du kannst erklären, warum du für „offen" IS NULL statt = NULL benutzt hast.',
+      ],
+      startSql: '-- Was liegt gerade offen?\n',
     },
   ],
 };

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LEHRPLAN, inhaltsZahlen } from '@/content';
 import { pruefeLehrplan } from '@/content/validator';
 import type { Aufgabe, Lehrplan } from '@/content/typen';
-import { pruefeAnweisung } from '@/domain/sql/statement-policy';
+import { entferneKommentareUndLiterale, pruefeAnweisung } from '@/domain/sql/statement-policy';
 import { HANDWERK } from '@/content/uebungsdaten/handwerk';
 
 /**
@@ -56,9 +56,15 @@ describe('Jede Musterlösung kommt durch ihre eigene Policy', () => {
 
 describe('Aufgaben nennen nur Tabellen und Spalten, die es gibt', () => {
   /*
-   * Ein Tippfehler in einer Musterlösung fällt sonst erst auf, wenn jemand
-   * die Aufgabe löst und die Bewertung scheitert - an der Musterlösung, nicht
-   * an der Eingabe.
+   * Ein Tippfehler in einer Musterlösung fällt sonst erst auf, wenn jemand die
+   * Aufgabe löst und die Bewertung scheitert - an der Musterlösung, nicht an
+   * der Eingabe.
+   *
+   * Der Test prüft nur *Bezeichner*. Zeichenfolgen werden vorher entfernt:
+   * `WHERE Stadt = 'Mannheim'` nennt keine Spalte namens Mannheim, sondern
+   * einen Wert. Genau dafür gibt es `entferneKommentareUndLiterale` schon -
+   * eine zweite, eigene Zerlegung wäre eine zweite Quelle für denselben
+   * Fehler.
    */
   const bekannteNamen = new Set<string>([
     ...HANDWERK.tabellen.map((tabelle) => tabelle.name.toLowerCase()),
@@ -67,7 +73,7 @@ describe('Aufgaben nennen nur Tabellen und Spalten, die es gibt', () => {
     ),
   ]);
 
-  /** Wörter, die in SQL vorkommen und keine Namen aus dem Datensatz sind. */
+  /** Wörter der Sprache, die keine Namen aus dem Datensatz sind. */
   const SCHLUESSELWOERTER = new Set([
     'select',
     'from',
@@ -78,10 +84,15 @@ describe('Aufgaben nennen nur Tabellen und Spalten, die es gibt', () => {
     'and',
     'or',
     'not',
+    'in',
+    'like',
+    'between',
     'order',
     'by',
     'asc',
     'desc',
+    'distinct',
+    'top',
   ]);
 
   const mitSql = LEHRPLAN.module.flatMap((modul) =>
@@ -96,21 +107,33 @@ describe('Aufgaben nennen nur Tabellen und Spalten, die es gibt', () => {
   );
 
   it.each(mitSql)('%s', (_ort, loesung) => {
-    const woerter = (loesung.match(/[A-Za-zÄÖÜäöüß_][A-Za-zÄÖÜäöüß0-9_]*/g) ?? []).map((wort) =>
-      wort.toLowerCase(),
+    const ohneLiterale = entferneKommentareUndLiterale(loesung);
+    const woerter = (ohneLiterale.match(/[A-Za-zÄÖÜäöüß_][A-Za-zÄÖÜäöüß0-9_]*/g) ?? []).map(
+      (wort) => wort.toLowerCase(),
     );
 
     /*
-     * Aliase sind erlaubt und stehen hinter AS. Sie werden übersprungen -
-     * sonst müsste jeder erfundene Name im Datensatz stehen, und AS wäre
-     * praktisch verboten.
+     * Selbst vergebene Aliase gelten überall in derselben Anweisung - auch im
+     * ORDER BY, wo sie zulässigerweise noch einmal auftauchen.
      */
-    const unbekannt = woerter.filter((wort, index) => {
-      if (SCHLUESSELWOERTER.has(wort) || bekannteNamen.has(wort)) return false;
-      return woerter[index - 1] !== 'as';
-    });
+    const aliase = new Set(
+      woerter.filter((_wort, index) => woerter[index - 1] === 'as').map((wort) => wort),
+    );
+
+    const unbekannt = woerter.filter(
+      (wort) => !SCHLUESSELWOERTER.has(wort) && !bekannteNamen.has(wort) && !aliase.has(wort),
+    );
 
     expect(unbekannt).toEqual([]);
+  });
+
+  it('würde einen Tippfehler tatsächlich melden', () => {
+    // Gegenprobe: Ohne sie wäre nicht zu sehen, ob der Test noch etwas prüft.
+    const woerter = entferneKommentareUndLiterale('SELECT Stadtt FROM Kunden')
+      .toLowerCase()
+      .match(/[a-zäöüß_]+/g);
+    expect(woerter).toContain('stadtt');
+    expect(bekannteNamen.has('stadtt')).toBe(false);
   });
 });
 
