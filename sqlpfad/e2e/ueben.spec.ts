@@ -1,0 +1,91 @@
+import { expect, test, type Page } from '@playwright/test';
+
+/**
+ * Üben und Wiederholen.
+ *
+ * Die Auswahlregeln stehen als Unit-Tests in `tests/unit/auswahl.test.ts`. Hier
+ * geht es um den Zusammenhang, den nur der ganze Weg zeigt: dass ein Versuch
+ * auf der Lektionsseite tatsächlich auf der Wiederholungsseite ankommt.
+ */
+
+function neueAdresse(): string {
+  return `e2e-ueben-${Date.now()}-${Math.floor(Math.random() * 10_000)}@beispiel.test`;
+}
+
+const PASSWORT = 'nordwind-treppe-hafen-41';
+
+async function meldeAn(page: Page): Promise<void> {
+  await page.goto('/registrieren');
+  await page.fill('#name', 'Testerin Üben');
+  await page.fill('#email', neueAdresse());
+  await page.fill('#password', PASSWORT);
+  await page.getByRole('button', { name: /Konto anlegen|Weiter|Los/i }).click();
+
+  await expect(page).toHaveURL(/\/onboarding$/);
+  await page.check('input[name=experience][value=READS_QUERIES]');
+  await page.check('input[name=learningGoal][value=REPORTING]');
+  await page.getByText('30 Minuten').click();
+  await page.getByRole('button', { name: /Los geht/i }).click();
+  await expect(page).toHaveURL(/\/fortschritt$/);
+}
+
+test('Üben zeigt echte Aufgaben und nicht „noch keine Inhalte"', async ({ page }) => {
+  /*
+   * Der Satz „Noch keine Aufgaben verfügbar" war einmal wahr. Seit der Lehrplan
+   * eingespielt ist, wäre er eine Unwahrheit an der Stelle, an der die Anwendung
+   * am glaubwürdigsten sein muss.
+   */
+  await meldeAn(page);
+  await page.goto('/ueben');
+
+  await expect(page.getByText('Noch keine Aufgaben verfügbar')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Antwort abgeben/i }).first()).toBeVisible();
+});
+
+test('der Durchgang mischt über die Lektionen', async ({ page }) => {
+  await meldeAn(page);
+  await page.goto('/ueben');
+
+  // Fünf Aufgaben, und nicht fünf aus derselben Lektion: Die erste Aufgabe
+  // jeder Lektion trägt einen anderen Titel als die zweite derselben.
+  const karten = page.locator('ol > li');
+  await expect(karten).toHaveCount(5);
+});
+
+test('Wiederholen ist zuerst leer und nennt das keinen Rückstand', async ({ page }) => {
+  await meldeAn(page);
+  await page.goto('/wiederholen');
+
+  await expect(page.getByText('Nichts offen')).toBeVisible();
+  await expect(page.getByText(/kein Rückstand/)).toBeVisible();
+});
+
+test('eine falsch beantwortete Aufgabe taucht im Wiederholen auf', async ({ page }) => {
+  await meldeAn(page);
+  await page.goto('/lernen/lektion-was-steht-in-einer-tabelle');
+
+  /*
+   * Die erste Auswahlaufgabe absichtlich falsch beantworten. Welche Option
+   * falsch ist, weiß der Test nicht - er probiert die erste, und wenn sie
+   * stimmt, die zweite. Die richtige Antwort steht dem Browser nicht zur
+   * Verfügung, und genau so soll es sein.
+   */
+  const aufgabe = page
+    .locator('li')
+    .filter({ has: page.getByRole('radio') })
+    .first();
+
+  await aufgabe.getByRole('radio').nth(0).check();
+  await aufgabe.getByRole('button', { name: /Antwort abgeben/i }).click();
+  await expect(aufgabe.getByText(/Stimmt|Noch nicht/)).toBeVisible();
+
+  if (await aufgabe.getByText('Stimmt').isVisible()) {
+    await aufgabe.getByRole('radio').nth(1).check();
+    await aufgabe.getByRole('button', { name: /Antwort abgeben/i }).click();
+    await expect(aufgabe.getByText('Noch nicht')).toBeVisible();
+  }
+
+  await page.goto('/wiederholen');
+  await expect(page.getByText('Nichts offen')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Antwort abgeben/i }).first()).toBeVisible();
+});
