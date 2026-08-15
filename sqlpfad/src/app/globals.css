@@ -254,7 +254,13 @@
     --text-inverse: var(--color-ink-950);
     --accent: var(--color-accent-300);
     --accent-hover: var(--color-accent-200);
-    --accent-soft: #16233f;
+    /*
+     * Dunkle Entsprechung von accent-50. Sie war ein Marineton und stammte aus
+     * der blauen Familie; hier ist sie ein dunkles Petrol, damit die weiche
+     * Fläche zur Leitfarbe gehört. Der Kontrast zu --accent ist nachgerechnet
+     * (farbkontrast.test.ts).
+     */
+    --accent-soft: #0c2a2a;
     --accent-deep: var(--color-accent-600);
     --success: #5ddba1;
     --success-soft: #102c1f;

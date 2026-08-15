@@ -110,6 +110,35 @@ describe('Leitfarbe Petrol', () => {
   });
 });
 
+describe('Weiche Akzentfläche im dunklen Schema', () => {
+  /*
+   * Diese Paarung ist beim Sichttest fast durchgerutscht.
+   *
+   * Im dunklen Schema ist `--accent` ein helles Petrol. Weiße Schrift darauf
+   * ergibt 1,78:1 - auf dem Bildschirm sah das nur „etwas blass" aus, und
+   * genau deshalb steht die Rechnung jetzt hier.
+   */
+  it('trägt die Leitfarbe als Text', () => {
+    /*
+     * Im hellen Schema verweist `--accent-soft` auf accent-50, im dunklen
+     * steht dort ein fester Wert. Genau der wird hier gesucht - deshalb die
+     * Suche nach einem Hexwert und nicht nach der Stelle im Text: Ein Test,
+     * der von der Reihenfolge der Blöcke in der Datei abhängt, geht beim
+     * nächsten Umsortieren still kaputt.
+     */
+    const weicheFlaeche = /--accent-soft:\s*(#[0-9a-fA-F]{6})/.exec(GLOBALS)?.[1];
+    expect(weicheFlaeche).toBeDefined();
+    expect(
+      kontrastverhaeltnis(farbe('accent-300'), weicheFlaeche as string),
+    ).toBeGreaterThanOrEqual(AA_FLIESSTEXT);
+  });
+
+  it('trägt keine weiße Schrift auf der vollen Leitfarbe', () => {
+    // Der Fehler, der hier gemacht wurde: Weiß auf accent-300.
+    expect(kontrastverhaeltnis('#ffffff', farbe('accent-300'))).toBeLessThan(AA_FLIESSTEXT);
+  });
+});
+
 describe('Modulfarben', () => {
   it.each(['modul-0', 'modul-1', 'modul-2', 'modul-3', 'projekt', 'wiederholen'])(
     '%s trägt weißen Text',
