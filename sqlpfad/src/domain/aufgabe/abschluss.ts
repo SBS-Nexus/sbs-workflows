@@ -11,10 +11,15 @@ import type { Versuchsergebnis } from '@/domain/aufgabe/auswahl';
  * käme je auf grün. Ein Zustand, den niemand erreichen kann, ist schlimmer als
  * keiner: Er sieht aus wie ein persönliches Versäumnis.
  *
- * Deshalb zählen hier die Aufgaben, die sich **beurteilen lassen**. Kommt der
- * Runner dazu, werden die Schreibaufgaben beurteilbar und rutschen ohne
- * Änderung an dieser Datei in dieselbe Regel – `istBeurteilbar` fragt nicht
- * nach einer Liste von Arten, sondern nach der Antwortform.
+ * Deshalb zählen hier die Aufgaben, die sich **ohne Übungsserver beurteilen
+ * lassen**.
+ *
+ * Das ist ausdrücklich der Stand von heute und keine dauerhafte Eigenschaft
+ * einer Schreibaufgabe. Sobald der Runner steht, **muss diese Datei angepasst
+ * werden** – `istBeurteilbar` entscheidet allein anhand der Antwortform und
+ * weiß nichts von der Verfügbarkeit des Servers. Wer das übersieht, hat eine
+ * Anwendung, die Abfragen ausführen kann und die Schreibaufgaben trotzdem
+ * weiter vom Abschluss ausnimmt.
  *
  * Was ausdrücklich **nicht** genügt: eine angesehene Lösung. Sie sagt nichts
  * darüber aus, ob die Aufgabe allein gelingt.

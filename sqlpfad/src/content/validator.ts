@@ -31,6 +31,21 @@ const BRAUCHT_SQL = new Set<Aufgabe['art']>([
   'TRANSFER',
 ]);
 
+/**
+ * Arten, deren Lösung sich erst am Ergebnis beurteilen lässt.
+ *
+ * Deckungsgleich mit dem, was `antwortform` als 'sql' einstuft – hier noch
+ * einmal als Liste, damit der Validator nicht von der Bewertungslogik abhängt.
+ * Fällt eine Art hier durch und dort nicht, meldet der Test in
+ * `tests/unit/abschluss.test.ts` den Unterschied.
+ */
+const BRAUCHT_AUSFUEHRUNG = new Set<Aufgabe['art']>([
+  'ABFRAGE_ERGAENZEN',
+  'ABFRAGE_SCHREIBEN',
+  'FEHLER_FINDEN',
+  'TRANSFER',
+]);
+
 /** Arten, die ohne Auswahlmöglichkeiten keinen Sinn ergeben. */
 const BRAUCHT_OPTIONEN = new Set<Aufgabe['art']>([
   'EINFACHAUSWAHL',
@@ -257,6 +272,38 @@ export function pruefeLehrplan(lehrplan: Lehrplan): Befund[] {
       befunde.push({
         ort: `konzept/${konzept.slug}`,
         problem: 'Kein einziger Aufgabenbezug – das Konzept bliebe für immer bei null.',
+      });
+    }
+  }
+
+  /*
+   * Jedes Konzept braucht mindestens eine Aufgabe, die sich ohne Übungsserver
+   * beurteilen lässt.
+   *
+   * Sonst steht der Begriff in der Wissenslandkarte dauerhaft auf „braucht den
+   * Server" – und zwar für jede Lernende, egal wie viel sie arbeitet. Das ist
+   * kein hypothetischer Fall: Genau so lagen vier Konzepte, darunter das
+   * WHERE-Filtern, bis die Landkarte es sichtbar machte.
+   *
+   * Wenn der Runner steht, darf diese Regel entfallen. Bis dahin ist sie der
+   * Unterschied zwischen „noch nicht geübt" und „hier ist nichts zu holen".
+   */
+  const beurteilbarGeuebt = new Set(
+    lehrplan.module.flatMap((modul) =>
+      modul.lektionen.flatMap((lektion) =>
+        lektion.aufgaben
+          .filter((aufgabe) => BRAUCHT_AUSFUEHRUNG.has(aufgabe.art) === false)
+          .flatMap((aufgabe) => aufgabe.konzepte),
+      ),
+    ),
+  );
+  for (const konzept of lehrplan.konzepte) {
+    if (geuebt.has(konzept.slug) && !beurteilbarGeuebt.has(konzept.slug)) {
+      befunde.push({
+        ort: `konzept/${konzept.slug}`,
+        problem:
+          'Nur Schreibaufgaben. Ohne Übungsserver lässt sich zu diesem Konzept nichts ' +
+          'beurteilen – es stünde in der Wissenslandkarte dauerhaft auf „braucht den Server".',
       });
     }
   }

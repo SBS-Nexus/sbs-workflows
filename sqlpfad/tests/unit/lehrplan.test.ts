@@ -377,6 +377,18 @@ describe('Der Validator findet echte Fehler', () => {
     expect(befunde.some((befund) => befund.problem.includes('Hinweise'))).toBe(true);
   });
 
+  it('meldet ein Konzept, zu dem es nur Schreibaufgaben gibt', () => {
+    /*
+     * Gegenprobe zur Regel, die aus der Wissenslandkarte entstanden ist: Ein
+     * Konzept, zu dem sich ohne Übungsserver nichts beurteilen lässt, stünde
+     * dort für jede Lernende dauerhaft auf „braucht den Server".
+     */
+    const befunde = pruefeLehrplan(
+      basis({ art: 'ABFRAGE_SCHREIBEN', loesungSql: 'SELECT Name FROM Kunden;' }),
+    );
+    expect(befunde.some((befund) => befund.problem.includes('Nur Schreibaufgaben'))).toBe(true);
+  });
+
   it('meldet eine Lektion mit zu wenigen Aufgaben', () => {
     const plan = basis();
     const modul = plan.module[0];

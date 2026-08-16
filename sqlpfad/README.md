@@ -37,7 +37,7 @@ grundlegend andere Architektur der Codeausführung.
 
 ### Der Lehrplan
 
-Vier Module, 15 Lektionen, 60 Aufgaben, 31 Konzepte, 4 Projekte.
+Vier Module, 15 Lektionen, 64 Aufgaben, 31 Konzepte, 4 Projekte.
 
 | Modul                      | Lektionen | Worum es geht                                               |
 | -------------------------- | --------- | ----------------------------------------------------------- |
@@ -365,8 +365,11 @@ Damit dieses Dokument nicht mehr verspricht als der Code hält:
   nach dem, was nachweislich vorliegt: was zuletzt nicht saß. Ein erfundenes
   „in 3 Tagen wieder" wäre eine Zahl mit dem Anschein von Wissenschaft und
   nichts dahinter.
-- **Kompetenzwerte je Konzept** werden noch nicht fortgeschrieben. Versuche
-  werden festgehalten, aber nur, wenn es ein echtes Urteil gab.
+- **Kompetenzwerte je Konzept** werden nicht als Zahl fortgeschrieben. Die
+  Wissenslandkarte auf dem Überblick leitet den Stand bei jedem Aufruf aus den
+  Versuchen ab und zeigt ein Wort statt einer Prozentzahl; `ConceptMastery`
+  bleibt ungenutzt, bis es ein Gedächtnismodell gibt, das seine Felder füllen
+  kann.
 - **Ein KI-Tutor** ist nicht enthalten.
 - **Organisationen und Kohorten** stehen im Datenmodell, haben aber keine
   Oberfläche.

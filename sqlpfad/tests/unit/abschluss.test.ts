@@ -5,6 +5,7 @@ import {
   type AufgabenStand,
 } from '@/domain/aufgabe/abschluss';
 import { LEHRPLAN } from '@/content';
+import type { Aufgabenart } from '@/content/typen';
 
 describe('Was sich ohne Übungsserver beurteilen lässt', () => {
   it('zählt Auswahl, Reihenfolge, Vorhersage und Freitext dazu', () => {
@@ -77,3 +78,45 @@ describe('Abschluss einer Lektion', () => {
     expect(istLektionAbgeschlossen([])).toBe(false);
   });
 });
+
+describe('Validator und Bewertung sind sich einig', () => {
+  it('stuft dieselben Arten als „braucht Ausführung" ein', () => {
+    /*
+     * Der Validator führt eine eigene Liste, damit er nicht von der
+     * Bewertungslogik abhängt. Zwei Listen laufen auseinander, sobald eine
+     * Aufgabenart dazukommt – und dann meldet der Validator eine Lücke, die es
+     * nicht gibt, oder übersieht eine, die es gibt.
+     */
+    const alleArten: Aufgabenart[] = [
+      'EINFACHAUSWAHL',
+      'MEHRFACHAUSWAHL',
+      'FREITEXT',
+      'ERGEBNIS_VORHERSAGEN',
+      'REIHENFOLGE',
+      'ABFRAGE_ERGAENZEN',
+      'FEHLER_FINDEN',
+      'FEHLER_ERKLAEREN',
+      'ABFRAGE_SCHREIBEN',
+      'TRANSFER',
+    ];
+
+    const lautBewertung = alleArten.filter((art) => !istBeurteilbar(art)).sort();
+    const lautValidator = alleArten
+      .filter((art) => BRAUCHT_AUSFUEHRUNG_IM_VALIDATOR.has(art))
+      .sort();
+
+    expect(lautValidator).toEqual(lautBewertung);
+  });
+});
+
+/**
+ * Die Liste, die `src/content/validator.ts` führt – hier gespiegelt, damit der
+ * Test sie mit `istBeurteilbar` vergleichen kann, ohne dass der Validator sie
+ * exportieren muss.
+ */
+const BRAUCHT_AUSFUEHRUNG_IM_VALIDATOR = new Set<Aufgabenart>([
+  'ABFRAGE_ERGAENZEN',
+  'ABFRAGE_SCHREIBEN',
+  'FEHLER_FINDEN',
+  'TRANSFER',
+]);

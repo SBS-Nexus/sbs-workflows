@@ -419,6 +419,34 @@ Entweder die Spalte darf NULL sein, oder sie bekommt einen \`DEFAULT\`.
           konzepte: ['datentyp'],
         },
         {
+          slug: 'a-alter-vor-anlegen',
+          art: 'EINFACHAUSWAHL',
+          titel: 'Warum lehnt SQL Server das ab?',
+          aufgabenstellung:
+            'Die Tabelle Kunden hat acht Zeilen. Jemand schreibt ALTER TABLE Kunden ADD ' +
+            'Kundennummer nvarchar(20) NOT NULL; und bekommt eine Fehlermeldung. Woran liegt es?',
+          nutzlast: {
+            optionen: [
+              'Für die acht vorhandenen Zeilen gäbe es keinen Wert – und NULL ist nicht erlaubt.',
+              'nvarchar(20) ist für eine Kundennummer zu kurz.',
+              'Eine Tabelle mit Daten darf gar nicht mehr geändert werden.',
+              'ALTER TABLE kennt das Wort ADD nicht.',
+            ],
+            richtig: 0,
+            aufloesung:
+              'Die Regel und die vorhandenen Daten widersprechen sich: NOT NULL verlangt einen ' +
+              'Wert, den es für die acht Zeilen nicht gibt. Zwei Wege führen heraus – die Spalte ' +
+              'NULL erlauben oder ihr einen DEFAULT mitgeben. Eine Tabelle mit Daten lässt sich ' +
+              'sehr wohl ändern, nur eben nicht widersprüchlich.',
+          },
+          hinweise: [
+            'Was stünde in der neuen Spalte bei den acht Zeilen, die es schon gibt?',
+            'Die Meldung kommt von einer der Angaben in der Zeile – welcher?',
+          ],
+          schwierigkeit: 3,
+          konzepte: ['tabelle-anlegen', 'einschraenkung'],
+        },
+        {
           slug: 'a-einschraenkungen-waehlen',
           art: 'MEHRFACHAUSWAHL',
           titel: 'Was gehört an diese Tabelle?',

@@ -96,6 +96,41 @@ Spalte fällt bei jedem dieser Operatoren heraus, auch bei \`<>\`.
           konzepte: ['where-filter'],
         },
         {
+          /*
+           * Eine Aufgabe zu WHERE, die sich ohne Übungsserver beurteilen lässt.
+           *
+           * Alle anderen Aufgaben zu diesem Konzept sind Schreibaufgaben. Ohne
+           * diese hier stünde „Zeilen auswählen mit WHERE" in der
+           * Wissenslandkarte dauerhaft auf „braucht den Server" – bei einem
+           * Begriff, der zum Kern des Moduls gehört.
+           */
+          slug: 'a-where-wirkung',
+          art: 'EINFACHAUSWAHL',
+          titel: 'Was macht WHERE mit dem Ergebnis?',
+          aufgabenstellung:
+            'Die Tabelle Kunden hat 8 Zeilen und 5 Spalten. Du hängst an eine Abfrage über alle ' +
+            'Spalten ein WHERE an, auf das drei Kundinnen passen. Wie sieht das Ergebnis aus?',
+          nutzlast: {
+            optionen: [
+              '3 Zeilen und weiterhin 5 Spalten',
+              '3 Zeilen und 3 Spalten',
+              '8 Zeilen, bei denen 5 leer sind',
+              '8 Zeilen, davon 3 hervorgehoben',
+            ],
+            richtig: 0,
+            aufloesung:
+              'WHERE macht das Ergebnis kürzer, nicht schmaler. Welche Spalten herauskommen, ' +
+              'entscheidet allein die Liste hinter SELECT. Und es bleiben keine leeren Zeilen ' +
+              'übrig: Was die Bedingung nicht erfüllt, kommt gar nicht erst vor.',
+          },
+          hinweise: [
+            'Zwei Dinge sind zu trennen: die Zahl der Zeilen und die Zahl der Spalten.',
+            'Welcher Teil einer Abfrage bestimmt die Spalten?',
+          ],
+          schwierigkeit: 1,
+          konzepte: ['where-filter'],
+        },
+        {
           slug: 'a-where-datum',
           art: 'ABFRAGE_SCHREIBEN',
           titel: 'Aufträge seit Februar',
@@ -455,6 +490,27 @@ Unterstrich \`_\` steht für genau ein Zeichen.
           konzepte: ['mustersuche'],
         },
         {
+          slug: 'a-muster-lesen',
+          art: 'MEHRFACHAUSWAHL',
+          titel: 'Welche Namen trifft das Muster?',
+          aufgabenstellung:
+            "Die Bedingung lautet WHERE Name LIKE 'B%t'. Welche der folgenden Namen erfüllt sie?",
+          nutzlast: {
+            optionen: ['Brandt', 'Bogert', 'Bernhardt', 'Albert', 'Bast'],
+            richtig: [0, 1, 2, 4],
+            aufloesung:
+              'Das Muster verlangt: fängt mit B an, endet auf t, dazwischen beliebig viel – auch ' +
+              'nichts. Albert fängt mit A an und fällt deshalb heraus, obwohl er auf t endet. ' +
+              'Das Prozentzeichen steht für beliebig viele Zeichen, auch für null.',
+          },
+          hinweise: [
+            'Lies das Muster von links nach rechts: erst B, dann beliebig viel, dann t.',
+            'Einer der Namen scheitert nicht am Ende, sondern am Anfang.',
+          ],
+          schwierigkeit: 2,
+          konzepte: ['mustersuche'],
+        },
+        {
           slug: 'a-null-sortierung',
           art: 'EINFACHAUSWAHL',
           titel: 'Wo landet NULL beim Sortieren?',
@@ -603,6 +659,33 @@ keinen. In der Anzeige stünde dann eine Überschrift wie „Spalte1".
           ],
           schwierigkeit: 2,
           konzepte: ['berechnete-spalten', 'alias'],
+        },
+        {
+          slug: 'a-rechnen-wirkung',
+          art: 'EINFACHAUSWAHL',
+          titel: 'Was passiert dabei mit der Tabelle?',
+          aufgabenstellung:
+            'Du führst SELECT Bezeichnung, Menge * Einzelpreis AS Zeilensumme FROM Positionen ' +
+            'aus. Was steht danach in der Tabelle Positionen?',
+          nutzlast: {
+            optionen: [
+              'Dasselbe wie vorher – die Spalte Zeilensumme gibt es nur im Ergebnis.',
+              'Eine neue Spalte Zeilensumme, dauerhaft gespeichert.',
+              'Eine neue Spalte, die beim nächsten Neustart wieder verschwindet.',
+              'Nichts mehr – die Abfrage ersetzt den Inhalt.',
+            ],
+            richtig: 0,
+            aufloesung:
+              'Ein SELECT liest nur. Die berechnete Spalte entsteht für die Dauer dieses einen ' +
+              'Ergebnisses und wird nirgends abgelegt. Um eine Spalte wirklich anzulegen, ' +
+              'bräuchte es ALTER TABLE – das kommt in Modul 4.',
+          },
+          hinweise: [
+            'Welches Wort steht am Anfang der Anweisung, und was tut es?',
+            'Was müsste dastehen, wenn sich die Tabelle wirklich ändern soll?',
+          ],
+          schwierigkeit: 2,
+          konzepte: ['berechnete-spalten'],
         },
         {
           slug: 'a-alias-im-order-by',
