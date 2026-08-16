@@ -1,0 +1,788 @@
+// SQLPfad – Datenmodell der Plattformdatenbank
+//
+// Diese Datenbank ist NICHT die Übungsdatenbank.
+//
+// Das ist die wichtigste Aussage der ganzen Datei. Hier liegen Konten,
+// Sitzungen, Fortschritt und Inhalte; das SQL der Lernenden läuft in einer
+// vollständig getrennten SQL-Server-Sandbox, die von dieser Datenbank nichts
+// weiß und aus der es keinen Weg hierher gibt. Wären beide ein System, wäre
+// jede Lücke im Berechtigungsmodell sofort ein Zugriff auf die Konten aller
+// anderen. Begründung und Aufbau: docs/SQL-RUNNER.md, Abschnitt 2.
+//
+// Weitere Leitgedanken:
+//  * Inhalt (Course/Module/Lesson/Exercise/Concept/Project) und Lernverlauf
+//    (Attempt/ConceptMastery/LearningSession) sind strikt getrennt. Inhalte
+//    werden aus versionierten Dateien geseedet, Lernverlauf entsteht zur
+//    Laufzeit.
+//  * Personenbezogene Lerndaten und anonyme Produktanalyse liegen in
+//    getrennten Tabellen (Attempt vs. AnalyticsEvent). AnalyticsEvent enthält
+//    bewusst keine Fremdschlüssel auf User.
+//  * Jeder Fremdschlüssel hat eine explizite Löschregel, damit
+//    "Konto löschen" vollständig und ohne Restdaten funktioniert.
+//  * Zugangsdaten zur Sandbox stehen hier nirgends. Die Tabelle Sandbox
+//    verwaltet die Zuordnung und den Zustand, nicht das Kennwort.
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  runtime                = "nodejs"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Aufzählungen
+// ---------------------------------------------------------------------------
+
+enum Role {
+  LEARNER
+  ADMIN
+}
+
+/// Redaktioneller Lebenszyklus von Inhalten (Adminbereich).
+enum ContentStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+/// Wofür braucht die Person SQL? Steuert die Auswahl der Beispielkontexte –
+/// eine Controllerin und eine Entwicklerin stellen andere Fragen an dieselbe
+/// Tabelle.
+enum LearningGoal {
+  GENERAL
+  REPORTING
+  DATA_ANALYSIS
+  APPLICATION_DEVELOPMENT
+  DATABASE_ADMINISTRATION
+  CAREER_CHANGE
+}
+
+/// Selbstauskunft im Onboarding – kein Testergebnis.
+enum ExperienceLevel {
+  NONE
+  SPREADSHEETS_ONLY
+  READS_QUERIES
+  WRITES_SIMPLE_QUERIES
+  OTHER_SQL_DIALECT
+}
+
+enum LearningPace {
+  RELAXED
+  STEADY
+  FOCUSED
+}
+
+/// Aufgabenarten.
+///
+/// Sie unterscheiden sich von PythonPfad an genau den Stellen, an denen SQL
+/// anders funktioniert: Statt „Ausgabe vorhersagen" heißt es hier
+/// PREDICT_RESULT (welche Zeilen kommen heraus?), und ORDER_CLAUSES übt die
+/// logische Verarbeitungsreihenfolge, die von der Schreibreihenfolge abweicht.
+enum ExerciseType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  FREE_TEXT
+  PREDICT_RESULT
+  ORDER_CLAUSES
+  COMPLETE_QUERY
+  FIND_ERROR
+  EXPLAIN_ERROR
+  WRITE_QUERY
+  WRITE_MODIFICATION
+  READ_EXECUTION_PLAN
+  SCHEMA_DESIGN
+  COMPARE_SOLUTION
+  MINI_PROJECT
+  SPACED_REVIEW
+  TRANSFER
+}
+
+enum AttemptResult {
+  PASSED
+  PARTIAL
+  FAILED
+  /// Musterlösung angesehen – zählt ausdrücklich NICHT als Beherrschung.
+  SOLUTION_REVEALED
+}
+
+/// Grobe Fehlerklasse.
+///
+/// Die Werte entsprechen `Fehlerkategorie` aus src/domain/sql/fehler.ts. Sie
+/// werden für Fehlermuster im Dashboard und für die Gewichtung im
+/// Kompetenzmodell verwendet.
+enum ErrorCategory {
+  NONE
+  SYNTAX
+  OBJECT
+  COLUMN
+  ALIAS
+  DATATYPE
+  CONVERSION
+  NULLABILITY
+  CONSTRAINT
+  KEY
+  AGGREGATION
+  SUBQUERY
+  TRANSACTION
+  PERMISSION
+  TIMEOUT
+  DEADLOCK
+  /// Von der Statement-Policy abgelehnt – etwa ein UPDATE in einer
+  /// SELECT-Lektion. Kein Fehler im engeren Sinn, sondern ein Missverständnis
+  /// der Aufgabe.
+  POLICY
+  /// Die Abfrage läuft, liefert aber etwas anderes als gefordert. Der
+  /// wichtigste Fall überhaupt, weil ihn keine Fehlermeldung anzeigt.
+  WRONG_RESULT
+  EMPTY_SUBMISSION
+  UNKNOWN
+}
+
+/// Selbsteinschätzung vor bzw. nach der Bearbeitung (Metakognition).
+enum Confidence {
+  UNSURE
+  RATHER_UNSURE
+  RATHER_SURE
+  VERY_SURE
+}
+
+enum SubmissionStatus {
+  IN_PROGRESS
+  SUBMITTED
+  ACCEPTED
+  NEEDS_REVISION
+}
+
+enum LessonState {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// Zustand einer Übungsdatenbank.
+enum SandboxState {
+  /// Angefordert, aber noch nicht bereit.
+  PROVISIONING
+  READY
+  /// Wird gerade zurückgesetzt.
+  RESETTING
+  /// Bereitstellung fehlgeschlagen – die Oberfläche sagt das offen.
+  FAILED
+  /// Aufgeräumt, etwa nach langer Untätigkeit. Wird bei Bedarf neu erstellt.
+  RELEASED
+}
+
+// ---------------------------------------------------------------------------
+// Konten und Sitzungen
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String @id @default(cuid())
+  email        String @unique
+  /// scrypt-Hash im Format  scrypt$N$r$p$salt$hash  – nie im Klartext.
+  passwordHash String
+  name         String
+  role         Role   @default(LEARNER)
+  locale       String @default("de-DE")
+  timezone     String @default("Europe/Berlin")
+
+  onboardingCompleted Boolean         @default(false)
+  experience          ExperienceLevel @default(NONE)
+  learningGoal        LearningGoal    @default(GENERAL)
+  /// Verfügbare Lernzeit pro Tag in Minuten.
+  dailyTimeBudget     Int             @default(20)
+  pace                LearningPace    @default(STEADY)
+  currentPathId       String?
+  placementCompleted  Boolean         @default(false)
+  /// Ergebnis der diagnostischen Einstufung, 0–100.
+  placementScore      Int?
+
+  reduceMotion Boolean @default(false)
+  theme        String  @default("system")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  currentPath        LearningPath?       @relation("UserCurrentPath", fields: [currentPathId], references: [id], onDelete: SetNull)
+  sessions           AuthSession[]
+  paths              LearningPath[]      @relation("UserPaths")
+  attempts           Attempt[]
+  mastery            ConceptMastery[]
+  lessonProgress     LessonProgress[]
+  projectSubmissions ProjectSubmission[]
+  learningSessions   LearningSession[]
+  reviewItems        ReviewQueueItem[]
+  milestoneAwards    MilestoneAward[]
+  sandboxes          Sandbox[]
+  memberships        Membership[]
+  cohortMemberships  CohortMembership[]
+  auditEntries       AuditEntry[]        @relation("AuditActor")
+
+  @@index([role])
+  @@map("users")
+}
+
+/// Ein erreichter Meilenstein.
+///
+/// Wird einmal vergeben und nie wieder entzogen. Ein Kompetenzwert kann durch
+/// Vergessen sinken, aber die Person hat das damals wirklich gekonnt – eine
+/// Auszeichnung zurückzunehmen wäre genau die Verlustmechanik, die dieses
+/// Produkt nicht haben soll.
+model MilestoneAward {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String
+  awardedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@map("milestone_awards")
+}
+
+/// Opake Sitzungstoken. In der Datenbank liegt nur der SHA-256-Hash, damit ein
+/// Datenbankleck keine übernehmbaren Sitzungen preisgibt.
+model AuthSession {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  /// Zufallswert für das CSRF-Double-Submit-Verfahren.
+  csrfSecret String
+  userAgent  String?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Übungsdatenbanken
+// ---------------------------------------------------------------------------
+
+/// Ein Übungsdatensatz: Tabellen, Beziehungen und Beispieldaten.
+///
+/// Der Inhalt (DDL und Seed) steht in versionierten Dateien, nicht hier. In
+/// dieser Tabelle steht, welche Fassung als bereitgestellt gilt – daran
+/// erkennt der Runner, ob eine bestehende Sandbox veraltet ist.
+model PracticeSchema {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  description String
+  /// Fachlicher Zusammenhang, aus dem die Daten stammen – etwa ein
+  /// Handwerksbetrieb oder eine Bibliothek. Steht in der Lektion.
+  domain      String
+  version     String        @default("1.0.0")
+  status      ContentStatus @default(PUBLISHED)
+
+  sandboxes Sandbox[]
+  lessons   Lesson[]
+  exercises Exercise[]
+
+  @@map("practice_schemas")
+}
+
+/// Die Übungsdatenbank einer Person.
+///
+/// Hier steht ausdrücklich **kein** Kennwort und keine Verbindungszeichenfolge.
+/// Die Zugangsdaten des zugehörigen Anmeldenamens verwaltet der Runner-Dienst
+/// in seinem eigenen Secret Store. Diese Tabelle kennt nur die Zuordnung, den
+/// Zustand und die Zeitpunkte – genug, um die Oberfläche ehrlich zu bedienen,
+/// und zu wenig, als dass ein Leck dieser Datenbank Zugriff auf eine Sandbox
+/// gäbe.
+model Sandbox {
+  id               String       @id @default(cuid())
+  userId           String
+  practiceSchemaId String
+  /// Name der Datenbank auf dem Übungsserver. Wird vom Runner vergeben.
+  databaseName     String       @unique
+  /// Fassung des Übungsdatensatzes, die tatsächlich eingespielt ist.
+  schemaVersion    String
+  state            SandboxState @default(PROVISIONING)
+  /// Grund, falls state = FAILED. Wird der Person im Klartext gezeigt.
+  stateReason      String?
+  createdAt        DateTime     @default(now())
+  lastUsedAt       DateTime     @default(now())
+  lastResetAt      DateTime?
+  /// Nach diesem Zeitpunkt darf aufgeräumt werden.
+  expiresAt        DateTime?
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  practiceSchema PracticeSchema @relation(fields: [practiceSchemaId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, practiceSchemaId])
+  @@index([state])
+  @@index([expiresAt])
+  @@map("sandboxes")
+}
+
+// ---------------------------------------------------------------------------
+// Inhalte
+// ---------------------------------------------------------------------------
+
+model Course {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  description String
+  version     String        @default("1.0.0")
+  status      ContentStatus @default(PUBLISHED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  modules CourseModule[]
+  paths   LearningPath[]
+
+  @@map("courses")
+}
+
+model CourseModule {
+  id          String        @id @default(cuid())
+  courseId    String
+  slug        String        @unique
+  title       String
+  description String
+  order       Int           @default(0)
+  status      ContentStatus @default(PUBLISHED)
+
+  course   Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons  Lesson[]
+  projects Project[]
+
+  @@index([courseId, order])
+  @@map("course_modules")
+}
+
+model Lesson {
+  id               String        @id @default(cuid())
+  moduleId         String
+  practiceSchemaId String?
+  slug             String        @unique
+  title            String
+  /// Die Frage an die Daten, mit der die Lektion beginnt.
+  leadingQuestion  String
+  /// Lernziele als JSON-Liste.
+  objectives       Json          @default("[]")
+  /// Erklärtext in Markdown.
+  body             String
+  /// Geschätzte Dauer in Minuten.
+  estimatedMinutes Int           @default(12)
+  order            Int           @default(0)
+  contentVersion   String        @default("1.0.0")
+  status           ContentStatus @default(PUBLISHED)
+
+  module         CourseModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  practiceSchema PracticeSchema?  @relation(fields: [practiceSchemaId], references: [id], onDelete: SetNull)
+  concepts       LessonConcept[]
+  exercises      Exercise[]
+  progress       LessonProgress[]
+
+  @@index([moduleId, order])
+  @@index([status])
+  @@map("lessons")
+}
+
+/// Ein einzelner Begriff, dessen Beherrschung getrennt verfolgt wird.
+model Concept {
+  id          String @id @default(cuid())
+  slug        String @unique
+  title       String
+  description String
+  /// 1–5.
+  difficulty  Int    @default(1)
+
+  lessons   LessonConcept[]
+  exercises ExerciseConcept[]
+  mastery   ConceptMastery[]
+
+  @@map("concepts")
+}
+
+model LessonConcept {
+  lessonId  String
+  conceptId String
+  /// Wird das Konzept hier eingeführt oder nur angewendet?
+  isPrimary Boolean @default(false)
+
+  lesson  Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@id([lessonId, conceptId])
+  @@index([conceptId])
+  @@map("lesson_concepts")
+}
+
+model Exercise {
+  id               String        @id @default(cuid())
+  lessonId         String?
+  practiceSchemaId String?
+  slug             String        @unique
+  type             ExerciseType
+  title            String
+  prompt           String
+  /// Typspezifische Nutzlast (Optionen, Bausteine, Lücken …).
+  payload          Json
+  starterSql       String?
+  solutionSql      String?
+  /// Erklärung der Musterlösung. Wird erst nach der Hinweisleiter freigegeben.
+  solutionNotes    String?
+
+  /// Anweisungsklassen, die diese Aufgabe zulässt – Werte aus
+  /// `AnweisungsKlasse` in src/domain/sql/statement-policy.ts.
+  ///
+  /// Ausdrücklich kein Sicherheitsmerkmal: Die Grenze sind die
+  /// Datenbankberechtigungen. Diese Angabe bestimmt, wann die Anwendung eine
+  /// Erklärung zeigt statt stillschweigend auszuführen.
+  allowedStatementClasses String[] @default(["SELECT"])
+
+  /// Erwartetes Ergebnis als {spalten, zeilen}. Für Aufgaben, deren Lösung
+  /// gegen ein festes Resultset geprüft wird.
+  expectedResultset Json?
+  /// Optionen für `vergleicheResultsets` – etwa ob die Reihenfolge zählt.
+  comparisonOptions Json          @default("{\"reihenfolgeZaehlt\":false}")
+
+  /// Progressive Hinweisleiter, Stufe 1 (Denkimpuls) bis 5 (Erklärung).
+  hints           Json          @default("[]")
+  /// 1–5, wie Concept.difficulty.
+  difficulty      Int           @default(1)
+  /// Gerüst-Stufe 1 (vollständig gelöst) bis 6 (Transfer ohne Hilfen).
+  scaffoldLevel   Int           @default(3)
+  transferContext String?
+  order           Int           @default(0)
+  contentVersion  String        @default("1.0.0")
+  status          ContentStatus @default(PUBLISHED)
+
+  lesson         Lesson?           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  practiceSchema PracticeSchema?   @relation(fields: [practiceSchemaId], references: [id], onDelete: SetNull)
+  concepts       ExerciseConcept[]
+  attempts       Attempt[]
+  reviewItems    ReviewQueueItem[]
+
+  @@index([lessonId])
+  @@index([type])
+  @@index([status])
+  @@map("exercises")
+}
+
+model ExerciseConcept {
+  exerciseId String
+  conceptId  String
+  /// Gewicht 0.0–1.0: wie stark zahlt diese Aufgabe auf das Konzept ein?
+  weight     Float  @default(1.0)
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  concept  Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@id([exerciseId, conceptId])
+  @@index([conceptId])
+  @@map("exercise_concepts")
+}
+
+model Project {
+  id             String        @id @default(cuid())
+  moduleId       String?
+  slug           String        @unique
+  title          String
+  /// Der Auftrag in Prosa – eine Frage, die jemand wirklich stellen würde.
+  brief          String
+  /// Abnahmekriterien als JSON-Liste.
+  acceptance     Json          @default("[]")
+  starterSql     String?
+  order          Int           @default(0)
+  contentVersion String        @default("1.0.0")
+  status         ContentStatus @default(PUBLISHED)
+
+  module      CourseModule?       @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  submissions ProjectSubmission[]
+
+  @@index([moduleId, order])
+  @@map("projects")
+}
+
+// ---------------------------------------------------------------------------
+// Lernverlauf
+// ---------------------------------------------------------------------------
+
+model LearningPath {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  /// Reihenfolge der Lektionen als JSON-Liste von Lesson-IDs.
+  order     Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user       User   @relation("UserPaths", fields: [userId], references: [id], onDelete: Cascade)
+  course     Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  usedByUser User[] @relation("UserCurrentPath")
+
+  @@index([userId])
+  @@map("learning_paths")
+}
+
+model LessonProgress {
+  id          String      @id @default(cuid())
+  userId      String
+  lessonId    String
+  state       LessonState @default(NOT_STARTED)
+  startedAt   DateTime?
+  completedAt DateTime?
+  updatedAt   DateTime    @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId, state])
+  @@map("lesson_progress")
+}
+
+model Attempt {
+  id               String        @id @default(cuid())
+  userId           String
+  exerciseId       String
+  submittedSql     String        @db.Text
+  result           AttemptResult
+  errorType        ErrorCategory @default(NONE)
+  /// Fehlernummer von SQL Server, falls eine gemeldet wurde. Getrennt vom
+  /// Text gespeichert, weil sich daraus Fehlermuster auswerten lassen, ohne
+  /// Meldungstexte zu durchsuchen.
+  errorNumber      Int?
+  /// Erste Zeile der Originalmeldung – hilft beim Erkennen von Mustern.
+  errorSignature   String?
+  /// Zahl der Zeilen, die die Abfrage geliefert hat. Beim häufigsten
+  /// Fehlerbild - Abfrage läuft, Ergebnis stimmt nicht - ist das die
+  /// aussagekräftigste einzelne Zahl.
+  returnedRows     Int?
+  hintsUsed        Int           @default(0)
+  /// Bearbeitungsdauer in Millisekunden.
+  durationMs       Int           @default(0)
+  /// Ausführungsdauer auf dem Übungsserver in Millisekunden.
+  executionMs      Int?
+  confidenceBefore Confidence?
+  confidenceAfter  Confidence?
+  /// Wurde die Aufgabe als geplante Wiederholung bearbeitet?
+  isReview         Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, exerciseId])
+  @@index([exerciseId, result])
+  @@index([createdAt])
+  @@map("attempts")
+}
+
+model ConceptMastery {
+  id                   String    @id @default(cuid())
+  userId               String
+  conceptId            String
+  /// 0–100. Bewusst als Orientierung, nicht als Messwert kommuniziert.
+  masteryScore         Float     @default(0)
+  /// Gedächtnisstabilität in Tagen – steuert das nächste Intervall.
+  stability            Float     @default(1)
+  /// Personenbezogene Schwierigkeit 1.0–5.0.
+  difficulty           Float     @default(2.5)
+  lastPracticedAt      DateTime?
+  nextReviewAt         DateTime?
+  successfulRetrievals Int       @default(0)
+  failedRetrievals     Int       @default(0)
+  transferSuccesses    Int       @default(0)
+  algorithmVersion     String    @default("1.0.0")
+  updatedAt            DateTime  @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conceptId])
+  @@index([userId, nextReviewAt])
+  @@map("concept_mastery")
+}
+
+model ReviewQueueItem {
+  id         String    @id @default(cuid())
+  userId     String
+  exerciseId String
+  dueAt      DateTime
+  completedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dueAt])
+  @@map("review_queue_items")
+}
+
+model ProjectSubmission {
+  id          String           @id @default(cuid())
+  userId      String
+  projectId   String
+  sql         String           @db.Text
+  notes       String?
+  status      SubmissionStatus @default(IN_PROGRESS)
+  submittedAt DateTime?
+  updatedAt   DateTime         @updatedAt
+  createdAt   DateTime         @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([status])
+  @@map("project_submissions")
+}
+
+/// Eine zusammenhängende Lernsitzung.
+///
+/// Gemessen ab der letzten Aktivität, nicht ab dem Seitenaufruf: Wer eine
+/// Seite offen liegen lässt, hat nicht drei Stunden gelernt.
+model LearningSession {
+  id           String   @id @default(cuid())
+  userId       String
+  startedAt    DateTime @default(now())
+  lastActiveAt DateTime @default(now())
+  endedAt      DateTime?
+  /// Summe der aktiven Minuten.
+  activeMinutes Int     @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+  @@map("learning_sessions")
+}
+
+/// Anonyme Produktanalyse.
+///
+/// Ohne Fremdschlüssel auf User, und zwar mit Absicht: Sobald hier eine
+/// Kontonummer stünde, wäre es keine anonyme Auswertung mehr, sondern ein
+/// zweiter Datensatz über eine Person.
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  name      String
+  payload   Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@map("analytics_events")
+}
+
+// ---------------------------------------------------------------------------
+// Organisationen
+// ---------------------------------------------------------------------------
+
+enum OrgRole {
+  OWNER
+  TEACHER
+  MEMBER
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+
+  memberships Membership[]
+  cohorts     Cohort[]
+  invitations Invitation[]
+  auditIn     AuditEntry[]
+
+  @@map("organizations")
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrgRole  @default(MEMBER)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+model Cohort {
+  id             String   @id @default(cuid())
+  organizationId String
+  slug           String
+  name           String
+  createdAt      DateTime @default(now())
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      CohortMembership[]
+
+  @@unique([organizationId, slug])
+  @@map("cohorts")
+}
+
+model CohortMembership {
+  id        String   @id @default(cuid())
+  cohortId  String
+  userId    String
+  /// Ausdrückliche Einwilligung, dass die Lehrkraft den Fortschritt sieht.
+  /// Ohne sie zeigt der Lehrkraftbereich nur Zahlen über die Gruppe.
+  shareProgress Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, userId])
+  @@index([userId])
+  @@map("cohort_memberships")
+}
+
+model Invitation {
+  id             String   @id @default(cuid())
+  organizationId String
+  email          String
+  role           OrgRole  @default(MEMBER)
+  /// Nur der Hash des Einladungstokens, nie das Token selbst.
+  tokenHash      String   @unique
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([expiresAt])
+  @@map("invitations")
+}
+
+/// Nachvollziehbarkeit für Handlungen mit Wirkung auf andere.
+model AuditEntry {
+  id             String   @id @default(cuid())
+  organizationId String?
+  actorId        String?
+  action         String
+  target         String?
+  detail         Json     @default("{}")
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?         @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@map("audit_entries")
+}

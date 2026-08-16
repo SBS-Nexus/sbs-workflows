@@ -1,0 +1,67 @@
+# SQLPfad - lokale Infrastruktur.
+#
+# Zwei getrennte Datenebenen, und die Trennung ist kein Ordnungsprinzip,
+# sondern die zentrale Sicherheitsgrenze der Anwendung:
+#
+#   postgres   Plattformdaten: Konten, Fortschritt, Inhalte.
+#              Lernende fuehren hier NIEMALS SQL aus.
+#
+#   sqlserver  Uebungsdatenbank. Hier laeuft das SQL der Lernenden - mit
+#              minimalen Rechten und ohne jede Sicht auf die Plattformdaten.
+#
+# Die SQL-Server-Developer-Edition ist fuer Entwicklung vorgesehen. Fuer den
+# Produktionsbetrieb ist die Lizenzfrage gesondert zu klaeren; siehe
+# docs/SQL-RUNNER.md.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sqlpfad-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sqlpfad
+      POSTGRES_PASSWORD: sqlpfad
+      POSTGRES_DB: sqlpfad
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8'
+    ports:
+      - '127.0.0.1:5433:5432'
+    volumes:
+      - sqlpfad-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sqlpfad -d sqlpfad']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  sqlserver:
+    # Vor jeder Aenderung gegen die offizielle Microsoft-Dokumentation pruefen.
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    container_name: sqlpfad-sqlserver
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: 'Y'
+      MSSQL_PID: 'Developer'
+      # Nur fuer die lokale Entwicklung. `npm run einrichten` erzeugt einen
+      # zufaelligen Wert und schreibt ihn in .env - dieser Vorgabewert darf
+      # niemals in einer erreichbaren Umgebung stehen bleiben.
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-nurLokal!Entwicklung2026}
+    ports:
+      # Ausdruecklich nur auf der Rueckschleife. Port 1433 darf nie auf einer
+      # oeffentlichen Schnittstelle lauschen.
+      - '127.0.0.1:1433:1433'
+    volumes:
+      - sqlpfad-mssql:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          '/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+volumes:
+  sqlpfad-pgdata:
+  sqlpfad-mssql:

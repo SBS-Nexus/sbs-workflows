@@ -1,0 +1,1279 @@
+@import 'tailwindcss';
+
+/*
+ * SQLPfad – Gestaltungsgrundlage
+ *
+ * Dieselbe Familie wie PythonPfad: gleiche Skalen, gleiches Bewegungssystem,
+ * gleiche Regeln für Kontrast und Rückmeldung. Verschieden ist die Leitfarbe.
+ * PythonPfad ist blau, SQLPfad ist petrol – nah genug, dass beide erkennbar
+ * zusammengehören, verschieden genug, dass niemand zwei geöffnete Fenster
+ * verwechselt.
+ *
+ * Leitgedanken:
+ *  - Lebendig und zugewandt. Farbe, Verlauf und Bewegung sind ausdrücklich
+ *    erwünscht: Sie helfen beim Orientieren, machen Zusammenhänge sichtbar und
+ *    machen die Anwendung zu etwas, das man gern öffnet.
+ *  - Farbe ist trotzdem nie das einzige Unterscheidungsmerkmal. Zu jeder
+ *    farblichen Rückmeldung gehören Symbol und Text (WCAG 1.4.1).
+ *  - Jedes Modul hat eine eigene Leitfarbe. Wer im Kurs vorankommt, sieht das
+ *    an der Farbe, bevor er die Überschrift liest.
+ *  - Kontraste erfüllen WCAG 2.2 AA (mindestens 4.5:1 für Fließtext) in beiden
+ *    Farbschemata. Verläufe tragen deshalb nie Fließtext, sondern nur große,
+ *    fette Überschriften – dort gilt 3:1.
+ *  - Schriftgrößen in rem, damit die Browsereinstellung greift.
+ *
+ * Wichtig: Lebendigkeit heißt hier nicht Punktesammeln. Es gibt weiterhin
+ * keine Verlustmechanik, keine Drucknachrichten und keine Ranglisten. Die
+ * Farbe feiert den Inhalt, nicht das Durchhalten.
+ */
+
+@theme {
+  /*
+   * Die Schriftdateien werden in layout.tsx geladen und stellen dort
+   * `--font-plex-sans` und `--font-plex-mono` bereit. Die Ersatzkette bleibt
+   * stehen: Sie greift, bevor die Schrift eingetroffen ist, und dann, wenn
+   * jemand das Laden von Schriften unterbunden hat.
+   */
+  --font-sans:
+    var(--font-plex-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /*
+   * Die Grundskala.
+   *
+   * Sie war vorher ein neutrales Kaltgrau (#f6f7f9 bis #161b25). Damit stand
+   * jede Farbe der Anwendung auf einer grauen Fläche, und die Seiten wirkten
+   * wie ein unverputztes Haus: Der Schmuck war da, der Untergrund nicht.
+   *
+   * Jetzt trägt die ganze Skala einen Indigoanteil. Der Unterschied ist im
+   * einzelnen Farbwert kaum zu benennen und in der Fläche sofort zu sehen –
+   * die hellen Töne wirken wie getöntes Papier statt wie Bildschirmweiß, die
+   * dunklen wie Tinte statt wie Ruß. Für eine Anwendung, die man abends nach
+   * der Arbeit freiwillig öffnen soll, ist das kein Beiwerk.
+   */
+  --color-ink-50: #f4f2fb;
+  --color-ink-100: #e9e5f6;
+  --color-ink-200: #ded9f0;
+  --color-ink-300: #bdb5dd;
+  --color-ink-400: #8981ae;
+  --color-ink-500: #565080;
+  --color-ink-600: #423c66;
+  --color-ink-700: #332e52;
+  --color-ink-800: #2a2545;
+  --color-ink-900: #211d47;
+  --color-ink-950: #12102b;
+
+  /*
+   * Leitfarbe Petrol.
+   *
+   * Ein Blaugrün, das bei Tageslicht ruhig bleibt und im dunklen Schema nicht
+   * grell wird. Wichtig ist die Arbeitsteilung innerhalb der Skala: 600 und
+   * dunkler tragen Text auf hellem Grund, 300 und heller tragen Text auf
+   * dunklem Grund. Die mittleren Töne sind Flächen- und Randfarben, nie
+   * Textfarben – ein Petrol in Sättigung wirkt kräftig und hat trotzdem zu
+   * wenig Kontrast. Geprüft wird das in tests/unit/farbkontrast.test.ts, nicht
+   * mit dem Auge.
+   */
+  --color-accent-50: #ecfbf8;
+  --color-accent-100: #cdf3ed;
+  --color-accent-200: #a3e6dd;
+  --color-accent-300: #6ed3c7;
+  --color-accent-400: #34b4a6;
+  --color-accent-500: #0f9186;
+  --color-accent-600: #0b756c;
+  --color-accent-700: #095d56;
+  --color-accent-800: #0a4a45;
+  --color-accent-900: #093c39;
+
+  --color-success-100: #d9f5e3;
+  --color-success-500: #17925a;
+  --color-success-700: #0f6b41;
+  --color-success-900: #0a4a2d;
+
+  --color-caution-100: #fdefd4;
+  --color-caution-500: #b06f0d;
+  --color-caution-700: #8a5509;
+  --color-caution-900: #5c3806;
+
+  --color-alert-100: #fde3e0;
+  --color-alert-500: #c62f22;
+  --color-alert-700: #99231a;
+  --color-alert-900: #6b1812;
+
+  /*
+   * Modulfarben.
+   *
+   * Eine Leitfarbe je Modul, dazu zwei für die Querbereiche. Sie sind so
+   * gewählt, dass sie sich zusätzlich zur Buntheit in der Helligkeit
+   * unterscheiden – dadurch bleiben sie auch bei Farbsehschwäche
+   * auseinanderzuhalten.
+   */
+  --color-modul-0: #7c3aed;
+  --color-modul-1: #1d4ed8;
+  --color-modul-2: #a94e08;
+  --color-modul-3: #be185d;
+  --color-projekt: #4d7c0f;
+  --color-wiederholen: #475569;
+
+  --color-modul-0-soft: #f3e8ff;
+  --color-modul-1-soft: #dbeafe;
+  --color-modul-2-soft: #fef0d9;
+  --color-modul-3-soft: #fce7f3;
+  --color-projekt-soft: #ecfccb;
+  --color-wiederholen-soft: #e6ebf2;
+
+  /*
+   * Bewegungssystem.
+   *
+   * Drei Dauern statt beliebiger Werte, damit sich die Oberfläche einheitlich
+   * anfühlt. Die Kurven sind bewusst gedämpft: `--ease-emphasis` schwingt ganz
+   * leicht über das Ziel hinaus, ohne zu wippen. Alles darunter wird von
+   * `prefers-reduced-motion` und der Kontoeinstellung ausgeschaltet.
+   */
+  --duration-fast: 120ms;
+  --duration-base: 220ms;
+  --duration-slow: 380ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0, 1);
+  --ease-emphasis: cubic-bezier(0.2, 0.9, 0.25, 1.06);
+  /*
+   * Für Rückmeldungen, nie für Navigation.
+   *
+   * Hier stand `cubic-bezier(0.34, 1.56, 0.64, 1)` – ein Überschwingen von
+   * 56 Prozent, also ein deutliches Nachwippen. Solche Federkurven waren um
+   * 2015 überall und wirken heute wie ein Zeitstempel; eine Oberfläche, die
+   * bei jeder Bestätigung hüpft, wirkt nicht lebendig, sondern billig.
+   *
+   * Der neue Wert schwingt noch um gut zehn Prozent über das Ziel hinaus. Das
+   * genügt, damit eine Bewegung Schwung hat und nicht mechanisch endet – und
+   * bleibt weit unter der Schwelle, ab der man das Wippen als solches
+   * wahrnimmt.
+   */
+  --ease-spring: cubic-bezier(0.22, 1.12, 0.36, 1);
+
+  /*
+   * Größen für große Aussagen.
+   *
+   * Der Sprung zwischen Fließtext und Überschrift ist bewusst groß. Eine
+   * Überschrift, die nur zwei Punkt größer ist als der Text darunter, ordnet
+   * nichts – sie sieht nur nach Überschrift aus.
+   */
+  --text-display: clamp(2rem, 1.35rem + 2.7vw, 3.25rem);
+  --text-display-sm: clamp(1.625rem, 1.1rem + 2.2vw, 2.5rem);
+}
+
+:root {
+  --surface: var(--color-ink-50);
+  --surface-raised: #ffffff;
+  --surface-sunken: var(--color-ink-100);
+  --border: var(--color-ink-200);
+  --border-strong: var(--color-ink-300);
+  --text: var(--color-ink-900);
+  --text-muted: var(--color-ink-500);
+  --text-inverse: #ffffff;
+  --accent: var(--color-accent-700);
+  --accent-hover: var(--color-accent-800);
+  --accent-soft: var(--color-accent-50);
+  /* Dunklere Schwester der Akzentfarbe – nur für die Unterkante von Knöpfen. */
+  --accent-deep: var(--color-accent-900);
+  --success: var(--color-success-700);
+  --success-soft: var(--color-success-100);
+  --caution: var(--color-caution-700);
+  --caution-soft: var(--color-caution-100);
+  --alert: var(--color-alert-700);
+  --alert-soft: var(--color-alert-100);
+  --alert-deep: var(--color-alert-900);
+  --focus-ring: var(--color-accent-600);
+  /* Grundton aller Schatten. Nur diese Zeile unterscheidet sich je Farbschema. */
+  --shadow-tint: 217 33% 11%;
+  color-scheme: light;
+}
+
+/*
+ * Höhenstufen. Drei reichen: aufliegend (Karte mit Betonung), schwebend
+ * (Menü, Popover) und abgehoben (Dialog). Sie leiten sich alle aus
+ * `--shadow-tint` ab, damit im dunklen Schema nichts milchig wirkt.
+ */
+:root {
+  --elevation-1: 0 1px 2px hsl(var(--shadow-tint) / 0.06), 0 1px 3px hsl(var(--shadow-tint) / 0.08);
+  --elevation-2:
+    0 2px 4px hsl(var(--shadow-tint) / 0.06), 0 8px 16px -4px hsl(var(--shadow-tint) / 0.12);
+  --elevation-3:
+    0 4px 8px hsl(var(--shadow-tint) / 0.08), 0 24px 48px -12px hsl(var(--shadow-tint) / 0.24);
+}
+
+:root[data-theme='dark'],
+:root.dark {
+  --surface: var(--color-ink-950);
+  --surface-raised: var(--color-ink-900);
+  --surface-sunken: #070a10;
+  --border: var(--color-ink-700);
+  --border-strong: var(--color-ink-600);
+  --text: var(--color-ink-50);
+  --text-muted: var(--color-ink-300);
+  --text-inverse: var(--color-ink-950);
+  --accent: var(--color-accent-300);
+  --accent-hover: var(--color-accent-200);
+  --accent-soft: #16233f;
+  --accent-deep: var(--color-accent-600);
+  --success: #5ddba1;
+  --success-soft: #102c1f;
+  --caution: #f0be6a;
+  --caution-soft: #33240c;
+  --alert: #f79289;
+  --alert-soft: #3a1512;
+  --alert-deep: var(--color-alert-700);
+  --focus-ring: var(--color-accent-300);
+  --shadow-tint: 220 60% 2%;
+  /* Im dunklen Schema müssen die Modulfarben aufgehellt werden, sonst
+   * verschwinden sie im Hintergrund. Die Flächen werden dagegen dunkel. */
+  --color-modul-0: #c4b5fd;
+  --color-modul-1: #5eead4;
+  --color-modul-2: #fdba74;
+  --color-modul-3: #93c5fd;
+  --color-projekt: #f9a8d4;
+  --color-wiederholen: #bef264;
+  --color-modul-0-soft: #2e1065;
+  --color-modul-1-soft: #042f2e;
+  --color-modul-2-soft: #431407;
+  --color-modul-3-soft: #172554;
+  --color-projekt-soft: #500724;
+  --color-wiederholen-soft: #1a2e05;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --surface: var(--color-ink-950);
+    --surface-raised: var(--color-ink-900);
+    --surface-sunken: #070a10;
+    --border: var(--color-ink-700);
+    --border-strong: var(--color-ink-600);
+    --text: var(--color-ink-50);
+    --text-muted: var(--color-ink-300);
+    --text-inverse: var(--color-ink-950);
+    --accent: var(--color-accent-300);
+    --accent-hover: var(--color-accent-200);
+    /*
+     * Dunkle Entsprechung von accent-50. Sie war ein Marineton und stammte aus
+     * der blauen Familie; hier ist sie ein dunkles Petrol, damit die weiche
+     * Fläche zur Leitfarbe gehört. Der Kontrast zu --accent ist nachgerechnet
+     * (farbkontrast.test.ts).
+     */
+    --accent-soft: #0c2a2a;
+    --accent-deep: var(--color-accent-600);
+    --success: #5ddba1;
+    --success-soft: #102c1f;
+    --caution: #f0be6a;
+    --caution-soft: #33240c;
+    --alert: #f79289;
+    --alert-soft: #3a1512;
+    --alert-deep: var(--color-alert-700);
+    --focus-ring: var(--color-accent-300);
+    --shadow-tint: 220 60% 2%;
+    --color-modul-0: #c4b5fd;
+    --color-modul-1: #5eead4;
+    --color-modul-2: #fdba74;
+    --color-modul-3: #93c5fd;
+    --color-projekt: #f9a8d4;
+    --color-wiederholen: #bef264;
+    --color-modul-0-soft: #2e1065;
+    --color-modul-1-soft: #042f2e;
+    --color-modul-2-soft: #431407;
+    --color-modul-3-soft: #172554;
+    --color-projekt-soft: #500724;
+    --color-wiederholen-soft: #1a2e05;
+    color-scheme: dark;
+  }
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  /* Keine feste Pixelgröße: Die Browsereinstellung der Nutzenden bleibt wirksam. */
+  -webkit-text-size-adjust: 100%;
+}
+
+/*
+ * Der Untergrund.
+ *
+ * Eine einfarbige Fläche über die ganze Höhe wirkt selbst in einem freundlichen
+ * Ton noch wie eine Wand. Deshalb liegen drei sehr weiche Farbwolken darauf –
+ * oben links, oben rechts, unten. Sie sind so blass, dass man sie nicht als
+ * Kreise erkennt; man merkt nur, dass die Fläche nicht überall gleich ist.
+ *
+ * Drei Entscheidungen, die hier festgehalten gehören:
+ *
+ *  - Das Feld liegt auf einer fest stehenden eigenen Ebene, nicht als
+ *    `background-attachment: fixed` auf dem Körper. Der naheliegende Weg war
+ *    der erste Versuch und hinterließ auf langen Seiten eine sichtbare Kante:
+ *    Ein festgehefteter Hintergrund ist so groß wie das Sichtfenster, darunter
+ *    bleibt die Fläche einfarbig. Eine Ebene mit `position: fixed` deckt
+ *    dagegen immer genau das ab, was man gerade sieht.
+ *  - Es bewegt sich nichts. Eine frühere Fassung ließ hier weichgezeichnete
+ *    Flächen wandern. Das hat zweimal Serveraufrufe ins Zeitlimit getrieben,
+ *    weil dauerhaftes Neuzeichnen großer, unscharfer Flächen die
+ *    Rechenzeit auffrisst. Ein stehender Verlauf wird einmal gezeichnet.
+ *  - Die Farben stammen aus den Modulfarben, nicht aus einer eigenen Palette.
+ *    Damit bleibt der Untergrund derselbe Klang wie alles darüber.
+ */
+body {
+  background-color: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.65;
+  min-height: 100dvh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      ellipse 80% 55% at 12% 0%,
+      color-mix(in oklab, var(--color-modul-0) 13%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 92% 6%,
+      color-mix(in oklab, var(--color-modul-1) 12%, transparent),
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse 90% 45% at 50% 100%,
+      color-mix(in oklab, var(--color-modul-3) 10%, transparent),
+      transparent 72%
+    );
+}
+
+/* Sichtbarer Fokus – Grundvoraussetzung für Tastaturbedienung. */
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Bewegung reduzieren, wenn das System es verlangt. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root[data-reduce-motion='true'] *,
+:root[data-reduce-motion='true'] *::before,
+:root[data-reduce-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+@utility surface-card {
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+}
+
+@utility text-muted {
+  color: var(--text-muted);
+}
+
+/* Sprungmarke zum Hauptinhalt */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+}
+
+.skip-link:focus {
+  left: 0.75rem;
+  top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface-raised);
+  border: 2px solid var(--accent);
+  border-radius: 0.5rem;
+  color: var(--text);
+}
+
+/* --------------------------------------------------------------------------
+ * CodeMirror
+ * -------------------------------------------------------------------------- */
+
+.cm-editor {
+  height: 100%;
+  font-size: 0.9375rem;
+  background-color: var(--surface-raised);
+  color: var(--text);
+}
+
+.cm-editor.cm-focused {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+
+.cm-scroller {
+  font-family: var(--font-mono);
+  line-height: 1.6;
+}
+
+.cm-gutters {
+  background-color: var(--surface-sunken);
+  color: var(--text-muted);
+  border-right: 1px solid var(--border);
+}
+
+.cm-activeLine {
+  background-color: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.cm-activeLineGutter {
+  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.cm-selectionBackground,
+.cm-editor .cm-selectionBackground,
+.cm-content ::selection {
+  background-color: color-mix(in srgb, var(--accent) 26%, transparent) !important;
+}
+
+.cm-cursor {
+  border-left-color: var(--text);
+}
+
+/* Vorschlagsliste – ruhig gehalten, mit lesbarer Erklärung daneben. */
+.cm-tooltip.cm-tooltip-autocomplete {
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  background-color: var(--surface-raised);
+  box-shadow: var(--elevation-2);
+  overflow: hidden;
+}
+
+.cm-tooltip-autocomplete > ul > li {
+  padding: 0.35rem 0.6rem;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background-color: var(--accent-soft);
+  color: var(--accent);
+}
+
+.cm-completionDetail {
+  margin-left: 0.75rem;
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.cm-tooltip.cm-completionInfo {
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  background-color: var(--surface-raised);
+  box-shadow: var(--elevation-2);
+  padding: 0.6rem 0.75rem;
+  max-width: 22rem;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  white-space: pre-line;
+  color: var(--text);
+}
+
+/* Fehlermarkierung. Zusätzlich zur Farbe steht die Meldung im Text – die
+ * Unterstreichung allein wäre eine rein farbliche Auszeichnung. */
+.cm-lintRange-error {
+  background: none;
+  border-bottom: 2px wavy var(--alert);
+}
+
+.cm-tooltip.cm-tooltip-lint {
+  border: 1px solid var(--alert);
+  border-radius: 0.5rem;
+  background-color: var(--surface-raised);
+  box-shadow: var(--elevation-2);
+  max-width: 24rem;
+}
+
+.cm-diagnostic {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text);
+  padding: 0.5rem 0.75rem;
+}
+
+.cm-diagnostic-error {
+  border-left: 4px solid var(--alert);
+}
+
+.cm-gutter-lint .cm-gutterElement {
+  color: var(--alert);
+}
+
+/* Syntaxfarben mit ausreichendem Kontrast in beiden Schemata. */
+.cm-editor .tok-keyword {
+  color: var(--accent);
+  font-weight: 600;
+}
+.cm-editor .tok-string {
+  color: var(--success);
+}
+.cm-editor .tok-number {
+  color: var(--caution);
+}
+.cm-editor .tok-comment {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.cm-editor .tok-function {
+  color: var(--accent);
+}
+
+/* --------------------------------------------------------------------------
+ * Fortschrittsanimation – ruhig, nicht aufdringlich
+ * -------------------------------------------------------------------------- */
+
+@keyframes pp-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pp-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pp-sheet-up {
+  from {
+    transform: translateY(1.5rem);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes pp-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Kurzes Aufleuchten, wenn sich ein Wert geändert hat – etwa eine Variable im
+ * Ausführungs-Visualisierer. Endet von selbst, wiederholt sich nie. */
+@keyframes pp-flash {
+  from {
+    background-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@utility animate-enter {
+  animation: pp-fade-in var(--duration-base) var(--ease-standard);
+}
+
+@utility animate-rise {
+  animation: pp-rise var(--duration-slow) var(--ease-decelerate);
+}
+
+@utility animate-scale-in {
+  animation: pp-scale-in var(--duration-base) var(--ease-emphasis);
+}
+
+@utility animate-sheet-up {
+  animation: pp-sheet-up var(--duration-base) var(--ease-decelerate);
+}
+
+@utility animate-flash {
+  animation: pp-flash var(--duration-slow) var(--ease-standard);
+}
+
+/*
+ * Ladeplatzhalter. Bewusst ohne Textinhalt: Der begleitende Bereich meldet
+ * seinen Ladezustand über aria-busy, damit Screenreader nicht sinnlose
+ * Kästchen vorgelesen bekommen.
+ */
+@utility skeleton {
+  background-image: linear-gradient(
+    90deg,
+    var(--surface-sunken) 25%,
+    color-mix(in srgb, var(--surface-sunken) 60%, var(--surface-raised)) 37%,
+    var(--surface-sunken) 63%
+  );
+  background-size: 200% 100%;
+  animation: pp-shimmer 1.4s linear infinite;
+  border-radius: 0.5rem;
+}
+
+@utility elevation-1 {
+  box-shadow: var(--elevation-1);
+}
+
+@utility elevation-2 {
+  box-shadow: var(--elevation-2);
+}
+
+@utility elevation-3 {
+  box-shadow: var(--elevation-3);
+}
+
+/* --------------------------------------------------------------------------
+ * Überlagerungen (Befehlspalette, Dialoge)
+ * -------------------------------------------------------------------------- */
+
+.pp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background-color: hsl(var(--shadow-tint) / 0.45);
+  backdrop-filter: blur(2px);
+  animation: pp-fade-in var(--duration-fast) var(--ease-standard);
+}
+
+/* Solange ein Dialog offen ist, darf der Hintergrund nicht mitscrollen. */
+body[data-overlay-open='true'] {
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+ * Reduzierte Bewegung – gilt für alles oben Definierte
+ * -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background-image: none;
+    background-color: var(--surface-sunken);
+  }
+}
+
+:root[data-reduce-motion='true'] .skeleton {
+  animation: none;
+  background-image: none;
+  background-color: var(--surface-sunken);
+}
+
+/* --------------------------------------------------------------------------
+ * Verläufe und Leuchtflächen
+ *
+ * Verläufe tragen niemals Fließtext. Sie stehen hinter großen, fetten
+ * Überschriften und hinter Zierflächen – dort gilt die Kontrastschwelle 3:1,
+ * und die halten die hier gewählten Kombinationen ein.
+ * -------------------------------------------------------------------------- */
+
+/*
+ * Verlauf der Startseite.
+ *
+ * Vorher lagen hier drei farbige Lichtkegel (Violett, Pink, Blau) über einem
+ * Verlauf von Marine über Indigo nach Violett. Sechs Farbstellen auf einer
+ * Fläche – die Bildsprache, an der man eine automatisch zusammengestellte
+ * Oberfläche am schnellsten erkennt.
+ *
+ * Jetzt: eine tiefe Tintenfläche als Grund, ein einziger Lichtkegel in der
+ * Leitfarbe. Der Verlauf trägt weiterhin große weiße Schrift, aber er will
+ * nicht mehr selbst die Hauptsache sein.
+ *
+ * Der Lichtkegel steht bei SQLPfad in Petrol statt in Violett. Das ist die
+ * eine Stelle, an der die beiden Anwendungen sich schon vor dem ersten
+ * gelesenen Wort unterscheiden – und sie ist deshalb die Stelle, an der der
+ * Unterschied auch deutlich sein darf.
+ */
+@utility gradient-hero {
+  background-image:
+    radial-gradient(
+      at 14% 6%,
+      color-mix(in oklab, var(--color-accent-500) 58%, transparent) 0px,
+      transparent 58%
+    ),
+    linear-gradient(165deg, #0c1f2c 0%, #10283c 52%, #1c1a4d 100%);
+}
+
+@utility gradient-text {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-modul-3) 0%,
+    var(--color-modul-0) 45%,
+    var(--color-projekt) 100%
+  );
+  background-clip: text;
+  color: transparent;
+  /* Rückfall, falls background-clip nicht greift: Der Text bleibt lesbar. */
+  -webkit-text-fill-color: transparent;
+}
+
+/* Weiches farbiges Leuchten hinter einer Karte. Rein schmückend. */
+@utility glow-soft {
+  position: relative;
+}
+
+.glow-soft::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--akzent, var(--accent)) 60%, transparent),
+    transparent 55%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+ * Knöpfe mit Druckgefühl
+ *
+ * Ein Knopf mit sichtbarer Unterkante, die beim Drücken verschwindet. Das
+ * Vorbild ist bekannt aus Lern-Apps und hat einen sachlichen Grund: Der
+ * Zustand „gedrückt" ist ohne Farbe erkennbar, allein an der Geometrie.
+ * -------------------------------------------------------------------------- */
+
+@utility btn-press {
+  position: relative;
+  border-bottom-width: 4px;
+  border-bottom-style: solid;
+  transition:
+    transform var(--duration-fast) var(--ease-standard),
+    border-bottom-width var(--duration-fast) var(--ease-standard);
+}
+
+.btn-press:active:not(:disabled) {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+}
+
+/* --------------------------------------------------------------------------
+ * Weitere Bewegungen
+ * -------------------------------------------------------------------------- */
+
+@keyframes pp-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pp-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(3%, -4%, 0) scale(1.06);
+  }
+  66% {
+    transform: translate3d(-3%, 3%, 0) scale(0.97);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes pp-pop {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pp-draw {
+  from {
+    stroke-dashoffset: var(--laenge, 1000);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Schreibmarke. Blinkt wie im Editor – das Zeichen dafür, dass hier
+ * geschrieben wird und nicht zugesehen. */
+@keyframes pp-caret {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/*
+ * Ruhiger Puls.
+ *
+ * Für genau eine Stelle je Seite: die Station, an der es weitergeht. Der Ring
+ * wächst und verblasst – er zieht den Blick, ohne zu blinken. Ein blinkendes
+ * Element wäre nicht nur unruhig, sondern bei bestimmten Frequenzen auch ein
+ * Auslöser für Anfälle; dieser Puls bleibt weit darunter (eine Runde je zwei
+ * Sekunden) und ändert die Helligkeit nur weich.
+ */
+@keyframes pp-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  70%,
+  100% {
+    transform: scale(1.45);
+    opacity: 0;
+  }
+}
+
+@utility animate-pulse-ring {
+  animation: pp-pulse 2.2s var(--ease-decelerate) infinite;
+}
+
+@utility animate-float {
+  animation: pp-float 6s var(--ease-standard) infinite;
+}
+
+@utility animate-caret {
+  animation: pp-caret 1.1s step-end infinite;
+}
+
+@utility animate-drift {
+  animation: pp-drift 22s var(--ease-standard) infinite;
+}
+
+@utility animate-pop {
+  animation: pp-pop var(--duration-slow) var(--ease-spring);
+}
+
+@utility animate-draw {
+  stroke-dasharray: var(--laenge, 1000);
+  animation: pp-draw 1.4s var(--ease-decelerate) forwards;
+}
+
+/* --------------------------------------------------------------------------
+ * Muster
+ *
+ * Flächen brauchen Struktur, sonst bleiben sie leere Rechtecke. Die folgenden
+ * Muster bestehen ausschließlich aus CSS-Verläufen – keine Bilddateien, keine
+ * SVG-Anhängsel, kein zusätzlicher Abruf. Sie werden einmal gezeichnet und
+ * danach vom Browser wie jede andere Hintergrundfarbe behandelt; anders als
+ * bewegte, weichgezeichnete Flächen kosten sie im Betrieb nichts.
+ *
+ * Alle nehmen `--akzent` an, gehören also automatisch zum Bereich, in dem sie
+ * stehen. Die Deckkraft bleibt sehr niedrig: Ein Muster, das man bewusst
+ * wahrnimmt, konkurriert mit dem Text darüber.
+ *
+ * Jedes Muster sollte zum Rand hin auslaufen (`muster-verlauf`). Ein hart
+ * abgeschnittenes Raster sieht aus wie ein Darstellungsfehler; ein
+ * auslaufendes wirkt wie Papier, auf dem etwas steht.
+ *
+ * Warum jedes Muster auf einem eigenen `::after` liegt und nicht einfach als
+ * Hintergrund auf dem Element selbst: Das Auslaufen braucht eine Maske, und
+ * `mask-image` gilt für das Element *samt allen Kindern*. Auf einer Karte
+ * gesetzt hätte es also nicht das Raster ausgeblendet, sondern den Text
+ * darauf. Genau das ist beim ersten Anlauf passiert – die Wochenübersicht war
+ * eine leere Karte mit einem blassen Schleier in der Ecke.
+ *
+ * Die Ebene liegt auf `z-index: -1`, das Element selbst auf `isolation:
+ * isolate`. Damit sitzt das Muster über der eigenen Hintergrundfarbe, unter
+ * jedem Inhalt, und der negative Wert kann nicht aus der Karte ausbrechen.
+ * `::before` ist tabu: Das gehört bereits `card-accent`.
+ * -------------------------------------------------------------------------- */
+
+/*
+ * Die Musterebene.
+ *
+ * Bewusst als gewöhnliche Regel und nicht als eigene Klasse, die man
+ * zusätzlich setzen müsste: Ein Muster, das nur zusammen mit einer zweiten
+ * Klasse erscheint, wird irgendwann ohne sie gesetzt und fehlt dann
+ * wortlos. Dieselbe Bauart benutzt weiter unten `card-accent`.
+ */
+.muster-punkte,
+.muster-raster,
+.muster-schraffur,
+.muster-boegen,
+.muster-stufen,
+.muster-punkte-hell,
+.muster-raster-hell {
+  position: relative;
+  isolation: isolate;
+}
+
+.muster-punkte::after,
+.muster-raster::after,
+.muster-schraffur::after,
+.muster-boegen::after,
+.muster-stufen::after,
+.muster-punkte-hell::after,
+.muster-raster-hell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image: var(--muster-bild, none);
+  background-size: var(--muster-groesse, auto);
+  -webkit-mask-image: var(--muster-maske, none);
+  mask-image: var(--muster-maske, none);
+}
+
+/* Punktraster – die ruhigste Struktur, taugt als Grundlage überall. */
+@utility muster-punkte {
+  --muster-bild: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in oklab, var(--akzent, var(--accent)) 26%, transparent) 1px,
+    transparent 0
+  );
+  --muster-groesse: 22px 22px;
+}
+
+/*
+ * Karopapier.
+ *
+ * Für eine Lernanwendung mehr als Zierde: Rechenkaro ist das Blatt, auf dem
+ * man Dinge durchdenkt, bevor man sie tippt.
+ */
+@utility muster-raster {
+  --muster-bild:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--akzent, var(--accent)) 14%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--akzent, var(--accent)) 14%, transparent) 1px,
+      transparent 1px
+    );
+  --muster-groesse: 28px 28px;
+}
+
+/* Schraffur – gerichtet, gibt einer Fläche Bewegung ohne Animation. */
+@utility muster-schraffur {
+  --muster-bild: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklab, var(--akzent, var(--accent)) 12%, transparent) 0 2px,
+    transparent 2px 11px
+  );
+}
+
+/*
+ * Konzentrische Bögen.
+ *
+ * Das Bild der Wiederholung: derselbe Kreis, immer wieder, in wachsendem
+ * Abstand – genau das, was zeitversetztes Wiederholen mit dem Stoff macht.
+ */
+@utility muster-boegen {
+  --muster-bild: repeating-radial-gradient(
+    circle at 0% 100%,
+    transparent 0 34px,
+    color-mix(in oklab, var(--akzent, var(--accent)) 16%, transparent) 34px 36px
+  );
+}
+
+/*
+ * Stufen.
+ *
+ * Aufsteigende Kanten – dasselbe Bildzeichen wie im Symbol der Anwendung.
+ * Passt überall dort, wo es um Fortschritt geht.
+ */
+@utility muster-stufen {
+  --muster-bild:
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--akzent, var(--accent)) 10%, transparent) 25%,
+      transparent 25%
+    ),
+    linear-gradient(
+      225deg,
+      color-mix(in oklab, var(--akzent, var(--accent)) 10%, transparent) 25%,
+      transparent 25%
+    );
+  --muster-groesse: 32px 32px;
+}
+
+/*
+ * Auslaufen lassen.
+ *
+ * Setzt nur die Maske für die Musterebene. Für sich allein bewirkt die Klasse
+ * nichts – das ist Absicht: So kann sie den Inhalt nicht versehentlich
+ * mitnehmen, egal wohin sie gerät.
+ */
+@utility muster-verlauf {
+  --muster-maske: radial-gradient(ellipse 120% 90% at 50% 0%, #000 35%, transparent 78%);
+}
+
+@utility muster-verlauf-ecke {
+  --muster-maske: radial-gradient(ellipse 90% 100% at 100% 0%, #000 15%, transparent 72%);
+}
+
+/*
+ * Ausblendung zur unteren linken Ecke hin – für `muster-boegen`.
+ *
+ * Die Bögen entspringen dort. Blendete man sie stattdessen von rechts oben ein,
+ * sähe man nur ihre äußersten, fast geraden Enden: aus konzentrischen Kreisen
+ * würden schräge Striche, und das Bild wäre nicht mehr das der Wiederholung.
+ */
+@utility muster-verlauf-ecke-unten {
+  --muster-maske: radial-gradient(ellipse 85% 100% at 0% 100%, #000 15%, transparent 72%);
+}
+
+/*
+ * Muster auf dunklem Verlauf.
+ *
+ * Dort ist `--akzent` die falsche Quelle: Auf einem dunklen Kopfbereich muss
+ * das Muster hell sein, unabhängig vom Farbschema. Deshalb eine eigene
+ * Fassung in Weiß.
+ */
+@utility muster-punkte-hell {
+  --muster-bild: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.2) 1px, transparent 0);
+  --muster-groesse: 22px 22px;
+}
+
+@utility muster-raster-hell {
+  --muster-bild:
+    linear-gradient(to right, rgb(255 255 255 / 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.1) 1px, transparent 1px);
+  --muster-groesse: 30px 30px;
+}
+
+/* --------------------------------------------------------------------------
+ * Farbe und Leben in gewöhnlichen Karten
+ *
+ * Eine weiße Fläche mit dünnem Rahmen ist korrekt und sagt nichts. Die
+ * folgenden Bausteine geben jeder Karte, die für etwas steht, eine sichtbare
+ * Zugehörigkeit – ohne dass dafür jedes Mal ein Dutzend Klassen nötig wären.
+ * -------------------------------------------------------------------------- */
+
+/*
+ * Farbkante am oberen Rand.
+ *
+ * Vier Pixel genügen. Sie tragen die Leitfarbe des Bereichs an eine Stelle, die
+ * beim Überfliegen ohnehin gestreift wird, und lassen die Fläche darunter ruhig
+ * – anders als eine flächige Einfärbung, die Fließtext den Kontrast nimmt.
+ */
+/*
+ * Kartenfläche.
+ *
+ * Karten waren bisher alle reinweiß. Bei zwei Karten fällt das nicht auf, bei
+ * fünfzehn untereinander schon: Die Seite wird zu einem Stapel gleicher weißer
+ * Rechtecke, und die Farbe der Kopfbereiche wirkt wie aufgeklebt.
+ *
+ * Jede Karte nimmt deshalb einen Hauch ihrer Bereichsfarbe auf – vier Prozent,
+ * also weit unterhalb dessen, was man bewusst als „eingefärbt" wahrnimmt. Der
+ * Rahmen bekommt achtzehn Prozent. Zusammen genügt das, damit eine Karte im
+ * Lernbereich sichtbar zu einer anderen Familie gehört als eine im
+ * Projektbereich, ohne dass irgendwo Buntheit entsteht.
+ *
+ * Der Anteil ist bewusst so niedrig: Er muss auch dann tragen, wenn zwanzig
+ * Karten übereinanderstehen. Was bei einer Karte hübsch aussieht, ist bei
+ * zwanzig ein Farbeimer.
+ */
+.karte-flaeche {
+  background-color: color-mix(in oklab, var(--akzent, var(--accent)) 4%, var(--surface-raised));
+  border-color: color-mix(in oklab, var(--akzent, var(--accent)) 18%, var(--border));
+}
+
+@utility card-accent {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-accent::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--akzent, var(--accent)) 0%,
+    color-mix(in oklab, var(--akzent, var(--accent)) 35%, transparent) 60%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/*
+ * Erscheinen mit Verzögerung.
+ *
+ * `backwards` ist hier der entscheidende Teil: Ohne diesen Füllmodus wäre ein
+ * Element mit Verzögerung bis zum Start voll sichtbar und würde dann erst
+ * anfangen – das sieht aus wie ein Ruckler und nicht wie ein Aufbau. Die
+ * Verzögerung setzen die Aufrufstellen je Element als Stilangabe.
+ */
+@utility animate-in {
+  animation: pp-rise var(--duration-slow) var(--ease-decelerate) backwards;
+}
+
+/* Farbiges Leuchten beim Zeigen – für Karten, die zu etwas führen. */
+@utility hover-glow {
+  transition:
+    border-color var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.hover-glow:hover {
+  border-color: var(--akzent, var(--accent));
+  box-shadow:
+    0 0 0 1px var(--akzent, var(--accent)),
+    0 12px 28px -14px color-mix(in oklab, var(--akzent, var(--accent)) 60%, transparent);
+}
+
+/*
+ * Kachel für ein Symbol.
+ *
+ * Kommt so oft vor, dass die immer gleiche Kombination aus Rundung, weicher
+ * Fläche und Akzentfarbe einen eigenen Namen verdient. Beim Zeigen wächst sie
+ * leicht – das ist der Unterschied zwischen einem Bild und einem Element, das
+ * antwortet.
+ */
+@utility icon-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 0.875rem;
+  background-color: var(--akzent-soft, var(--accent-soft));
+  color: var(--akzent, var(--accent));
+  transition: transform var(--duration-base) var(--ease-emphasis);
+}
+
+.group:hover .icon-tile {
+  transform: scale(1.08);
+}
+
+/* Anheben beim Zeigen. Nur für Flächen, die wirklich zu etwas führen. */
+@utility hover-lift {
+  transition:
+    transform var(--duration-base) var(--ease-emphasis),
+    box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--elevation-3);
+}
+
+/*
+ * Einblenden beim Scrollen.
+ *
+ * Umgesetzt mit `animation-timeline: view()`, also ohne JavaScript und ohne
+ * Beobachter. Browser, die das nicht können, zeigen den Inhalt einfach sofort –
+ * der Ausgangszustand ist deshalb sichtbar und nicht durchsichtig.
+ */
+@utility reveal-on-scroll {
+  animation: pp-rise linear both;
+  animation-timeline: view();
+  animation-range: entry 0% cover 22%;
+}
+
+@supports not (animation-timeline: view()) {
+  .reveal-on-scroll {
+    animation: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Reduzierte Bewegung
+ *
+ * Die Regeln weiter oben decken Dauer und Wiederholung ab. Hier kommen die
+ * Animationen dazu, die dauerhaft laufen: Sie werden vollständig angehalten,
+ * nicht nur beschleunigt.
+ * -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float,
+  .animate-drift,
+  .animate-caret,
+  .animate-pulse-ring,
+  .reveal-on-scroll {
+    animation: none !important;
+  }
+
+  /* Beim Erscheinen darf die Bewegung weg – der Inhalt muss bleiben. Deshalb
+     nicht `animation: none`, sondern eine Dauer nahe null: Der Füllmodus
+     `backwards` würde das Element sonst dauerhaft unsichtbar halten. */
+  .animate-in {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+  }
+
+  .hover-lift:hover,
+  .group:hover .icon-tile {
+    transform: none;
+  }
+}
+
+:root[data-reduce-motion='true'] .animate-float,
+:root[data-reduce-motion='true'] .animate-drift,
+:root[data-reduce-motion='true'] .animate-caret,
+:root[data-reduce-motion='true'] .animate-pulse-ring,
+:root[data-reduce-motion='true'] .reveal-on-scroll {
+  animation: none !important;
+}
+
+:root[data-reduce-motion='true'] .animate-in {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0ms !important;
+}
+
+:root[data-reduce-motion='true'] .group:hover .icon-tile {
+  transform: none;
+}
+
+:root[data-reduce-motion='true'] .hover-lift:hover {
+  transform: none;
+}
