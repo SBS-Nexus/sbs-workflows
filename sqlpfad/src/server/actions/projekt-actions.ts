@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { requireUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
 import { pruefeAnweisung, teileAnweisungen } from '@/domain/sql/statement-policy';
+import { haltAktivitaetFest } from '@/server/lernsitzung';
 
 /**
  * Projekte sichern und abgeben.
@@ -125,6 +126,8 @@ async function schreibe(
       ...(status === 'SUBMITTED' ? { submittedAt: new Date() } : {}),
     },
   });
+
+  await haltAktivitaetFest(user.id);
 
   revalidatePath(`/projekte/${geprueft.data.projektSlug}`);
   revalidatePath('/projekte');

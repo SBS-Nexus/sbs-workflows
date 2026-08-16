@@ -78,6 +78,11 @@ Keine Punkte, keine Ranglisten, keine Serien, die reißen können, keine
 Druckmeldungen. Eine leere Wiederholungsseite ist kein Rückstand und sagt das
 auch. Wer aufhört, verliert nichts.
 
+Die Lernzeit wird gemessen, aber nicht als Ziel gesetzt: Sie zählt **ab der
+letzten Aktivität**, nicht ab dem Seitenaufruf, und eine offen liegende Seite
+zählt nicht mit. Wer eine Lektion öffnet und drei Stunden später wiederkommt,
+hat nicht drei Stunden gelernt.
+
 ---
 
 ## 2. Voraussetzungen

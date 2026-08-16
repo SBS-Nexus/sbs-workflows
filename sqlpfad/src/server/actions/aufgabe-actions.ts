@@ -6,6 +6,7 @@ import { requireUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
 import { ausDatenmodellArt } from '@/domain/aufgabe/art';
 import { istLektionAbgeschlossen, type AufgabenStand } from '@/domain/aufgabe/abschluss';
+import { haltAktivitaetFest } from '@/server/lernsitzung';
 import {
   alsVersuchsergebnis,
   bewerteAufgabe,
@@ -100,6 +101,7 @@ export async function gibAufgabeAb(daten: unknown): Promise<Abgabeantwort> {
       },
     });
 
+    await haltAktivitaetFest(user.id);
     await pruefeLektionsAbschluss(user.id, aufgabe.lektionId);
   }
 
@@ -164,6 +166,7 @@ export async function meldeSelbsteinschaetzung(daten: unknown): Promise<{ gespei
     },
   });
 
+  await haltAktivitaetFest(user.id);
   await pruefeLektionsAbschluss(user.id, aufgabe.lektionId);
 
   return { gespeichert: true };

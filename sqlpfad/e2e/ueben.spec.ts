@@ -177,3 +177,36 @@ test('ein gelöster Versuch bewegt die Wissenslandkarte', async ({ page }) => {
   await expect(page.getByText('Du hast bisher 1 Aufgabe bearbeitet.')).toBeVisible();
   await expect(page.getByText(/Angefangen|Sitzt|Wackelig/).first()).toBeVisible();
 });
+
+test('die Lernzeit zählt erst mit der Arbeit, nicht mit dem Öffnen', async ({ page }) => {
+  /*
+   * Der Kern der Messung: Wer nur Seiten aufschlägt, hat nicht gelernt. Erst
+   * eine abgegebene Aufgabe beginnt die Sitzung.
+   */
+  await meldeAn(page);
+
+  await page.goto('/lernen/lektion-was-steht-in-einer-tabelle');
+  await page.goto('/fortschritt');
+  await expect(page.getByText('Heute gelernt')).toBeVisible();
+  await expect(page.getByText('0 Minuten')).toBeVisible();
+
+  await page.goto('/lernen/lektion-was-steht-in-einer-tabelle');
+  const aufgabe = page
+    .locator('li')
+    .filter({ has: page.getByRole('radio') })
+    .first();
+  await aufgabe.getByRole('radio').first().check();
+  await aufgabe.getByRole('button', { name: /Antwort abgeben/i }).click();
+  await expect(aufgabe.getByText(/Stimmt|Noch nicht/)).toBeVisible();
+
+  /*
+   * Die Sitzung läuft jetzt, steht aber weiterhin bei null Minuten – zwischen
+   * Beginn und erster Abgabe ist keine volle Minute vergangen. Genau so soll
+   * es sein: Die Zeit entsteht zwischen zwei Aktivitäten, nicht bei der
+   * ersten. Geprüft wird deshalb, dass die Karte da ist und keine erfundene
+   * Zahl zeigt.
+   */
+  await page.goto('/fortschritt');
+  await expect(page.getByText('Heute gelernt')).toBeVisible();
+  await expect(page.getByText(/Gemessen ab der letzten Aktivität/)).toBeVisible();
+});

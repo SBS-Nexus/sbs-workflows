@@ -7,6 +7,8 @@ import { Wissenslandkarte, type KonzeptZeile } from '@/components/fortschritt/wi
 import { ausDatenmodellArt } from '@/domain/aufgabe/art';
 import { bewerteKonzept, type AufgabenErgebnis } from '@/domain/aufgabe/kompetenz';
 import type { Versuchsergebnis } from '@/domain/aufgabe/auswahl';
+import { minutenHeute } from '@/server/lernsitzung';
+import { formatiereDauer } from '@/domain/lernsitzung';
 
 export const metadata: Metadata = { title: 'Überblick' };
 
@@ -26,49 +28,51 @@ export const metadata: Metadata = { title: 'Überblick' };
 export default async function FortschrittPage(): Promise<React.ReactElement> {
   const user = await requireUser();
 
-  const [lektionen, bearbeiteteAufgaben, abgeschlossen, sandbox, konzepte] = await Promise.all([
-    prisma.lesson.count({ where: { status: 'PUBLISHED' } }),
-    /*
-     * Verschiedene Aufgaben, nicht Versuche.
-     *
-     * `attempt.count` zählte jeden Anlauf einzeln - wer eine Aufgabe dreimal
-     * probiert hat, las „3 Aufgaben bearbeitet". Die Zahl war nicht falsch
-     * gerechnet, sondern falsch beschriftet, und das ist schlimmer: Sie sah
-     * nach Fortschritt aus, wo jemand festhing.
-     */
-    prisma.attempt
-      .findMany({ where: { userId: user.id }, distinct: ['exerciseId'], select: { id: true } })
-      .then((zeilen) => zeilen.length),
-    prisma.lessonProgress.count({ where: { userId: user.id, state: 'COMPLETED' } }),
-    prisma.sandbox.findFirst({
-      where: { userId: user.id },
-      select: { state: true, stateReason: true, lastResetAt: true },
-    }),
-    prisma.concept.findMany({
-      orderBy: [{ difficulty: 'asc' }, { title: 'asc' }],
-      select: {
-        slug: true,
-        title: true,
-        description: true,
-        exercises: {
-          select: {
-            exercise: {
-              select: {
-                type: true,
-                status: true,
-                attempts: {
-                  where: { userId: user.id },
-                  orderBy: { createdAt: 'desc' },
-                  take: 1,
-                  select: { result: true },
+  const [lektionen, bearbeiteteAufgaben, abgeschlossen, sandbox, konzepte, heuteMinuten] =
+    await Promise.all([
+      prisma.lesson.count({ where: { status: 'PUBLISHED' } }),
+      /*
+       * Verschiedene Aufgaben, nicht Versuche.
+       *
+       * `attempt.count` zählte jeden Anlauf einzeln - wer eine Aufgabe dreimal
+       * probiert hat, las „3 Aufgaben bearbeitet". Die Zahl war nicht falsch
+       * gerechnet, sondern falsch beschriftet, und das ist schlimmer: Sie sah
+       * nach Fortschritt aus, wo jemand festhing.
+       */
+      prisma.attempt
+        .findMany({ where: { userId: user.id }, distinct: ['exerciseId'], select: { id: true } })
+        .then((zeilen) => zeilen.length),
+      prisma.lessonProgress.count({ where: { userId: user.id, state: 'COMPLETED' } }),
+      prisma.sandbox.findFirst({
+        where: { userId: user.id },
+        select: { state: true, stateReason: true, lastResetAt: true },
+      }),
+      prisma.concept.findMany({
+        orderBy: [{ difficulty: 'asc' }, { title: 'asc' }],
+        select: {
+          slug: true,
+          title: true,
+          description: true,
+          exercises: {
+            select: {
+              exercise: {
+                select: {
+                  type: true,
+                  status: true,
+                  attempts: {
+                    where: { userId: user.id },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                    select: { result: true },
+                  },
                 },
               },
             },
           },
         },
-      },
-    }),
-  ]);
+      }),
+      minutenHeute(user.id),
+    ]);
 
   const runnerBereit = istSqlRunnerVerfuegbar();
 
@@ -139,6 +143,20 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
             <Card>
               <p className="text-sm text-[var(--text-muted)]">Bearbeitete Aufgaben</p>
               <p className="mt-1 text-3xl font-black tracking-tight">{bearbeiteteAufgaben}</p>
+            </Card>
+            {/*
+             * Die Lernzeit steht neben den anderen Zahlen und nicht als Ziel
+             * mit Balken darüber. Sie beantwortet „wie lange war ich dran?" -
+             * ein Tagesziel würde daraus eine Vorgabe machen, die man verfehlt.
+             */}
+            <Card>
+              <p className="text-sm text-[var(--text-muted)]">Heute gelernt</p>
+              <p className="mt-1 text-3xl font-black tracking-tight">
+                {formatiereDauer(heuteMinuten)}
+              </p>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Gemessen ab der letzten Aktivität – eine offen liegende Seite zählt nicht mit.
+              </p>
             </Card>
           </div>
         )}
