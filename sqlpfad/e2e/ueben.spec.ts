@@ -134,3 +134,46 @@ test('eine Lektion lässt sich abschließen', async ({ page }) => {
   await page.goto('/lernen');
   await expect(page.getByText('Bearbeitet').first()).toBeVisible();
 });
+
+test('die Wissenslandkarte zeigt keine erfundenen Prozente', async ({ page }) => {
+  /*
+   * Der Überblick zeigte früher „Bearbeitete Aufgaben" und zählte dabei
+   * Versuche - wer eine Aufgabe dreimal probierte, las eine 3. Und die
+   * Wissenslandkarte soll ein Wort zeigen, keine Zahl mit Nachkommastellen.
+   */
+  await meldeAn(page);
+  await page.goto('/fortschritt');
+
+  await expect(page.getByRole('heading', { name: /Was schon sitzt/i })).toBeVisible();
+  await expect(page.getByText('Noch offen').first()).toBeVisible();
+
+  /*
+   * In den Karten selbst steht keine Prozentzahl. Geprüft wird die Liste und
+   * nicht die ganze Seite: Der Erklärsatz darüber nennt „73 % JOIN" als
+   * Beispiel für das, was hier gerade nicht gezeigt wird.
+   */
+  const landkarte = page.getByRole('list', { name: 'Wissenslandkarte' });
+  await expect(landkarte).toBeVisible();
+  await expect(landkarte.getByText(/%/)).toHaveCount(0);
+});
+
+test('ein gelöster Versuch bewegt die Wissenslandkarte', async ({ page }) => {
+  await meldeAn(page);
+  await page.goto('/lernen/lektion-was-steht-in-einer-tabelle');
+
+  const aufgabe = page
+    .locator('li')
+    .filter({ has: page.getByRole('radio') })
+    .first();
+
+  for (let wahl = 0; wahl < (await aufgabe.getByRole('radio').count()); wahl += 1) {
+    await aufgabe.getByRole('radio').nth(wahl).check();
+    await aufgabe.getByRole('button', { name: /Antwort abgeben/i }).click();
+    await expect(aufgabe.getByText(/Stimmt|Noch nicht/)).toBeVisible();
+    if (await aufgabe.getByText('Stimmt').isVisible()) break;
+  }
+
+  await page.goto('/fortschritt');
+  await expect(page.getByText('Du hast bisher 1 Aufgabe bearbeitet.')).toBeVisible();
+  await expect(page.getByText(/Angefangen|Sitzt|Wackelig/).first()).toBeVisible();
+});
