@@ -32,6 +32,7 @@ grundlegend andere Architektur der Codeausführung.
 14. [Auslieferung auf Vercel](#14-auslieferung-auf-vercel)
 15. [Was diese Fassung noch nicht kann](#15-was-diese-fassung-noch-nicht-kann)
 16. [Wiederholen](#16-wiederholen)
+17. [Redaktionsbereich](#17-redaktionsbereich)
 
 ---
 
@@ -543,6 +544,60 @@ Stelle auch so.
 
 Eine leere Wiederholungsseite bleibt kein Rückstand. Wer nichts offen hat,
 bekommt das gesagt und keinen Aufholbedarf angezeigt.
+
+---
+
+## 17. Redaktionsbereich
+
+`/admin`, nur für Konten mit der Rolle `ADMIN`.
+
+### Wofür er da ist
+
+Inhalte werden als versionierte Dateien gepflegt und über den Seed in die
+Datenbank gespielt. Damit gibt es zwei Stände derselben Sache, und die Seite
+beantwortet die eine Frage, die sich sonst niemand stellt: **Stimmen sie noch
+überein?**
+
+Ein Lehrplan, der in den Dateien eine Aufgabe mehr hat als in der Datenbank,
+sieht in der Anwendung völlig unauffällig aus – die Aufgabe fehlt eben. Wer sie
+sucht, sucht sie im Inhaltsverzeichnis und nicht im Seed-Protokoll.
+
+Gezeigt werden: das Ergebnis desselben Validators, den auch der Seed ausführt;
+der Abgleich Dateien gegen Datenbank je Inhaltsart; der
+Veröffentlichungsstand aller Module und Lektionen; zwei Nutzungszahlen.
+
+### Was dort bewusst nicht steht
+
+**Keine personenbezogenen Daten.** Zählungen ja, Namen und Adressen nein, keine
+Versuchsverläufe einzelner Lernender. Ein Adminbereich, der beim Öffnen zeigt,
+wer was wann falsch gemacht hat, macht aus einer Lernplattform eine
+Überwachungsanlage – und ob eine Lektion schlecht geschrieben ist, erkennt man
+auch ohne Namen. Ein E2E-Test hält das fest: Er liest den Quelltext der Seite
+und prüft, dass weder die Adresse noch der Name des angemeldeten Kontos darin
+vorkommen.
+
+**Kein Bearbeiten.** Inhalte werden im Repository geändert. Eine Änderung über
+die Oberfläche hätte keinen Verlauf, keine Begründung und keinen Weg zurück –
+und beim nächsten Seed wäre sie wieder weg.
+
+### Die Rolle vergeben
+
+Über die Oberfläche geht das nicht, und das ist Absicht: Der Adminbereich prüft
+Rollen, vergibt sie aber nicht. Sonst gäbe es keinen Weg, das erste Konto mit
+vollem Zugriff sicher zu erzeugen.
+
+```bash
+npm run konto -- --email=name@beispiel.de --name="Vor Nachname" --rolle=admin
+```
+
+Bei einer verwalteten Datenbank die **direkte** Verbindungszeichenfolge
+voranstellen, nicht die gepoolte. Das Skript erzeugt eine Passphrase und zeigt
+sie genau einmal an – auf dem Rechner, auf dem es läuft. Ein Passwort, das
+jemand anders auswählt und übermittelt, ist ab der Übermittlung keins mehr.
+
+Wer angemeldet ist, aber keine Adminrolle hat, wird auf den Überblick
+umgeleitet – nicht auf eine Fehlerseite. Er hat sich verlaufen, und das ist
+kein Fehler.
 
 ---
 

@@ -1,6 +1,7 @@
 import 'server-only';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { cookies, headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { prisma } from '@/server/db/prisma';
 import { getEnv } from '@/server/env';
@@ -176,9 +177,21 @@ export async function requireUser(): Promise<SessionUser> {
   return user;
 }
 
+/**
+ * Erzwingt eine Sitzung mit Adminrolle.
+ *
+ * Leitet um, statt zu werfen. Wer angemeldet ist und `/admin` aufruft, hat sich
+ * verlaufen oder war neugierig – beides verdient keine Fehlerseite, sondern den
+ * Weg zurück. Ein Fehlerbild bekäme man ohnehin nur roh zu sehen: Es gibt in
+ * dieser Anwendung keine `error.tsx`, und eine dafür einzuführen hieße, für
+ * einen Fall zu bauen, der kein Fehler ist.
+ *
+ * `redirect()` wirft intern und beendet das Rendern. Der Rückgabewert gilt
+ * deshalb nur für den Fall, dass die Rolle stimmt.
+ */
 export async function requireAdmin(): Promise<SessionUser> {
   const user = await requireUser();
-  if (user.role !== 'ADMIN') throw new ForbiddenError();
+  if (user.role !== 'ADMIN') redirect('/fortschritt');
   return user;
 }
 
@@ -189,12 +202,11 @@ export class UnauthorizedError extends Error {
   }
 }
 
-export class ForbiddenError extends Error {
-  constructor() {
-    super('Für diesen Bereich fehlen die Rechte.');
-    this.name = 'ForbiddenError';
-  }
-}
+/*
+ * Ein `ForbiddenError` stand hier einmal. Er ist entfernt, seit `requireAdmin`
+ * umleitet statt zu werfen: Eine Fehlerklasse, die niemand wirft und niemand
+ * fängt, sieht wie eine Absicherung aus und ist keine.
+ */
 
 // ---------------------------------------------------------------------------
 // CSRF
