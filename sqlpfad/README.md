@@ -418,10 +418,27 @@ dann für die Anwendung zuständig und spricht den Runner über HTTPS an.
    Build**:
 
    ```bash
+   git pull                                 # sonst fehlen neue Migrationen
    npm install                              # erzeugt dabei den Prisma-Client
    DATABASE_URL="…" npx prisma migrate deploy
    DATABASE_URL="…" npm run db:seed
    ```
+
+   Das `git pull` steht aus einem Grund an erster Stelle: `migrate deploy`
+   spielt ein, was **im Arbeitsverzeichnis** liegt, nicht was im Repository
+   steht. Ein veralteter Klon meldet zufrieden `No pending migrations to
+apply` – und die Anwendung bricht danach an der fehlenden Spalte ab. Die
+   Zeile darüber, wie viele Migrationen gefunden wurden, ist die einzige
+   Stelle, an der man das vorher sieht.
+
+   Die Zeichenfolge gehört in **Anführungszeichen**. Sie enthält `&`; ohne
+   Quotes schickt die Shell den Befehl in den Hintergrund und schneidet ab dem
+   ersten `&` alles ab.
+
+   `pg` warnt beim Verbinden, dass `sslmode=require` derzeit wie
+   `verify-full` behandelt wird und sich das in Version 9 ändert. Das ist eine
+   Vorwarnung, kein Fehler – die Verbindung ist heute die **strengere** von
+   beiden. Wer sie festnageln will, schreibt `sslmode=verify-full`.
 
    Für Migration und Seed die **direkte** Verbindungszeichenfolge nehmen, nicht
    die gepoolte: `prisma migrate` nimmt Advisory Locks, und der Pooler arbeitet
