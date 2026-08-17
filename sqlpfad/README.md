@@ -394,6 +394,14 @@ dann für die Anwendung zuständig und spricht den Runner über HTTPS an.
    das Repository enthält zwei Anwendungen.
 2. Umgebungsvariablen setzen: `DATABASE_URL`, `AUTH_SECRET` (neu erzeugen, siehe
    Abschnitt 4), `APP_URL` auf die spätere Adresse ohne Schrägstrich am Ende.
+
+   **Vor dem ersten Deployment, nicht danach.** Alle drei werden schon beim
+   Übersetzen gebraucht: Next wertet `generateMetadata` aus, und die
+   Umgebungsprüfung aus `src/server/env.ts` läuft dabei mit. Fehlt eine, bricht
+   der Build ab – mit einer verständlichen Meldung, aber er bricht ab. Eine
+   Verbindung zur Datenbank stellt der Build dagegen nicht her; die Adresse muss
+   nur formal gültig sein.
+
 3. Einmalig gegen dieselbe Datenbank – **von der eigenen Maschine aus, nicht im
    Build**:
 
