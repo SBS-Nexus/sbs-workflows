@@ -1,0 +1,17 @@
+<!--
+  Dasselbe Zeichen mit Sicherheitsabstand ringsum.
+
+  Bei „maskable" schneidet das Betriebssystem eine eigene Form aus dem Bild –
+  einen Kreis, ein Quadrat mit runden Ecken, einen Tropfen. Ohne Abstand wären
+  die äußeren Knoten angeschnitten, und zwar je nach Gerät anders.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <rect width="48" height="48" fill="#095d56" />
+  <g transform="translate(12 12)" fill="none" stroke="#ffffff" stroke-width="1.75"
+     stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="6" cy="7" r="2.5" />
+    <circle cx="18" cy="7" r="2.5" />
+    <circle cx="12" cy="17" r="2.5" />
+    <path d="M7.8 8.6 10.6 15M16.2 8.6 13.4 15M8.5 7h7" />
+  </g>
+</svg>
