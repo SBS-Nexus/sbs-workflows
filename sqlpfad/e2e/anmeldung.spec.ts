@@ -45,8 +45,8 @@ test('registrieren, Einstieg beantworten, abmelden', async ({ page }) => {
   // Die Antworten aus dem Einstieg sind wirklich gespeichert und werden nicht
   // nur weitergereicht.
   await page.goto('/profil');
-  await expect(page.getByText('Liest fremde Abfragen')).toBeVisible();
-  await expect(page.getByText('30 Minuten')).toBeVisible();
+  await expect(page.locator('#experience')).toHaveValue('READS_QUERIES');
+  await expect(page.locator('#dailyTimeBudget')).toHaveValue('30');
 
   await page.getByRole('button', { name: 'Abmelden' }).click();
   await expect(page).toHaveURL(/\/$/);
