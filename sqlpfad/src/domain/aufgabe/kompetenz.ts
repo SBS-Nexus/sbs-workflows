@@ -14,13 +14,20 @@ import type { Versuchsergebnis } from '@/domain/aufgabe/auswahl';
  * Stattdessen ein Wort und die Zahlen dahinter, aus denen es entsteht. Wer
  * wissen will, warum dort „wackelig" steht, kann es nachzählen.
  *
- * Ebenso bewusst **nicht** persistiert: Das Datenmodell hat `ConceptMastery`
- * mit `stability`, `difficulty` und `nextReviewAt`. Diese Felder gehören zu
- * einem Gedächtnismodell, das es hier noch nicht gibt. Sie mit gerundeten
- * Zahlen zu füllen, damit die Tabelle nicht leer aussieht, hieße, sich später
- * auf Werte zu verlassen, die nie gerechnet wurden. Der Stand wird deshalb bei
- * jedem Aufruf aus den Versuchen abgeleitet – eine einzige Wahrheit, und sie
- * steht in `attempts`.
+ * ## Verhältnis zur Wiederholungsplanung
+ *
+ * `ConceptMastery` wird inzwischen geführt – aber von
+ * `src/domain/wiederholung/sm2.ts` und ausschließlich für die **Terminfrage**:
+ * Intervall, Leichtigkeit, nächster Termin. Was hier berechnet wird, ist die
+ * **Standsfrage**, und die wird weiterhin bei jedem Aufruf aus `attempts`
+ * abgeleitet.
+ *
+ * Das ist kein Versehen und keine doppelte Buchführung. SM-2s Zahlen
+ * beantworten „wann lohnt sich die nächste Begegnung", nicht „wie gut kann sie
+ * das". Ein langes Intervall als „sitzt" auszugeben hieße, aus einer
+ * Terminplanung eine Note zu machen – und `masteryScore` bleibt aus demselben
+ * Grund ungeschrieben: eine Zahl von 0 bis 100, die niemand gemessen hat,
+ * würde sofort als Messung gelesen.
  */
 
 export type Kompetenzstand =

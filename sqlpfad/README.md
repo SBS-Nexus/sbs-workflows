@@ -31,6 +31,7 @@ grundlegend andere Architektur der Codeausführung.
 13. [Sicherheitsgrenzen](#13-sicherheitsgrenzen)
 14. [Auslieferung auf Vercel](#14-auslieferung-auf-vercel)
 15. [Was diese Fassung noch nicht kann](#15-was-diese-fassung-noch-nicht-kann)
+16. [Wiederholen](#16-wiederholen)
 
 ---
 
@@ -88,7 +89,10 @@ hat nicht drei Stunden gelernt.
 
 ## 2. Voraussetzungen
 
-- **Node.js 22** oder neuer
+- **Node.js 22** oder neuer. Nicht nur eine Empfehlung: `tedious` (der
+  SQL-Server-Treiber) und mehrere Prisma-Pakete verlangen es ausdrücklich.
+  Unter Node 20 meldet `npm install` das als `EBADENGINE` und macht trotzdem
+  weiter — die Folgen zeigen sich dann an anderer Stelle.
 - **Docker** für die Plattformdatenbank (PostgreSQL 16) und – optional – für
   einen SQL Server zum Ausführen der Integrationstests
 - Für die Oberfläche wird **kein** SQL Server gebraucht. Ohne ihn sind alle
@@ -156,10 +160,18 @@ soll nicht verdrängt werden.
 ## 6. Migrationen und Seed
 
 ```bash
-npm run db:generate   # Prisma-Client erzeugen
 npm run db:migrate    # Schema anlegen oder fortschreiben
 npm run db:seed       # Lehrplan einspielen
 ```
+
+Der Prisma-Client entsteht schon bei `npm install` (`postinstall`). Wer ihn
+zwischendurch neu braucht — etwa nach einer Schemaänderung —, ruft
+`npm run db:generate` auf.
+
+Die Reihenfolge ist nicht beliebig: `migrate` kommt ohne den Client aus, `seed`
+nicht. Ohne den erzeugten Client bricht der Seed mit
+`Cannot find module './src/generated/prisma/client'` ab — und zwar erst,
+nachdem die Migration bereits gelaufen ist.
 
 Der Seed ist **idempotent**: Zweimal ausgeführt ergibt er denselben Stand wie
 einmal. Wer stattdessen bei jedem Lauf neu anlegt, verliert beim zweiten Mal
@@ -191,10 +203,9 @@ npm run dev
 Vollständiger Ablauf von null:
 
 ```bash
-npm install
+npm install                   # erzeugt dabei den Prisma-Client
 cp .env.example .env          # AUTH_SECRET eintragen
 npm run sql:up
-npm run db:generate
 npm run db:migrate
 npm run db:seed
 npm run konto                 # nur lokal
@@ -406,9 +417,20 @@ dann für die Anwendung zuständig und spricht den Runner über HTTPS an.
    Build**:
 
    ```bash
+   npm install                              # erzeugt dabei den Prisma-Client
    DATABASE_URL="…" npx prisma migrate deploy
    DATABASE_URL="…" npm run db:seed
    ```
+
+   Für Migration und Seed die **direkte** Verbindungszeichenfolge nehmen, nicht
+   die gepoolte: `prisma migrate` nimmt Advisory Locks, und der Pooler arbeitet
+   im Transaction-Mode und reicht sie nicht durch.
+
+   Denselben Befehl braucht es **erneut**, sobald eine neue Migration
+   dazukommt – auch bei einer bereits laufenden Installation. Zuletzt betraf
+   das `20260817185213_wiederholungsplanung_sm2`; die Migration fügt der
+   Tabelle `concept_mastery` eine Spalte mit Standardwert hinzu und ist damit
+   auf vorhandenen Daten gefahrlos.
 
 4. Deployen.
 
@@ -435,19 +457,92 @@ Damit dieses Dokument nicht mehr verspricht als der Code hält:
 - **Die Lizenzfrage** für den Produktionsbetrieb ist offen
   ([docs/SQL-RUNNER.md](docs/SQL-RUNNER.md), Abschnitt 6). Bis sie entschieden
   ist, bleibt `FEATURE_SQL_RUNNER` aus.
-- **Die Wiederholungsplanung nach Intervallen** ist im Datenmodell vorgesehen,
-  die Rechnung dahinter gibt es nicht. Solange richtet sich das Wiederholen
-  nach dem, was nachweislich vorliegt: was zuletzt nicht saß. Ein erfundenes
-  „in 3 Tagen wieder" wäre eine Zahl mit dem Anschein von Wissenschaft und
-  nichts dahinter.
+- **Ein an unseren Lernenden angepasstes Gedächtnismodell.** Die
+  Wiederholungsplanung läuft nach SM-2 mit den Konstanten aus der
+  Veröffentlichung – siehe [Wiederholen](#16-wiederholen). Nichts daran ist an
+  den Daten dieser Anwendung nachjustiert, und die Intervalle sind an Vokabeln
+  erprobt, nicht an SQL.
+- **Eine Behaltenswahrscheinlichkeit** wird nirgends angezeigt. SM-2 rechnet
+  keine; sie zu ergänzen hieße, eine Zahl zu erfinden.
 - **Kompetenzwerte je Konzept** werden nicht als Zahl fortgeschrieben. Die
-  Wissenslandkarte auf dem Überblick leitet den Stand bei jedem Aufruf aus den
-  Versuchen ab und zeigt ein Wort statt einer Prozentzahl; `ConceptMastery`
-  bleibt ungenutzt, bis es ein Gedächtnismodell gibt, das seine Felder füllen
-  kann.
+  Wissenslandkarte leitet den Stand bei jedem Aufruf aus den Versuchen ab und
+  zeigt ein Wort statt einer Prozentzahl; `ConceptMastery.masteryScore` bleibt
+  ungeschrieben. Die übrigen Felder derselben Tabelle führt die
+  Wiederholungsplanung – aber ausschließlich für die Terminfrage, nicht als
+  Note.
+- **`ReviewQueueItem` bleibt leer.** Eine ausmaterialisierte Warteschlange
+  neben `ConceptMastery.nextReviewAt` wäre eine zweite Liste derselben
+  Wahrheit, und die zweite ist irgendwann die falsche.
 - **Ein KI-Tutor** ist nicht enthalten.
 - **Organisationen und Kohorten** stehen im Datenmodell, haben aber keine
   Oberfläche.
+
+---
+
+## 16. Wiederholen
+
+Die Wiederholungsseite zeigt, was **heute ansteht** – berechnet, nicht
+geschätzt.
+
+### Das Verfahren
+
+Umgesetzt ist **SM-2** (Piotr Woźniak, 1987/1990) mit den Konstanten aus der
+Veröffentlichung: Startleichtigkeit 2,5, Untergrenze 1,3, Stufenfolge
+1 Tag → 6 Tage → Intervall mal Leichtigkeit. Der Code steht in
+`src/domain/wiederholung/sm2.ts`, kennt weder Datenbank noch React und ist in
+`tests/unit/sm2.test.ts` gegen die veröffentlichten Zahlen geprüft – nicht
+gegen das, was der Code gerade tut.
+
+**Warum nicht FSRS**, obwohl es das bessere Verfahren ist: FSRS rechnet mit
+siebzehn Parametern, die an einem Wiederholungsprotokoll trainiert werden. Ein
+solches Protokoll gibt es hier nicht. Die vortrainierten Standardwerte zu
+übernehmen hieße, das Gedächtnis fremder Lernender auf unsere anzuwenden und
+das Ergebnis als Messung auszugeben.
+
+### Die eine Stelle, an der eine eigene Entscheidung steckt
+
+SM-2 fragt die Lernende nach jeder Wiederholung nach einer Güte von 0 bis 5.
+Das tun wir nicht – das wären fünf zusätzliche Klicks je Lektion. Die Güte
+wird aus dem abgeleitet, was ohnehin anfällt:
+
+| Ergebnis                  | Güte | Folge                                       |
+| ------------------------- | ---- | ------------------------------------------- |
+| gelöst, ohne Hinweis      | 5    | Intervall wächst am schnellsten             |
+| gelöst, ein Hinweis       | 4    | Leichtigkeit bleibt unverändert             |
+| gelöst, ab zwei Hinweisen | 3    | Intervall wächst, Leichtigkeit sinkt        |
+| teilweise                 | 2    | gilt als Fehlschlag                         |
+| daneben                   | 1    | gilt als Fehlschlag                         |
+| Lösung angesehen          | 0    | gilt als Fehlschlag, steht sofort wieder an |
+
+Das ist eine **Ersetzung**, keine Umsetzung des Originals, und sie ist als
+solche im Kopf von `sm2.ts` vermerkt.
+
+Die angesehene Lösung als 0 zu werten ist keine Strafe: Wer sie gelesen hat,
+weiß danach nicht, ob er sie allein gefunden hätte – und genau das soll die
+nächste Begegnung klären.
+
+### Geplant wird je Konzept
+
+Vergessen wird ein Konzept, nicht eine Aufgabennummer. Ein Versuch zahlt
+deshalb auf alle Konzepte seiner Aufgabe ein; gezeigt wird je fälligem Konzept
+**eine** Aufgabe, und zwar die am längsten nicht bearbeitete. Dass diese eine
+Liste vollständig ist, hängt an einer Zusicherung des Validators: Jede Aufgabe
+hat mindestens ein Konzept, sonst wird der Lehrplan nicht eingespielt.
+
+`ExerciseConcept.weight` wertet der Planer ausdrücklich **nicht** aus – SM-2
+kennt keine Gewichte, und eines einzuführen hieße, das Verfahren um eine Zutat
+ohne Begründung zu erweitern.
+
+### Was es nicht behauptet
+
+SM-2 kennt nur die Abfolge der eigenen Ergebnisse. Es weiß nicht, ob zwei
+Konzepte verwandt sind, und es lernt nichts aus dem Verhalten anderer. Es ist
+ein nachvollziehbarer Vorschlag, wann sich Wiederholen lohnt – keine
+Vorhersage, wann etwas vergessen wird. Die Oberfläche sagt das an dieser
+Stelle auch so.
+
+Eine leere Wiederholungsseite bleibt kein Rückstand. Wer nichts offen hat,
+bekommt das gesagt und keinen Aufholbedarf angezeigt.
 
 ---
 
