@@ -94,9 +94,8 @@ export function readReduceMotionOnServer(): boolean {
  * ruhige Übergänge, weil die Medienabfrage in globals.css unabhängig davon
  * greift.
  */
-export function toggleReduceMotion(): boolean {
-  const next = !readReduceMotion();
-  if (next) {
+export function setReduceMotion(an: boolean): void {
+  if (an) {
     window.localStorage.setItem(MOTION_STORAGE_KEY, 'true');
     document.documentElement.setAttribute('data-reduce-motion', 'true');
   } else {
@@ -104,5 +103,10 @@ export function toggleReduceMotion(): boolean {
     document.documentElement.removeAttribute('data-reduce-motion');
   }
   notify();
+}
+
+export function toggleReduceMotion(): boolean {
+  const next = !readReduceMotion();
+  setReduceMotion(next);
   return next;
 }

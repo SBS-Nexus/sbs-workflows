@@ -74,7 +74,17 @@ test('als fertig markieren lässt sich zurücknehmen', async ({ page }) => {
   await expect(page.getByText('Fertig', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: /Wieder in Bearbeitung nehmen/i }).click();
-  await expect(page.getByText('Wieder in Bearbeitung')).toBeVisible();
+
+  /*
+   * Auf den Satz im Callout prüfen, nicht auf dessen Überschrift.
+   *
+   * „Wieder in Bearbeitung" steht auch im Knopf daneben („… nehmen"). Diese
+   * Prüfung war deshalb in beiden Ausgängen wertlos: Lief sie, bevor der
+   * Callout erschien, traf sie den Knopf und wurde grün, ohne das Ergebnis
+   * angesehen zu haben; erschien der Callout rechtzeitig, gab es zwei Treffer
+   * und einen Strict-Mode-Fehler. Der Satz hier kommt nur an einer Stelle vor.
+   */
+  await expect(page.getByText('Das Abgabedatum ist gelöscht.')).toBeVisible();
 
   await page.reload();
   await expect(page.getByRole('button', { name: /Als fertig markieren/i })).toBeVisible();

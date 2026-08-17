@@ -3,25 +3,46 @@ import { requireUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
 import { logoutAction } from '@/server/actions/auth-actions';
 import { Button, Card, SectionHeading } from '@/components/ui/primitives';
+import { LernangabenForm } from '@/components/profil/lernangaben-form';
+import { DarstellungForm } from '@/components/profil/darstellung-form';
+import { PasswortForm } from '@/components/profil/passwort-form';
+import { KontoLoeschen } from '@/components/profil/konto-loeschen';
+import type { Theme } from '@/lib/preferences/appearance';
 
 export const metadata: Metadata = { title: 'Profil' };
 
-const ERFAHRUNG: Record<string, string> = {
-  NONE: 'Noch nie mit Datenbanken gearbeitet',
-  SPREADSHEETS_ONLY: 'Tabellenkalkulation, kein SQL',
-  READS_QUERIES: 'Liest fremde Abfragen',
-  WRITES_SIMPLE_QUERIES: 'Schreibt einfache Abfragen',
-  OTHER_SQL_DIALECT: 'SQL aus einem anderen System',
-};
-
+/**
+ * Das Profil.
+ *
+ * Die Angaben aus dem Einstieg stehen hier nicht nur, sie lassen sich auch
+ * ändern – vorher waren sie einmalig, und wer sich beim Einstieg
+ * unterschätzt hatte, blieb dabei.
+ *
+ * Farbschema und Bewegungsreduktion werden am Konto gespeichert und nicht nur
+ * im Browser. Für die Bewegungsreduktion ist das mehr als Bequemlichkeit: Sie
+ * ist eine Barrierefreiheitseinstellung und soll der Person folgen, nicht dem
+ * Gerät.
+ */
 export default async function ProfilPage(): Promise<React.ReactElement> {
   const user = await requireUser();
+
   // Die Sitzung trägt nur, was auf jeder Seite gebraucht wird. Die Angaben aus
   // dem Einstieg werden hier gelesen, statt sie in jede Sitzung zu packen.
   const angaben = await prisma.user.findUniqueOrThrow({
     where: { id: user.id },
-    select: { experience: true, dailyTimeBudget: true },
+    select: {
+      experience: true,
+      learningGoal: true,
+      dailyTimeBudget: true,
+      pace: true,
+      theme: true,
+      reduceMotion: true,
+      createdAt: true,
+    },
   });
+
+  const theme: Theme =
+    angaben.theme === 'light' || angaben.theme === 'dark' ? angaben.theme : 'system';
 
   return (
     <div className="space-y-10">
@@ -40,14 +61,49 @@ export default async function ProfilPage(): Promise<React.ReactElement> {
               <dd className="font-medium">{user.email}</dd>
             </div>
             <div>
-              <dt className="text-sm text-[var(--text-muted)]">Vorkenntnisse</dt>
-              <dd className="font-medium">{ERFAHRUNG[angaben.experience] ?? angaben.experience}</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-[var(--text-muted)]">Geplante Zeit am Tag</dt>
-              <dd className="font-medium">{angaben.dailyTimeBudget} Minuten</dd>
+              <dt className="text-sm text-[var(--text-muted)]">Dabei seit</dt>
+              <dd className="font-medium">
+                {angaben.createdAt.toLocaleDateString('de-DE', {
+                  day: '2-digit',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </dd>
             </div>
           </dl>
+        </Card>
+      </section>
+
+      <section aria-labelledby="lernangaben">
+        <SectionHeading id="lernangaben">Deine Angaben</SectionHeading>
+        <p className="mb-4 text-[0.95rem] text-[var(--text-muted)]">
+          Selbstauskunft, kein Testergebnis. Sie steuern die Reihenfolge und die Beispiele – sie
+          sperren nichts.
+        </p>
+        <Card>
+          <LernangabenForm
+            experience={angaben.experience}
+            learningGoal={angaben.learningGoal}
+            dailyTimeBudget={angaben.dailyTimeBudget}
+            pace={angaben.pace}
+          />
+        </Card>
+      </section>
+
+      <section aria-labelledby="darstellung">
+        <SectionHeading id="darstellung">Darstellung</SectionHeading>
+        <p className="mb-4 text-[0.95rem] text-[var(--text-muted)]">
+          Wirkt sofort und wird am Konto gespeichert – also auch auf anderen Geräten.
+        </p>
+        <Card>
+          <DarstellungForm theme={theme} reduceMotion={angaben.reduceMotion} />
+        </Card>
+      </section>
+
+      <section aria-labelledby="passwort">
+        <SectionHeading id="passwort">Passwort</SectionHeading>
+        <Card>
+          <PasswortForm />
         </Card>
       </section>
 
@@ -63,6 +119,13 @@ export default async function ProfilPage(): Promise<React.ReactElement> {
               Abmelden
             </Button>
           </form>
+        </Card>
+      </section>
+
+      <section aria-labelledby="loeschen">
+        <SectionHeading id="loeschen">Konto löschen</SectionHeading>
+        <Card className="border-2 border-[var(--alert)]">
+          <KontoLoeschen />
         </Card>
       </section>
     </div>

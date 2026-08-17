@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/server/auth/session';
 import { AppNav } from '@/components/navigation/app-nav';
+import { prisma } from '@/server/db/prisma';
+import { DarstellungAbgleich } from '@/components/profil/darstellung-abgleich';
+import type { Theme } from '@/lib/preferences/appearance';
 
 /**
  * Rahmen des angemeldeten Bereichs.
@@ -19,8 +22,22 @@ export default async function AppLayout({
   if (!user) redirect('/anmelden');
   if (!user.onboardingCompleted) redirect('/onboarding');
 
+  /*
+   * Die am Konto gespeicherte Darstellung. Sie wird an den Browser
+   * weitergereicht, damit die Bewegungsreduktion auch auf einem neuen Gerät
+   * gilt - sie ist eine Barrierefreiheitseinstellung und gehört zur Person,
+   * nicht zum Browser.
+   */
+  const darstellung = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { theme: true, reduceMotion: true },
+  });
+  const theme: Theme =
+    darstellung?.theme === 'light' || darstellung?.theme === 'dark' ? darstellung.theme : 'system';
+
   return (
     <div className="min-h-dvh">
+      <DarstellungAbgleich theme={theme} reduceMotion={darstellung?.reduceMotion ?? false} />
       <AppNav />
       <main id="hauptinhalt" className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         {children}
