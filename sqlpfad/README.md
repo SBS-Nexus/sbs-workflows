@@ -88,7 +88,10 @@ hat nicht drei Stunden gelernt.
 
 ## 2. Voraussetzungen
 
-- **Node.js 22** oder neuer
+- **Node.js 22** oder neuer. Nicht nur eine Empfehlung: `tedious` (der
+  SQL-Server-Treiber) und mehrere Prisma-Pakete verlangen es ausdrücklich.
+  Unter Node 20 meldet `npm install` das als `EBADENGINE` und macht trotzdem
+  weiter — die Folgen zeigen sich dann an anderer Stelle.
 - **Docker** für die Plattformdatenbank (PostgreSQL 16) und – optional – für
   einen SQL Server zum Ausführen der Integrationstests
 - Für die Oberfläche wird **kein** SQL Server gebraucht. Ohne ihn sind alle
@@ -156,10 +159,18 @@ soll nicht verdrängt werden.
 ## 6. Migrationen und Seed
 
 ```bash
-npm run db:generate   # Prisma-Client erzeugen
 npm run db:migrate    # Schema anlegen oder fortschreiben
 npm run db:seed       # Lehrplan einspielen
 ```
+
+Der Prisma-Client entsteht schon bei `npm install` (`postinstall`). Wer ihn
+zwischendurch neu braucht — etwa nach einer Schemaänderung —, ruft
+`npm run db:generate` auf.
+
+Die Reihenfolge ist nicht beliebig: `migrate` kommt ohne den Client aus, `seed`
+nicht. Ohne den erzeugten Client bricht der Seed mit
+`Cannot find module './src/generated/prisma/client'` ab — und zwar erst,
+nachdem die Migration bereits gelaufen ist.
 
 Der Seed ist **idempotent**: Zweimal ausgeführt ergibt er denselben Stand wie
 einmal. Wer stattdessen bei jedem Lauf neu anlegt, verliert beim zweiten Mal
@@ -191,10 +202,9 @@ npm run dev
 Vollständiger Ablauf von null:
 
 ```bash
-npm install
+npm install                   # erzeugt dabei den Prisma-Client
 cp .env.example .env          # AUTH_SECRET eintragen
 npm run sql:up
-npm run db:generate
 npm run db:migrate
 npm run db:seed
 npm run konto                 # nur lokal
@@ -406,9 +416,14 @@ dann für die Anwendung zuständig und spricht den Runner über HTTPS an.
    Build**:
 
    ```bash
+   npm install                              # erzeugt dabei den Prisma-Client
    DATABASE_URL="…" npx prisma migrate deploy
    DATABASE_URL="…" npm run db:seed
    ```
+
+   Für Migration und Seed die **direkte** Verbindungszeichenfolge nehmen, nicht
+   die gepoolte: `prisma migrate` nimmt Advisory Locks, und der Pooler arbeitet
+   im Transaction-Mode und reicht sie nicht durch.
 
 4. Deployen.
 
