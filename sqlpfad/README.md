@@ -676,6 +676,24 @@ dann auf eine Adresse, die noch nicht antwortet.
    vorgerendert; ohne neuen Build stünde in ihrem `canonical` weiter die
    `vercel.app`-Adresse.
 
+### Die vier Dateien, die niemand aufruft
+
+`robots.txt`, `sitemap.xml`, `manifest.webmanifest` und das Vorschaubild unter
+`/opengraph-image` werden alle **zur Laufzeit erzeugt**, nicht beim
+Übersetzen. Der Grund steht im Kopf von `src/app/robots.ts`: Würden sie beim
+Bauen festgeschrieben, stünde nach einem Build ohne die richtige `APP_URL` eine
+Adresse darin, die es nicht gibt – und die Datei sähe trotzdem gültig aus.
+
+Sie haben eine unangenehme Gemeinsamkeit: Niemand ruft sie auf. Ein Fehler
+darin fällt keiner Lernenden auf, sondern Suchmaschinen und Messengern, und die
+sagen nichts. `e2e/domain-grundlage.spec.ts` prüft deshalb nicht nur den
+Statuscode, sondern die Adressen darin – und dass die im Manifest genannten
+Symbole tatsächlich ausgeliefert werden.
+
+Das Verzeichnis führt bewusst nur drei Adressen: Startseite, Anmelden,
+Registrieren. Die fünfzehn Lektionen gehören nicht hinein, solange sie hinter
+der Anmeldung liegen.
+
 ### Was sich damit von selbst ändert
 
 `isSecureDeployment()` liefert unter `https://` wahr. Damit setzt die

@@ -1,0 +1,16 @@
+<!--
+  Bildzeichen von SQLPfad: drei Knoten, durch Kanten verbunden.
+
+  Es zeigt keine Datenbanktrommel. Die Trommel ist das Klischee für „Datenbank",
+  aber sie zeigt den Behälter; worum es hier geht, ist die Beziehung zwischen
+  Tabellen – der JOIN. Genau das ist die Hürde, an der Lernende hängenbleiben.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <rect width="24" height="24" rx="6" fill="#095d56" />
+  <g fill="none" stroke="#ffffff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="6" cy="7" r="2.5" />
+    <circle cx="18" cy="7" r="2.5" />
+    <circle cx="12" cy="17" r="2.5" />
+    <path d="M7.8 8.6 10.6 15M16.2 8.6 13.4 15M8.5 7h7" />
+  </g>
+</svg>

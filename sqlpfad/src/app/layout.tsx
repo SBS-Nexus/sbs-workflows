@@ -60,6 +60,16 @@ export function generateMetadata(): Metadata {
     description: BRAND.description,
     applicationName: BRAND.name,
     robots: { index: true, follow: true },
+    /*
+     * Symbol und Manifest ausdrücklich verweisen.
+     *
+     * Next verlinkt beides nicht von selbst, nur weil die Dateien vorhanden
+     * sind. Ohne diese zwei Zeilen bleibt der Browsertab leer und die
+     * Anwendung nicht installierbar – und beides sieht man nicht beim
+     * Entwickeln, sondern erst auf einem fremden Gerät.
+     */
+    icons: { icon: '/icon.svg', apple: '/icon.svg' },
+    manifest: '/manifest.webmanifest',
     openGraph: {
       type: 'website',
       locale: 'de_DE',
