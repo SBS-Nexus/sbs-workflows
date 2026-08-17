@@ -106,3 +106,78 @@ test('das Farbschema wird ebenfalls am Konto gehalten', async ({ page }) => {
   await page.reload();
   await expect(page.getByRole('radio', { name: 'Dunkel' })).toBeChecked();
 });
+
+test('das Passwort lässt sich ändern und meldet überall ab', async ({ page }) => {
+  /*
+   * Zwei Dinge auf einmal: dass das neue Passwort wirklich gilt, und dass die
+   * laufende Sitzung endet. Wer sein Passwort ändert, will meist genau die
+   * Sitzung loswerden, die sonst weiterliefe.
+   */
+  const adresse = await meldeAn(page);
+  await page.goto('/profil');
+
+  const neues = 'sonnenblume-hafen-treppe-77';
+  await page.fill('#aktuell', PASSWORT);
+  await page.fill('#neu', neues);
+  await page.fill('#wiederholung', neues);
+  await page.getByRole('button', { name: /Passwort ändern/i }).click();
+
+  await expect(page).toHaveURL(/\/anmelden/);
+
+  // Das alte Passwort geht nicht mehr.
+  await page.fill('#email', adresse);
+  await page.fill('#password', PASSWORT);
+  await page.getByRole('button', { name: /^Anmelden$/i }).click();
+  await expect(page.getByText('E-Mail-Adresse oder Passwort stimmen nicht.')).toBeVisible();
+
+  // Das neue schon. Beide Felder neu füllen: Nach einem fehlgeschlagenen
+  // Versuch steht das Formular wieder leer da.
+  await page.fill('#email', adresse);
+  await page.fill('#password', neues);
+  await page.getByRole('button', { name: /^Anmelden$/i }).click();
+  await expect(page).toHaveURL(/\/fortschritt$/);
+});
+
+test('ein falsches aktuelles Passwort ändert nichts', async ({ page }) => {
+  await meldeAn(page);
+  await page.goto('/profil');
+
+  await page.fill('#aktuell', 'das-ist-es-nicht-123');
+  await page.fill('#neu', 'sonnenblume-hafen-treppe-77');
+  await page.fill('#wiederholung', 'sonnenblume-hafen-treppe-77');
+  await page.getByRole('button', { name: /Passwort ändern/i }).click();
+
+  await expect(page.getByText('Das aktuelle Passwort stimmt nicht.')).toBeVisible();
+  await expect(page).toHaveURL(/\/profil$/);
+});
+
+test('das Konto löschen verlangt Passwort und ein getipptes Wort', async ({ page }) => {
+  const adresse = await meldeAn(page);
+  await page.goto('/profil');
+
+  await page.getByRole('button', { name: /^Konto löschen$/i }).click();
+
+  // Ohne das Bestätigungswort passiert nichts.
+  await page.fill('#loesch-passwort', PASSWORT);
+  await page.fill('#bestaetigung', 'ja');
+  await page.getByRole('button', { name: /Konto endgültig löschen/i }).click();
+  await expect(page.getByText(/muss im zweiten Feld das Wort/)).toBeVisible();
+
+  // Mit falschem Passwort ebenfalls nicht – und das steht auch da.
+  await page.fill('#loesch-passwort', 'falsch-falsch-falsch');
+  await page.fill('#bestaetigung', 'löschen');
+  await page.getByRole('button', { name: /Konto endgültig löschen/i }).click();
+  await expect(page.getByText(/Es wurde nichts gelöscht/)).toBeVisible();
+
+  // Mit beidem richtig ist es weg – und die Anmeldung schlägt danach fehl.
+  await page.fill('#loesch-passwort', PASSWORT);
+  await page.fill('#bestaetigung', 'löschen');
+  await page.getByRole('button', { name: /Konto endgültig löschen/i }).click();
+  await expect(page).toHaveURL(/\/\?geloescht=1$/);
+
+  await page.goto('/anmelden');
+  await page.fill('#email', adresse);
+  await page.fill('#password', PASSWORT);
+  await page.getByRole('button', { name: /^Anmelden$/i }).click();
+  await expect(page.getByText('E-Mail-Adresse oder Passwort stimmen nicht.')).toBeVisible();
+});

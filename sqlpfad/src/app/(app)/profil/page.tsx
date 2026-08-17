@@ -5,6 +5,8 @@ import { logoutAction } from '@/server/actions/auth-actions';
 import { Button, Card, SectionHeading } from '@/components/ui/primitives';
 import { LernangabenForm } from '@/components/profil/lernangaben-form';
 import { DarstellungForm } from '@/components/profil/darstellung-form';
+import { PasswortForm } from '@/components/profil/passwort-form';
+import { KontoLoeschen } from '@/components/profil/konto-loeschen';
 import type { Theme } from '@/lib/preferences/appearance';
 
 export const metadata: Metadata = { title: 'Profil' };
@@ -98,6 +100,13 @@ export default async function ProfilPage(): Promise<React.ReactElement> {
         </Card>
       </section>
 
+      <section aria-labelledby="passwort">
+        <SectionHeading id="passwort">Passwort</SectionHeading>
+        <Card>
+          <PasswortForm />
+        </Card>
+      </section>
+
       <section aria-labelledby="sitzung">
         <SectionHeading id="sitzung">Sitzung</SectionHeading>
         <Card>
@@ -110,6 +119,13 @@ export default async function ProfilPage(): Promise<React.ReactElement> {
               Abmelden
             </Button>
           </form>
+        </Card>
+      </section>
+
+      <section aria-labelledby="loeschen">
+        <SectionHeading id="loeschen">Konto löschen</SectionHeading>
+        <Card className="border-2 border-[var(--alert)]">
+          <KontoLoeschen />
         </Card>
       </section>
     </div>
