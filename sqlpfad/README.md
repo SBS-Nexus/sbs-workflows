@@ -33,6 +33,7 @@ grundlegend andere Architektur der Codeausführung.
 15. [Was diese Fassung noch nicht kann](#15-was-diese-fassung-noch-nicht-kann)
 16. [Wiederholen](#16-wiederholen)
 17. [Redaktionsbereich](#17-redaktionsbereich)
+18. [Eigene Domain über Strato](#18-eigene-domain-über-strato)
 
 ---
 
@@ -615,6 +616,73 @@ jemand anders auswählt und übermittelt, ist ab der Übermittlung keins mehr.
 Wer angemeldet ist, aber keine Adminrolle hat, wird auf den Überblick
 umgeleitet – nicht auf eine Fehlerseite. Er hat sich verlaufen, und das ist
 kein Fehler.
+
+---
+
+## 18. Eigene Domain über Strato
+
+Beispiel: `sqlpfad.de`, registriert bei Strato, ausgeliefert von Vercel.
+
+### Im Code ist nichts zu ändern
+
+Die Domain steht an **einer** Stelle: `APP_URL`. `src/server/site.ts` ist die
+einzige Datei, die sie liest, und alles Weitere – kanonische Verweise,
+`sitemap.xml`, `robots.txt`, die Vorschaubilder geteilter Links, das
+`Secure`-Merkmal der Sitzungscookies und ob `Strict-Transport-Security` gesetzt
+wird – leitet sich daraus ab. Ein Umzug ist eine Zeile, kein
+Suchen-und-Ersetzen.
+
+### Reihenfolge
+
+Sie ist nicht beliebig, und der häufigste Fehler ist, `APP_URL` zuerst zu
+ändern: Zwischen Umstellung und funktionierendem Zertifikat verweist die Seite
+dann auf eine Adresse, die noch nicht antwortet.
+
+1. **In Vercel** unter Settings → Domains `sqlpfad.de` **und**
+   `www.sqlpfad.de` hinzufügen. Vercel nennt daraufhin die nötigen
+   DNS-Einträge und prüft sie fortlaufend.
+
+2. **Bei Strato** unter Domainverwaltung → DNS-Verwaltung eintragen. Die
+   üblichen Werte:
+
+   | Typ     | Name  | Wert                                    |
+   | ------- | ----- | --------------------------------------- |
+   | `A`     | `@`   | `76.76.21.21`                           |
+   | `CNAME` | `www` | der Wert, den Vercel im Dashboard nennt |
+
+   **Den CNAME-Wert aus dem Dashboard abschreiben, nicht von hier.** Vercel
+   vergibt inzwischen projektbezogene Ziele (`cname.vercel-dns.com`,
+   `cname.vercel-dns-0.com`, …); welches für dieses Projekt gilt, steht nur
+   dort. Die A-Adresse für die Wurzel ist dagegen seit Jahren dieselbe.
+
+   Ein `CNAME` auf der Wurzel (`@`) geht **nicht** – das verbietet nicht
+   Strato, sondern das DNS selbst.
+
+   Strato legt für neue Domains eine Weiterleitung auf eine Parkseite an. Die
+   muss weg, sonst gewinnt sie gegen die eigenen Einträge.
+
+3. **Warten.** Bis die Einträge greifen, vergeht bei Strato erfahrungsgemäß
+   eine Viertelstunde bis mehrere Stunden. Vercel stellt das Zertifikat
+   selbstständig aus, sobald die Prüfung durchgeht; in der Domainliste steht
+   dann _Valid Configuration_.
+
+4. **Eine der beiden Adressen zur Hauptadresse machen.** In Vercel lässt sich
+   `www.sqlpfad.de` auf `sqlpfad.de` umleiten (oder umgekehrt). Ohne diese
+   Festlegung ist die Anwendung unter zwei Adressen erreichbar, und
+   Suchmaschinen sehen zwei Websites mit identischem Inhalt.
+
+5. **Erst jetzt** `APP_URL` auf `https://sqlpfad.de` setzen – ohne
+   Schrägstrich am Ende – und **neu deployen**. Die Startseite wird beim Bauen
+   vorgerendert; ohne neuen Build stünde in ihrem `canonical` weiter die
+   `vercel.app`-Adresse.
+
+### Was sich damit von selbst ändert
+
+`isSecureDeployment()` liefert unter `https://` wahr. Damit setzt die
+Anwendung `Strict-Transport-Security` und markiert Sitzungscookies als
+`Secure`. Unter `http://localhost` unterbleibt beides – HSTS dort zu setzen
+würde den eigenen Rechner für Monate auf HTTPS festnageln, auch für andere
+Projekte auf demselben Port.
 
 ---
 
