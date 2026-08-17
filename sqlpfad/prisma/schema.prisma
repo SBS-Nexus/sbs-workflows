@@ -593,11 +593,25 @@ model ConceptMastery {
   userId               String
   conceptId            String
   /// 0–100. Bewusst als Orientierung, nicht als Messwert kommuniziert.
+  ///
+  /// Wird von der Wiederholungsplanung NICHT geschrieben und von der
+  /// Oberfläche nicht gezeigt: Die Wissenslandkarte leitet den Stand aus den
+  /// Versuchen ab und nennt ein Wort statt einer Prozentzahl. Siehe
+  /// src/domain/aufgabe/kompetenz.ts.
   masteryScore         Float     @default(0)
-  /// Gedächtnisstabilität in Tagen – steuert das nächste Intervall.
+  /// Das zuletzt vergebene Intervall in Tagen (SM-2s `I`). 0 = noch nie geplant.
   stability            Float     @default(1)
-  /// Personenbezogene Schwierigkeit 1.0–5.0.
+  /// SM-2s Leichtigkeitsfaktor `EF`, 1.3 bis offen nach oben, Start 2.5.
+  ///
+  /// ACHTUNG, der Spaltenname führt in die Irre: HÖHER heißt LEICHTER, nicht
+  /// schwerer. Der Name ist älter als das Verfahren. Wer ihn als
+  /// Schwierigkeit liest, dreht jede Auswertung um.
   difficulty           Float     @default(2.5)
+  /// SM-2s Zähler `n`: gelungene Wiederholungen in Folge. Ein Fehlschlag setzt
+  /// ihn auf 0. Lässt sich NICHT aus `stability` ableiten – nach einem
+  /// Fehlschlag und nach dem ersten Erfolg steht dort dieselbe 1, die beiden
+  /// Zustände führen aber zu verschiedenen nächsten Intervallen.
+  repetitions          Int       @default(0)
   lastPracticedAt      DateTime?
   nextReviewAt         DateTime?
   successfulRetrievals Int       @default(0)

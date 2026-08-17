@@ -7,6 +7,7 @@ import { prisma } from '@/server/db/prisma';
 import { ausDatenmodellArt } from '@/domain/aufgabe/art';
 import { istLektionAbgeschlossen, type AufgabenStand } from '@/domain/aufgabe/abschluss';
 import { haltAktivitaetFest } from '@/server/lernsitzung';
+import { planeWiederholung } from '@/server/wiederholung';
 import {
   alsVersuchsergebnis,
   bewerteAufgabe,
@@ -102,6 +103,7 @@ export async function gibAufgabeAb(daten: unknown): Promise<Abgabeantwort> {
     });
 
     await haltAktivitaetFest(user.id);
+    await planeWiederholung(user.id, aufgabe.id, ergebnis, geprueft.data.hinweiseGenutzt);
     await pruefeLektionsAbschluss(user.id, aufgabe.lektionId);
   }
 
@@ -167,6 +169,7 @@ export async function meldeSelbsteinschaetzung(daten: unknown): Promise<{ gespei
   });
 
   await haltAktivitaetFest(user.id);
+  await planeWiederholung(user.id, aufgabe.id, ergebnis, geprueft.data.hinweiseGenutzt);
   await pruefeLektionsAbschluss(user.id, aufgabe.lektionId);
 
   return { gespeichert: true };
@@ -226,6 +229,14 @@ export async function zeigeLoesung(daten: unknown): Promise<Loesungsantwort> {
       hintsUsed: geprueft.data.hinweiseGenutzt,
     },
   });
+
+  /*
+   * Die angesehene Lösung geht als Güte 0 in die Planung ein - das Konzept
+   * steht damit sofort wieder an. Nicht als Strafe: Wer die Lösung gelesen
+   * hat, weiß danach nicht, ob er sie allein gefunden hätte, und genau das
+   * soll die nächste Begegnung klären.
+   */
+  await planeWiederholung(user.id, aufgabe.id, 'SOLUTION_REVEALED', geprueft.data.hinweiseGenutzt);
 
   return {
     art: 'loesung',

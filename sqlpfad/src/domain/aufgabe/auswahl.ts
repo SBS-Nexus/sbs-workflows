@@ -6,13 +6,11 @@
  * wo ich war" ein Glücksspiel; und sie lässt sich nicht prüfen. Dieselbe
  * Ausgangslage ergibt hier immer dieselbe Reihenfolge.
  *
- * Was hier ausdrücklich **nicht** stattfindet, ist eine
- * Wiederholungsplanung nach Intervallen. Das Datenmodell sieht sie vor
- * (`ConceptMastery.stability`, `nextReviewAt`), die Rechnung dahinter gibt es
- * noch nicht. Eine erfundene Fälligkeit – „in 3 Tagen wieder" – wäre eine Zahl
- * mit dem Anschein von Wissenschaft und ohne etwas dahinter. Bis die Rechnung
- * steht, richtet sich das Wiederholen nach dem, was nachweislich vorliegt: was
- * zuletzt nicht saß.
+ * Hier geht es nur ums **Üben**. Das Wiederholen nach Terminen rechnet
+ * `src/domain/wiederholung/sm2.ts` und arbeitet je Konzept, nicht je Aufgabe.
+ * Diese Datei kannte früher auch eine `waehleWiederholung`, die nahm, „was
+ * zuletzt nicht saß"; sie ist mit der Terminrechnung überflüssig geworden und
+ * wurde entfernt, statt sie ungenutzt weiterzupflegen.
  */
 
 export type Versuchsergebnis = 'PASSED' | 'PARTIAL' | 'FAILED' | 'SOLUTION_REVEALED';
@@ -65,27 +63,6 @@ export function waehleUebung(
     0,
     Math.max(0, anzahl),
   );
-}
-
-/**
- * Aufgaben zum Wiederholen.
- *
- * Nur, was zuletzt nicht saß – und das am längsten Zurückliegende zuerst. Was
- * nie bearbeitet wurde, gehört nicht hierher: Es zu wiederholen wäre nichts,
- * was wiederholt würde.
- */
-export function waehleWiederholung(
-  alle: readonly Kandidat[],
-  staende: ReadonlyMap<string, Versuchsstand>,
-  anzahl: number,
-): Kandidat[] {
-  return alle
-    .filter((kandidat) => {
-      const stand = staende.get(kandidat.aufgabeSlug);
-      return stand !== undefined && !sitzt(stand);
-    })
-    .sort(nachAelterem(staende))
-    .slice(0, Math.max(0, anzahl));
 }
 
 function nachAelterem(

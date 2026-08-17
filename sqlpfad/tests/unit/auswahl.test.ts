@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  waehleUebung,
-  waehleWiederholung,
-  type Kandidat,
-  type Versuchsstand,
-} from '@/domain/aufgabe/auswahl';
+import { waehleUebung, type Kandidat, type Versuchsstand } from '@/domain/aufgabe/auswahl';
 
 /**
  * Die Auswahl entscheidet, was jemand als Nächstes sieht. Ist sie falsch,
@@ -78,11 +73,6 @@ describe('Üben', () => {
     // Gleiches Datum, gleiche Lektion - der einzige Unterschied ist das
     // Ergebnis. Die angesehene Lösung muss vor der gekonnten Aufgabe stehen.
     expect(gewaehlt.indexOf('a1')).toBeLessThan(gewaehlt.indexOf('a2'));
-
-    // Und sie steht auch in der Wiederholung, die gekonnte nicht.
-    const wiederholung = waehleWiederholung(KANDIDATEN, staende, 10).map((k) => k.aufgabeSlug);
-    expect(wiederholung).toContain('a1');
-    expect(wiederholung).not.toContain('a2');
   });
 
   it('liefert bei gleicher Ausgangslage immer dasselbe', () => {
@@ -100,45 +90,9 @@ describe('Üben', () => {
   });
 });
 
-describe('Wiederholen', () => {
-  it('nimmt nur, was zuletzt nicht saß', () => {
-    const staende = new Map<string, Versuchsstand>([
-      ['a1', stand('PASSED', 5)],
-      ['a2', stand('FAILED', 4)],
-      ['b1', stand('PARTIAL', 3)],
-      ['c1', stand('SOLUTION_REVEALED', 2)],
-    ]);
-    expect(waehleWiederholung(KANDIDATEN, staende, 10).map((k) => k.aufgabeSlug)).toEqual([
-      'c1',
-      'b1',
-      'a2',
-    ]);
-  });
-
-  it('nimmt nichts auf, was nie bearbeitet wurde', () => {
-    /*
-     * Eine nie bearbeitete Aufgabe zu „wiederholen" wäre nichts, was
-     * wiederholt würde - und die Seite behauptete einen Rückstand, den es
-     * nicht gibt.
-     */
-    expect(waehleWiederholung(KANDIDATEN, new Map(), 10)).toEqual([]);
-  });
-
-  it('nimmt das am längsten Zurückliegende zuerst', () => {
-    const staende = new Map<string, Versuchsstand>([
-      ['a1', stand('FAILED', 20)],
-      ['b1', stand('FAILED', 3)],
-    ]);
-    expect(waehleWiederholung(KANDIDATEN, staende, 10).map((k) => k.aufgabeSlug)).toEqual([
-      'b1',
-      'a1',
-    ]);
-  });
-
-  it('ist leer, wenn alles sitzt – und das ist kein Rückstand', () => {
-    const staende = new Map<string, Versuchsstand>(
-      KANDIDATEN.map((kandidat) => [kandidat.aufgabeSlug, stand('PASSED', 1)]),
-    );
-    expect(waehleWiederholung(KANDIDATEN, staende, 10)).toEqual([]);
-  });
-});
+/*
+ * Die Tests zu `waehleWiederholung` stehen nicht mehr hier. Das Wiederholen
+ * richtet sich seit der Terminrechnung nach `nextReviewAt` je Konzept und
+ * nicht mehr nach „was zuletzt nicht saß"; geprüft wird es in
+ * tests/unit/sm2.test.ts.
+ */
