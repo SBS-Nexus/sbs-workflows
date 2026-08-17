@@ -27,8 +27,18 @@ const ZIELE: ReadonlyArray<{ href: string; label: string; icon: IconName }> = [
   { href: '/profil', label: 'Profil', icon: 'profil' },
 ];
 
-export function AppNav(): React.ReactElement {
+const REDAKTION = { href: '/admin', label: 'Redaktion', icon: 'karte' } as const;
+
+/**
+ * @param istAdmin Blendet die Redaktion ein. Ausdrücklich **keine**
+ *   Zugangskontrolle – die steht in `requireAdmin` auf dem Server. Wer den
+ *   Pfad kennt, tippt ihn ohnehin; ein fehlender Link hält niemanden auf.
+ *   Er hält nur die Leiste für alle anderen frei von einem Ziel, das ihnen
+ *   nichts sagt.
+ */
+export function AppNav({ istAdmin = false }: { istAdmin?: boolean }): React.ReactElement {
   const pfad = usePathname();
+  const ziele = istAdmin ? [...ZIELE, REDAKTION] : ZIELE;
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface-raised)]/85 backdrop-blur">
@@ -45,7 +55,7 @@ export function AppNav(): React.ReactElement {
 
         <nav aria-label="Hauptbereiche" className="min-w-0 flex-1">
           <ul className="flex items-center gap-1 overflow-x-auto">
-            {ZIELE.map((ziel) => {
+            {ziele.map((ziel) => {
               const aktiv = pfad === ziel.href || pfad.startsWith(`${ziel.href}/`);
               return (
                 <li key={ziel.href}>

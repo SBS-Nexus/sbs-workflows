@@ -38,7 +38,7 @@ export default async function AppLayout({
   return (
     <div className="min-h-dvh">
       <DarstellungAbgleich theme={theme} reduceMotion={darstellung?.reduceMotion ?? false} />
-      <AppNav />
+      <AppNav istAdmin={user.role === 'ADMIN'} />
       <main id="hauptinhalt" className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         {children}
       </main>
