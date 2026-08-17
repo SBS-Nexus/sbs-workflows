@@ -29,7 +29,8 @@ grundlegend andere Architektur der Codeausführung.
 11. [SQL-Ausführung](#11-sql-ausführung)
 12. [Inhalte pflegen](#12-inhalte-pflegen)
 13. [Sicherheitsgrenzen](#13-sicherheitsgrenzen)
-14. [Was diese Fassung noch nicht kann](#14-was-diese-fassung-noch-nicht-kann)
+14. [Auslieferung auf Vercel](#14-auslieferung-auf-vercel)
+15. [Was diese Fassung noch nicht kann](#15-was-diese-fassung-noch-nicht-kann)
 
 ---
 
@@ -353,7 +354,68 @@ Aufgabe; einen doppelten Slug.
 
 ---
 
-## 14. Was diese Fassung noch nicht kann
+## 14. Auslieferung auf Vercel
+
+Die Anwendung läuft auf Vercel – mit **einer Einschränkung, die aus der
+Architektur folgt und nicht behoben werden kann**: Abfragen ausführen geht
+dort nicht.
+
+### Was auf Vercel funktioniert
+
+Registrierung, Anmeldung, Einstieg, der gesamte Lehrplan mit allen Lektionen,
+die Aufgaben mit Auswahl, Mehrfachauswahl, Reihenfolge, Zeilenzahl-Vorhersage
+und Freitext, die Hinweisleiter, die Musterlösungen, die Projekte, der
+Fortschritt, die Wissenslandkarte, die Lernzeit und das gesamte Profil samt
+Passwortänderung und Kontolöschung.
+
+### Was auf Vercel nicht funktioniert
+
+**Eigene Abfragen ausführen.** Ein SQL Server lässt sich nicht in einer
+Serverless-Funktion betreiben – die Begründung steht in
+[docs/SQL-RUNNER.md](docs/SQL-RUNNER.md), Abschnitt 3. `FEATURE_SQL_RUNNER`
+bleibt deshalb auf `false`, und die Anwendung sagt an jeder betroffenen Stelle,
+dass die Ausführung abgeschaltet ist. Sie erfindet kein Ergebnis.
+
+Wer die Ausführung will, braucht zusätzlich einen Runner-Dienst auf einem
+Server, der lange laufen darf, und einen SQL Server dahinter. Vercel bleibt
+dann für die Anwendung zuständig und spricht den Runner über HTTPS an.
+
+### Voraussetzungen
+
+- **Eine PostgreSQL-Datenbank außerhalb von Vercel** (Neon, Supabase, o. ä.).
+  Für `DATABASE_URL` den **gepoolten** Endpunkt nehmen: Jede Serverless-Instanz
+  öffnet einen eigenen Pool, und ohne Pooler sind die Verbindungen der Datenbank
+  schneller aufgebraucht, als man zusehen kann.
+- Node 22 oder neuer (steht in `engines`).
+
+### Schritte
+
+1. Repository in Vercel importieren, **Root Directory auf `sqlpfad` setzen** –
+   das Repository enthält zwei Anwendungen.
+2. Umgebungsvariablen setzen: `DATABASE_URL`, `AUTH_SECRET` (neu erzeugen, siehe
+   Abschnitt 4), `APP_URL` auf die spätere Adresse ohne Schrägstrich am Ende.
+3. Einmalig gegen dieselbe Datenbank – **von der eigenen Maschine aus, nicht im
+   Build**:
+
+   ```bash
+   DATABASE_URL="…" npx prisma migrate deploy
+   DATABASE_URL="…" npm run db:seed
+   ```
+
+4. Deployen.
+
+Der Build erzeugt den Prisma-Client selbst (`prisma generate && next build`);
+`src/generated/` ist nicht eingecheckt, und ohne diesen Schritt bricht der Build
+eines frischen Klons ab.
+
+**Migrationen laufen bewusst nicht im Build.** Ein Deployment, das nebenbei das
+Schema der Produktionsdatenbank ändert, tut das auch dann, wenn man nur einen
+Tippfehler im Text korrigieren wollte. Ein eigener, bewusster Schritt ist
+umständlicher und genau deshalb richtig.
+
+---
+
+## 15. Was diese Fassung noch nicht kann
 
 Damit dieses Dokument nicht mehr verspricht als der Code hält:
 
