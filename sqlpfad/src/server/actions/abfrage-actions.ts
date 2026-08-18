@@ -6,6 +6,7 @@ import { getEnv, istSqlRunnerVerfuegbar } from '@/server/env';
 import { erklaereSqlFehler, type Fehlererklaerung } from '@/domain/sql/fehler';
 import { pruefeAnweisung, teileAnweisungen } from '@/domain/sql/statement-policy';
 import type { Resultset } from '@/domain/sql/resultset';
+import { fuehreImRunnerAus, stelleSandboxBereit } from '@/server/sql/runner-client';
 
 /**
  * Eine Abfrage ausführen.
@@ -29,6 +30,13 @@ const eingabe = z.object({
   sql: z.string().min(1).max(20_000),
   /** Anweisungsklassen, die die aktuelle Aufgabe zulässt. */
   erlaubteKlassen: z.array(z.enum(['SELECT', 'DML', 'DDL', 'TRANSAKTION', 'PROGRAMMIERUNG'])),
+  /**
+   * Gegen welchen Übungsdatensatz gearbeitet wird.
+   *
+   * Er kommt aus der Aufgabe und bestimmt, welche Sandbox gemeint ist. Der
+   * Standardwert hält ältere Aufrufe am Leben, die ihn noch nicht mitschicken.
+   */
+  datensatz: z.string().min(1).max(80).default('handwerk'),
 });
 
 export type AbfrageErgebnis =
@@ -47,8 +55,9 @@ export type AbfrageErgebnis =
 export async function fuehreAbfrageAus(daten: {
   sql: string;
   erlaubteKlassen: string[];
+  datensatz?: string;
 }): Promise<AbfrageErgebnis> {
-  await requireUser();
+  const user = await requireUser();
 
   const geprueft = eingabe.safeParse(daten);
   if (!geprueft.success) {
@@ -100,17 +109,57 @@ export async function fuehreAbfrageAus(daten: {
   /*
    * Ab hier führt der Runner-Dienst aus.
    *
-   * Der Client dafür steht noch aus; solange er fehlt, wird nicht so getan,
-   * als sei die Ausführung möglich. Diese Verzweigung ist über
-   * `istSqlRunnerVerfuegbar()` heute nicht erreichbar – sie bleibt als
-   * benannte Lücke stehen, statt als stiller Rückfall auf irgendetwas.
+   * Zuerst die Sandbox: Ohne sie gäbe es keine Datenbank, gegen die die
+   * Abfrage laufen könnte. Sie wird beim ersten Mal angelegt und danach nur
+   * noch angefasst, wenn sich die Fassung des Übungsdatensatzes geändert hat.
    */
-  return {
-    art: 'nicht-verfuegbar',
-    hinweis:
-      'Der Übungsserver ist eingerichtet, die Anbindung an den Runner-Dienst fehlt in dieser ' +
-      'Fassung aber noch. Siehe docs/SQL-RUNNER.md, Abschnitt 10.',
-  };
+  const sandbox = await stelleSandboxBereit(user.id, geprueft.data.datensatz);
+  if ('art' in sandbox) {
+    return { art: 'nicht-verfuegbar', hinweis: sandbox.hinweis };
+  }
+
+  const ergebnis = await fuehreImRunnerAus({
+    datenbank: sandbox.datenbank,
+    sql: geprueft.data.sql,
+    erlaubteKlassen: geprueft.data.erlaubteKlassen,
+  });
+
+  /*
+   * Die Antwort des Dienstes in die Sprache der Oberfläche übersetzen.
+   *
+   * Bewusst Fall für Fall und ohne Sammelzweig: Ein `default`, der alles
+   * Unbekannte zu „Fehler" macht, würde eine neue Ergebnisart stillschweigend
+   * falsch anzeigen, statt beim Übersetzen aufzufallen.
+   */
+  switch (ergebnis.art) {
+    case 'runner-nicht-erreichbar':
+    case 'runner-abgewiesen':
+      return { art: 'nicht-verfuegbar', hinweis: ergebnis.hinweis };
+
+    case 'abgelehnt':
+      return { art: 'abgelehnt', begruendung: ergebnis.policy.begruendung };
+
+    case 'erfolg':
+      return {
+        art: 'erfolg',
+        resultset: ergebnis.resultset,
+        abgeschnitten: ergebnis.abgeschnitten,
+        gelieferteZeilen: ergebnis.gelieferteZeilen,
+        dauerMs: ergebnis.dauerMs,
+      };
+
+    case 'fehler':
+      return { art: 'fehler', erklaerung: ergebnis.erklaerung };
+
+    case 'zeitlimit':
+      return { art: 'zeitlimit', hinweis: ergebnis.hinweis };
+
+    case 'abgebrochen':
+      return {
+        art: 'nicht-verfuegbar',
+        hinweis: 'Die Ausführung wurde abgebrochen. Es ist nichts passiert.',
+      };
+  }
 }
 
 /** Nur für die Anzeige: erzeugt die Erklärung zu einer Servermeldung. */

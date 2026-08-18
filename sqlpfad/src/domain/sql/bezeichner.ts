@@ -64,3 +64,25 @@ export function sandboxDatenbankName(kontoId: string, schemaSlug: string): strin
   if (!ERLAUBT.test(name)) throw new UngueltigerBezeichnerFehler(name);
   return name;
 }
+
+/**
+ * Bildet den Anmeldenamen, unter dem das SQL dieser Lernenden läuft.
+ *
+ * Ein **anderer** als der Verwaltungsname. Das ist der Kern des
+ * Berechtigungsmodells aus docs/SQL-RUNNER.md, Abschnitt 4: Wer Datenbanken
+ * anlegen darf, darf nicht derjenige sein, der fremdes SQL ausführt. Liefe
+ * beides unter einem Namen, wäre jede Lücke in der Anweisungsprüfung sofort
+ * ein Zugriff auf alle anderen Sandboxes – und die Anweisungsprüfung ist
+ * ausdrücklich nicht als Sicherheitsgrenze gedacht.
+ *
+ * Der Name leitet sich aus dem Datenbanknamen ab und enthält damit ebenfalls
+ * kein personenbezogenes Merkmal.
+ */
+export function sandboxAnmeldename(sandboxDatenbank: string): string {
+  const name = `lrn_${sandboxDatenbank}`;
+
+  // Wie beim Datenbanknamen: melden statt kürzen. Ein abgeschnittener
+  // Anmeldename könnte mit dem einer anderen Sandbox zusammenfallen.
+  if (!ERLAUBT.test(name)) throw new UngueltigerBezeichnerFehler(name);
+  return name;
+}

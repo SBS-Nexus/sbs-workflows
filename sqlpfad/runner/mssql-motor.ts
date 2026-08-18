@@ -1,4 +1,13 @@
-import 'server-only';
+/*
+ * Kein `server-only`.
+ *
+ * Diese Datei lag früher unter `src/server/` und trug den Vermerk. Er war dort
+ * richtig und ist hier falsch: Der Motor gehört zum **Runner-Prozess**, nicht
+ * zur Anwendung. Die Anwendung spricht nie Port 1433 – siehe
+ * docs/SQL-RUNNER.md, Abschnitt 3. `server-only` würde den Import außerhalb
+ * von Next verhindern, also genau dort, wo er hingehört.
+ */
+import { randomBytes } from 'node:crypto';
 import sql from 'mssql';
 import {
   type Ausfuehrungsauftrag,
@@ -6,9 +15,9 @@ import {
   type RohAusfuehrung,
   type SqlMotor,
   type Zustandsbericht,
-} from '@/domain/sql/runner';
-import { uebersetzeTreiberfehler, zuResultset } from '@/domain/sql/treiber-uebersetzung';
-import { alsBezeichner } from '@/domain/sql/bezeichner';
+} from '../src/domain/sql/runner';
+import { uebersetzeTreiberfehler, zuResultset } from '../src/domain/sql/treiber-uebersetzung';
+import { alsBezeichner, sandboxAnmeldename } from '../src/domain/sql/bezeichner';
 
 /**
  * Der Anschluss an einen echten SQL Server.
@@ -107,8 +116,30 @@ interface TreiberErgebnis {
 }
 
 export function erstelleMssqlMotor(optionen: MssqlMotorOptionen): SqlMotor {
-  /** Ein Verbindungspool je Sandbox-Datenbank. */
-  const pools = new Map<string, Promise<sql.ConnectionPool>>();
+  /**
+   * Pools des **Verwaltungsnamens**. Nur für `master` und für das Einspielen
+   * der Struktur nach dem Zurücksetzen – niemals für Lernenden-SQL.
+   */
+  const verwaltungsPools = new Map<string, Promise<sql.ConnectionPool>>();
+
+  /**
+   * Pools der **Sandbox-Anmeldenamen**. Hier läuft fremdes SQL, und nur hier.
+   */
+  const ausfuehrungsPools = new Map<string, Promise<sql.ConnectionPool>>();
+
+  /**
+   * Die Kennwörter der Sandbox-Anmeldenamen – ausschließlich im Speicher
+   * dieses Prozesses.
+   *
+   * Sie werden nirgends abgelegt. Das ist kein Verzicht auf Bequemlichkeit,
+   * sondern die einfachere Lösung: Nach einem Neustart des Dienstes ist die
+   * Karte leer, und der nächste Zugriff setzt das Kennwort neu
+   * (`ALTER LOGIN … WITH PASSWORD`). Ein Kennwort, das man neu vergeben kann,
+   * muss man nicht aufbewahren – und was nicht abgelegt ist, kann auch nicht
+   * abfließen.
+   */
+  const kennwoerter = new Map<string, string>();
+
   const laufende = new Map<string, LaufenderAuftrag>();
 
   function basisKonfiguration(datenbank: string): sql.config {
@@ -130,29 +161,117 @@ export function erstelleMssqlMotor(optionen: MssqlMotorOptionen): SqlMotor {
     };
   }
 
-  async function holePool(datenbank: string): Promise<sql.ConnectionPool> {
-    const vorhanden = pools.get(datenbank);
+  /**
+   * Öffnet einen Pool und merkt ihn sich – oder wirft ihn weg, wenn er
+   * scheitert.
+   *
+   * Einen kaputten Pool zu behalten wäre der Fehler: Jeder weitere Versuch
+   * scheiterte dann an derselben alten Zusage, auch wenn der Server längst
+   * wieder erreichbar ist.
+   */
+  async function oeffne(
+    karte: Map<string, Promise<sql.ConnectionPool>>,
+    schluessel: string,
+    konfiguration: sql.config,
+  ): Promise<sql.ConnectionPool> {
+    const vorhanden = karte.get(schluessel);
     if (vorhanden) return vorhanden;
 
-    const neuer = new sql.ConnectionPool(basisKonfiguration(datenbank)).connect();
-    pools.set(datenbank, neuer);
+    const neuer = new sql.ConnectionPool(konfiguration).connect();
+    karte.set(schluessel, neuer);
 
     try {
       return await neuer;
     } catch (fehler) {
-      // Einen kaputten Pool nicht behalten: Sonst scheitert jeder weitere
-      // Versuch an derselben alten Zusage, auch wenn der Server längst wieder
-      // erreichbar ist.
-      pools.delete(datenbank);
+      karte.delete(schluessel);
       throw fehler;
     }
   }
 
-  async function schliessePool(datenbank: string): Promise<void> {
-    const pool = pools.get(datenbank);
-    if (!pool) return;
-    pools.delete(datenbank);
-    await pool.then((offen) => offen.close()).catch(() => undefined);
+  function holeVerwaltungsPool(datenbank: string): Promise<sql.ConnectionPool> {
+    return oeffne(verwaltungsPools, datenbank, basisKonfiguration(datenbank));
+  }
+
+  /**
+   * Ein Kennwort, das gefahrlos in einen Anweisungstext darf.
+   *
+   * `CREATE LOGIN` nimmt keinen Parameter – das Kennwort muss in den Text.
+   * Base64url besteht ausschließlich aus `A–Z a–z 0–9 - _`; darin gibt es
+   * kein Hochkomma, mit dem sich die Zeichenkette verlassen ließe. Wieder die
+   * Regel aus `bezeichner.ts`: eine kleine bekannte Menge zulassen, statt
+   * gefährliche Zeichen zu entfernen.
+   */
+  function erzeugeKennwort(): string {
+    return randomBytes(33).toString('base64url');
+  }
+
+  /**
+   * Sorgt dafür, dass es den Anmeldenamen dieser Sandbox gibt – mit genau den
+   * Rechten, die eine Lernende braucht, und keinem mehr.
+   *
+   * Was er **nicht** bekommt, ist die eigentliche Aussage:
+   *
+   * - kein `db_owner` – sonst könnte er Rechte an sich selbst vergeben
+   * - keine Serverrolle, insbesondere nicht `sysadmin`
+   * - keinen Zugriff auf `master` oder eine andere Sandbox
+   * - kein `VIEW ANY DATABASE`, damit fremde Sandboxes nicht einmal in der
+   *   Liste auftauchen
+   *
+   * Was er bekommt: lesen, schreiben und Struktur ändern **in seiner eigenen
+   * Datenbank**. Das Ändern der Struktur ist nötig, weil Modul 4 CREATE TABLE
+   * und ALTER TABLE übt – ohne das wäre der halbe Lehrplan nicht ausführbar.
+   */
+  async function stelleAnmeldenamenSicher(sandbox: string): Promise<string> {
+    const vorhandenes = kennwoerter.get(sandbox);
+    if (vorhandenes) return vorhandenes;
+
+    const anmeldename = sandboxAnmeldename(sandbox);
+    const anmeldeBezeichner = alsBezeichner(anmeldename);
+    const kennwort = erzeugeKennwort();
+
+    const verwaltung = await holeVerwaltungsPool('master');
+    await verwaltung.request().batch(
+      `IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'${anmeldename}')
+         CREATE LOGIN ${anmeldeBezeichner} WITH PASSWORD = '${kennwort}', CHECK_POLICY = OFF;
+       ELSE
+         ALTER LOGIN ${anmeldeBezeichner} WITH PASSWORD = '${kennwort}';
+       DENY VIEW ANY DATABASE TO ${anmeldeBezeichner};`,
+    );
+
+    const inSandbox = await holeVerwaltungsPool(sandbox);
+    await inSandbox.request().batch(
+      `IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'${anmeldename}')
+         CREATE USER ${anmeldeBezeichner} FOR LOGIN ${anmeldeBezeichner};
+       ALTER ROLE db_datareader ADD MEMBER ${anmeldeBezeichner};
+       ALTER ROLE db_datawriter ADD MEMBER ${anmeldeBezeichner};
+       ALTER ROLE db_ddladmin  ADD MEMBER ${anmeldeBezeichner};`,
+    );
+
+    kennwoerter.set(sandbox, kennwort);
+    return kennwort;
+  }
+
+  /** Der Pool, in dem Lernenden-SQL läuft. Niemals der Verwaltungsname. */
+  async function holeAusfuehrungsPool(sandbox: string): Promise<sql.ConnectionPool> {
+    const kennwort = await stelleAnmeldenamenSicher(sandbox);
+    return oeffne(ausfuehrungsPools, sandbox, {
+      ...basisKonfiguration(sandbox),
+      user: sandboxAnmeldename(sandbox),
+      password: kennwort,
+    });
+  }
+
+  /** Schließt alle Pools auf eine Sandbox – beide Sorten. */
+  async function schliessePools(sandbox: string): Promise<void> {
+    for (const karte of [verwaltungsPools, ausfuehrungsPools]) {
+      const pool = karte.get(sandbox);
+      if (!pool) continue;
+      karte.delete(sandbox);
+      await pool.then((offen) => offen.close()).catch(() => undefined);
+    }
+    // Das Kennwort mit vergessen: Nach dem Verwerfen der Datenbank ist der
+    // Benutzer darin weg, und der nächste Zugriff muss ihn neu anlegen.
+    kennwoerter.delete(sandbox);
   }
 
   return {
@@ -165,7 +284,17 @@ export function erstelleMssqlMotor(optionen: MssqlMotorOptionen): SqlMotor {
       // Anfang der Lücke.
       alsBezeichner(auftrag.sandboxId);
 
-      const pool = await holePool(auftrag.sandboxId);
+      /*
+       * Der **Ausführungspool**, nicht der Verwaltungspool.
+       *
+       * Das ist die eine Zeile, an der das Berechtigungsmodell aus
+       * docs/SQL-RUNNER.md, Abschnitt 4 hängt. Stünde hier der
+       * Verwaltungsname, liefe fremdes SQL mit den Rechten, Datenbanken
+       * anzulegen – und jede Lücke in der Anweisungsprüfung wäre sofort ein
+       * Zugriff auf alle anderen Sandboxes. Die Anweisungsprüfung ist
+       * ausdrücklich nicht als Sicherheitsgrenze gedacht; diese Zeile ist es.
+       */
+      const pool = await holeAusfuehrungsPool(auftrag.sandboxId);
       const anfrage = erstelleAnfrage(pool, grenzen.zeitlimitMs);
 
       /*
@@ -231,9 +360,9 @@ export function erstelleMssqlMotor(optionen: MssqlMotorOptionen): SqlMotor {
 
       // Eigene Verbindungen schließen, sonst blockiert das Verwerfen an der
       // eigenen offenen Sitzung.
-      await schliessePool(sandboxId);
+      await schliessePools(sandboxId);
 
-      const verwaltung = await holePool('master');
+      const verwaltung = await holeVerwaltungsPool('master');
 
       /*
        * SINGLE_USER WITH ROLLBACK IMMEDIATE trennt verbliebene Sitzungen.
@@ -253,15 +382,20 @@ export function erstelleMssqlMotor(optionen: MssqlMotorOptionen): SqlMotor {
          CREATE DATABASE ${name};`,
       );
 
-      // Struktur und Beispieldaten einspielen – in der neuen Datenbank.
-      const frisch = await holePool(sandboxId);
+      /*
+       * Struktur und Beispieldaten legt die **Verwaltung** an, nicht die
+       * Lernende. Ihr Anmeldename existiert in der frisch erzeugten Datenbank
+       * noch gar nicht – `DROP DATABASE` hat den Benutzer darin mitgenommen.
+       * Er entsteht beim nächsten `holeAusfuehrungsPool` neu.
+       */
+      const frisch = await holeVerwaltungsPool(sandboxId);
       await frisch.request().batch(skript);
     },
 
     async zustand(): Promise<Zustandsbericht> {
       const begonnen = Date.now();
       try {
-        const pool = await holePool('master');
+        const pool = await holeVerwaltungsPool('master');
         await pool.request().query('SELECT 1');
         return {
           erreichbar: true,
