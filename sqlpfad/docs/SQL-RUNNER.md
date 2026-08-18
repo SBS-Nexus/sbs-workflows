@@ -200,18 +200,90 @@ spricht nie direkt Port 1433 – siehe Abschnitt 3.
 
 ---
 
-## 10. Was Stand heute noch nicht implementiert ist
+## 10. Der Dienst
+
+```bash
+SQL_RUNNER_TOKEN=…                       # dasselbe wie in der Anwendung
+SQL_SERVER_HOST=127.0.0.1
+SQL_SERVER_VERWALTUNG_BENUTZER=…
+SQL_SERVER_VERWALTUNG_PASSWORT=…
+SQL_SERVER_ZERTIFIKAT_NICHT_PRUEFEN=true # nur lokal
+npm run runner
+```
+
+Der Prozess liegt unter `runner/` und ist ausdrücklich **kein Teil der
+Next-Anwendung**. Der Motor lag früher unter `src/server/` und trug
+`server-only`; beides war falsch, seit es den Dienst gibt. Er läuft dort, wo
+der Übungsserver steht, und die Anwendung erreicht ihn über `SQL_RUNNER_URL`.
+
+### Die Schnittstelle
+
+| Weg                           | Zweck                                |
+| ----------------------------- | ------------------------------------ |
+| `POST /ausfuehren`            | eine Abfrage in einer Sandbox        |
+| `POST /abbrechen`             | genau diese eine Ausführung stoppen  |
+| `POST /sandbox/zuruecksetzen` | Datenbank verwerfen und neu aufbauen |
+| `POST /zustand`               | antwortet der Übungsserver?          |
+
+Alle Wege verlangen `Authorization: Bearer <SQL_RUNNER_TOKEN>`. Der Vergleich
+läuft **zeitkonstant**: Ein `===` auf Zeichenketten bricht beim ersten
+Unterschied ab, und aus den Laufzeitunterschieden lässt sich ein Token Zeichen
+für Zeichen erraten.
+
+Der Dienst gehört **nicht ins offene Netz**. Kein Browser spricht je mit ihm;
+das Token ist die zweite Sicherung, nicht die erste.
+
+### Zwei Anmeldenamen, nicht einer
+
+Das ist die Umsetzung von Abschnitt 4, und sie hat eine Zeile, an der alles
+hängt – die in `fuehreAus`, die den **Ausführungspool** holt und nicht den
+Verwaltungspool.
+
+| Name                          | Darf                                                      |
+| ----------------------------- | --------------------------------------------------------- |
+| Verwaltung (aus der Umgebung) | Datenbanken und Anmeldenamen anlegen, Struktur einspielen |
+| `lrn_<sandbox>` (je Sandbox)  | in **seiner** Datenbank lesen, schreiben, Struktur ändern |
+
+Der Sandbox-Name bekommt `db_datareader`, `db_datawriter` und `db_ddladmin` –
+**nicht** `db_owner`, keine Serverrolle und `DENY VIEW ANY DATABASE`, damit
+fremde Sandboxes nicht einmal in der Liste auftauchen. Das Ändern der Struktur
+ist nötig, weil Modul 4 `CREATE TABLE` und `ALTER TABLE` übt.
+
+Das Kennwort dieses Anmeldenamens liegt **nur im Speicher des
+Runner-Prozesses** und wird nirgends abgelegt. Nach einem Neustart ist die
+Karte leer und der nächste Zugriff setzt es neu (`ALTER LOGIN … WITH
+PASSWORD`). Ein Kennwort, das man neu vergeben kann, muss man nicht
+aufbewahren – und was nicht abgelegt ist, kann nicht abfließen.
+
+### Die Grenzen aus Abschnitt 5 – jetzt als Code
+
+`runner/grenzen.ts` setzt durch, was dort als Tabelle stand: gleichzeitige
+Ausführungen je Sandbox und insgesamt, dazu ein Zeitfenster je Sandbox. Bis
+dahin war es eine Absichtserklärung, auf die sich jemand verlassen hat.
+
+Abgewiesen wird mit `429` und einem Satz, der erklärt statt zu tadeln. „Zu
+schnell" ist meist ein doppelter Klick, kein Angriff.
+
+---
+
+## 11. Was Stand heute noch nicht bewiesen ist
 
 Ehrlichkeitshalber, damit dieses Dokument nicht mehr verspricht als der Code
 hält:
 
-- der Runner-Dienst als eigener Prozess samt Schnittstelle zur Anwendung
-  (Domainlogik, Motor und Rücksetzstrategie stehen)
-- die Vergabe der Anmeldenamen je Sandbox mit minimalen Rechten
-- ein einmal grün gelaufener Durchgang der SQL-Integrationstests. Bis dahin
-  gilt `src/server/sql/mssql-motor.ts` als unbewiesen: Er ist nach der
-  Treiberdokumentation geschrieben, aber gegen keinen laufenden SQL Server
-  gelaufen.
+- **Ein grün gelaufener Durchgang der SQL-Integrationstests.** Bis dahin gilt
+  `runner/mssql-motor.ts` als unbewiesen: Er ist nach der Treiberdokumentation
+  geschrieben und **gegen keinen laufenden SQL Server gelaufen**. Das gilt
+  ausdrücklich auch für die Vergabe der Anmeldenamen und die Rechtevergabe aus
+  Abschnitt 10 – das T-SQL dafür ist geschrieben, nicht erprobt.
+
+  Was **geprüft** ist: die Schnittstelle des Dienstes, die Token-Prüfung, die
+  Grenzen, die Übersetzung von Fehlern und Zeitlimits sowie das Freigeben
+  belegter Plätze. `tests/unit/runner-dienst.test.ts` startet dafür den
+  echten Dienstprozess und spricht ihn über HTTP an; nur der Motor dahinter
+  ist ein Prüfstand. Die Trennlinie verläuft genau dort, wo T-SQL-Semantik
+  beginnt.
+
 - die Entscheidung aus Abschnitt 6
 
 ### Was ohne Runner trotzdem geht

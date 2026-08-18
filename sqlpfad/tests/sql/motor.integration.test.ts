@@ -6,7 +6,7 @@ import {
   SqlZeitlimitFehler,
   STANDARDGRENZEN,
 } from '@/domain/sql/runner';
-import { erstelleMssqlMotor } from '@/server/sql/mssql-motor';
+import { erstelleMssqlMotor } from '../../runner/mssql-motor';
 
 /**
  * Integrationstests gegen einen echten SQL Server.
