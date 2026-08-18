@@ -223,7 +223,14 @@ npm run test:unit    # Domänenlogik, Inhalte, Kontraste
 npm run test:sql     # T-SQL-Semantik gegen einen echten SQL Server
 npm run test:e2e     # der ganze Weg im Produktionsbuild
 npm run verify       # typecheck + lint + unit + build
+
+npm run auslieferung:pruefen -- https://sqlpfad.de   # eine laufende Installation
 ```
+
+`auslieferung:pruefen` gehört nicht ins Qualitätsgate: Es braucht eine
+erreichbare Installation und prüft die Auslieferung, nicht den Code. Es ist
+das Werkzeug für nach dem Deployment – siehe
+[Eigene Domain über Strato](#18-eigene-domain-über-strato).
 
 ### Was die Unit-Tests prüfen
 
@@ -666,15 +673,42 @@ dann auf eine Adresse, die noch nicht antwortet.
    selbstständig aus, sobald die Prüfung durchgeht; in der Domainliste steht
    dann _Valid Configuration_.
 
-4. **Eine der beiden Adressen zur Hauptadresse machen.** In Vercel lässt sich
-   `www.sqlpfad.de` auf `sqlpfad.de` umleiten (oder umgekehrt). Ohne diese
-   Festlegung ist die Anwendung unter zwei Adressen erreichbar, und
-   Suchmaschinen sehen zwei Websites mit identischem Inhalt.
+4. **Eine der beiden Adressen zur Hauptadresse machen** – und zwar
+   **dieselbe, die später in `APP_URL` steht.** In Vercel lässt sich
+   `www.sqlpfad.de` auf `sqlpfad.de` umleiten oder umgekehrt.
+
+   Das ist die Stelle, an der es beim ersten Mal schiefgegangen ist. Vercel
+   leitete `sqlpfad.de` auf `www.sqlpfad.de` um, während `APP_URL` weiter
+   `https://sqlpfad.de` sagte. Beides sah für sich richtig aus: Die Seite lud,
+   das Zertifikat galt, die Anmeldung funktionierte. Nur zeigte **jeder**
+   kanonische Verweis und **jeder** Eintrag im Seitenverzeichnis auf eine
+   Adresse, die mit `308` antwortet statt mit einer Seite – und das merkt
+   niemand, weil es keinem Menschen auffällt.
+
+   Ohne die Festlegung ist die Anwendung außerdem unter zwei Adressen
+   erreichbar, und Suchmaschinen sehen zwei Websites mit identischem Inhalt.
 
 5. **Erst jetzt** `APP_URL` auf `https://sqlpfad.de` setzen – ohne
    Schrägstrich am Ende – und **neu deployen**. Die Startseite wird beim Bauen
    vorgerendert; ohne neuen Build stünde in ihrem `canonical` weiter die
    `vercel.app`-Adresse.
+
+### Nach dem Umzug prüfen
+
+```bash
+npm run auslieferung:pruefen -- https://sqlpfad.de
+```
+
+Das Skript ruft die **laufende** Installation von außen ab und stellt die
+Fragen, die kein Test von innen beantworten kann: Wo landet man wirklich?
+Nennt `robots.txt` dieselbe Adresse? Antworten die Einträge im
+Seitenverzeichnis mit einer Seite oder mit einer Weiterleitung? Zeigt der
+kanonische Verweis dorthin, wo die Seite steht? Sind die
+Sicherheitskopfzeilen da? Gibt es die im Manifest genannten Symbole
+wirklich, und wird das Vorschaubild ausgeliefert?
+
+Es ändert nichts, es meldet nur. Beim ersten Lauf gegen `sqlpfad.de` fand es
+sieben Befunde – alle aus der einen Ursache in Schritt 4.
 
 ### Die vier Dateien, die niemand aufruft
 
