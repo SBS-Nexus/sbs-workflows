@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "playwright-project": {
+      "command": "${CLAUDE_PROJECT_DIR:-.}/.claude/bin/playwright-mcp"
+    }
+  }
+}
