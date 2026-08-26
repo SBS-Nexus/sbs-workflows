@@ -32,3 +32,6 @@ build/
 # Test Data
 test-data/
 *.test.json
+
+# Claude Code: maschinenlokale Übersteuerungen, nicht die geteilte Projektkonfiguration
+.claude/settings.local.json
