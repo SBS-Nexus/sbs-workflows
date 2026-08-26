@@ -22,7 +22,7 @@
     "claude-code-setup@claude-plugins-official": true,
     "hookify@claude-plugins-official": false,
     "plugin-dev@claude-plugins-official": true,
-    "playwright@claude-plugins-official": true,
+    "playwright@claude-plugins-official": false,
     "context7@claude-plugins-official": true
   }
 }

@@ -35,3 +35,6 @@ test-data/
 
 # Claude Code: maschinenlokale Übersteuerungen, nicht die geteilte Projektkonfiguration
 .claude/settings.local.json
+
+# Playwright MCP: Laufzeit-Ausgaben (Screenshots, Snapshots), nie committen
+.playwright-mcp/

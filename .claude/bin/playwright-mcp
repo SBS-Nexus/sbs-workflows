@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+#
+# Playwright MCP launcher for this repository.
+#
+# Why this exists:
+# The marketplace plugin `playwright@claude-plugins-official` starts
+# @playwright/mcp with its default browser channel ("chrome"), which expects a
+# branded Google Chrome installation at /opt/google/chrome/chrome. Anthropic
+# cloud containers ship only the Playwright-managed Chromium build under
+# /opt/pw-browsers, so that launch fails with:
+#
+#   Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+#
+# This launcher resolves whichever Chromium is actually present and hands it to
+# the MCP server explicitly via --executable-path. No browser is ever
+# downloaded, and no Chromium revision is hardcoded.
+
+set -euo pipefail
+
+# Pinned deliberately. Never use @latest here: this file is committed and must
+# resolve to the same server build on every machine and in every session.
+PLAYWRIGHT_MCP_VERSION="0.0.79"
+
+BROWSER_EXECUTABLE=""
+
+# 1. Explicit override always wins.
+if [ -n "${PLAYWRIGHT_CHROMIUM_EXECUTABLE:-}" ]; then
+  if [ ! -x "${PLAYWRIGHT_CHROMIUM_EXECUTABLE}" ]; then
+    echo "playwright-mcp: PLAYWRIGHT_CHROMIUM_EXECUTABLE is set to" >&2
+    echo "  ${PLAYWRIGHT_CHROMIUM_EXECUTABLE}" >&2
+    echo "but that path does not exist or is not executable." >&2
+    exit 1
+  fi
+  BROWSER_EXECUTABLE="${PLAYWRIGHT_CHROMIUM_EXECUTABLE}"
+fi
+
+# 2./3. A Chromium already on PATH.
+if [ -z "${BROWSER_EXECUTABLE}" ]; then
+  for candidate in chromium chromium-browser; do
+    if command -v "${candidate}" >/dev/null 2>&1; then
+      BROWSER_EXECUTABLE="$(command -v "${candidate}")"
+      break
+    fi
+  done
+fi
+
+# 4. Playwright-managed Chromium. The revision is globbed, never pinned, so this
+#    keeps working when the base image bumps the browser build.
+if [ -z "${BROWSER_EXECUTABLE}" ]; then
+  browsers_root="${PLAYWRIGHT_BROWSERS_PATH:-/opt/pw-browsers}"
+  for candidate in "${browsers_root}"/chromium-*/chrome-linux/chrome; do
+    if [ -x "${candidate}" ]; then
+      BROWSER_EXECUTABLE="${candidate}"
+      break
+    fi
+  done
+fi
+
+if [ -z "${BROWSER_EXECUTABLE}" ]; then
+  echo "playwright-mcp: no usable Chromium browser found." >&2
+  echo "" >&2
+  echo "Looked for, in order:" >&2
+  echo "  1. \$PLAYWRIGHT_CHROMIUM_EXECUTABLE (unset)" >&2
+  echo "  2. chromium on PATH" >&2
+  echo "  3. chromium-browser on PATH" >&2
+  echo "  4. \${PLAYWRIGHT_BROWSERS_PATH:-/opt/pw-browsers}/chromium-*/chrome-linux/chrome" >&2
+  echo "" >&2
+  echo "Set PLAYWRIGHT_CHROMIUM_EXECUTABLE to a Chromium binary to override." >&2
+  exit 1
+fi
+
+MCP_ARGS=(
+  --headless
+  --isolated
+  --executable-path "${BROWSER_EXECUTABLE}"
+)
+
+# Deliberately no --no-sandbox: a real browser smoke test in this container
+# (running as uid 0) starts Chromium with the sandbox intact, so weakening it
+# would buy nothing. Add it only if a future environment is proven to need it.
+
+MCP_ARGS+=("$@")
+
+# Prefer a globally provisioned server (cloud environment setup script) so no
+# network fetch is needed at session start; fall back to the pinned package.
+if command -v playwright-mcp >/dev/null 2>&1; then
+  exec playwright-mcp "${MCP_ARGS[@]}"
+fi
+
+exec npx -y "@playwright/mcp@${PLAYWRIGHT_MCP_VERSION}" "${MCP_ARGS[@]}"
