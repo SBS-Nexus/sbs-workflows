@@ -1,0 +1,573 @@
+// AIPfad – Datenmodell
+//
+// Leitgedanken (übernommen aus PythonPfad/SQLPfad, siehe docs/ARCHITEKTUR.md):
+//  * Inhalt (Course/CourseModule/Lesson/Exercise/Concept/Lab) und Lernverlauf
+//    (Attempt/ConceptMastery/LearningSession/LabAttempt) sind strikt getrennt.
+//    Inhalte werden aus versionierten Dateien geseedet, Lernverlauf entsteht
+//    zur Laufzeit.
+//  * Personenbezogene Lerndaten und anonyme Produktanalyse liegen in
+//    getrennten Tabellen (Attempt vs. AnalyticsEvent). AnalyticsEvent enthält
+//    bewusst keine Fremdschlüssel auf User.
+//  * Jeder Fremdschlüssel hat eine explizite Löschregel, damit
+//    "Konto löschen" vollständig und ohne Restdaten funktioniert.
+//
+// Diese erste Ausbaustufe deckt Stufe 0 (Orientierung), Stufe 1 (Technischer
+// Arbeitsplatz, kompakt), Stufe 4 (LLM-Grundlagen) und Stufe 5 (Prompting)
+// ab. Weitere Stufen, Organisationen/Kohorten, Projekte und kuratierte
+// Wiederholungssets sind bewusst noch nicht modelliert – siehe
+// docs/LEHRPLAN.md für den vollständigen, verbleibenden Umfang.
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  runtime                = "nodejs"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Aufzählungen
+// ---------------------------------------------------------------------------
+
+enum Role {
+  LEARNER
+  ADMIN
+}
+
+/// Redaktioneller Lebenszyklus von Inhalten (Adminbereich).
+enum ContentStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+/// Womit will die Person AIPfad vor allem nutzen? Steuert Beispielkontexte
+/// und spätere rollenbasierte Tracks (siehe docs/LEHRPLAN.md §41).
+enum LearningGoal {
+  GENERAL
+  DEVELOPER
+  PRODUCT_ROLE
+  GOVERNANCE_ROLE
+  LEADERSHIP
+}
+
+/// Selbstauskunft im Onboarding – kein Testergebnis.
+enum ExperienceLevel {
+  NONE
+  USED_CHATBOTS
+  TECHNICAL_BACKGROUND
+  AI_PRACTITIONER
+}
+
+enum LearningPace {
+  RELAXED
+  STEADY
+  FOCUSED
+}
+
+/// Interaktionsformen dieser Ausbaustufe. Weitere Typen (Diff Review, RAG
+/// Pipeline Builder, Agent Trace Analysis, …) folgen mit den zugehörigen
+/// Lehrplanstufen.
+enum ExerciseType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  ORDERING
+  FILL_IN
+  SCENARIO_DECISION
+  TERMINAL_SIMULATION
+  PROMPT_REPAIR
+  TRANSFER
+  SPACED_REVIEW
+}
+
+enum AttemptResult {
+  PASSED
+  PARTIAL
+  FAILED
+  /// Musterlösung angesehen – zählt ausdrücklich NICHT als Beherrschung.
+  SOLUTION_REVEALED
+}
+
+/// Grobe Fehlerklasse für nicht-code-basierte Aufgaben. Ersetzt PythonPfads
+/// laufzeitbezogene Kategorien (SyntaxError usw.), die hier nicht anfallen,
+/// weil in dieser Ausbaustufe kein Code ausgeführt wird.
+enum ErrorCategory {
+  NONE
+  /// Detail übersehen, Frage falsch gelesen – kein Verständnisproblem.
+  SURFACE
+  /// Antwort unvollständig, aber im Kern richtig.
+  INCOMPLETE
+  /// Grundlegendes Fehlverständnis des Konzepts.
+  MISCONCEPTION
+}
+
+/// Selbsteinschätzung vor bzw. nach der Bearbeitung (Metakognition).
+enum Confidence {
+  UNSURE
+  RATHER_UNSURE
+  RATHER_SURE
+  VERY_SURE
+}
+
+enum LessonState {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// Art eines Labs – steuert, welche client-seitige Visualisierung gerendert
+/// wird. Jedes Lab ist deterministisch; es findet kein Live-Aufruf an einen
+/// KI-Anbieter statt (siehe docs/CONTENT-POLICY.md).
+enum LabKind {
+  TERMINAL
+  TOKENIZER
+  CONTEXT_WINDOW
+  PROMPT_REPAIR
+}
+
+// ---------------------------------------------------------------------------
+// Konten und Sitzungen
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String @id @default(cuid())
+  email        String @unique
+  /// scrypt-Hash im Format  scrypt$N$r$p$salt$hash  – nie im Klartext.
+  passwordHash String
+  name         String
+  role         Role   @default(LEARNER)
+  locale       String @default("de-DE")
+  timezone     String @default("Europe/Berlin")
+
+  onboardingCompleted Boolean         @default(false)
+  experience          ExperienceLevel @default(NONE)
+  learningGoal        LearningGoal    @default(GENERAL)
+  /// Verfügbare Lernzeit pro Tag in Minuten.
+  dailyTimeBudget     Int             @default(20)
+  pace                LearningPace    @default(STEADY)
+  /// Selbsteinschätzung im Onboarding, 0–100. Nur Anzeige, kein Gate.
+  selfAssessment      Int             @default(0)
+  currentPathId       String?
+  placementCompleted  Boolean         @default(false)
+  /// Ergebnis der diagnostischen Einstufung, 0–100.
+  placementScore      Int?
+
+  reduceMotion Boolean @default(false)
+  theme        String  @default("system")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  currentPath     LearningPath?      @relation("UserCurrentPath", fields: [currentPathId], references: [id], onDelete: SetNull)
+  sessions        AuthSession[]
+  paths           LearningPath[]     @relation("UserPaths")
+  attempts        Attempt[]
+  mastery         ConceptMastery[]
+  lessonProgress  LessonProgress[]
+  learningSessions LearningSession[]
+  reviewItems     ReviewQueueItem[]
+  milestoneAwards MilestoneAward[]
+  labAttempts     LabAttempt[]
+
+  @@index([role])
+  @@map("users")
+}
+
+/// Ein erreichter Meilenstein. Wird einmal vergeben und nie wieder entzogen
+/// – siehe docs/LERNMODELL.md "Motivation ohne Dunkelmuster".
+model MilestoneAward {
+  id        String   @id @default(cuid())
+  userId    String
+  /// Schlüssel aus src/domain/motivation/milestones.ts.
+  key       String
+  awardedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@map("milestone_awards")
+}
+
+/// Opake Sitzungstoken. In der Datenbank liegt nur der SHA-256-Hash.
+model AuthSession {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  /// Zufallswert für das CSRF-Double-Submit-Verfahren.
+  csrfSecret String
+  userAgent  String?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Inhalte
+// ---------------------------------------------------------------------------
+
+model Course {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  description String
+  version     String        @default("1.0.0")
+  status      ContentStatus @default(PUBLISHED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  modules CourseModule[]
+  paths   LearningPath[]
+
+  @@index([status])
+  @@map("courses")
+}
+
+/// "Module" ist in Prisma/JS ein belegter Begriff – daher CourseModule.
+model CourseModule {
+  id               String        @id @default(cuid())
+  courseId         String
+  slug             String        @unique
+  title            String
+  summary          String
+  /// Kurze Begründung, warum dieses Modul an dieser Stelle steht.
+  rationale        String
+  order            Int
+  status           ContentStatus @default(PUBLISHED)
+  /// Slugs der Module, die vorher sinnvoll sind (weiche Reihenfolge).
+  prerequisiteIds  String[]      @default([])
+  estimatedMinutes Int           @default(0)
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@unique([courseId, order])
+  @@index([courseId])
+  @@map("course_modules")
+}
+
+model Lesson {
+  id                     String        @id @default(cuid())
+  moduleId               String
+  slug                   String        @unique
+  title                  String
+  /// Konkrete, überprüfbare Lernziele (nie "kennenlernen").
+  learningObjectives     String[]
+  /// Alltagsproblem, das das Konzept nötig macht.
+  everydayProblem        String
+  /// Mentales Modell / Analogie.
+  mentalModel            String
+  /// Durchgerechnetes Beispiel mit Zeilenkommentaren (JSON).
+  workedExample           Json
+  /// Reflexionsfragen. Der Text der Antwort wird nicht gespeichert.
+  reflectionPrompts      String[]
+  /// Häufige Denkfehler mit Richtigstellung (JSON-Liste).
+  commonMistakes         Json
+  estimatedMinutes       Int           @default(8)
+  order                  Int
+  contentVersion         String        @default("1.0.0")
+  status                 ContentStatus @default(PUBLISHED)
+  prerequisiteConceptIds String[]      @default([])
+
+  module    CourseModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  exercises Exercise[]
+  concepts  LessonConcept[]
+  progress  LessonProgress[]
+
+  @@unique([moduleId, order])
+  @@index([moduleId])
+  @@index([status])
+  @@map("lessons")
+}
+
+/// Ein Konzept ist die kleinste Einheit, für die Kompetenz gemessen wird.
+model Concept {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name            String
+  description     String
+  /// 1 (sehr leicht) bis 5 (anspruchsvoll).
+  difficulty      Int      @default(1)
+  prerequisiteIds String[] @default([])
+
+  lessons   LessonConcept[]
+  exercises ExerciseConcept[]
+  mastery   ConceptMastery[]
+  labs      Lab[]
+
+  @@index([difficulty])
+  @@map("concepts")
+}
+
+model LessonConcept {
+  lessonId  String
+  conceptId String
+  /// true, wenn das Konzept in dieser Lektion erstmals eingeführt wird.
+  isPrimary Boolean @default(false)
+
+  lesson  Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@id([lessonId, conceptId])
+  @@index([conceptId])
+  @@map("lesson_concepts")
+}
+
+model Exercise {
+  id              String        @id @default(cuid())
+  lessonId        String?
+  slug            String        @unique
+  type            ExerciseType
+  title           String
+  prompt          String
+  /// Typspezifische Nutzlast (Optionen, Reihenfolge, Lücken …) – siehe
+  /// src/domain/content/exercise-payload.ts für die Zod-Schemata.
+  payload         Json
+  /// Erklärung der Musterlösung. Wird erst nach der Hint-Ladder freigegeben.
+  solutionNotes   String?
+  /// Progressive Hinweisleiter, Stufe 1 (Denkimpuls) bis 5 (Erklärung).
+  hints           Json          @default("[]")
+  /// 1–5, wie Concept.difficulty.
+  difficulty      Int           @default(1)
+  /// Gerüst-Stufe 1 (vollständig gelöst) bis 6 (Transfer ohne Hilfen).
+  scaffoldLevel   Int           @default(3)
+  /// Beschreibung des neuen Kontexts bei Transferaufgaben.
+  transferContext String?
+  order           Int           @default(0)
+  contentVersion  String        @default("1.0.0")
+  status          ContentStatus @default(PUBLISHED)
+
+  lesson      Lesson?           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  concepts    ExerciseConcept[]
+  attempts    Attempt[]
+  reviewItems ReviewQueueItem[]
+
+  @@index([lessonId])
+  @@index([type])
+  @@index([status])
+  @@map("exercises")
+}
+
+model ExerciseConcept {
+  exerciseId String
+  conceptId  String
+  /// Gewicht 0.0–1.0: wie stark zahlt diese Aufgabe auf das Konzept ein?
+  weight     Float  @default(1.0)
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  concept  Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@id([exerciseId, conceptId])
+  @@index([conceptId])
+  @@map("exercise_concepts")
+}
+
+/// Ein Lab: eine interaktive, deterministische Visualisierung/Simulation
+/// (Terminal, Tokenizer, Context Window, Prompt Repair). Deckt spec §14/§47.
+model Lab {
+  id               String        @id @default(cuid())
+  slug             String        @unique
+  kind             LabKind
+  title            String
+  summary          String
+  /// Aufgabenstellung, dargestellt bevor das Lab startet.
+  instructions     String
+  /// Deterministische Konfiguration/Szenariodaten für die Visualisierung.
+  config           Json
+  estimatedMinutes Int           @default(10)
+  status           ContentStatus @default(PUBLISHED)
+  relatedConceptIds String[]     @default([])
+
+  concepts Concept[]
+  attempts LabAttempt[]
+
+  @@index([status])
+  @@map("labs")
+}
+
+model LabAttempt {
+  id          String    @id @default(cuid())
+  userId      String
+  labId       String
+  /// Ergebnis der jeweiligen Lab-Interaktion (typspezifisch, JSON).
+  result      Json
+  completed   Boolean   @default(false)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lab  Lab  @relation(fields: [labId], references: [id], onDelete: Cascade)
+
+  @@index([userId, labId])
+  @@map("lab_attempts")
+}
+
+// ---------------------------------------------------------------------------
+// Lernpfad und Fortschritt
+// ---------------------------------------------------------------------------
+
+/// Individuell zusammengestellte Reihenfolge von Lektionen.
+model LearningPath {
+  id          String   @id @default(cuid())
+  userId      String
+  courseId    String
+  title       String
+  /// Geordnete Lektions-Slugs. Wird bei Änderungen am Ziel neu berechnet.
+  lessonSlugs String[]
+  /// Begründung, warum der Pfad so aussieht (wird im UI angezeigt).
+  rationale   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User   @relation("UserPaths", fields: [userId], references: [id], onDelete: Cascade)
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  currentOf User[] @relation("UserCurrentPath")
+
+  @@index([userId])
+  @@map("learning_paths")
+}
+
+model LessonProgress {
+  id          String      @id @default(cuid())
+  userId      String
+  lessonId    String
+  state       LessonState @default(NOT_STARTED)
+  /// Zuletzt geöffneter Abschnitt – ermöglicht Fortsetzen auf anderem Gerät.
+  lastSection String      @default("objective")
+  completedAt DateTime?
+  startedAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId, state])
+  @@map("lesson_progress")
+}
+
+model Attempt {
+  id               String        @id @default(cuid())
+  userId           String
+  exerciseId       String
+  /// Eingereichte Antwort (typspezifisch, JSON – gewählte Optionen,
+  /// Reihenfolge, Lückentext …).
+  submittedAnswer  Json
+  result           AttemptResult
+  errorType        ErrorCategory @default(NONE)
+  hintsUsed        Int           @default(0)
+  /// Bearbeitungsdauer in Millisekunden. Fließt NICHT in die Kompetenz ein –
+  /// nur zur Anzeige.
+  durationMs       Int           @default(0)
+  confidenceBefore Confidence?
+  confidenceAfter  Confidence?
+  /// Wurde die Aufgabe als geplante Wiederholung bearbeitet?
+  isReview         Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, exerciseId])
+  @@index([exerciseId, result])
+  @@index([createdAt])
+  @@map("attempts")
+}
+
+model ConceptMastery {
+  id                   String    @id @default(cuid())
+  userId               String
+  conceptId            String
+  /// 0–100. Bewusst als Orientierung, nicht als Messwert kommuniziert.
+  masteryScore         Float     @default(0)
+  /// Gedächtnisstabilität in Tagen – steuert das nächste Intervall.
+  stability            Float     @default(1)
+  /// Personenbezogene Schwierigkeit 1.0–5.0 (höher = braucht mehr Wiederholung).
+  difficulty           Float     @default(2.5)
+  lastPracticedAt      DateTime?
+  nextReviewAt         DateTime?
+  successfulRetrievals Int       @default(0)
+  failedRetrievals     Int       @default(0)
+  /// Anzahl bestandener Transferaufgaben – Kernbeleg für echtes Verständnis.
+  transferSuccesses    Int       @default(0)
+  /// Version des Kompetenzalgorithmus, mit dem der Wert entstanden ist.
+  algorithmVersion     String    @default("1.0.0")
+  updatedAt            DateTime  @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conceptId])
+  @@index([userId, nextReviewAt])
+  @@map("concept_mastery")
+}
+
+/// Konkret eingeplante Wiederholung einer einzelnen Aufgabe.
+model ReviewQueueItem {
+  id          String    @id @default(cuid())
+  userId      String
+  exerciseId  String
+  dueAt       DateTime
+  /// Wievielte Wiederholung ist das? 0 = Erstlernen.
+  repetition  Int       @default(0)
+  /// Warum wurde diese Wiederholung geplant? Für Transparenz im UI.
+  reason      String    @default("Regulärer Wiederholungsplan")
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, exerciseId])
+  @@index([userId, dueAt])
+  @@map("review_queue_items")
+}
+
+model LearningSession {
+  id                  String    @id @default(cuid())
+  userId              String
+  startedAt           DateTime  @default(now())
+  /// Zeitpunkt der letzten Aktivität – die Untätigkeitsspanne wird ab hier
+  /// gemessen, nicht ab startedAt.
+  lastActivityAt      DateTime  @default(now())
+  endedAt             DateTime?
+  activitiesCompleted Int       @default(0)
+  activeMinutes       Int       @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+  @@map("learning_sessions")
+}
+
+/// Anonyme Produktanalyse. Bewusst OHNE Nutzerbezug: kein Fremdschlüssel,
+/// keine ID, nur aggregierbare Merkmale.
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  eventType   String
+  /// Grobe Zuordnung, z. B. Lektions-Slug – nie personenbezogen.
+  contentSlug String?
+  /// Numerischer Messwert (z. B. Dauer in Sekunden).
+  value       Float?
+  /// Zusätzliche, ausschließlich nicht personenbezogene Merkmale.
+  attributes  Json     @default("{}")
+  /// Auf den Tag gerundet, damit keine Zeitkorrelation zu Personen entsteht.
+  occurredOn  DateTime @db.Date
+  createdAt   DateTime @default(now())
+
+  @@index([eventType, occurredOn])
+  @@map("analytics_events")
+}

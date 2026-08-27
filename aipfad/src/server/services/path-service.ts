@@ -1,0 +1,99 @@
+import 'server-only';
+import { prisma } from '@/server/db/prisma';
+import type { LearningPathModel } from '@/generated/prisma/models';
+
+/**
+ * Pfad-Dienst: verwaltet den individuellen Lernpfad (`LearningPath`, mit
+ * Begründungstext — docs/LERNMODELL.md §7 "Pfadaufbau") und bestimmt den
+ * nächsten sinnvollen Schritt. Priorität: fällige Wiederholungen → begonnene
+ * Lektion → nächste offene Lektion → alles erledigt.
+ *
+ * Diese Ausbaustufe hat genau einen Kurs und überspringt nie eine Lektion
+ * (siehe LERNMODELL.md "Grundregel") — der Pfad enthält deshalb schlicht alle
+ * veröffentlichten Lektionen in Modul-/Lektionsreihenfolge, nicht personalisiert
+ * gekürzt. Eine Einstufung kann das später verfeinern, ohne dass sich diese
+ * Funktion ändert.
+ */
+
+export type NextStep =
+  | { kind: 'review'; reviewCount: number }
+  | { kind: 'lesson'; lessonSlug: string; lessonTitle: string }
+  | { kind: 'all-done' };
+
+export async function getNextStep(userId: string): Promise<NextStep> {
+  const reviewCount = await prisma.reviewQueueItem.count({
+    where: { userId, completedAt: null, dueAt: { lte: new Date() } },
+  });
+  if (reviewCount > 0) return { kind: 'review', reviewCount };
+
+  const inProgress = await prisma.lessonProgress.findFirst({
+    where: { userId, state: 'IN_PROGRESS' },
+    include: { lesson: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+  if (inProgress) {
+    return {
+      kind: 'lesson',
+      lessonSlug: inProgress.lesson.slug,
+      lessonTitle: inProgress.lesson.title,
+    };
+  }
+
+  const completed = await prisma.lessonProgress.findMany({
+    where: { userId, state: 'COMPLETED' },
+    select: { lessonId: true },
+  });
+  const completedIds = completed.map((l) => l.lessonId);
+
+  const nextLesson = await prisma.lesson.findFirst({
+    where: { status: 'PUBLISHED', id: { notIn: completedIds } },
+    orderBy: [{ module: { order: 'asc' } }, { order: 'asc' }],
+  });
+  if (nextLesson) {
+    return { kind: 'lesson', lessonSlug: nextLesson.slug, lessonTitle: nextLesson.title };
+  }
+
+  return { kind: 'all-done' };
+}
+
+/**
+ * Liefert den bestehenden Pfad der Person oder legt einen neuen an — alle
+ * veröffentlichten Lektionen des (einzigen) Kurses, in Reihenfolge.
+ */
+export async function getOrCreatePath(userId: string): Promise<LearningPathModel> {
+  const existing = await prisma.learningPath.findFirst({ where: { userId } });
+  if (existing) return existing;
+
+  const course = await prisma.course.findFirst({
+    where: { status: 'PUBLISHED' },
+    include: {
+      modules: {
+        where: { status: 'PUBLISHED' },
+        orderBy: { order: 'asc' },
+        include: { lessons: { where: { status: 'PUBLISHED' }, orderBy: { order: 'asc' } } },
+      },
+    },
+  });
+
+  if (!course) {
+    throw new Error('Kein veröffentlichter Kurs vorhanden — wurde die Datenbank geseedet?');
+  }
+
+  const lessonSlugs = course.modules.flatMap((mod) => mod.lessons.map((lesson) => lesson.slug));
+
+  const path = await prisma.learningPath.create({
+    data: {
+      userId,
+      courseId: course.id,
+      title: course.title,
+      lessonSlugs,
+      rationale:
+        'Dieser Pfad enthält alle Lektionen dieser Ausbaustufe in der vorgesehenen Reihenfolge. ' +
+        'Es wird nie eine Lektion übersprungen — spätere Inhalte bauen darauf auf.',
+    },
+  });
+
+  await prisma.user.update({ where: { id: userId }, data: { currentPathId: path.id } });
+
+  return path;
+}

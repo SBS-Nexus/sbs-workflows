@@ -1,0 +1,28 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Umgebung – enthält Secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Generierter Prisma-Client
+src/generated/
+
+# Tests
+coverage/
+playwright-report/
+test-results/
+.playwright/
+.playwright-mcp/
+
+# Werkzeuge
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+.vscode/
+.idea/

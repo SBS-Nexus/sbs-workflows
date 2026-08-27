@@ -1,0 +1,31 @@
+# AIPfad – lokale Infrastruktur.
+#
+# Startet ausschließlich die Datenbank. Die Next.js-Anwendung läuft bewusst
+# direkt auf dem Entwicklungsrechner (`npm run dev`), damit Hot Reload und
+# Debugging ohne Umwege funktionieren.
+#
+#   docker compose up -d
+#   npm run db:migrate && npm run db:seed && npm run dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aipfad-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aipfad
+      POSTGRES_PASSWORD: aipfad
+      POSTGRES_DB: aipfad
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8'
+    ports:
+      - '5433:5432'
+    volumes:
+      - aipfad-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U aipfad -d aipfad']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  aipfad-pgdata:

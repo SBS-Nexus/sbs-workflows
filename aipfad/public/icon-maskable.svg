@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="AIPfad">
+  <title>AIPfad</title>
+  <!-- Maskable-Fassung: volle Kachel ohne Rundung, Bildzeichen mit
+       Sicherheitsabstand zum Rand, da Betriebssysteme daraus eine eigene
+       Form ausschneiden. -->
+  <rect width="512" height="512" fill="#1d1a15"/>
+  <line x1="176" y1="336" x2="256" y2="256" stroke="#24618f" stroke-width="18" stroke-linecap="round"/>
+  <line x1="256" y1="256" x2="336" y2="176" stroke="#24618f" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="176" cy="336" r="34" fill="#b45309"/>
+  <circle cx="256" cy="256" r="34" fill="#efb26a"/>
+  <circle cx="336" cy="176" r="34" fill="#b45309"/>
+</svg>

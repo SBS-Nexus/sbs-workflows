@@ -1,0 +1,34 @@
+{
+  "$kommentar": [
+    "Leistungsbudget: Obergrenzen für JavaScript/CSS/Schrift, komprimiert",
+    "übertragen (encodedBodySize). Diese Anfangswerte sind vorsichtig geschätzt",
+    "(kein CodeMirror, keine Pyodide-Laufzeit wie bei PythonPfad) und MÜSSEN",
+    "einmal real gemessen werden, sobald ein Produktionsbuild existiert:",
+    "  npm run build && npm run start &",
+    "  npm run perf -- --schreibe",
+    "Wer eine Grenze danach anhebt, soll das im Commit begründen."
+  ],
+  "routen": [
+    {
+      "pfad": "/",
+      "beschreibung": "Startseite – Hero mit Tokenizer-Miniatur",
+      "javascriptKb": 160,
+      "cssKb": 20,
+      "schriftKb": 60
+    },
+    {
+      "pfad": "/anmelden",
+      "beschreibung": "Anmeldung",
+      "javascriptKb": 150,
+      "cssKb": 20,
+      "schriftKb": 60
+    },
+    {
+      "pfad": "/lernen",
+      "beschreibung": "Lernbibliothek – öffentlich, muss auch auf schlechter Verbindung schnell da sein",
+      "javascriptKb": 160,
+      "cssKb": 20,
+      "schriftKb": 60
+    }
+  ]
+}
