@@ -30,6 +30,22 @@ export const RATE_LIMITS = {
   register: { limit: 5, windowMs: 60 * 60 * 1000 },
   submitAttempt: { limit: 240, windowMs: 60 * 60 * 1000 },
   labAttempt: { limit: 120, windowMs: 60 * 60 * 1000 },
+  /**
+   * Zusätzliche, ausschließlich IP-basierte Obergrenze für Anmeldung und
+   * Registrierung — unabhängig von der jeweiligen E-Mail-Adresse.
+   *
+   * Der reguläre `login`/`register`-Schlüssel kombiniert IP und E-Mail
+   * (`requestKey()` in `server/actions/auth-actions.ts`). Das begrenzt
+   * Versuche gegen EIN Konto wirksam, aber jede neue E-Mail-Adresse eröffnet
+   * einen frischen Zähler. Von derselben IP aus reihum viele verschiedene
+   * Adressen durchzuprobieren (Credential Stuffing mit geleakten
+   * Zugangsdaten, oder massenhaftes Ausloten, welche Adressen bereits ein
+   * Konto haben) bliebe dadurch ungebremst. Diese zusätzliche, gröbere
+   * IP-only-Grenze schließt genau diese Lücke, ohne die feinere
+   * Pro-Konto-Grenze zu ersetzen — beide werden durchgesetzt.
+   */
+  loginPerIp: { limit: 30, windowMs: 15 * 60 * 1000 },
+  registerPerIp: { limit: 15, windowMs: 60 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitConfig>;
 
 export function checkRateLimit(

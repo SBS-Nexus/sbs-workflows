@@ -31,10 +31,27 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Bitte gib dein Passwort ein.').max(200),
 });
 
-async function requestKey(prefix: string, identifier: string): Promise<string> {
+async function clientIp(): Promise<string> {
   const headerList = await headers();
-  const forwarded = headerList.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return `${prefix}:${forwarded ?? 'local'}:${identifier.toLowerCase()}`;
+  return headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
+}
+
+async function requestKey(prefix: string, identifier: string): Promise<string> {
+  return `${prefix}:${await clientIp()}:${identifier.toLowerCase()}`;
+}
+
+/**
+ * Zusätzlich zur Pro-Konto-Grenze in `requestKey()` wird hier eine reine
+ * IP-Grenze durchgesetzt — sonst eröffnet jede neue E-Mail-Adresse einen
+ * frischen Zähler, und jemand könnte von derselben IP aus unbegrenzt viele
+ * Adressen durchprobieren (Credential Stuffing, Massen-Enumeration
+ * registrierter Adressen). Siehe `server/security/rate-limit.ts`.
+ */
+async function enforcePerIpLimit(
+  config: Parameters<typeof enforceRateLimit>[1],
+  prefix: string,
+): Promise<void> {
+  enforceRateLimit(`${prefix}-ip:${await clientIp()}`, config);
 }
 
 export async function registerAction(_previous: FormState, formData: FormData): Promise<FormState> {
@@ -57,6 +74,7 @@ export async function registerAction(_previous: FormState, formData: FormData): 
 
   try {
     enforceRateLimit(await requestKey('register', email), RATE_LIMITS.register);
+    await enforcePerIpLimit(RATE_LIMITS.registerPerIp, 'register');
   } catch (error) {
     if (error instanceof RateLimitError) return { ok: false, error: error.message };
     throw error;
@@ -109,6 +127,7 @@ export async function loginAction(_previous: FormState, formData: FormData): Pro
 
   try {
     enforceRateLimit(await requestKey('login', email), RATE_LIMITS.login);
+    await enforcePerIpLimit(RATE_LIMITS.loginPerIp, 'login');
   } catch (error) {
     if (error instanceof RateLimitError) return { ok: false, error: error.message };
     throw error;

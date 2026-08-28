@@ -17,6 +17,29 @@ bzw. `docs/SECURITY.md`), angepasst auf die Unterschiede dieser Ausbaustufe.
   Aufgaben-Abgabe und Lab-Interaktionen. Bei mehreren Instanzen muss dies
   gegen einen gemeinsamen Zähler getauscht werden (Schnittstelle bleibt
   gleich).
+  **Zwei Grenzen pro Aktion**, nicht nur eine: Die feinere Grenze schlüsselt
+  nach IP **und** E-Mail-Adresse (`login`/`register`) — das begrenzt Versuche
+  gegen ein einzelnes Konto wirksam, aber jede neue Adresse eröffnet einen
+  frischen Zähler. Ohne eine zusätzliche, gröbere Grenze ließe sich von
+  derselben IP aus unbegrenzt durch viele Adressen rotieren (Credential
+  Stuffing mit geleakten Zugangsdaten; Massen-Enumeration, welche Adressen
+  registriert sind). Deshalb erzwingt `enforcePerIpLimit()` zusätzlich eine
+  reine IP-Grenze (`loginPerIp`: 30/15 Min., `registerPerIp`: 15/Std.) —
+  beide Grenzen gelten gemeinsam, keine ersetzt die andere.
+- **Bekannter, akzeptierter Kompromiss — E-Mail-Enumeration bei der
+  Registrierung:** `registerAction()` antwortet mit "Für diese Adresse gibt
+  es bereits ein Konto" statt einer neutralen Meldung. Das verrät technisch,
+  welche Adressen registriert sind. Bewusst übernommen aus
+  PythonPfad/SQLPfad (dort derselbe Kompromiss, dieselbe Meldung) statt
+  eigens für AIPfad abgeschwächt: Der Nutzen für Nutzende, die aus Versehen
+  ein zweites Konto anlegen wollen, wiegt in einer Lernplattform ohne
+  sensible Kontoinhalte höher als das Enumerationsrisiko, und die neue
+  IP-Grenze oben deckelt zumindest das Ausmaß eines automatisierten
+  Massenabgleichs. Bei der **Anmeldung** gibt es diesen Kompromiss
+  ausdrücklich nicht: `loginAction()` prüft immer einen Passwort-Hash, auch
+  bei unbekannter Adresse, und meldet in beiden Fällen dieselbe neutrale
+  Meldung ("E-Mail-Adresse oder Passwort stimmen nicht") — dort ist die
+  Zeit- und Antwortgleichheit bewusst vollständig durchgehalten.
 
 ## Kein Live-KI-Aufruf in dieser Ausbaustufe
 
