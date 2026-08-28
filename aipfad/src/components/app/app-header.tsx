@@ -5,7 +5,13 @@ import { Icon } from '@/components/ui/icon';
 const PRIMARY_NAV = [
   { href: '/pfad', label: 'Pfad' },
   { href: '/lernen', label: 'Lernen' },
-  { href: '/ueben', label: 'Üben' },
+  // "Üben" führte auf eine nie gebaute Route (/ueben) und erzeugte bei jedem
+  // Seitenaufruf einen 404-Vorabruf. Diese Ausbaustufe hat kein eigenes,
+  // von Lektionen unabhängiges Übungscenter — Aufgaben werden innerhalb der
+  // Lektionen bearbeitet (siehe LEHRPLAN.md, "Bewusst nicht gebaut"). Bis
+  // dahin führt der Punkt auf die tatsächlich vorhandene Wiederholung, die
+  // vorher gar keinen eigenen Navigationseintrag hatte.
+  { href: '/wiederholen', label: 'Wiederholen' },
   { href: '/labs', label: 'Labs' },
   { href: '/fortschritt', label: 'Fortschritt' },
 ] as const;

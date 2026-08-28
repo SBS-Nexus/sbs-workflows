@@ -28,8 +28,12 @@ test('Registrierung bis Fortschrittsanzeige', async ({ page }) => {
   await page.getByRole('link', { name: 'Weiterlernen' }).click();
   await expect(page).toHaveURL(/\/lektion\/.+\/1$/);
 
-  // Schritt 1: Einführung
+  // Schritt 1: Einführung. Zwischen den Klicks wird explizit auf die
+  // client-seitige Navigation gewartet (App Router hat kein hartes
+  // Seitenlade-Ereignis) — ohne das rennt der zweite Klick dem ersten
+  // Navigationsversuch voraus und trifft "Weiter" auf Schritt 1 statt 2.
   await page.getByRole('link', { name: 'Weiter' }).click();
+  await expect(page).toHaveURL(/\/2$/);
   // Schritt 2: Beispiel
   await page.getByRole('link', { name: 'Weiter' }).click();
   // Schritt 3: Aufgabe

@@ -1,6 +1,5 @@
 import 'server-only';
 import { prisma } from '@/server/db/prisma';
-import { requireUser } from '@/server/auth/session';
 import type { Prisma } from '@/generated/prisma/client';
 
 /**
@@ -24,13 +23,31 @@ export async function getLessonBySlug(slug: string): Promise<LessonWithRelations
   return lesson;
 }
 
-export async function startLesson(lessonId: string): Promise<void> {
-  const user = await requireUser();
+/**
+ * Markiert eine Lektion als begonnen. Stuft eine bereits `COMPLETED`
+ * Lektion NICHT zurück auf `IN_PROGRESS` — erneutes Öffnen zum
+ * Nachschlagen darf den erreichten Abschluss nicht rückgängig machen
+ * (siehe Codex-Review auf PR #29: bloßes Wiederöffnen setzte den
+ * Fortschritt zurück und ließ die Lektion in `getNextStep` erneut
+ * auftauchen).
+ */
+export async function startLesson(userId: string, lessonId: string): Promise<void> {
+  const existing = await prisma.lessonProgress.findUnique({
+    where: { userId_lessonId: { userId, lessonId } },
+  });
 
-  await prisma.lessonProgress.upsert({
-    where: { userId_lessonId: { userId: user.id, lessonId } },
-    create: { userId: user.id, lessonId, state: 'IN_PROGRESS' },
-    update: { state: 'IN_PROGRESS' },
+  if (existing?.state === 'COMPLETED') return;
+
+  if (existing) {
+    await prisma.lessonProgress.update({
+      where: { userId_lessonId: { userId, lessonId } },
+      data: { state: 'IN_PROGRESS' },
+    });
+    return;
+  }
+
+  await prisma.lessonProgress.create({
+    data: { userId, lessonId, state: 'IN_PROGRESS' },
   });
 }
 

@@ -28,4 +28,10 @@ beforeAll(() => {
     env: { ...process.env, DATABASE_URL: testDatabaseUrl },
     stdio: 'pipe',
   });
+
+  execSync('npx tsx prisma/seed.ts', {
+    cwd: projectRoot,
+    env: { ...process.env, DATABASE_URL: testDatabaseUrl, SEED_DEMO_USERS: 'false' },
+    stdio: 'pipe',
+  });
 }, 180_000);

@@ -46,6 +46,7 @@ export const RATE_LIMITS = {
    */
   loginPerIp: { limit: 30, windowMs: 15 * 60 * 1000 },
   registerPerIp: { limit: 15, windowMs: 60 * 60 * 1000 },
+  hintReveal: { limit: 120, windowMs: 60 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitConfig>;
 
 export function checkRateLimit(

@@ -174,6 +174,7 @@ model User {
   reviewItems     ReviewQueueItem[]
   milestoneAwards MilestoneAward[]
   labAttempts     LabAttempt[]
+  hintReveals     HintReveal[]
 
   @@index([role])
   @@map("users")
@@ -353,11 +354,34 @@ model Exercise {
   concepts    ExerciseConcept[]
   attempts    Attempt[]
   reviewItems ReviewQueueItem[]
+  hintReveals HintReveal[]
 
   @@index([lessonId])
   @@index([type])
   @@index([status])
   @@map("exercises")
+}
+
+/// Welche Hinweisstufe eine Person zu einer Aufgabe bereits gesehen hat.
+///
+/// Serverseitig maßgeblich für zwei Dinge: die Hinweisleiter (nur die
+/// jeweils nächste Stufe wird freigegeben, nie eine übersprungen — siehe
+/// `domain/hints/hint-ladder.ts`) und die Kompetenzberechnung
+/// (`hintsUsed` fließt aus der Anzahl echter Zeilen hier ein, nicht aus
+/// einer Angabe des Clients).
+model HintReveal {
+  id         String   @id @default(cuid())
+  userId     String
+  exerciseId String
+  level      Int
+  revealedAt DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, exerciseId, level])
+  @@index([userId, exerciseId])
+  @@map("hint_reveals")
 }
 
 model ExerciseConcept {

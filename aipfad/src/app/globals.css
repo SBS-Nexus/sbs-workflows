@@ -88,30 +88,30 @@
   --radius-lg: 0.625rem;
 }
 
-:root {
-  color-scheme: light;
-  --bg: var(--color-ink-50);
-  --bg-raised: #ffffff;
-  --fg: var(--color-ink-900);
-  --fg-muted: var(--color-ink-600);
-  --border: var(--color-ink-200);
-  --border-strong: var(--color-ink-300);
-  --focus-ring: var(--color-wire-500);
-}
+/*
+ * Alles Folgende steht bewusst in `@layer base`/`@layer components` statt
+ * unlayered im Stylesheet: `@import "tailwindcss"` registriert die Layer-
+ * Reihenfolge `theme, base, components, utilities`, und nach der
+ * CSS-Cascade-Layers-Spezifikation schlägt JEDE unlayered Regel JEDE
+ * geschichtete Regel — unabhängig von Spezifität. Ein zuvor unlayered
+ * `a { color: inherit }` hat dadurch site-weit jede `text-*`-Utility-Klasse
+ * auf Links überschrieben (u. a. `text-ink-50` auf den primären
+ * ButtonLink-CTAs), was den automatisierten Accessibility-Test als
+ * Kontrastfehler aufgedeckt hat (siehe e2e/accessibility.spec.ts).
+ */
+@layer base {
+  :root {
+    color-scheme: light;
+    --bg: var(--color-ink-50);
+    --bg-raised: #ffffff;
+    --fg: var(--color-ink-900);
+    --fg-muted: var(--color-ink-600);
+    --border: var(--color-ink-200);
+    --border-strong: var(--color-ink-300);
+    --focus-ring: var(--color-wire-500);
+  }
 
-:root[data-theme='dark'] {
-  color-scheme: dark;
-  --bg: var(--color-ink-950);
-  --bg-raised: var(--color-ink-900);
-  --fg: var(--color-ink-50);
-  --fg-muted: var(--color-ink-300);
-  --border: var(--color-ink-700);
-  --border-strong: var(--color-ink-600);
-  --focus-ring: var(--color-wire-300);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  :root[data-theme='dark'] {
     color-scheme: dark;
     --bg: var(--color-ink-950);
     --bg-raised: var(--color-ink-900);
@@ -121,103 +121,118 @@
     --border-strong: var(--color-ink-600);
     --focus-ring: var(--color-wire-300);
   }
-}
 
-* {
-  border-color: var(--border);
-}
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      color-scheme: dark;
+      --bg: var(--color-ink-950);
+      --bg-raised: var(--color-ink-900);
+      --fg: var(--color-ink-50);
+      --fg-muted: var(--color-ink-300);
+      --border: var(--color-ink-700);
+      --border-strong: var(--color-ink-600);
+      --focus-ring: var(--color-wire-300);
+    }
+  }
 
-html {
-  background: var(--bg);
-}
+  * {
+    border-color: var(--border);
+  }
 
-body {
-  background: var(--bg);
-  color: var(--fg);
-  font-family: var(--font-sans);
-  font-feature-settings: 'kern' 1;
-  -webkit-font-smoothing: antialiased;
-}
+  html {
+    background: var(--bg);
+  }
 
-/* Sichtbarer Fokus – niemals entfernt, nur gestaltet. */
-:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-feature-settings: 'kern' 1;
+    -webkit-font-smoothing: antialiased;
+  }
 
-a {
-  color: inherit;
-}
+  /* Sichtbarer Fokus – niemals entfernt, nur gestaltet. */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  a {
+    color: inherit;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-/* Skip-Link: unsichtbar bis zum Fokus, dann prominent. */
-.skip-link {
-  position: absolute;
-  left: 1rem;
-  top: -3rem;
-  z-index: 100;
-  background: var(--bg-raised);
-  color: var(--fg);
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-strong);
-  transition: top var(--duration-fast) var(--ease-standard);
-}
-
-.skip-link:focus {
-  top: 1rem;
-}
-
-/*
- * Token-Einflug: die eine orchestrierte Bewegung der Seite (siehe DESIGN.md
- * "Motion"). Jeder Chip bekommt seine Verzögerung per Inline-Style
- * (--stagger). `prefers-reduced-motion` reduziert die Dauer oben bereits auf
- * praktisch null, wodurch die Chips direkt im Endzustand erscheinen.
- */
-@keyframes token-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
+@layer components {
+  /* Skip-Link: unsichtbar bis zum Fokus, dann prominent. */
+  .skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -3rem;
+    z-index: 100;
+    background: var(--bg-raised);
+    color: var(--fg);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-strong);
+    transition: top var(--duration-fast) var(--ease-standard);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .skip-link:focus {
+    top: 1rem;
   }
-}
 
-.token-chip {
-  animation: token-in var(--duration-slow) var(--ease-decelerate) both;
-  animation-delay: var(--stagger, 0ms);
-}
-
-.skeleton {
-  border-radius: var(--radius-sm);
-  background: linear-gradient(
-    90deg,
-    var(--border) 25%,
-    var(--border-strong) 37%,
-    var(--border) 63%
-  );
-  background-size: 400% 100%;
-  animation: skeleton-shimmer 1.4s ease infinite;
-}
-
-@keyframes skeleton-shimmer {
-  0% {
-    background-position: 100% 50%;
+  /*
+   * Token-Einflug: die eine orchestrierte Bewegung der Seite (siehe DESIGN.md
+   * "Motion"). Jeder Chip bekommt seine Verzögerung per Inline-Style
+   * (--stagger). `prefers-reduced-motion` reduziert die Dauer oben bereits auf
+   * praktisch null, wodurch die Chips direkt im Endzustand erscheinen.
+   */
+  @keyframes token-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  100% {
-    background-position: 0 50%;
+
+  .token-chip {
+    animation: token-in var(--duration-slow) var(--ease-decelerate) both;
+    animation-delay: var(--stagger, 0ms);
+  }
+
+  .skeleton {
+    border-radius: var(--radius-sm);
+    background: linear-gradient(
+      90deg,
+      var(--border) 25%,
+      var(--border-strong) 37%,
+      var(--border) 63%
+    );
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.4s ease infinite;
+  }
+
+  @keyframes skeleton-shimmer {
+    0% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0 50%;
+    }
   }
 }

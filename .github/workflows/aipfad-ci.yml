@@ -1,0 +1,103 @@
+name: AIPfad
+
+# Läuft nur für Änderungen unterhalb von aipfad/ — das Repository enthält
+# auch pythonpfad/ und sqlpfad/ mit eigenen Ausbaustufen, ein Lauf der
+# gesamten Prüfkette bei jeder fremden Änderung wäre reine Wartezeit.
+#
+# Hinweis zum Pfad dieser Datei: sie liegt bewusst unter dem echten
+# Repository-Wurzelverzeichnis (.github/workflows/), nicht unter
+# aipfad/.github/workflows/ — GitHub Actions erkennt Workflow-Dateien
+# ausschließlich dort.
+on:
+  push:
+    branches: [main]
+    paths: ['aipfad/**', '.github/workflows/aipfad-ci.yml']
+  pull_request:
+    paths: ['aipfad/**', '.github/workflows/aipfad-ci.yml']
+
+defaults:
+  run:
+    working-directory: aipfad
+
+jobs:
+  pruefen:
+    name: Format, Lint, Typecheck, Tests, Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aipfad
+          POSTGRES_PASSWORD: aipfad
+          POSTGRES_DB: aipfad
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U aipfad"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://aipfad:aipfad@localhost:5432/aipfad?schema=public
+      TEST_DATABASE_URL: postgresql://aipfad:aipfad@localhost:5432/aipfad_test?schema=public
+      # Nur für den CI-Lauf. Ein echtes Geheimnis gehört nicht ins Repository —
+      # hier steht ein Wert, der nichts schützt und nichts öffnet.
+      AUTH_SECRET: ci-lauf-geheimnis-ohne-jede-bedeutung-0123456789
+      APP_URL: http://127.0.0.1:3101
+      SEED_DEMO_USERS: 'false'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: aipfad/package-lock.json
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Testdatenbank anlegen
+        run: |
+          PGPASSWORD=aipfad psql -h localhost -U aipfad -d aipfad \
+            -c "CREATE DATABASE aipfad_test OWNER aipfad;"
+
+      - name: Formatprüfung
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit-Tests
+        run: npm run test:unit
+
+      - name: Integrationstests
+        run: npm run test:integration
+
+      - name: Hauptdatenbank migrieren und befüllen
+        run: |
+          npm run db:deploy
+          npm run db:seed
+
+      - name: Produktionsbuild
+        run: npm run build
+
+      - name: Browser für die E2E-Tests
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-End- und Accessibility-Tests
+        run: npm run test:e2e
+
+      - name: Testbericht sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aipfad-playwright-report
+          path: aipfad/playwright-report/
+          retention-days: 14

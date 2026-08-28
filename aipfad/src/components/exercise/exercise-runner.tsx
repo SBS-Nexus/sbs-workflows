@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { submitExerciseAction } from '@/server/actions/exercise-actions';
+import { useEffect, useRef, useState } from 'react';
+import { submitExerciseAction, revealHintAction } from '@/server/actions/exercise-actions';
 import { Button, Callout, Badge } from '@/components/ui/primitives';
 import type { PublicExercise } from '@/server/services/exercise-service';
-import type { Submission } from '@/domain/content/exercise-payload';
+import type { Hint, Submission } from '@/domain/content/exercise-payload';
+import { hintLevelLabel } from '@/domain/hints/hint-ladder';
 
 /**
  * Rendert eine Aufgabe anhand ihrer Interaktionsform (`payload.kind`) und
@@ -39,18 +40,41 @@ type PublicPayload =
 export function ExerciseRunner({
   exercise,
   isReview = false,
+  onPassedAction,
 }: {
   exercise: PublicExercise;
   isReview?: boolean;
+  /**
+   * Wird genau einmal aufgerufen, sobald diese Aufgabe bestanden wurde —
+   * z. B. um einen zugehörigen Lab-Abschluss zu speichern (siehe
+   * `app/labs/[slug]/page.tsx`, Prompt-Reparatur-Lab). Bewusst generisch statt
+   * Lab-spezifischer Logik in dieser Komponente oder in der Grading-
+   * Domainlogik (Codex-Review auf PR #29).
+   */
+  onPassedAction?: () => void | Promise<void>;
 }): React.ReactElement {
   const payload = exercise.payload as PublicPayload;
   const [startedAt] = useState(() => Date.now());
-  const [hintsUsed, setHintsUsed] = useState(0);
+  const [revealedHints, setRevealedHints] = useState<Hint[]>([]);
   const [result, setResult] = useState<Awaited<ReturnType<typeof submitExerciseAction>> | null>(
     null,
   );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const passedCallbackFired = useRef(false);
+  const [passedCallbackDone, setPassedCallbackDone] = useState(false);
+
+  useEffect(() => {
+    if (result?.outcome === 'PASSED' && onPassedAction && !passedCallbackFired.current) {
+      passedCallbackFired.current = true;
+      // Bewusst abgewartet statt "fire and forget": ohne das könnte ein
+      // sofortiger Seitenwechsel (Klick auf einen Navigationslink) die noch
+      // laufende Anfrage abbrechen, bevor der Lab-Abschluss gespeichert ist.
+      // Die kurze Bestätigung unten macht den abgeschlossenen Speichervorgang
+      // zusätzlich sichtbar, statt sich stillschweigend darauf zu verlassen.
+      void Promise.resolve(onPassedAction()).then(() => setPassedCallbackDone(true));
+    }
+  }, [result, onPassedAction]);
 
   async function submit(submission: Submission): Promise<void> {
     setPending(true);
@@ -59,7 +83,6 @@ export function ExerciseRunner({
       const outcome = await submitExerciseAction({
         exerciseSlug: exercise.slug,
         submission,
-        hintsUsed,
         durationMs: Date.now() - startedAt,
         isReview,
       });
@@ -112,6 +135,13 @@ export function ExerciseRunner({
             Erneut versuchen
           </Button>
         ) : null}
+        {onPassedAction && result.outcome === 'PASSED' ? (
+          <p role="status" aria-live="polite" className="text-sm text-[var(--fg-muted)]">
+            {passedCallbackDone
+              ? '✓ Lab-Fortschritt gespeichert.'
+              : 'Lab-Fortschritt wird gespeichert …'}
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -123,12 +153,15 @@ export function ExerciseRunner({
           {error}
         </Callout>
       ) : null}
-      <ExerciseForm
-        payload={payload}
-        pending={pending}
-        onSubmit={submit}
-        onUseHint={() => setHintsUsed((h) => h + 1)}
-      />
+      <ExerciseForm payload={payload} pending={pending} onSubmit={submit} />
+      {exercise.hintLevels.length > 0 ? (
+        <HintLadder
+          exerciseSlug={exercise.slug}
+          hintLevels={exercise.hintLevels}
+          revealedHints={revealedHints}
+          onRevealAction={(hint) => setRevealedHints((prev) => [...prev, hint])}
+        />
+      ) : null}
     </div>
   );
 }
@@ -137,12 +170,10 @@ function ExerciseForm({
   payload,
   pending,
   onSubmit,
-  onUseHint: _onUseHint,
 }: {
   payload: PublicPayload;
   pending: boolean;
   onSubmit: (submission: Submission) => void;
-  onUseHint: () => void;
 }): React.ReactElement {
   switch (payload.kind) {
     case 'singleChoice':
@@ -159,6 +190,86 @@ function ExerciseForm({
     case 'terminalSimulation':
       return <TerminalForm payload={payload} pending={pending} onSubmit={onSubmit} />;
   }
+}
+
+/**
+ * Progressive Hinweisleiter (docs/LERNMODELL.md §4). Bewusst kompakt: eine
+ * einzelne Zeile pro bereits aufgedecktem Hinweis, ein Knopf für den
+ * nächsten. Die eigentliche Freigabe-Entscheidung trifft ausschließlich der
+ * Server (`revealHintAction` → `revealNextHint()`, echte Versuchszahl aus der
+ * Datenbank) — diese Komponente zeigt nur an, was er zurückgibt.
+ */
+function HintLadder({
+  exerciseSlug,
+  hintLevels,
+  revealedHints,
+  onRevealAction,
+}: {
+  exerciseSlug: string;
+  hintLevels: number[];
+  revealedHints: Hint[];
+  onRevealAction: (hint: Hint) => void;
+}): React.ReactElement {
+  const [pending, setPending] = useState(false);
+  const [blockedReason, setBlockedReason] = useState<string | null>(null);
+  const nextLevel = hintLevels[revealedHints.length];
+
+  async function reveal(): Promise<void> {
+    if (nextLevel === undefined) return;
+    setPending(true);
+    setBlockedReason(null);
+    try {
+      const result = await revealHintAction(exerciseSlug);
+      if ('hint' in result) {
+        onRevealAction(result.hint);
+      } else {
+        setBlockedReason(result.reason);
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="mt-5 border-t border-[var(--border)] pt-4">
+      {revealedHints.length > 0 ? (
+        <ul className="mb-3 space-y-2">
+          {revealedHints.map((hint) => (
+            <li
+              key={hint.level}
+              className="rounded-[var(--radius-md)] bg-ink-100 p-3 text-sm dark:bg-ink-800"
+            >
+              <span className="font-mono text-xs font-semibold text-[var(--fg-muted)]">
+                {hintLevelLabel(hint.level)}
+              </span>
+              <p className="mt-0.5">{hint.text}</p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {nextLevel !== undefined ? (
+        <button
+          type="button"
+          onClick={reveal}
+          disabled={pending}
+          className="font-mono text-sm text-signal-600 underline underline-offset-4 hover:text-signal-700 disabled:opacity-50 dark:text-signal-300"
+        >
+          {pending
+            ? 'Wird geladen …'
+            : revealedHints.length === 0
+              ? 'Hinweis anzeigen'
+              : 'Weiteren Hinweis anzeigen'}
+        </button>
+      ) : null}
+
+      {blockedReason ? (
+        <p role="status" aria-live="polite" className="mt-2 text-sm text-[var(--fg-muted)]">
+          {blockedReason}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function ChoiceForm({
