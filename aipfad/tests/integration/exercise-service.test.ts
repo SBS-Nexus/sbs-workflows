@@ -366,3 +366,61 @@ describe('Gleichzeitige Einreichungen zum selben Konzept', () => {
     expect(mastery.successfulRetrievals).toBe(parallel);
   });
 });
+
+/**
+ * Regressionstest für den Codex-Fund "Refresh prior-attempt state on
+ * serialization retries" (PR #29, Head 301c8c9): Die Abfrage des letzten
+ * fehlgeschlagenen Versuchs lief außerhalb der Transaktion. Ein
+ * Wiederholungslauf las danach zwar den inzwischen geschriebenen
+ * Kompetenzstand, benutzte aber weiterhin die veraltete Vorgänger-Abfrage —
+ * `repeatedErrorType` blieb fälschlich false, und der zweite Fehler bekam
+ * weder den Abschlag noch die Rückmeldung für eine Fehlerwiederholung.
+ */
+describe('Gleichzeitige Fehlversuche mit derselben Fehlerart', () => {
+  const email = 'repeat-error-race@integrationtest.local';
+  const exerciseSlug = 'was-ist-aipfad-single-choice';
+  let userId: string;
+
+  beforeEach(async () => {
+    await prisma.user.deleteMany({ where: { email } });
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: 'Wettlauf Fehlerart',
+        passwordHash: await hashPassword('ein-testpasswort-123'),
+      },
+    });
+    userId = user.id;
+  });
+
+  it('wertet den später verbuchten Fehler als Wiederholung', async () => {
+    // Zwei gleichzeitige ERSTE Fehlversuche, gleiche Fehlerart. Genau einer
+    // wird zuerst verbucht; der andere muss ihn sehen.
+    const [ersterLauf, zweiterLauf] = await Promise.all([
+      submitAttempt(userId, {
+        exerciseSlug,
+        submission: { kind: 'singleChoice', optionId: 'a' },
+        durationMs: 500,
+        isReview: false,
+      }),
+      submitAttempt(userId, {
+        exerciseSlug,
+        submission: { kind: 'singleChoice', optionId: 'c' },
+        durationMs: 500,
+        isReview: false,
+      }),
+    ]);
+
+    expect(ersterLauf.outcome).toBe('FAILED');
+    expect(zweiterLauf.outcome).toBe('FAILED');
+    expect(await prisma.attempt.count({ where: { userId } })).toBe(2);
+
+    const alsWiederholungGewertet = [ersterLauf, zweiterLauf].filter((r) =>
+      r.masteryUpdates.some((u) => u.reasons.some((grund) => grund.includes('erneut'))),
+    );
+
+    // Mit der veralteten Vorgänger-Abfrage sahen BEIDE Läufe keinen früheren
+    // Fehlversuch, und die Liste bliebe leer.
+    expect(alsWiederholungGewertet).toHaveLength(1);
+  });
+});

@@ -173,9 +173,18 @@ async function highestRevealedHintLevel(userId: string, exerciseId: string): Pro
   return latest?.level ?? 0;
 }
 
-/** Echte Anzahl unterschiedlicher, für diese Aufgabe bereits freigegebener Hinweisstufen. */
-async function revealedHintCount(userId: string, exerciseId: string): Promise<number> {
-  return prisma.hintReveal.count({ where: { userId, exerciseId } });
+/**
+ * Echte Anzahl unterschiedlicher, für diese Aufgabe bereits freigegebener
+ * Hinweisstufen. Nimmt den Transaktions-Client entgegen, damit die Zählung
+ * beim Wiederholungslauf einer serialisierbaren Transaktion erneut und im
+ * selben Sichtbereich ausgeführt wird.
+ */
+async function revealedHintCount(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  exerciseId: string,
+): Promise<number> {
+  return tx.hintReveal.count({ where: { userId, exerciseId } });
 }
 
 /**
@@ -278,37 +287,6 @@ export async function submitAttempt(
 
   const now = new Date();
 
-  // Maßgeblich ist die Anzahl serverseitig persistierter Hinweis-Freigaben
-  // (HintReveal), nicht eine Angabe des Clients — sonst könnte jemand die
-  // volle Hinweisleiter nutzen und trotzdem `hintsUsed: 0` einreichen, und
-  // die Kompetenzberechnung würde eine gesehene Musterlösung wie eine
-  // eigenständige Lösung werten (Code-Review auf PR #29).
-  //
-  // Muss VOR dem Anlegen des neuen Attempts ermittelt werden — sonst findet
-  // die Abfrage unten den soeben erstellten Versuch als "letzten
-  // fehlgeschlagenen Versuch" und stuft jeden ersten Fehler fälschlich als
-  // Wiederholung desselben Fehlertyps ein (siehe Codex-Review auf PR #29).
-  // Die Konzept-Abfragen sind voneinander unabhängig und laufen parallel
-  // statt nacheinander (ebenfalls Code-Review auf PR #29).
-  const [hintsUsed, lastFailedAttemptEntries] = await Promise.all([
-    revealedHintCount(userId, exercise.id),
-    Promise.all(
-      exercise.concepts.map(async (link) => {
-        const lastFailedAttempt = await prisma.attempt.findFirst({
-          where: {
-            userId,
-            exercise: { concepts: { some: { conceptId: link.conceptId } } },
-            result: { in: ['FAILED', 'PARTIAL'] },
-          },
-          orderBy: { createdAt: 'desc' },
-          select: { errorType: true },
-        });
-        return [link.conceptId, lastFailedAttempt] as const;
-      }),
-    ),
-  ]);
-  const lastFailedAttemptsByConcept = new Map(lastFailedAttemptEntries);
-
   // Alle Schreibvorgänge dieses Versuchs gehören zusammen: der Attempt, die
   // Kompetenzstände jedes verknüpften Konzepts und die eingeplante
   // Wiederholung. Ohne gemeinsame Transaktion konnte ein Abbruch nach dem
@@ -329,6 +307,46 @@ export async function submitAttempt(
   // damit ein Wiederholungslauf sie nicht ein zweites Mal befüllt.
   const masteryUpdates = await serialisierbareTransaktion(async (tx) => {
     const masteryUpdates: SubmitAttemptResult['masteryUpdates'] = [];
+    // Diese beiden Abfragen stehen INNERHALB der Transaktion, damit ein
+    // Wiederholungslauf sie erneut ausführt. Lagen sie davor, benutzte der
+    // zweite Anlauf weiterhin den Stand von vor dem Konflikt: Bei zwei
+    // gleichzeitigen ersten Fehlversuchen mit derselben Fehlerart sah der
+    // wiederholte Lauf zwar den inzwischen geschriebenen Kompetenzstand, aber
+    // die veraltete Vorgänger-Abfrage — `repeatedErrorType` blieb dann
+    // fälschlich false und der zweite Fehler wurde nicht als Wiederholung
+    // gewertet (Codex-Review auf PR #29, 301c8c9).
+    //
+    // Maßgeblich ist die Anzahl serverseitig persistierter Hinweis-Freigaben
+    // (HintReveal), nicht eine Angabe des Clients — sonst könnte jemand die
+    // volle Hinweisleiter nutzen und trotzdem `hintsUsed: 0` einreichen, und
+    // die Kompetenzberechnung würde eine gesehene Musterlösung wie eine
+    // eigenständige Lösung werten (Code-Review auf PR #29).
+    //
+    // Muss VOR dem Anlegen des neuen Attempts ermittelt werden — sonst findet
+    // die Abfrage unten den soeben erstellten Versuch als "letzten
+    // fehlgeschlagenen Versuch" und stuft jeden ersten Fehler fälschlich als
+    // Wiederholung desselben Fehlertyps ein (siehe Codex-Review auf PR #29).
+    // Die Konzept-Abfragen sind voneinander unabhängig und laufen parallel
+    // statt nacheinander (ebenfalls Code-Review auf PR #29).
+    const [hintsUsed, lastFailedAttemptEntries] = await Promise.all([
+      revealedHintCount(tx, userId, exercise.id),
+      Promise.all(
+        exercise.concepts.map(async (link) => {
+          const lastFailedAttempt = await tx.attempt.findFirst({
+            where: {
+              userId,
+              exercise: { concepts: { some: { conceptId: link.conceptId } } },
+              result: { in: ['FAILED', 'PARTIAL'] },
+            },
+            orderBy: { createdAt: 'desc' },
+            select: { errorType: true },
+          });
+          return [link.conceptId, lastFailedAttempt] as const;
+        }),
+      ),
+    ]);
+    const lastFailedAttemptsByConcept = new Map(lastFailedAttemptEntries);
+
     await tx.attempt.create({
       data: {
         userId,
