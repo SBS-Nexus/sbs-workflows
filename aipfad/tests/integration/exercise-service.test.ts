@@ -314,3 +314,55 @@ describe('Hinweisnutzung wird serverseitig hergeleitet', () => {
     expect(serialisiert).not.toContain('correctOptionId');
   });
 });
+
+/**
+ * Regressionstest für den Codex-Fund "Serialize concurrent mastery updates"
+ * (PR #29, Head dd89677): Die gemeinsame Transaktion allein genügte nicht.
+ * Unter PostgreSQLs Vorgabe `Read Committed` durften zwei gleichzeitige
+ * Einreichungen derselben Person zum selben Konzept beide denselben
+ * Ausgangsstand lesen; der spätere Schreibvorgang überschrieb den früheren,
+ * und ein Lernfortschritt ging verloren, obwohl beide Attempts verbucht
+ * wurden. Jetzt läuft die Transaktion serialisierbar und wird bei einem
+ * Konflikt wiederholt.
+ */
+describe('Gleichzeitige Einreichungen zum selben Konzept', () => {
+  const email = 'mastery-race@integrationtest.local';
+  const exerciseSlug = 'was-ist-aipfad-single-choice';
+  let userId: string;
+
+  beforeEach(async () => {
+    await prisma.user.deleteMany({ where: { email } });
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: 'Wettlauf Kompetenz',
+        passwordHash: await hashPassword('ein-testpasswort-123'),
+      },
+    });
+    userId = user.id;
+  });
+
+  it('verliert keinen Kompetenzfortschritt und verbucht jeden Versuch', async () => {
+    const parallel = 4;
+    const results = await Promise.allSettled(
+      Array.from({ length: parallel }, () =>
+        submitAttempt(userId, {
+          exerciseSlug,
+          submission: { kind: 'singleChoice', optionId: 'b' }, // richtig
+          durationMs: 500,
+          isReview: false,
+        }),
+      ),
+    );
+
+    // Kein Aufruf darf an einem Serialisierungskonflikt scheitern.
+    expect(results.filter((r) => r.status === 'rejected')).toEqual([]);
+    expect(await prisma.attempt.count({ where: { userId } })).toBe(parallel);
+
+    // Der Endstand muss ALLE Erfolge enthalten, nicht nur den zuletzt
+    // geschriebenen: successfulRetrievals wird bei jedem bestandenen Versuch
+    // um eins erhöht. Bei einem verlorenen Schreibvorgang stünde hier weniger.
+    const mastery = await prisma.conceptMastery.findFirstOrThrow({ where: { userId } });
+    expect(mastery.successfulRetrievals).toBe(parallel);
+  });
+});

@@ -1,6 +1,9 @@
 import 'server-only';
 import { z } from 'zod';
 import { prisma } from '@/server/db/prisma';
+// Kein `import type`: `Prisma.PrismaClientKnownRequestError` wird als Wert für
+// die `instanceof`-Prüfung gebraucht.
+import { Prisma } from '@/generated/prisma/client';
 import { enforceRateLimit, RATE_LIMITS } from '@/server/security/rate-limit';
 import { gradeSubmission, toPublicPayload } from '@/domain/grading/grade';
 import {
@@ -175,6 +178,67 @@ async function revealedHintCount(userId: string, exerciseId: string): Promise<nu
   return prisma.hintReveal.count({ where: { userId, exerciseId } });
 }
 
+/**
+ * Wie oft ein Serialisierungskonflikt neu versucht wird, bevor er
+ * durchgereicht wird. Konflikte brauchen zwei gleichzeitige Einreichungen
+ * derselben Person zum selben Konzept und sind daher selten; treffen mehrere
+ * aufeinander, genügen drei Anläufe aber nicht zuverlässig — die
+ * wiederholenden Transaktionen kollidieren sonst erneut miteinander.
+ */
+const MAX_TRANSAKTIONSVERSUCHE = 6;
+
+/**
+ * Führt `arbeit` in einer serialisierbaren Transaktion aus und wiederholt sie,
+ * wenn PostgreSQL sie wegen eines Schreibkonflikts abbricht.
+ *
+ * Serialisierbarkeit ohne Wiederholung wäre keine Verbesserung: Die Datenbank
+ * verhindert den verlorenen Schreibvorgang dann zwar, aber um den Preis, dass
+ * eine der beiden Einreichungen mit einem Fehler endet. Erst der zweite
+ * Anlauf — er liest den inzwischen geschriebenen Stand — führt beide
+ * Einreichungen zum richtigen Ergebnis.
+ *
+ * WICHTIG für Aufrufer: `arbeit` kann mehrfach ausgeführt werden und muss
+ * deshalb frei von Nebenwirkungen außerhalb der Transaktion sein.
+ */
+async function serialisierbareTransaktion<T>(
+  arbeit: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  let letzterKonflikt: unknown;
+
+  for (let versuch = 1; versuch <= MAX_TRANSAKTIONSVERSUCHE; versuch += 1) {
+    try {
+      return await prisma.$transaction(arbeit, { isolationLevel: 'Serializable' });
+    } catch (error) {
+      if (!istSchreibkonflikt(error)) throw error;
+      letzterKonflikt = error;
+
+      // Vor dem nächsten Anlauf kurz warten, mit wachsender und zufällig
+      // gestreuter Wartezeit. Ohne diese Streuung starten die beteiligten
+      // Transaktionen gleichzeitig neu und kollidieren wieder — ein
+      // unmittelbarer Wiederholungslauf scheitert dann verlässlich mit
+      // denselben Konflikten statt sie aufzulösen.
+      if (versuch < MAX_TRANSAKTIONSVERSUCHE) {
+        await warte(2 ** versuch * (5 + Math.random() * 10));
+      }
+    }
+  }
+
+  throw letzterKonflikt;
+}
+
+function warte(millisekunden: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, millisekunden));
+}
+
+/**
+ * P2034 ist Prismas Code für "Transaktion wegen Schreibkonflikt oder Deadlock
+ * abgebrochen" — genau der Fall, den ein erneuter Anlauf auflöst. Alles andere
+ * ist ein echter Fehler und wird nicht wiederholt.
+ */
+function istSchreibkonflikt(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
+}
+
 export interface SubmitAttemptInput {
   exerciseSlug: string;
   submission: Submission;
@@ -245,8 +309,6 @@ export async function submitAttempt(
   ]);
   const lastFailedAttemptsByConcept = new Map(lastFailedAttemptEntries);
 
-  const masteryUpdates: SubmitAttemptResult['masteryUpdates'] = [];
-
   // Alle Schreibvorgänge dieses Versuchs gehören zusammen: der Attempt, die
   // Kompetenzstände jedes verknüpften Konzepts und die eingeplante
   // Wiederholung. Ohne gemeinsame Transaktion konnte ein Abbruch nach dem
@@ -255,7 +317,18 @@ export async function submitAttempt(
   // `checkLessonCompletion` zählt bestandene Versuche und hätte die Lektion
   // abgeschlossen, während der Lernstand unberührt blieb (Code-Review auf
   // PR #29).
-  await prisma.$transaction(async (tx) => {
+  //
+  // `Serializable` ist hier nicht übervorsichtig, sondern notwendig: Der
+  // Kompetenzstand wird gelesen, fortgeschrieben und zurückgeschrieben. Unter
+  // der PostgreSQL-Vorgabe `Read Committed` dürfen zwei gleichzeitige
+  // Einreichungen derselben Person zum selben Konzept — zwei Tabs, ein
+  // wiederholter Request — beide denselben Ausgangsstand lesen; der spätere
+  // Schreibvorgang überschreibt dann den früheren, und ein Lernfortschritt
+  // geht verloren, obwohl beide Attempts verbucht sind (Codex-Review auf
+  // PR #29, dd89677). Die Ergebnisliste entsteht INNERHALB der Transaktion,
+  // damit ein Wiederholungslauf sie nicht ein zweites Mal befüllt.
+  const masteryUpdates = await serialisierbareTransaktion(async (tx) => {
+    const masteryUpdates: SubmitAttemptResult['masteryUpdates'] = [];
     await tx.attempt.create({
       data: {
         userId,
@@ -404,6 +477,8 @@ export async function submitAttempt(
         },
       });
     }
+
+    return masteryUpdates;
   });
 
   return {
