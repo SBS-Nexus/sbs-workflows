@@ -2,7 +2,12 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import './setup';
 import { prisma } from '@/server/db/prisma';
 import { hashPassword } from '@/server/auth/password';
-import { submitAttempt, revealNextHint } from '@/server/services/exercise-service';
+import {
+  submitAttempt,
+  revealNextHint,
+  getRevealedHints,
+  getPublicExercise,
+} from '@/server/services/exercise-service';
 
 /**
  * Regressionstests für zwei Codex-Funde auf PR #29:
@@ -29,7 +34,7 @@ describe('Aufgaben-Dienst', () => {
 
   describe('Fehlerwiederholung', () => {
     it('wertet den ersten Fehler eines Typs NICHT als Wiederholung', async () => {
-      // "was-kann-ai-scenario" hat eine "problematic"-Option, die MISCONCEPTION auslöst.
+      // Eine falsche Option bei "was-ist-aipfad-single-choice" ergibt FAILED/MISCONCEPTION.
       const result = await submitAttempt(userId, {
         exerciseSlug: 'was-ist-aipfad-single-choice',
         submission: { kind: 'singleChoice', optionId: 'a' }, // falsch, korrekt ist 'b'
@@ -126,7 +131,7 @@ describe('Aufgaben-Dienst', () => {
       expect(attemptCount).toBe(0);
     });
 
-    it('erneutes Ansehen einer bereits freigegebenen Stufe zählt nicht doppelt zu hintsUsed', async () => {
+    it('eine blockierte Freigabe schreibt keine HintReveal-Zeile', async () => {
       const first = await revealNextHint(userId, 'was-ist-aipfad-single-choice'); // Stufe 1
       expect('hint' in first).toBe(true);
       const again = await revealNextHint(userId, 'was-ist-aipfad-single-choice');
@@ -137,5 +142,175 @@ describe('Aufgaben-Dienst', () => {
       const revealCount = await prisma.hintReveal.count({ where: { userId } });
       expect(revealCount).toBe(1);
     });
+  });
+});
+
+/**
+ * Regressionstest für den Codex-Fund "Restore persisted hints when mounting
+ * the ladder" (PR #29, exakter Head fdfa141): `HintReveal` wurde zwar
+ * serverseitig persistiert, aber beim erneuten Aufbau der Oberfläche nicht
+ * wieder mitgeliefert. Der Client begann dann wieder bei Stufe 1, während
+ * der Server schon weiter war — der zuletzt gelesene Hinweis war nicht mehr
+ * erreichbar und Anzeige und Freigabe liefen dauerhaft auseinander.
+ */
+describe('Wiederherstellung freigegebener Hinweise', () => {
+  const email = 'hint-restore@integrationtest.local';
+  const exerciseSlug = 'was-ist-aipfad-single-choice';
+  let userId: string;
+
+  beforeEach(async () => {
+    await prisma.user.deleteMany({ where: { email } });
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: 'Hinweistest',
+        passwordHash: await hashPassword('ein-testpasswort-123'),
+      },
+    });
+    userId = user.id;
+  });
+
+  it('liefert ohne Freigabe keine Hinweise', async () => {
+    await expect(getRevealedHints(userId, exerciseSlug)).resolves.toEqual([]);
+  });
+
+  it('liefert genau die bereits freigegebenen Stufen mit echtem Text zurück', async () => {
+    const revealed = await revealNextHint(userId, exerciseSlug);
+    expect(revealed).toHaveProperty('hint');
+    const ersterHinweis = 'hint' in revealed ? revealed.hint : null;
+    expect(ersterHinweis?.level).toBe(1);
+
+    // Genau das, was der Client beim nächsten Seitenaufbau bekommt.
+    const restored = await getRevealedHints(userId, exerciseSlug);
+    expect(restored.map((h) => h.level)).toEqual([1]);
+    expect(restored[0]?.text).toBe(ersterHinweis?.text);
+  });
+
+  it('gibt nach der Wiederherstellung die nächste Stufe frei, nicht erneut Stufe 1', async () => {
+    await revealNextHint(userId, exerciseSlug);
+
+    // Ein eigener Versuch schaltet Stufe 2 frei (MIN_ATTEMPTS_FOR_LEVEL[2] = 1).
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'a' },
+      durationMs: 500,
+      isReview: false,
+    });
+
+    const zweiter = await revealNextHint(userId, exerciseSlug);
+    expect('hint' in zweiter && zweiter.hint.level).toBe(2);
+
+    const restored = await getRevealedHints(userId, exerciseSlug);
+    expect(restored.map((h) => h.level)).toEqual([1, 2]);
+  });
+
+  it('liefert keine Hinweise anderer Personen', async () => {
+    await revealNextHint(userId, exerciseSlug);
+
+    const andere = await prisma.user.create({
+      data: {
+        email: 'hint-restore-fremd@integrationtest.local',
+        name: 'Fremd',
+        passwordHash: await hashPassword('ein-testpasswort-123'),
+      },
+    });
+    await expect(getRevealedHints(andere.id, exerciseSlug)).resolves.toEqual([]);
+    await prisma.user.delete({ where: { id: andere.id } });
+  });
+});
+
+/**
+ * Regressionstests für die beiden Hälften des Codex-Funds "Hint Ladder", die
+ * bislang unbelegt waren (Testanalyse zu PR #29):
+ *
+ *  1. `hintsUsed` eines Versuchs muss aus echten `HintReveal`-Zeilen stammen.
+ *     Diese Zusicherung war nicht abgesichert: `revealedHintCount()` ließ sich
+ *     auf `return 0` setzen, ohne dass ein einziger Test rot wurde — obwohl
+ *     genau das der Fehler war, der die volle Hinweisleiter als eigenständige
+ *     Lösung verbuchte.
+ *  2. Hinweistexte dürfen die öffentliche Aufgabenfassung nie verlassen.
+ */
+describe('Hinweisnutzung wird serverseitig hergeleitet', () => {
+  const email = 'hints-used@integrationtest.local';
+  const exerciseSlug = 'was-ist-aipfad-single-choice';
+  let userId: string;
+
+  beforeEach(async () => {
+    await prisma.user.deleteMany({ where: { email } });
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: 'Hinweisnutzung',
+        passwordHash: await hashPassword('ein-testpasswort-123'),
+      },
+    });
+    userId = user.id;
+  });
+
+  async function letzterVersuch() {
+    return prisma.attempt.findFirstOrThrow({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: { hintsUsed: true },
+    });
+  }
+
+  it('schreibt hintsUsed = 0, solange kein Hinweis freigegeben wurde', async () => {
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'b' },
+      durationMs: 500,
+      isReview: false,
+    });
+    expect((await letzterVersuch()).hintsUsed).toBe(0);
+  });
+
+  it('zählt einen freigegebenen Hinweis in hintsUsed des Versuchs mit', async () => {
+    await revealNextHint(userId, exerciseSlug);
+
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'b' },
+      durationMs: 500,
+      isReview: false,
+    });
+
+    // Der Wert kommt NICHT vom Client — er wird aus den HintReveal-Zeilen
+    // dieser Person zu dieser Aufgabe gezählt.
+    expect((await letzterVersuch()).hintsUsed).toBe(1);
+    expect(await prisma.hintReveal.count({ where: { userId } })).toBe(1);
+  });
+
+  it('zählt eine zweite freigegebene Stufe ebenfalls mit', async () => {
+    await revealNextHint(userId, exerciseSlug);
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'a' },
+      durationMs: 500,
+      isReview: false,
+    });
+    await revealNextHint(userId, exerciseSlug); // Stufe 2, jetzt freigeschaltet
+
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'b' },
+      durationMs: 500,
+      isReview: false,
+    });
+
+    expect((await letzterVersuch()).hintsUsed).toBe(2);
+  });
+
+  it('liefert in der öffentlichen Aufgabe nur Stufennummern, keinen Hinweistext', async () => {
+    const publicExercise = await getPublicExercise(exerciseSlug);
+    expect(publicExercise).not.toBeNull();
+    expect(publicExercise?.hintLevels).toEqual([1, 2]);
+
+    // Kein Hinweistext darf in dem, was den Server Richtung Browser verlässt,
+    // auftauchen — auch nicht in einem verschachtelten Feld.
+    const serialisiert = JSON.stringify(publicExercise);
+    expect(serialisiert).not.toContain('Werkstatt und einem Hörsaal');
+    expect(serialisiert).not.toContain('Textmenge zu eigener Anwendung');
+    expect(serialisiert).not.toContain('correctOptionId');
   });
 });

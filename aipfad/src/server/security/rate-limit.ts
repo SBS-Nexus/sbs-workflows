@@ -45,6 +45,15 @@ export const RATE_LIMITS = {
    * Pro-Konto-Grenze zu ersetzen — beide werden durchgesetzt.
    */
   loginPerIp: { limit: 30, windowMs: 15 * 60 * 1000 },
+  /**
+   * Grenze allein auf das Konto — ohne IP-Anteil, damit sie sich nicht durch
+   * einen Herkunftswechsel zurücksetzen lässt. `login` (IP + E-Mail) deckt
+   * die eine Richtung ab, `loginPerIp` die andere; erst diese dritte Grenze
+   * verhindert, dass ein gezielt ausgewähltes Konto über viele Herkünfte
+   * hinweg beliebig lange beschossen wird. Bewusst großzügiger als `login`:
+   * hier teilen sich alle legitimen Geräte einer Person einen Zähler.
+   */
+  loginPerAccount: { limit: 20, windowMs: 15 * 60 * 1000 },
   registerPerIp: { limit: 15, windowMs: 60 * 60 * 1000 },
   hintReveal: { limit: 120, windowMs: 60 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitConfig>;

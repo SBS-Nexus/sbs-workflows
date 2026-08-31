@@ -373,7 +373,10 @@ export function toPublicPayload(payload: ExercisePayload): unknown {
       return {
         kind: payload.kind,
         instruction: payload.instruction,
-        items: shuffle(payload.items.map((i) => ({ id: i.id, text: i.text }))),
+        items: praesentationsReihenfolge(
+          payload.items.map((i) => ({ id: i.id, text: i.text })),
+          payload.correctOrder,
+        ),
       };
     case 'fillIn':
       return {
@@ -406,7 +409,57 @@ export function toPublicPayload(payload: ExercisePayload): unknown {
   }
 }
 
-/** Deterministisch nach ID gemischt (kein Math.random – Testbarkeit). */
+/**
+ * Deterministisch gemischt (kein `Math.random` – Testbarkeit).
+ *
+ * Früher wurde schlicht nach ID sortiert. Die Reihenfolge hing damit
+ * vollständig an den von der Redaktion vergebenen IDs: Wer die Elemente in
+ * Lösungsreihenfolge benennt (`s1`, `s2`, `s3` … – die naheliegende
+ * Konvention), lieferte dem Browser die bereits richtig sortierte Liste aus
+ * und gab damit die Lösung preis, ohne dass irgendetwas es bemerkt hätte
+ * (Sicherheitsprüfung zu PR #29). Jetzt bestimmt ein aus den IDs abgeleiteter
+ * Streuwert die Reihenfolge: weiterhin für dieselbe Aufgabe stets identisch,
+ * aber ohne sichtbaren Zusammenhang zur Reihenfolge der Vorlage.
+ */
 function shuffle<T extends { id: string }>(items: T[]): T[] {
-  return [...items].sort((a, b) => a.id.localeCompare(b.id));
+  const saat = items.map((i) => i.id).join('|');
+  return [...items]
+    .map((item) => ({ item, rang: hashCode(`${saat}#${item.id}`) }))
+    .sort((a, b) => a.rang - b.rang || a.item.id.localeCompare(b.item.id))
+    .map(({ item }) => item);
+}
+
+/**
+ * Die tatsächlich ausgelieferte Reihenfolge einer `ordering`-Aufgabe.
+ *
+ * Ein Mischverfahren allein genügt nicht: Es kann zufällig genau die
+ * Lösungsreihenfolge treffen, und dann läge die Antwort offen im Browser.
+ * Trifft es zu, wird um eine Position rotiert — bei mindestens zwei Elementen
+ * ist das Ergebnis dadurch garantiert verschieden von der Lösung und bleibt
+ * für dieselbe Aufgabe stabil. `tests/unit/content-validation.test.ts` prüft
+ * diese Zusicherung gegen den echten Kursinhalt.
+ */
+function praesentationsReihenfolge<T extends { id: string }>(
+  items: T[],
+  correctOrder: string[],
+): T[] {
+  const gemischt = shuffle(items);
+  const istLoesung =
+    gemischt.length === correctOrder.length &&
+    gemischt.every((item, index) => item.id === correctOrder[index]);
+
+  if (!istLoesung || gemischt.length < 2) return gemischt;
+
+  const [erstes, ...rest] = gemischt;
+  return erstes === undefined ? gemischt : [...rest, erstes];
+}
+
+/** Kleiner, stabiler Streuwert (FNV-1a) – gleiche Eingabe, gleicher Wert. */
+function hashCode(value: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash;
 }

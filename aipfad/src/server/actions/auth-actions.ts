@@ -31,9 +31,39 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Bitte gib dein Passwort ein.').max(200),
 });
 
+/**
+ * Die IP, auf die alle Ratengrenzen dieser Datei aufsetzen.
+ *
+ * `x-forwarded-for` ist ein vom Client gesetzter Kopfzeilenwert: Der linke
+ * Eintrag der Kette stammt von der anfragenden Seite selbst. Wer ihn bei
+ * jedem Versuch anders setzt, landet in einem jeweils frischen Zähler und
+ * hebelt damit sämtliche Anmelde- und Registrierungsgrenzen aus — also
+ * genau den Schutz gegen Credential Stuffing und Massen-Enumeration
+ * (Sicherheitsprüfung zu PR #29).
+ *
+ * Deshalb zuerst `x-vercel-forwarded-for`: Diesen Wert setzt die Plattform
+ * selbst und überschreibt eine mitgeschickte Angabe. Er ist auf der
+ * dokumentierten Zielplattform (docs/DEPLOYMENT.md) nicht fälschbar.
+ * Ohne Plattform-Kopfzeile — eigener Betrieb hinter nginx/Traefik — wird der
+ * RECHTE Eintrag der Kette genommen: Den hat der letzte, eigene Proxy
+ * angehängt, während alles weiter links vom Client stammen kann. Fehlt jede
+ * Angabe, teilen sich alle Anfragen einen gemeinsamen Zähler; das begrenzt
+ * eher zu streng als zu großzügig und ist hier die richtige Richtung.
+ */
 async function clientIp(): Promise<string> {
   const headerList = await headers();
-  return headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
+
+  const platformIp = headerList.get('x-vercel-forwarded-for')?.trim();
+  if (platformIp) return platformIp;
+
+  const chain =
+    headerList
+      .get('x-forwarded-for')
+      ?.split(',')
+      .map((part) => part.trim())
+      .filter(Boolean) ?? [];
+
+  return chain.at(-1) ?? 'unbekannt';
 }
 
 async function requestKey(prefix: string, identifier: string): Promise<string> {
@@ -52,6 +82,24 @@ async function enforcePerIpLimit(
   prefix: string,
 ): Promise<void> {
   enforceRateLimit(`${prefix}-ip:${await clientIp()}`, config);
+}
+
+/**
+ * Grenze allein auf das Konto, ohne IP-Anteil.
+ *
+ * `requestKey()` kombiniert IP UND E-Mail. Das bremst viele Versuche von
+ * EINER Herkunft gegen ein Konto, lässt aber die andere Richtung offen: wer
+ * über viele Herkünfte verfügt, bekommt die zehn Versuche je Herkunft erneut
+ * und kann ein einzelnes, gezielt ausgewähltes Konto beliebig lange
+ * beschießen. Diese kontobezogene Grenze schließt genau diese Richtung
+ * (Sicherheitsprüfung zu PR #29).
+ */
+function enforcePerAccountLimit(
+  config: Parameters<typeof enforceRateLimit>[1],
+  prefix: string,
+  email: string,
+): void {
+  enforceRateLimit(`${prefix}-konto:${email.toLowerCase()}`, config);
 }
 
 export async function registerAction(_previous: FormState, formData: FormData): Promise<FormState> {
@@ -128,6 +176,7 @@ export async function loginAction(_previous: FormState, formData: FormData): Pro
   try {
     enforceRateLimit(await requestKey('login', email), RATE_LIMITS.login);
     await enforcePerIpLimit(RATE_LIMITS.loginPerIp, 'login');
+    enforcePerAccountLimit(RATE_LIMITS.loginPerAccount, 'login', email);
   } catch (error) {
     if (error instanceof RateLimitError) return { ok: false, error: error.message };
     throw error;

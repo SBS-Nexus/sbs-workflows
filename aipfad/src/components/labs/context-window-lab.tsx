@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { LabCompleteButton } from './lab-complete-button';
 import { z } from 'zod';
 import { Button, cx } from '@/components/ui/primitives';
 
@@ -26,11 +27,10 @@ export function ContextWindowLab({
   onCompleteAction,
 }: {
   config: unknown;
-  onCompleteAction: () => void;
+  onCompleteAction: () => Promise<boolean>;
 }): React.ReactElement {
   const { windowSizeTokens, messages } = configSchema.parse(config);
   const [shown, setShown] = useState(1);
-  const [done, setDone] = useState(false);
 
   const visible = messages.slice(0, shown);
   let running = 0;
@@ -72,20 +72,12 @@ export function ContextWindowLab({
           <Button size="sm" onClick={() => setShown((s) => s + 1)}>
             Nächste Nachricht
           </Button>
-        ) : !done ? (
-          <Button
-            size="sm"
-            onClick={() => {
-              setDone(true);
-              onCompleteAction();
-            }}
-          >
-            Verstanden — Lab abschließen
-          </Button>
         ) : (
-          <p className="font-mono text-sm text-success-700 dark:text-success-100">
-            ✓ Lab abgeschlossen.
-          </p>
+          <LabCompleteButton
+            onCompleteAction={onCompleteAction}
+            label="Verstanden — Lab abschließen"
+            size="sm"
+          />
         )}
         <p className="text-xs text-[var(--fg-muted)]">
           Durchgestrichene Nachrichten liegen nicht mehr im Kontextfenster.

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { LabCompleteButton } from './lab-complete-button';
 import { z } from 'zod';
 import { Button, Callout } from '@/components/ui/primitives';
 
@@ -17,7 +18,7 @@ export function TerminalLab({
   onCompleteAction,
 }: {
   config: unknown;
-  onCompleteAction: () => void;
+  onCompleteAction: () => Promise<boolean>;
 }): React.ReactElement {
   const { startingDirectory, fileSystem, allowedCommands, dangerousCommands } =
     configSchema.parse(config);
@@ -25,7 +26,6 @@ export function TerminalLab({
   const [history, setHistory] = useState<{ command: string; output: string }[]>([]);
   const [current, setCurrent] = useState('');
   const [confirmDanger, setConfirmDanger] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
 
   function resolve(path: string): string {
     if (path.startsWith('/')) return path;
@@ -121,21 +121,11 @@ export function TerminalLab({
       ) : null}
 
       <div className="mt-5">
-        {!done ? (
-          <Button
-            disabled={history.length === 0}
-            onClick={() => {
-              setDone(true);
-              onCompleteAction();
-            }}
-          >
-            Fertig — Lab abschließen
-          </Button>
-        ) : (
-          <p className="font-mono text-sm text-success-700 dark:text-success-100">
-            ✓ Lab abgeschlossen.
-          </p>
-        )}
+        <LabCompleteButton
+          onCompleteAction={onCompleteAction}
+          label="Fertig — Lab abschließen"
+          disabled={history.length === 0}
+        />
       </div>
     </div>
   );

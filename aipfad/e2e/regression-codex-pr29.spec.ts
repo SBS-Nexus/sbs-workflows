@@ -43,8 +43,14 @@ test('Hinweisleiter ist über die Oberfläche tatsächlich erreichbar', async ({
   await expect(revealButton).toBeVisible();
   await revealButton.click();
 
-  // Der erste Hinweis ist ohne vorherigen Versuch frei — echter Text muss erscheinen.
-  await expect(page.getByText('Denkimpuls')).toBeVisible();
+  // Der erste Hinweis ist ohne vorherigen Versuch frei. Geprüft wird der
+  // echte Hinweistext, NICHT das Stufenetikett "Denkimpuls": das steht auch
+  // in der Blockademeldung ('Zuerst kommt der Hinweis "Denkimpuls".') und
+  // würde dort ebenfalls zutreffen, während die Person gar keinen Hinweis
+  // sieht (Testanalyse zu PR #29).
+  await expect(
+    page.getByText('Denk an den Unterschied zwischen einer Werkstatt und einem Hörsaal.'),
+  ).toBeVisible();
 });
 
 test('Eine abgeschlossene Lektion bleibt beim erneuten Öffnen abgeschlossen', async ({ page }) => {
@@ -93,6 +99,74 @@ test('Prompt-Reparatur-Lab wird nach richtiger Antwort als abgeschlossen markier
     .click();
   await page.getByRole('button', { name: 'Antwort abgeben' }).click();
   await expect(page.getByText('Richtig', { exact: true })).toBeVisible();
+  await expect(page.getByText('Lab-Fortschritt gespeichert')).toBeVisible();
+
+  await page.goto('/labs');
+  const labCard = page.locator('a', { hasText: 'Prompt-Reparatur-Lab' });
+  await expect(labCard.getByText('Abgeschlossen')).toBeVisible();
+});
+
+/**
+ * Regressionstest für den Codex-Fund "Restore persisted hints when mounting
+ * the ladder" (exakter Head fdfa141): Vor der Behebung begann die Leiter nach
+ * einem Seitenneuladen wieder bei null, obwohl die Freigabe serverseitig
+ * gespeichert war — der bereits gelesene Hinweis war nicht mehr erreichbar.
+ */
+test('Ein freigegebener Hinweis bleibt nach dem Neuladen sichtbar', async ({ page }) => {
+  await registerAndOnboard(page);
+  await page.getByRole('link', { name: 'Weiterlernen' }).click();
+  await expect(page).toHaveURL(/\/lektion\/was-ist-aipfad\/1$/);
+  await goToNextStep(page, 2);
+  await goToNextStep(page, 3);
+
+  await page.getByRole('button', { name: 'Hinweis anzeigen' }).click();
+  const hinweisText = 'Denk an den Unterschied zwischen einer Werkstatt und einem Hörsaal.';
+  await expect(page.getByText(hinweisText)).toBeVisible();
+
+  await page.reload();
+
+  // Der bereits gelesene Hinweis ist mit seinem echten Text weiterhin da …
+  await expect(page.getByText(hinweisText)).toBeVisible();
+  // … und die Leiter bietet die NÄCHSTE Stufe an, nicht erneut die erste.
+  await expect(page.getByRole('button', { name: 'Weiteren Hinweis anzeigen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hinweis anzeigen', exact: true })).toHaveCount(0);
+});
+
+/**
+ * Regressionstest für den Codex-Fund "Allow retrying failed lab-completion
+ * persistence" (exakter Head fdfa141): Schlug die Server Action fehl, blieb
+ * die Anzeige dauerhaft auf "Lab-Fortschritt wird gespeichert …" stehen, die
+ * Sperre war schon gesetzt und es gab keinen Weg zurück — das Lab blieb trotz
+ * richtiger Antwort unabgeschlossen.
+ */
+test('Ein fehlgeschlagener Lab-Abschluss lässt sich erneut speichern', async ({ page }) => {
+  await registerAndOnboard(page);
+
+  // Die erste Server Action ist das Einreichen der Antwort, die zweite der
+  // Lab-Abschluss. Nur letztere wird einmalig zum Scheitern gebracht.
+  let serverActionAufrufe = 0;
+  await page.route('**/labs/prompt-repair-lab', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    serverActionAufrufe += 1;
+    if (serverActionAufrufe === 2) return route.abort('failed');
+    return route.continue();
+  });
+
+  await page.goto('/labs/prompt-repair-lab');
+  await page
+    .getByText(
+      'Beschreibe zunächst nur die Zielgruppe für unsere neue Terminplanungs-App für kleine Praxen',
+    )
+    .click();
+  await page.getByRole('button', { name: 'Antwort abgeben' }).click();
+  await expect(page.getByText('Richtig', { exact: true })).toBeVisible();
+
+  // Statt stillem Steckenbleiben: sichtbarer Fehler und ein Weg zurück.
+  await expect(page.getByText('Lab-Fortschritt nicht gespeichert')).toBeVisible();
+  const erneut = page.getByRole('button', { name: 'Erneut speichern' });
+  await expect(erneut).toBeVisible();
+
+  await erneut.click();
   await expect(page.getByText('Lab-Fortschritt gespeichert')).toBeVisible();
 
   await page.goto('/labs');

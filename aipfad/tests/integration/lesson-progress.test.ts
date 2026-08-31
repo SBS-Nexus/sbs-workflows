@@ -80,3 +80,63 @@ describe('Lektionsfortschritt bleibt beim erneuten Öffnen erhalten', () => {
     expect(progress.state).toBe('IN_PROGRESS');
   });
 });
+
+/**
+ * Regressionstest für den Codex-Fund "Make first-time lesson starts atomic"
+ * (PR #29, exakter Head fdfa141): die Absicherung des Abschlusses hatte das
+ * ursprüngliche `upsert` durch ein `findUnique` + `create` ersetzt. Zwei
+ * gleichzeitige Aufrufe — zwei Tabs, überlappende Navigation — sahen dann
+ * beide "keine Zeile vorhanden" und liefen beide ins `create`; der
+ * Unique-Index auf (userId, lessonId) ließ einen davon mit P2002 scheitern
+ * und die Seite mit 500 antworten.
+ */
+describe('Gleichzeitiges Öffnen derselben Lektion', () => {
+  const email = 'lesson-progress-race@integrationtest.local';
+  let userId: string;
+  let lessonId: string;
+
+  beforeEach(async () => {
+    await prisma.user.deleteMany({ where: { email } });
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: 'Wettlauftest',
+        passwordHash: await hashPassword('ein-testpasswort-123'),
+      },
+    });
+    userId = user.id;
+    const lesson = await prisma.lesson.findUniqueOrThrow({ where: { slug: 'was-ist-aipfad' } });
+    lessonId = lesson.id;
+  });
+
+  it('legt bei parallelen Erstaufrufen genau eine Zeile an, ohne zu scheitern', async () => {
+    // Mit der früheren Lesen-dann-Schreiben-Folge scheiterte hier mindestens
+    // einer der Aufrufe an der Unique-Bedingung.
+    const results = await Promise.allSettled(
+      Array.from({ length: 10 }, () => startLesson(userId, lessonId)),
+    );
+
+    const rejected = results.filter((r) => r.status === 'rejected');
+    expect(rejected).toEqual([]);
+
+    const rows = await prisma.lessonProgress.findMany({ where: { userId, lessonId } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.state).toBe('IN_PROGRESS');
+  });
+
+  it('behält COMPLETED auch bei parallelen Aufrufen bei', async () => {
+    await prisma.lessonProgress.create({
+      data: { userId, lessonId, state: 'COMPLETED', completedAt: new Date() },
+    });
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 10 }, () => startLesson(userId, lessonId)),
+    );
+    expect(results.filter((r) => r.status === 'rejected')).toEqual([]);
+
+    const row = await prisma.lessonProgress.findUniqueOrThrow({
+      where: { userId_lessonId: { userId, lessonId } },
+    });
+    expect(row.state).toBe('COMPLETED');
+  });
+});

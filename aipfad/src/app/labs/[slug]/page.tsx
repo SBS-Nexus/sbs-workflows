@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { z } from 'zod';
 import { getCurrentUser } from '@/server/auth/session';
 import { getLabBySlug, LabNotFoundError } from '@/server/services/lab-service';
-import { getPublicExercise } from '@/server/services/exercise-service';
+import { getPublicExercise, getRevealedHints } from '@/server/services/exercise-service';
 import { AppHeader } from '@/components/app/app-header';
 import { SectionHeading, Callout } from '@/components/ui/primitives';
 import { LabRunner } from '@/components/labs/lab-runner';
@@ -53,7 +53,7 @@ export default async function LabPage({ params }: LabPageProps): Promise<React.R
         </Callout>
 
         {lab.kind === 'PROMPT_REPAIR' ? (
-          <PromptRepairLabBody labSlug={lab.slug} config={lab.config} />
+          <PromptRepairLabBody labSlug={lab.slug} config={lab.config} userId={user.id} />
         ) : (
           <LabRunner slug={lab.slug} kind={lab.kind} config={lab.config} />
         )}
@@ -65,9 +65,11 @@ export default async function LabPage({ params }: LabPageProps): Promise<React.R
 async function PromptRepairLabBody({
   labSlug,
   config,
+  userId,
 }: {
   labSlug: string;
   config: unknown;
+  userId: string;
 }): Promise<React.ReactElement> {
   const { relatedExerciseSlugs } = promptRepairConfigSchema.parse(config);
   const exerciseSlug = relatedExerciseSlugs[0];
@@ -92,7 +94,11 @@ async function PromptRepairLabBody({
   return (
     <div>
       <p className="mb-4 font-medium">{exercise.prompt}</p>
-      <ExerciseRunner exercise={exercise} onPassedAction={completeLab} />
+      <ExerciseRunner
+        exercise={exercise}
+        onPassedAction={completeLab}
+        initialRevealedHints={await getRevealedHints(userId, exercise.slug)}
+      />
     </div>
   );
 }

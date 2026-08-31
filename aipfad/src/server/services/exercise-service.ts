@@ -133,6 +133,34 @@ export async function revealNextHint(
   return { hint: target };
 }
 
+/**
+ * Die bereits freigegebenen Hinweise dieser Person zu dieser Aufgabe.
+ *
+ * Ohne das startet die Hinweisleiter nach jedem Seitenneuladen wieder bei
+ * null, obwohl die `HintReveal`-Zeilen serverseitig fortbestehen: der Client
+ * fragt dann erneut nach Stufe 1, bekommt vom Server aber die nächste noch
+ * nicht gesehene Stufe — der bereits gelesene Hinweis wäre nicht mehr
+ * erreichbar und die Anzeige liefe dauerhaft aus dem Tritt (Codex-Review auf
+ * PR #29). Es werden ausschließlich Hinweise ausgeliefert, für die es eine
+ * echte Freigabe in der Datenbank gibt.
+ */
+export async function getRevealedHints(userId: string, exerciseSlug: string): Promise<Hint[]> {
+  const exercise = await prisma.exercise.findUnique({
+    where: { slug: exerciseSlug },
+    select: { id: true, hints: true, status: true },
+  });
+  if (!exercise || exercise.status !== 'PUBLISHED') return [];
+
+  const hints = z.array(hintSchema).parse(exercise.hints);
+  const reveals = await prisma.hintReveal.findMany({
+    where: { userId, exerciseId: exercise.id },
+    select: { level: true },
+  });
+
+  const revealedLevels = new Set(reveals.map((r) => r.level));
+  return hints.filter((h) => revealedLevels.has(h.level)).sort((a, b) => a.level - b.level);
+}
+
 async function highestRevealedHintLevel(userId: string, exerciseId: string): Promise<number> {
   const latest = await prisma.hintReveal.findFirst({
     where: { userId, exerciseId },
@@ -217,153 +245,166 @@ export async function submitAttempt(
   ]);
   const lastFailedAttemptsByConcept = new Map(lastFailedAttemptEntries);
 
-  await prisma.attempt.create({
-    data: {
-      userId,
-      exerciseId: exercise.id,
-      submittedAnswer: submission,
-      result: grading.outcome,
-      errorType: grading.errorType,
-      hintsUsed,
-      durationMs: input.durationMs,
-      confidenceBefore: input.confidenceBefore,
-      isReview: input.isReview,
-    },
-  });
-
   const masteryUpdates: SubmitAttemptResult['masteryUpdates'] = [];
 
-  for (const link of exercise.concepts) {
-    const existing = await prisma.conceptMastery.findUnique({
-      where: { userId_conceptId: { userId, conceptId: link.conceptId } },
-    });
-
-    const previousState: MasteryState = existing
-      ? {
-          masteryScore: existing.masteryScore,
-          stability: existing.stability,
-          difficulty: existing.difficulty,
-          successfulRetrievals: existing.successfulRetrievals,
-          failedRetrievals: existing.failedRetrievals,
-          transferSuccesses: existing.transferSuccesses,
-        }
-      : INITIAL_MASTERY_STATE;
-
-    const daysSinceLastPractice = existing?.lastPracticedAt
-      ? (now.getTime() - existing.lastPracticedAt.getTime()) / (1000 * 60 * 60 * 24)
-      : 999;
-
-    // War der zuletzt aufgezeichnete Fehler beim vorigen Versuch zu diesem
-    // Konzept vom selben Typ? Eine grobe, aber ausreichende Näherung: der
-    // letzte fehlgeschlagene Versuch zu einer Aufgabe desselben Konzepts,
-    // ermittelt VOR dem gerade erstellten Attempt (siehe oben).
-    const lastFailedAttempt = lastFailedAttemptsByConcept.get(link.conceptId) ?? null;
-
-    const update = updateMastery(
-      previousState,
-      {
-        outcome:
-          grading.outcome === 'PASSED'
-            ? 'PASSED'
-            : grading.outcome === 'PARTIAL'
-              ? 'PARTIAL'
-              : 'FAILED',
-        score: grading.score,
-        hintsUsed,
-        exerciseDifficulty: exercise.difficulty,
-        exerciseType: exercise.type,
-        scaffoldLevel: exercise.scaffoldLevel,
-        weight: link.weight,
-        daysSinceLastPractice,
-        errorType: grading.errorType,
-        repeatedErrorType:
-          grading.outcome !== 'PASSED' && lastFailedAttempt?.errorType === grading.errorType,
-        confidenceBefore: input.confidenceBefore ?? null,
-      },
-      DEFAULT_MASTERY_CONFIG,
-    );
-
-    await prisma.conceptMastery.upsert({
-      where: { userId_conceptId: { userId, conceptId: link.conceptId } },
-      create: {
-        userId,
-        conceptId: link.conceptId,
-        masteryScore: update.state.masteryScore,
-        stability: update.state.stability,
-        difficulty: update.state.difficulty,
-        successfulRetrievals: update.state.successfulRetrievals,
-        failedRetrievals: update.state.failedRetrievals,
-        transferSuccesses: update.state.transferSuccesses,
-        lastPracticedAt: now,
-        algorithmVersion: update.algorithmVersion,
-      },
-      update: {
-        masteryScore: update.state.masteryScore,
-        stability: update.state.stability,
-        difficulty: update.state.difficulty,
-        successfulRetrievals: update.state.successfulRetrievals,
-        failedRetrievals: update.state.failedRetrievals,
-        transferSuccesses: update.state.transferSuccesses,
-        lastPracticedAt: now,
-        algorithmVersion: update.algorithmVersion,
-      },
-    });
-
-    masteryUpdates.push({
-      conceptSlug: link.concept.slug,
-      delta: update.delta,
-      band: masteryBand(update.state.masteryScore),
-      reasons: update.reasons,
-    });
-  }
-
-  // --- Nächste Wiederholung planen -----------------------------------------
-  const existingReview = await prisma.reviewQueueItem.findUnique({
-    where: { userId_exerciseId: { userId, exerciseId: exercise.id } },
-  });
-
-  const primaryConcept = exercise.concepts[0];
-  const conceptMastery = primaryConcept
-    ? await prisma.conceptMastery.findUnique({
-        where: { userId_conceptId: { userId, conceptId: primaryConcept.conceptId } },
-      })
-    : null;
-
-  if (conceptMastery) {
-    const schedule = scheduleNextReview({
-      mastery: {
-        masteryScore: conceptMastery.masteryScore,
-        stability: conceptMastery.stability,
-        difficulty: conceptMastery.difficulty,
-        successfulRetrievals: conceptMastery.successfulRetrievals,
-        failedRetrievals: conceptMastery.failedRetrievals,
-        transferSuccesses: conceptMastery.transferSuccesses,
-      },
-      repetition: existingReview?.repetition ?? 0,
-      passed: grading.outcome === 'PASSED',
-      hintsUsed,
-      errorType: grading.errorType,
-      confidenceBefore: input.confidenceBefore ?? null,
-      now,
-    });
-
-    await prisma.reviewQueueItem.upsert({
-      where: { userId_exerciseId: { userId, exerciseId: exercise.id } },
-      create: {
+  // Alle Schreibvorgänge dieses Versuchs gehören zusammen: der Attempt, die
+  // Kompetenzstände jedes verknüpften Konzepts und die eingeplante
+  // Wiederholung. Ohne gemeinsame Transaktion konnte ein Abbruch nach dem
+  // `attempt.create` einen als PASSED verbuchten Versuch hinterlassen, zu dem
+  // weder ein Kompetenzstand noch eine Wiederholung existierte —
+  // `checkLessonCompletion` zählt bestandene Versuche und hätte die Lektion
+  // abgeschlossen, während der Lernstand unberührt blieb (Code-Review auf
+  // PR #29).
+  await prisma.$transaction(async (tx) => {
+    await tx.attempt.create({
+      data: {
         userId,
         exerciseId: exercise.id,
-        dueAt: schedule.dueAt,
-        repetition: schedule.repetition,
-        reason: schedule.reason,
-      },
-      update: {
-        dueAt: schedule.dueAt,
-        repetition: schedule.repetition,
-        reason: schedule.reason,
-        completedAt: null,
+        submittedAnswer: submission,
+        result: grading.outcome,
+        errorType: grading.errorType,
+        hintsUsed,
+        durationMs: input.durationMs,
+        confidenceBefore: input.confidenceBefore,
+        isReview: input.isReview,
       },
     });
-  }
+
+    for (const link of exercise.concepts) {
+      const existing = await tx.conceptMastery.findUnique({
+        where: { userId_conceptId: { userId, conceptId: link.conceptId } },
+      });
+
+      const previousState: MasteryState = existing
+        ? {
+            masteryScore: existing.masteryScore,
+            stability: existing.stability,
+            difficulty: existing.difficulty,
+            successfulRetrievals: existing.successfulRetrievals,
+            failedRetrievals: existing.failedRetrievals,
+            transferSuccesses: existing.transferSuccesses,
+          }
+        : INITIAL_MASTERY_STATE;
+
+      // `null` statt eines großen Platzhalterwerts: ein Konzept, das noch nie
+      // geübt wurde, hat keine Pause hinter sich und darf den Bonus für
+      // verzögerten Abruf nicht bekommen (Code-Review auf PR #29).
+      const daysSinceLastPractice = existing?.lastPracticedAt
+        ? (now.getTime() - existing.lastPracticedAt.getTime()) / (1000 * 60 * 60 * 24)
+        : null;
+
+      // War der zuletzt aufgezeichnete Fehler beim vorigen Versuch zu diesem
+      // Konzept vom selben Typ? Eine grobe, aber ausreichende Näherung: der
+      // letzte fehlgeschlagene Versuch zu einer Aufgabe desselben Konzepts,
+      // ermittelt VOR dem gerade erstellten Attempt (siehe oben).
+      const lastFailedAttempt = lastFailedAttemptsByConcept.get(link.conceptId) ?? null;
+
+      const update = updateMastery(
+        previousState,
+        {
+          outcome:
+            grading.outcome === 'PASSED'
+              ? 'PASSED'
+              : grading.outcome === 'PARTIAL'
+                ? 'PARTIAL'
+                : 'FAILED',
+          score: grading.score,
+          hintsUsed,
+          exerciseDifficulty: exercise.difficulty,
+          exerciseType: exercise.type,
+          scaffoldLevel: exercise.scaffoldLevel,
+          weight: link.weight,
+          daysSinceLastPractice,
+          errorType: grading.errorType,
+          repeatedErrorType:
+            grading.outcome !== 'PASSED' && lastFailedAttempt?.errorType === grading.errorType,
+          confidenceBefore: input.confidenceBefore ?? null,
+        },
+        DEFAULT_MASTERY_CONFIG,
+      );
+
+      await tx.conceptMastery.upsert({
+        where: { userId_conceptId: { userId, conceptId: link.conceptId } },
+        create: {
+          userId,
+          conceptId: link.conceptId,
+          masteryScore: update.state.masteryScore,
+          stability: update.state.stability,
+          difficulty: update.state.difficulty,
+          successfulRetrievals: update.state.successfulRetrievals,
+          failedRetrievals: update.state.failedRetrievals,
+          transferSuccesses: update.state.transferSuccesses,
+          lastPracticedAt: now,
+          algorithmVersion: update.algorithmVersion,
+        },
+        update: {
+          masteryScore: update.state.masteryScore,
+          stability: update.state.stability,
+          difficulty: update.state.difficulty,
+          successfulRetrievals: update.state.successfulRetrievals,
+          failedRetrievals: update.state.failedRetrievals,
+          transferSuccesses: update.state.transferSuccesses,
+          lastPracticedAt: now,
+          algorithmVersion: update.algorithmVersion,
+        },
+      });
+
+      masteryUpdates.push({
+        conceptSlug: link.concept.slug,
+        delta: update.delta,
+        band: masteryBand(update.state.masteryScore),
+        reasons: update.reasons,
+      });
+    }
+
+    // --- Nächste Wiederholung planen -----------------------------------------
+    const existingReview = await tx.reviewQueueItem.findUnique({
+      where: { userId_exerciseId: { userId, exerciseId: exercise.id } },
+    });
+
+    const primaryConcept = exercise.concepts[0];
+    const conceptMastery = primaryConcept
+      ? await tx.conceptMastery.findUnique({
+          where: { userId_conceptId: { userId, conceptId: primaryConcept.conceptId } },
+        })
+      : null;
+
+    if (conceptMastery) {
+      const schedule = scheduleNextReview({
+        mastery: {
+          masteryScore: conceptMastery.masteryScore,
+          stability: conceptMastery.stability,
+          difficulty: conceptMastery.difficulty,
+          successfulRetrievals: conceptMastery.successfulRetrievals,
+          failedRetrievals: conceptMastery.failedRetrievals,
+          transferSuccesses: conceptMastery.transferSuccesses,
+        },
+        repetition: existingReview?.repetition ?? 0,
+        passed: grading.outcome === 'PASSED',
+        hintsUsed,
+        errorType: grading.errorType,
+        confidenceBefore: input.confidenceBefore ?? null,
+        now,
+      });
+
+      await tx.reviewQueueItem.upsert({
+        where: { userId_exerciseId: { userId, exerciseId: exercise.id } },
+        create: {
+          userId,
+          exerciseId: exercise.id,
+          dueAt: schedule.dueAt,
+          repetition: schedule.repetition,
+          reason: schedule.reason,
+        },
+        update: {
+          dueAt: schedule.dueAt,
+          repetition: schedule.repetition,
+          reason: schedule.reason,
+          completedAt: null,
+        },
+      });
+    }
+  });
 
   return {
     outcome: grading.outcome,

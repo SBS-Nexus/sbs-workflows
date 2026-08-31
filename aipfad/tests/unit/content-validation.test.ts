@@ -10,6 +10,8 @@ import {
 import { course } from '@/content/course';
 import { concepts as conceptDrafts } from '@/content/concepts';
 import { labs as labDrafts } from '@/content/labs';
+import { exercisePayloadSchema } from '@/domain/content/exercise-payload';
+import { toPublicPayload } from '@/domain/grading/grade';
 
 function parseAll() {
   const parsedCourse = courseSchema.parse(course);
@@ -115,4 +117,40 @@ describe('AIPfad content (Stage 0/1/4/5)', () => {
     const slugs = (conceptDrafts as ConceptDraft[]).map((c) => c.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
+});
+
+/**
+ * Die öffentliche Fassung einer Aufgabe darf die Lösung nicht mitliefern.
+ * Für `ordering` ist das nicht selbstverständlich: die angezeigte Reihenfolge
+ * entsteht aus den redaktionell vergebenen IDs. Werden die Elemente in
+ * Lösungsreihenfolge benannt, käme die Liste bereits richtig sortiert im
+ * Browser an (Sicherheitsprüfung zu PR #29). Diese Prüfung läuft über den
+ * echten Inhalt, nicht über ein Beispiel.
+ */
+describe('Keine Aufgabe liefert ihre Lösung im öffentlichen Teil mit', () => {
+  const orderingPayloads = courseSchema
+    .parse(course)
+    .modules.flatMap((m) => m.lessons)
+    .flatMap((l) => l.exercises)
+    .map((e) => exercisePayloadSchema.parse(e.payload))
+    .filter((p) => p.kind === 'ordering');
+
+  it('findet überhaupt ordering-Aufgaben zum Prüfen', () => {
+    expect(orderingPayloads.length).toBeGreaterThan(0);
+  });
+
+  it.each(orderingPayloads.map((p, i) => [i, p] as const))(
+    'ordering-Aufgabe %i wird nicht in Lösungsreihenfolge ausgeliefert',
+    (_index, payload) => {
+      const publicPayload = toPublicPayload(payload) as { items: { id: string }[] };
+      expect(publicPayload.items.map((i) => i.id)).not.toEqual(payload.correctOrder);
+    },
+  );
+
+  it.each(orderingPayloads.map((p, i) => [i, p] as const))(
+    'ordering-Aufgabe %i enthält im öffentlichen Teil keine correctOrder',
+    (_index, payload) => {
+      expect(JSON.stringify(toPublicPayload(payload))).not.toContain('correctOrder');
+    },
+  );
 });

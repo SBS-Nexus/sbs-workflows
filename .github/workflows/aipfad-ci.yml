@@ -15,6 +15,14 @@ on:
   pull_request:
     paths: ['aipfad/**', '.github/workflows/aipfad-ci.yml']
 
+# Dieser Lauf prüft nur — er schreibt nichts ins Repository. Die Rechte des
+# GITHUB_TOKEN werden deshalb ausdrücklich auf Lesen begrenzt, statt sich auf
+# die Vorgabe der Organisation zu verlassen: die ist heute zwar "read", ist
+# aber eine Einstellung, die sich außerhalb dieser Datei ändern lässt.
+# Hier steht die Absicht dauerhaft und nachvollziehbar.
+permissions:
+  contents: read
+
 defaults:
   run:
     working-directory: aipfad

@@ -161,3 +161,38 @@ describe('summarizeCalibration', () => {
     expect(summary.message).toContain('über dem Ergebnis');
   });
 });
+
+/**
+ * Regressionstest zum Code-Review-Fund "Erstkontakt bekommt den Bonus für
+ * verzögerten Abruf" (PR #29): Für ein noch nie geübtes Konzept setzte der
+ * Dienst den Platzhalter 999 ein, den `isDelayedReview` als echte
+ * Gedächtnisleistung nach langer Pause las — und mit Bonus belohnte, obwohl
+ * die Person das Konzept zum ersten Mal sah. `null` heißt jetzt "noch nie
+ * geübt" und ist ausdrücklich KEIN verzögerter Abruf.
+ */
+describe('Erstkontakt mit einem Konzept', () => {
+  it('bekommt keinen Bonus für verzögerten Abruf', () => {
+    const erstkontakt = updateMastery(
+      INITIAL_MASTERY_STATE,
+      { ...baseEvidence, outcome: 'PASSED', daysSinceLastPractice: null },
+      DEFAULT_MASTERY_CONFIG,
+    );
+    const echterVerzoegerterAbruf = updateMastery(
+      INITIAL_MASTERY_STATE,
+      { ...baseEvidence, outcome: 'PASSED', daysSinceLastPractice: 7 },
+      DEFAULT_MASTERY_CONFIG,
+    );
+
+    expect(erstkontakt.delta).toBeLessThan(echterVerzoegerterAbruf.delta);
+    expect(erstkontakt.reasons.some((r) => r.includes('Pause'))).toBe(false);
+  });
+
+  it('nennt in der Begründung keine erfundene Pausendauer', () => {
+    const erstkontakt = updateMastery(
+      INITIAL_MASTERY_STATE,
+      { ...baseEvidence, outcome: 'PASSED', daysSinceLastPractice: null },
+      DEFAULT_MASTERY_CONFIG,
+    );
+    expect(erstkontakt.reasons.join(' ')).not.toContain('999');
+  });
+});

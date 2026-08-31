@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { LabCompleteButton } from './lab-complete-button';
 import { z } from 'zod';
-import { Button, cx } from '@/components/ui/primitives';
+import { cx } from '@/components/ui/primitives';
 
 const configSchema = z.object({
   examples: z.array(z.object({ text: z.string(), tokens: z.array(z.string()) })).min(1),
@@ -19,11 +20,10 @@ export function TokenizerLab({
   onCompleteAction,
 }: {
   config: unknown;
-  onCompleteAction: () => void;
+  onCompleteAction: () => Promise<boolean>;
 }): React.ReactElement {
   const { examples } = configSchema.parse(config);
   const [selected, setSelected] = useState(0);
-  const [done, setDone] = useState(false);
   const example = examples[selected] ?? examples[0]!;
 
   return (
@@ -66,21 +66,12 @@ export function TokenizerLab({
         {example.tokens.length} Tokens für {example.text.split(/\s+/).length} sichtbare Wörter.
       </p>
 
-      {!done ? (
-        <Button
-          className="mt-5"
-          onClick={() => {
-            setDone(true);
-            onCompleteAction();
-          }}
-        >
-          Verstanden — Lab abschließen
-        </Button>
-      ) : (
-        <p className="mt-5 font-mono text-sm text-success-700 dark:text-success-100">
-          ✓ Lab abgeschlossen.
-        </p>
-      )}
+      <div className="mt-5">
+        <LabCompleteButton
+          onCompleteAction={onCompleteAction}
+          label="Verstanden — Lab abschließen"
+        />
+      </div>
     </div>
   );
 }

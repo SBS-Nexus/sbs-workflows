@@ -1,6 +1,8 @@
 import 'server-only';
 import { prisma } from '@/server/db/prisma';
-import type { Prisma } from '@/generated/prisma/client';
+// Kein `import type`: `Prisma.PrismaClientKnownRequestError` wird unten als
+// Wert für die `instanceof`-Prüfung gebraucht, nicht nur als Typ.
+import { Prisma } from '@/generated/prisma/client';
 
 /**
  * Lektions-Dienst: lädt veröffentlichte Lektionen samt Konzepten/Aufgaben und
@@ -32,23 +34,34 @@ export async function getLessonBySlug(slug: string): Promise<LessonWithRelations
  * auftauchen).
  */
 export async function startLesson(userId: string, lessonId: string): Promise<void> {
-  const existing = await prisma.lessonProgress.findUnique({
-    where: { userId_lessonId: { userId, lessonId } },
+  // Eine vorhandene Zeile hochstufen — aber niemals einen erreichten
+  // Abschluss zurücknehmen. Die Bedingung steht bewusst IN der schreibenden
+  // Anweisung: ein vorgeschaltetes `findUnique` würde zwischen Lesen und
+  // Schreiben ein Zeitfenster öffnen, in dem ein zweiter Aufruf dieselbe
+  // Zeile anlegt und der Unique-Index auf (userId, lessonId) dann einen
+  // Fehler wirft — zwei Tabs oder überlappende Navigation genügen dafür
+  // (Codex-Review auf PR #29).
+  const promoted = await prisma.lessonProgress.updateMany({
+    where: { userId, lessonId, state: { not: 'COMPLETED' } },
+    data: { state: 'IN_PROGRESS' },
   });
+  if (promoted.count > 0) return;
 
-  if (existing?.state === 'COMPLETED') return;
-
-  if (existing) {
-    await prisma.lessonProgress.update({
-      where: { userId_lessonId: { userId, lessonId } },
-      data: { state: 'IN_PROGRESS' },
+  // Ab hier gibt es entweder noch gar keine Zeile, oder sie ist bereits
+  // COMPLETED — dann soll sie unverändert bleiben. Beide Fälle deckt ein
+  // `create` ab, dessen Unique-Verletzung wir als "ist schon da" lesen.
+  try {
+    await prisma.lessonProgress.create({
+      data: { userId, lessonId, state: 'IN_PROGRESS' },
     });
-    return;
+  } catch (error) {
+    if (!isUniqueConstraintViolation(error)) throw error;
   }
+}
 
-  await prisma.lessonProgress.create({
-    data: { userId, lessonId, state: 'IN_PROGRESS' },
-  });
+/** Prisma meldet eine verletzte Unique-Bedingung als Fehlercode `P2002`. */
+function isUniqueConstraintViolation(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
 
 export interface LessonCompletionCheck {

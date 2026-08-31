@@ -17,10 +17,20 @@ export function LabRunner({
 }): React.ReactElement {
   const [saved, setSaved] = useState(false);
 
-  async function complete(): Promise<void> {
-    if (saved) return;
-    setSaved(true);
-    await recordLabCompletionAction(slug, { completedAt: new Date().toISOString() });
+  /**
+   * Meldet zurück, ob der Abschluss wirklich gespeichert wurde. Die Sperre
+   * wird erst NACH dem erfolgreichen Speichern gesetzt — vorher blieb ein
+   * fehlgeschlagener Versuch für immer gesperrt (Code-Review auf PR #29).
+   */
+  async function complete(): Promise<boolean> {
+    if (saved) return true;
+    try {
+      await recordLabCompletionAction(slug, { completedAt: new Date().toISOString() });
+      setSaved(true);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   switch (kind) {

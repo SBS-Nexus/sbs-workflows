@@ -7,8 +7,9 @@ import {
   type SubmitAttemptResult,
   type RevealHintResult,
 } from '@/server/services/exercise-service';
+import { z } from 'zod';
 import { submissionSchema, type Submission } from '@/domain/content/exercise-payload';
-import type { ConfidenceLevel } from '@/domain/mastery/mastery';
+import { CONFIDENCE_LEVELS, type ConfidenceLevel } from '@/domain/mastery/mastery';
 
 /**
  * Die Sitzungsprüfung (`requireUser()`) sitzt bewusst hier, nicht im
@@ -25,15 +26,35 @@ export interface SubmitExerciseInput {
   isReview: boolean;
 }
 
+/**
+ * Die vollständige Eingabe wird geprüft, nicht nur `submission`. Ein
+ * `'use server'`-Einstiegspunkt bekommt, was der Client sendet — die
+ * TypeScript-Signatur ist zur Laufzeit nicht vorhanden. Zuvor erreichten
+ * `durationMs` (Postgres `int4`) und `confidenceBefore` (Enum-Spalte) die
+ * Datenbank ungeprüft; ein zu großer oder falsch getippter Wert endete in
+ * einem Prisma-Fehler statt in einer sauberen Ablehnung, und
+ * docs/SECURITY.md fordert ausdrücklich Zod an jeder Server-Action-Grenze
+ * (Code-Review auf PR #29).
+ */
+const exerciseSlugSchema = z.string().min(1).max(200);
+
+const submitExerciseInputSchema = z.object({
+  exerciseSlug: exerciseSlugSchema,
+  submission: submissionSchema,
+  // Höchstens 24 Stunden — alles darüber ist keine Bearbeitungsdauer mehr.
+  durationMs: z.number().int().min(0).max(86_400_000),
+  confidenceBefore: z.enum(CONFIDENCE_LEVELS).optional(),
+  isReview: z.boolean(),
+});
+
 export async function submitExerciseAction(
   input: SubmitExerciseInput,
 ): Promise<SubmitAttemptResult> {
   const user = await requireUser();
-  const submission = submissionSchema.parse(input.submission);
-  return submitAttempt(user.id, { ...input, submission });
+  return submitAttempt(user.id, submitExerciseInputSchema.parse(input));
 }
 
 export async function revealHintAction(exerciseSlug: string): Promise<RevealHintResult> {
   const user = await requireUser();
-  return revealNextHint(user.id, exerciseSlug);
+  return revealNextHint(user.id, exerciseSlugSchema.parse(exerciseSlug));
 }

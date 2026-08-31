@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { submitExerciseAction, revealHintAction } from '@/server/actions/exercise-actions';
 import { Button, Callout, Badge } from '@/components/ui/primitives';
 import type { PublicExercise } from '@/server/services/exercise-service';
@@ -41,6 +41,7 @@ export function ExerciseRunner({
   exercise,
   isReview = false,
   onPassedAction,
+  initialRevealedHints = [],
 }: {
   exercise: PublicExercise;
   isReview?: boolean;
@@ -52,10 +53,17 @@ export function ExerciseRunner({
    * Domainlogik (Codex-Review auf PR #29).
    */
   onPassedAction?: () => void | Promise<void>;
+  /**
+   * Bereits freigegebene Hinweise aus früheren Besuchen (serverseitig aus
+   * `HintReveal` geladen). Ohne sie begänne die Leiter nach jedem Neuladen
+   * wieder bei null, während der Server bereits weiter ist — der zuletzt
+   * gelesene Hinweis wäre dann nicht mehr erreichbar (Codex-Review auf PR #29).
+   */
+  initialRevealedHints?: Hint[];
 }): React.ReactElement {
   const payload = exercise.payload as PublicPayload;
   const [startedAt] = useState(() => Date.now());
-  const [revealedHints, setRevealedHints] = useState<Hint[]>([]);
+  const [revealedHints, setRevealedHints] = useState<Hint[]>(initialRevealedHints);
   const [result, setResult] = useState<Awaited<ReturnType<typeof submitExerciseAction>> | null>(
     null,
   );
@@ -63,18 +71,34 @@ export function ExerciseRunner({
   const [error, setError] = useState<string | null>(null);
   const passedCallbackFired = useRef(false);
   const [passedCallbackDone, setPassedCallbackDone] = useState(false);
+  const [passedCallbackError, setPassedCallbackError] = useState(false);
+
+  // Bewusst abgewartet statt "fire and forget": ohne das könnte ein
+  // sofortiger Seitenwechsel (Klick auf einen Navigationslink) die noch
+  // laufende Anfrage abbrechen, bevor der Lab-Abschluss gespeichert ist.
+  // Die kurze Bestätigung unten macht den abgeschlossenen Speichervorgang
+  // zusätzlich sichtbar, statt sich stillschweigend darauf zu verlassen.
+  //
+  // Schlägt das Speichern fehl (kurzzeitiger Netz- oder Datenbankfehler), darf
+  // die Anzeige nicht dauerhaft auf "wird gespeichert …" stehen bleiben: die
+  // Sperre wird zurückgenommen und ein sichtbarer Wiederholen-Knopf angeboten,
+  // sonst bliebe das Lab trotz richtiger Antwort unabgeschlossen
+  // (Codex-Review auf PR #29).
+  const runPassedAction = useCallback(() => {
+    if (!onPassedAction || passedCallbackFired.current) return;
+    passedCallbackFired.current = true;
+    setPassedCallbackError(false);
+    Promise.resolve(onPassedAction())
+      .then(() => setPassedCallbackDone(true))
+      .catch(() => {
+        passedCallbackFired.current = false;
+        setPassedCallbackError(true);
+      });
+  }, [onPassedAction]);
 
   useEffect(() => {
-    if (result?.outcome === 'PASSED' && onPassedAction && !passedCallbackFired.current) {
-      passedCallbackFired.current = true;
-      // Bewusst abgewartet statt "fire and forget": ohne das könnte ein
-      // sofortiger Seitenwechsel (Klick auf einen Navigationslink) die noch
-      // laufende Anfrage abbrechen, bevor der Lab-Abschluss gespeichert ist.
-      // Die kurze Bestätigung unten macht den abgeschlossenen Speichervorgang
-      // zusätzlich sichtbar, statt sich stillschweigend darauf zu verlassen.
-      void Promise.resolve(onPassedAction()).then(() => setPassedCallbackDone(true));
-    }
-  }, [result, onPassedAction]);
+    if (result?.outcome === 'PASSED') runPassedAction();
+  }, [result, runPassedAction]);
 
   async function submit(submission: Submission): Promise<void> {
     setPending(true);
@@ -136,11 +160,22 @@ export function ExerciseRunner({
           </Button>
         ) : null}
         {onPassedAction && result.outcome === 'PASSED' ? (
-          <p role="status" aria-live="polite" className="text-sm text-[var(--fg-muted)]">
-            {passedCallbackDone
-              ? '✓ Lab-Fortschritt gespeichert.'
-              : 'Lab-Fortschritt wird gespeichert …'}
-          </p>
+          passedCallbackError ? (
+            <Callout tone="alert" title="Lab-Fortschritt nicht gespeichert" live>
+              <p className="mb-2">
+                Deine Antwort war richtig, aber der Abschluss konnte nicht gespeichert werden.
+              </p>
+              <Button size="sm" variant="secondary" onClick={runPassedAction}>
+                Erneut speichern
+              </Button>
+            </Callout>
+          ) : (
+            <p role="status" aria-live="polite" className="text-sm text-[var(--fg-muted)]">
+              {passedCallbackDone
+                ? '✓ Lab-Fortschritt gespeichert.'
+                : 'Lab-Fortschritt wird gespeichert …'}
+            </p>
+          )
         ) : null}
       </div>
     );
@@ -212,7 +247,14 @@ function HintLadder({
 }): React.ReactElement {
   const [pending, setPending] = useState(false);
   const [blockedReason, setBlockedReason] = useState<string | null>(null);
-  const nextLevel = hintLevels[revealedHints.length];
+
+  // Die nächste Stufe ergibt sich aus der höchsten bereits gesehenen STUFE,
+  // nicht aus der Anzahl der lokal angezeigten Hinweise. Über den Index
+  // liefen Client und Server auseinander, sobald schon Hinweise aus einem
+  // früheren Besuch vorlagen (Codex-Review auf PR #29); maßgeblich für die
+  // Freigabe bleibt ohnehin allein der Server.
+  const highestRevealed = revealedHints.reduce((max, hint) => Math.max(max, hint.level), 0);
+  const nextLevel = hintLevels.find((level) => level > highestRevealed);
 
   async function reveal(): Promise<void> {
     if (nextLevel === undefined) return;
@@ -225,6 +267,12 @@ function HintLadder({
       } else {
         setBlockedReason(result.reason);
       }
+    } catch {
+      // Ohne diesen Zweig verschluckte die Leiter jeden Fehler: bei erreichter
+      // Ratenbegrenzung sprang der Knopf nur von "Wird geladen …" zurück und
+      // sonst geschah nichts (Code-Review auf PR #29). `submit()` oben macht
+      // es richtig — hier fehlte es.
+      setBlockedReason('Der Hinweis konnte nicht geladen werden. Bitte versuch es noch einmal.');
     } finally {
       setPending(false);
     }

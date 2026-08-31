@@ -8,7 +8,7 @@ import {
   startLesson,
   checkLessonCompletion,
 } from '@/server/services/lesson-service';
-import { getPublicExercise } from '@/server/services/exercise-service';
+import { getPublicExercise, getRevealedHints } from '@/server/services/exercise-service';
 import { AppHeader } from '@/components/app/app-header';
 import { ExerciseRunner } from '@/components/exercise/exercise-runner';
 import { ButtonLink, Callout, ProgressBar } from '@/components/ui/primitives';
@@ -67,7 +67,7 @@ export default async function LessonStepPage({
         {step === 1 ? <IntroStep lesson={lesson} /> : null}
         {step === 2 ? <ExampleStep lesson={lesson} /> : null}
         {step > 2 && step <= exerciseCount + 2 ? (
-          <ExerciseStep exerciseId={lesson.exercises[step - 3]?.id} />
+          <ExerciseStep exerciseId={lesson.exercises[step - 3]?.id} userId={user.id} />
         ) : null}
         {step === totalSteps ? <ReflectionStep lesson={lesson} userId={user.id} /> : null}
 
@@ -156,11 +156,20 @@ function ExampleStep({
   );
 }
 
-async function ExerciseStep({ exerciseId }: { exerciseId?: string }): Promise<React.ReactElement> {
+async function ExerciseStep({
+  exerciseId,
+  userId,
+}: {
+  exerciseId?: string;
+  userId: string;
+}): Promise<React.ReactElement> {
   if (!exerciseId) notFound();
   const exercise = await getPublicExerciseById(exerciseId);
   if (!exercise) notFound();
-  return <ExerciseRunner exercise={exercise} />;
+  // Schon freigegebene Hinweise mitgeben, damit die Leiter nach einem
+  // Seitenneuladen dort weitermacht, wo sie stand (Codex-Review auf PR #29).
+  const revealedHints = await getRevealedHints(userId, exercise.slug);
+  return <ExerciseRunner exercise={exercise} initialRevealedHints={revealedHints} />;
 }
 
 async function getPublicExerciseById(id: string): ReturnType<typeof getPublicExercise> {

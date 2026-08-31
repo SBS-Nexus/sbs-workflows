@@ -10,7 +10,14 @@ bzw. `docs/SECURITY.md`), angepasst auf die Unterschiede dieser Ausbaustufe.
 - Sitzungen: opake 32-Byte-Token, in der Datenbank liegt nur der
   SHA-256-Hash. Cookie `httpOnly`, `SameSite=Lax`, `Secure` sobald `APP_URL`
   auf `https` zeigt. Siehe `src/server/auth/session.ts`.
-- CSRF: Double-Submit-Token zusätzlich zur Origin-Prüfung in `src/proxy.ts`
+- CSRF: Origin-Prüfung in `src/proxy.ts` samt der eingebauten Herkunftsprüfung
+  von Next.js für Server Actions, dazu `SameSite=Lax` auf dem Sitzungscookie —
+  Letzteres verhindert, dass bei einer seitenfremden POST-Anfrage überhaupt
+  eine Sitzung mitgeschickt wird. Das in `src/server/auth/session.ts`
+  vorbereitete Double-Submit-Verfahren (`assertCsrf`, `AuthSession.csrfSecret`)
+  ist derzeit NICHT aktiv: es wird von keiner Server Action aufgerufen. Es ist
+  für eine spätere Ausbaustufe angelegt und darf bis dahin nicht als
+  wirksame Maßnahme gezählt werden (Sicherheitsprüfung zu PR #29).
   und der eingebauten Server-Actions-Origin-Prüfung von Next.js.
 - Ratenbegrenzung: gleitendes Fenster im Arbeitsspeicher
   (`src/server/security/rate-limit.ts`) für Login, Registrierung,
@@ -91,6 +98,11 @@ in `src/proxy.ts` nur gesetzt, wenn `APP_URL` tatsächlich auf `https` zeigt.
   `prisma.user.delete()` entfernt sämtliche personenbezogenen Daten.
 - Aufbewahrungsfrist für `Attempt`-Rohdaten konfigurierbar über
   `ATTEMPT_RETENTION_DAYS` (`src/server/auth/session.ts:applyRetentionPolicy`).
+  ACHTUNG: Die Funktion ist vorhanden, wird aber in dieser Ausbaustufe von
+  nichts aufgerufen — `vercel.json` enthält keinen Cron-Eintrag. Die Löschung
+  findet also derzeit NICHT statt; die Frist ist bis zur Anbindung eines
+  geplanten Laufs eine Absichtserklärung, keine wirksame Maßnahme
+  (Sicherheitsprüfung zu PR #29).
 
 ## Bekannte, akzeptierte Restrisiken dieser Ausbaustufe
 

@@ -27,7 +27,11 @@ export type MasteryOutcome = 'PASSED' | 'PARTIAL' | 'FAILED' | 'SOLUTION_REVEALE
 
 export type ErrorCategoryName = 'NONE' | 'SURFACE' | 'INCOMPLETE' | 'MISCONCEPTION';
 
-export type ConfidenceLevel = 'UNSURE' | 'RATHER_UNSURE' | 'RATHER_SURE' | 'VERY_SURE';
+/** Reihenfolge von unsicher nach sicher; auch die Quelle für die Zod-Prüfung
+ *  an der Server-Action-Grenze. */
+export const CONFIDENCE_LEVELS = ['UNSURE', 'RATHER_UNSURE', 'RATHER_SURE', 'VERY_SURE'] as const;
+
+export type ConfidenceLevel = (typeof CONFIDENCE_LEVELS)[number];
 
 export interface MasteryConfig {
   version: string;
@@ -109,8 +113,15 @@ export interface MasteryEvidence {
   scaffoldLevel: number;
   /** Gewicht der Aufgabe für dieses Konzept, 0.0–1.0. */
   weight: number;
-  /** Tage seit der letzten Übung dieses Konzepts. */
-  daysSinceLastPractice: number;
+  /**
+   * Tage seit der letzten Übung dieses Konzepts, oder `null`, wenn das
+   * Konzept noch nie geübt wurde. `null` ist ausdrücklich KEIN verzögerter
+   * Abruf: zuvor stand hier für den Erstkontakt der Platzhalter 999, den
+   * `isDelayedReview` als echte Gedächtnisleistung nach langer Pause las und
+   * mit Bonus belohnte — für ein Konzept, das die Person zum ersten Mal sah
+   * (Code-Review auf PR #29).
+   */
+  daysSinceLastPractice: number | null;
   errorType: ErrorCategoryName;
   /** Trat derselbe Fehlertyp bei diesem Konzept schon zuletzt auf? */
   repeatedErrorType: boolean;
@@ -161,8 +172,10 @@ export function updateMastery(
   const state: MasteryState = { ...previous };
 
   const isTransfer = TRANSFER_TYPES.has(evidence.exerciseType);
+  const daysSinceLastPractice = evidence.daysSinceLastPractice;
   const isDelayedReview =
-    REVIEW_TYPES.has(evidence.exerciseType) || evidence.daysSinceLastPractice >= 1;
+    REVIEW_TYPES.has(evidence.exerciseType) ||
+    (daysSinceLastPractice !== null && daysSinceLastPractice >= 1);
 
   // --- Musterlösung angesehen ---------------------------------------------
   if (evidence.outcome === 'SOLUTION_REVEALED') {
@@ -206,7 +219,9 @@ export function updateMastery(
     if (isDelayedReview && evidence.outcome === 'PASSED') {
       gain *= config.delayedReviewBonus;
       reasons.push(
-        `Der Abruf gelang nach ${Math.round(evidence.daysSinceLastPractice)} Tag(en) Pause. Verzögerter Abruf festigt besonders gut.`,
+        daysSinceLastPractice === null
+          ? 'Der Abruf gelang in einer Wiederholungsaufgabe. Verzögerter Abruf festigt besonders gut.'
+          : `Der Abruf gelang nach ${Math.round(daysSinceLastPractice)} Tag(en) Pause. Verzögerter Abruf festigt besonders gut.`,
       );
     }
 

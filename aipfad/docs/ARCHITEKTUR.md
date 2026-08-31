@@ -28,7 +28,10 @@ dokumentierter Begründung in den Ursprungsprojekten
 (`pythonpfad/docs/ARCHITEKTUR.md`):
 
 - **Sitzungsverwaltung ohne Auth.js** (`server/auth/session.ts`): scrypt-Hashing,
-  opake Sitzungstoken, nur SHA-256-Hash in der Datenbank, CSRF-Double-Submit.
+  opake Sitzungstoken, nur SHA-256-Hash in der Datenbank. Schutz gegen
+  seitenfremde Anfragen über Origin-Prüfung und `SameSite=Lax`; das
+  Double-Submit-Verfahren ist vorbereitet, aber noch nicht aktiv (siehe
+  docs/SECURITY.md).
 - **Inhalte als typisierte TypeScript-Module** (`domain/content/schema.ts`,
   `content/`): Draft/Content-Zod-Schemata, `validateCourseGraph()` prüft
   Beziehungen, die ein Schema allein nicht abdeckt.
