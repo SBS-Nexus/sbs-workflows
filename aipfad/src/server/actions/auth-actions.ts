@@ -4,6 +4,8 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { prisma } from '@/server/db/prisma';
+// Kein `import type`: die Fehlerklasse wird als Wert für `instanceof` gebraucht.
+import { Prisma } from '@/generated/prisma/client';
 import { checkPasswordStrength, hashPassword, verifyPassword } from '@/server/auth/password';
 import { createSession, destroySession, pruneExpiredSessions } from '@/server/auth/session';
 import { enforceRateLimit, RATE_LIMITS, RateLimitError } from '@/server/security/rate-limit';
@@ -143,14 +145,33 @@ export async function registerAction(_previous: FormState, formData: FormData): 
     };
   }
 
-  const user = await prisma.user.create({
-    data: {
-      email,
-      name: parsed.data.name,
-      passwordHash: await hashPassword(parsed.data.password),
-    },
-    select: { id: true },
-  });
+  // Zwischen der Prüfung oben und diesem `create` liegt ein Zeitfenster: Zwei
+  // gleichzeitige Registrierungen für dieselbe, bislang unbenutzte Adresse
+  // kommen beide an der Prüfung vorbei, und eine scheitert dann am
+  // Unique-Index. Ohne diese Behandlung bekäme sie eine Serverfehlerseite
+  // statt der normalen Rückmeldung "Adresse ist schon vergeben"
+  // (Codex-Review auf PR #29, b41d724).
+  let user: { id: string };
+  try {
+    user = await prisma.user.create({
+      data: {
+        email,
+        name: parsed.data.name,
+        passwordHash: await hashPassword(parsed.data.password),
+      },
+      select: { id: true },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return {
+        ok: false,
+        fieldErrors: {
+          email: 'Für diese Adresse gibt es bereits ein Konto. Melde dich stattdessen an.',
+        },
+      };
+    }
+    throw error;
+  }
 
   await createSession(user.id);
   redirect('/onboarding');

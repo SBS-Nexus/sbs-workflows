@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
-import { getPublicExercise, getRevealedHints } from '@/server/services/exercise-service';
+import { getPublicExercise } from '@/server/services/exercise-service';
 import { AppHeader } from '@/components/app/app-header';
 import { EmptyState, SectionHeading } from '@/components/ui/primitives';
 import { ExerciseRunner } from '@/components/exercise/exercise-runner';
@@ -33,9 +33,6 @@ export default async function WiederholenPage(): Promise<React.ReactElement> {
     dueItems.map(async (item) => ({
       reason: item.reason,
       exercise: await getPublicExercise(item.exercise.slug),
-      // Bereits gesehene Hinweise mitgeben, damit die Leiter nicht bei jedem
-      // Aufruf wieder bei null beginnt (Codex-Review auf PR #29).
-      revealedHints: await getRevealedHints(user.id, item.exercise.slug),
     })),
   );
 
@@ -57,7 +54,7 @@ export default async function WiederholenPage(): Promise<React.ReactElement> {
           />
         ) : (
           <ol className="space-y-8">
-            {exercises.map(({ reason, exercise, revealedHints }, index) =>
+            {exercises.map(({ reason, exercise }, index) =>
               exercise ? (
                 <li
                   key={exercise.id}
@@ -67,11 +64,15 @@ export default async function WiederholenPage(): Promise<React.ReactElement> {
                     {index + 1}/{exercises.length} · {reason}
                   </p>
                   <p className="mb-4 font-medium">{exercise.prompt}</p>
-                  <ExerciseRunner
-                    exercise={exercise}
-                    isReview
-                    initialRevealedHints={revealedHints}
-                  />
+                  {/*
+                    Eine geplante Wiederholung beginnt bewusst OHNE die früher
+                    gelesenen Hinweise: Sie prüft den Abruf aus dem Gedächtnis.
+                    Würden die alten Hinweise gleich mit angezeigt, stünde die
+                    Hilfe schon vor der Antwort da und die Wiederholung liefe
+                    ins Leere (Codex-Review auf PR #29). Wer sie doch braucht,
+                    fordert sie hier neu an — und das zählt dann auch.
+                  */}
+                  <ExerciseRunner exercise={exercise} isReview />
                 </li>
               ) : null,
             )}

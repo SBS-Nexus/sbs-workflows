@@ -174,17 +174,40 @@ async function highestRevealedHintLevel(userId: string, exerciseId: string): Pro
 }
 
 /**
- * Echte Anzahl unterschiedlicher, für diese Aufgabe bereits freigegebener
- * Hinweisstufen. Nimmt den Transaktions-Client entgegen, damit die Zählung
- * beim Wiederholungslauf einer serialisierbaren Transaktion erneut und im
- * selben Sichtbereich ausgeführt wird.
+ * Wie viel Hilfe für DIESEN Versuch in Anspruch genommen wurde: die Anzahl
+ * der Hinweisstufen, die seit dem vorherigen Versuch zu dieser Aufgabe
+ * freigegeben wurden (beim ersten Versuch: alle bisherigen).
+ *
+ * Bewusst nicht die Gesamtzahl über die Lebensdauer. Sonst gilt jede spätere
+ * geplante Wiederholung derselben Aufgabe auf Dauer als hinweisgestützt, nur
+ * weil vor Wochen einmal ein Hinweis gelesen wurde — der Abruf ohne Hilfe,
+ * um den es bei einer Wiederholung gerade geht, ließe sich dann nie mehr
+ * nachweisen (Codex-Review auf PR #29, b41d724).
+ *
+ * Die Zählung bleibt vollständig serverseitig aus echten `HintReveal`-Zeilen
+ * abgeleitet; der Client kann sie weiterhin nicht beeinflussen.
+ *
+ * Nimmt den Transaktions-Client entgegen, damit sie beim Wiederholungslauf
+ * einer serialisierbaren Transaktion erneut und im selben Sichtbereich läuft.
  */
 async function revealedHintCount(
   tx: Prisma.TransactionClient,
   userId: string,
   exerciseId: string,
 ): Promise<number> {
-  return tx.hintReveal.count({ where: { userId, exerciseId } });
+  const vorherigerVersuch = await tx.attempt.findFirst({
+    where: { userId, exerciseId },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true },
+  });
+
+  return tx.hintReveal.count({
+    where: {
+      userId,
+      exerciseId,
+      ...(vorherigerVersuch ? { revealedAt: { gt: vorherigerVersuch.createdAt } } : {}),
+    },
+  });
 }
 
 /**

@@ -281,16 +281,17 @@ describe('Hinweisnutzung wird serverseitig hergeleitet', () => {
     expect(await prisma.hintReveal.count({ where: { userId } })).toBe(1);
   });
 
-  it('zählt eine zweite freigegebene Stufe ebenfalls mit', async () => {
-    await revealNextHint(userId, exerciseSlug);
+  it('zählt nur die seit dem vorherigen Versuch neu freigegebenen Hinweise', async () => {
+    await revealNextHint(userId, exerciseSlug); // Stufe 1
     await submitAttempt(userId, {
       exerciseSlug,
       submission: { kind: 'singleChoice', optionId: 'a' },
       durationMs: 500,
       isReview: false,
     });
-    await revealNextHint(userId, exerciseSlug); // Stufe 2, jetzt freigeschaltet
+    expect((await letzterVersuch()).hintsUsed).toBe(1);
 
+    await revealNextHint(userId, exerciseSlug); // Stufe 2, jetzt freigeschaltet
     await submitAttempt(userId, {
       exerciseSlug,
       submission: { kind: 'singleChoice', optionId: 'b' },
@@ -298,7 +299,32 @@ describe('Hinweisnutzung wird serverseitig hergeleitet', () => {
       isReview: false,
     });
 
-    expect((await letzterVersuch()).hintsUsed).toBe(2);
+    // Für DIESEN Versuch wurde eine Stufe neu in Anspruch genommen — nicht
+    // zwei. Die frühere Stufe gehört zum vorherigen Versuch.
+    expect((await letzterVersuch()).hintsUsed).toBe(1);
+  });
+
+  it('wertet einen späteren Abruf ohne neue Hinweise als eigenständig', async () => {
+    await revealNextHint(userId, exerciseSlug);
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'a' },
+      durationMs: 500,
+      isReview: false,
+    });
+    expect((await letzterVersuch()).hintsUsed).toBe(1);
+
+    // Eine geplante Wiederholung ohne erneute Hilfe. Zählte hier die
+    // Gesamtzahl über die Lebensdauer, gälte jede künftige Wiederholung
+    // dieser Aufgabe auf Dauer als hinweisgestützt und der hilfefreie Abruf
+    // ließe sich nie mehr nachweisen (Codex-Review auf PR #29, b41d724).
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'b' },
+      durationMs: 500,
+      isReview: true,
+    });
+    expect((await letzterVersuch()).hintsUsed).toBe(0);
   });
 
   it('liefert in der öffentlichen Aufgabe nur Stufennummern, keinen Hinweistext', async () => {

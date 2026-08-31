@@ -157,14 +157,39 @@ export type Hint = z.infer<typeof hintSchema>;
 // Antwortformate (was die lernende Person einreicht)
 // ---------------------------------------------------------------------------
 
+/**
+ * Obergrenzen für eingereichte Antworten.
+ *
+ * Die eingereichte Antwort wird bewertet UND unverändert in
+ * `Attempt.submittedAnswer` gespeichert. Ohne Grenzen kann eine angemeldete
+ * Person beliebig lange Zeichenketten und beliebig große Listen schicken —
+ * bis zur Transportgrenze, viele Male pro Stunde — und damit Rechenzeit und
+ * Speicherplatz unangemessen belegen (Codex-Review auf PR #29, b41d724).
+ *
+ * Die Werte liegen weit über allem, was die Oberfläche je erzeugt: Kennungen
+ * sind kurze Slugs, Lückentexte kurze Wörter, Terminal-Eingaben einzelne
+ * Befehlszeilen.
+ */
+const MAX_KENNUNG = 200;
+const MAX_LISTE = 100;
+const MAX_EINGABETEXT = 1_000;
+
+const kennung = z.string().min(1).max(MAX_KENNUNG);
+
 export const submissionSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('singleChoice'), optionId: z.string() }),
-  z.object({ kind: z.literal('multipleChoice'), optionIds: z.array(z.string()) }),
-  z.object({ kind: z.literal('ordering'), orderedItemIds: z.array(z.string()) }),
-  z.object({ kind: z.literal('fillIn'), values: z.record(z.string(), z.string()) }),
-  z.object({ kind: z.literal('scenarioDecision'), optionId: z.string() }),
-  z.object({ kind: z.literal('terminalSimulation'), commands: z.array(z.string()) }),
-  z.object({ kind: z.literal('promptRepair'), optionId: z.string() }),
+  z.object({ kind: z.literal('singleChoice'), optionId: kennung }),
+  z.object({ kind: z.literal('multipleChoice'), optionIds: z.array(kennung).max(MAX_LISTE) }),
+  z.object({ kind: z.literal('ordering'), orderedItemIds: z.array(kennung).max(MAX_LISTE) }),
+  z.object({
+    kind: z.literal('fillIn'),
+    values: z.record(kennung, z.string().max(MAX_EINGABETEXT)),
+  }),
+  z.object({ kind: z.literal('scenarioDecision'), optionId: kennung }),
+  z.object({
+    kind: z.literal('terminalSimulation'),
+    commands: z.array(z.string().max(MAX_EINGABETEXT)).max(MAX_LISTE),
+  }),
+  z.object({ kind: z.literal('promptRepair'), optionId: kennung }),
 ]);
 
 export type Submission = z.infer<typeof submissionSchema>;
