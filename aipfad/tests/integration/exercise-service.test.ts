@@ -281,34 +281,34 @@ describe('Hinweisnutzung wird serverseitig hergeleitet', () => {
     expect(await prisma.hintReveal.count({ where: { userId } })).toBe(1);
   });
 
-  it('zählt nur die seit dem vorherigen Versuch neu freigegebenen Hinweise', async () => {
+  it('zählt dieselbe Hilfe bei einem Wiederholungsversuch weiter mit', async () => {
     await revealNextHint(userId, exerciseSlug); // Stufe 1
     await submitAttempt(userId, {
       exerciseSlug,
-      submission: { kind: 'singleChoice', optionId: 'a' },
+      submission: { kind: 'singleChoice', optionId: 'a' }, // falsch
       durationMs: 500,
       isReview: false,
     });
     expect((await letzterVersuch()).hintsUsed).toBe(1);
 
-    await revealNextHint(userId, exerciseSlug); // Stufe 2, jetzt freigeschaltet
+    // "Erneut versuchen": Der Hinweis bleibt sichtbar auf dem Bildschirm
+    // stehen. Er muss deshalb weiterhin mitzählen — sonst gälte der zweite
+    // Versuch als hilfefrei, obwohl die Hilfe danebensteht (Codex-Review auf
+    // PR #29, 43c8a17).
     await submitAttempt(userId, {
       exerciseSlug,
-      submission: { kind: 'singleChoice', optionId: 'b' },
+      submission: { kind: 'singleChoice', optionId: 'c' }, // wieder falsch
       durationMs: 500,
       isReview: false,
     });
-
-    // Für DIESEN Versuch wurde eine Stufe neu in Anspruch genommen — nicht
-    // zwei. Die frühere Stufe gehört zum vorherigen Versuch.
     expect((await letzterVersuch()).hintsUsed).toBe(1);
   });
 
-  it('wertet einen späteren Abruf ohne neue Hinweise als eigenständig', async () => {
+  it('beginnt nach dem Bestehen eine neue Episode ohne Vorbelastung', async () => {
     await revealNextHint(userId, exerciseSlug);
     await submitAttempt(userId, {
       exerciseSlug,
-      submission: { kind: 'singleChoice', optionId: 'a' },
+      submission: { kind: 'singleChoice', optionId: 'b' }, // richtig
       durationMs: 500,
       isReview: false,
     });
@@ -316,8 +316,8 @@ describe('Hinweisnutzung wird serverseitig hergeleitet', () => {
 
     // Eine geplante Wiederholung ohne erneute Hilfe. Zählte hier die
     // Gesamtzahl über die Lebensdauer, gälte jede künftige Wiederholung
-    // dieser Aufgabe auf Dauer als hinweisgestützt und der hilfefreie Abruf
-    // ließe sich nie mehr nachweisen (Codex-Review auf PR #29, b41d724).
+    // dauerhaft als hinweisgestützt und der hilfefreie Abruf ließe sich nie
+    // mehr nachweisen (Codex-Review auf PR #29, b41d724).
     await submitAttempt(userId, {
       exerciseSlug,
       submission: { kind: 'singleChoice', optionId: 'b' },
@@ -325,6 +325,27 @@ describe('Hinweisnutzung wird serverseitig hergeleitet', () => {
       isReview: true,
     });
     expect((await letzterVersuch()).hintsUsed).toBe(0);
+  });
+
+  it('bietet nach dem Bestehen wieder die erste Hinweisstufe an', async () => {
+    const ersteFreigabe = await revealNextHint(userId, exerciseSlug);
+    expect('hint' in ersteFreigabe && ersteFreigabe.hint.level).toBe(1);
+
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'b' }, // bestanden
+      durationMs: 500,
+      isReview: false,
+    });
+
+    // Ohne Episodengrenze stünde die Leiter am historischen Ende und meldete
+    // "keine weiteren Hinweise" — die Person bekäme bei der Wiederholung gar
+    // keine Hilfe mehr (Codex-Review auf PR #29, 43c8a17).
+    const erneut = await revealNextHint(userId, exerciseSlug);
+    expect('hint' in erneut && erneut.hint.level).toBe(1);
+
+    // Und die aufgefrischte Freigabe zählt für die neue Episode wieder mit.
+    await expect(getRevealedHints(userId, exerciseSlug)).resolves.toHaveLength(1);
   });
 
   it('liefert in der öffentlichen Aufgabe nur Stufennummern, keinen Hinweistext', async () => {

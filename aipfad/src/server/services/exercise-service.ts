@@ -106,9 +106,15 @@ export async function revealNextHint(
 
   const hints = z.array(hintSchema).parse(exercise.hints);
 
+  // Versuchszahl und aufgedeckte Stufe beziehen sich beide auf die laufende
+  // Episode (siehe `episodenBeginn`), damit eine geplante Wiederholung die
+  // Leiter wieder von vorn durchläuft statt am historischen Ende zu stehen.
+  const beginn = await episodenBeginnOhneTransaktion(userId, exercise.id);
   const [attempts, revealedLevel] = await Promise.all([
-    prisma.attempt.count({ where: { userId, exerciseId: exercise.id } }),
-    highestRevealedHintLevel(userId, exercise.id),
+    prisma.attempt.count({
+      where: { userId, exerciseId: exercise.id, ...(beginn ? { createdAt: { gt: beginn } } : {}) },
+    }),
+    highestRevealedHintLevel(userId, exercise.id, beginn),
   ]);
 
   const nextLevel = revealedLevel + 1;
@@ -127,10 +133,14 @@ export async function revealNextHint(
     };
   }
 
+  // `revealedAt` wird bei einer erneuten Freigabe bewusst aktualisiert: Der
+  // Unique-Index lässt je Stufe nur eine Zeile zu, und ohne Auffrischung
+  // fiele eine in dieser Episode neu angeforderte Hilfe aus der
+  // Episodenzählung heraus (Codex-Review auf PR #29, 43c8a17).
   await prisma.hintReveal.upsert({
     where: { userId_exerciseId_level: { userId, exerciseId: exercise.id, level: nextLevel } },
     create: { userId, exerciseId: exercise.id, level: nextLevel },
-    update: {},
+    update: { revealedAt: new Date() },
   });
 
   return { hint: target };
@@ -155,8 +165,16 @@ export async function getRevealedHints(userId: string, exerciseSlug: string): Pr
   if (!exercise || exercise.status !== 'PUBLISHED') return [];
 
   const hints = z.array(hintSchema).parse(exercise.hints);
+  // Nur die Hinweise der laufenden Episode. Dadurch beginnt eine geplante
+  // Wiederholung von selbst ohne Vorbelastung, und ein Seitenneuladen
+  // innerhalb desselben Anlaufs zeigt weiterhin, was schon gelesen wurde.
+  const beginn = await episodenBeginnOhneTransaktion(userId, exercise.id);
   const reveals = await prisma.hintReveal.findMany({
-    where: { userId, exerciseId: exercise.id },
+    where: {
+      userId,
+      exerciseId: exercise.id,
+      ...(beginn ? { revealedAt: { gt: beginn } } : {}),
+    },
     select: { level: true },
   });
 
@@ -164,9 +182,20 @@ export async function getRevealedHints(userId: string, exerciseSlug: string): Pr
   return hints.filter((h) => revealedLevels.has(h.level)).sort((a, b) => a.level - b.level);
 }
 
-async function highestRevealedHintLevel(userId: string, exerciseId: string): Promise<number> {
+/**
+ * Höchste in der laufenden Episode bereits aufgedeckte Stufe. Ebenfalls auf
+ * die Episode begrenzt: Sonst meldet die Leiter bei einer geplanten
+ * Wiederholung "keine weiteren Hinweise", weil alle Stufen irgendwann früher
+ * schon einmal gesehen wurden — die Person bekäme dann gar keine Hilfe mehr
+ * (Codex-Review auf PR #29, 43c8a17).
+ */
+async function highestRevealedHintLevel(
+  userId: string,
+  exerciseId: string,
+  beginn: Date | null,
+): Promise<number> {
   const latest = await prisma.hintReveal.findFirst({
-    where: { userId, exerciseId },
+    where: { userId, exerciseId, ...(beginn ? { revealedAt: { gt: beginn } } : {}) },
     orderBy: { level: 'desc' },
     select: { level: true },
   });
@@ -174,39 +203,21 @@ async function highestRevealedHintLevel(userId: string, exerciseId: string): Pro
 }
 
 /**
- * Wie viel Hilfe für DIESEN Versuch in Anspruch genommen wurde: die Anzahl
- * der Hinweisstufen, die seit dem vorherigen Versuch zu dieser Aufgabe
- * freigegeben wurden (beim ersten Versuch: alle bisherigen).
- *
- * Bewusst nicht die Gesamtzahl über die Lebensdauer. Sonst gilt jede spätere
- * geplante Wiederholung derselben Aufgabe auf Dauer als hinweisgestützt, nur
- * weil vor Wochen einmal ein Hinweis gelesen wurde — der Abruf ohne Hilfe,
- * um den es bei einer Wiederholung gerade geht, ließe sich dann nie mehr
- * nachweisen (Codex-Review auf PR #29, b41d724).
+ * Wie viel Hilfe in der laufenden Übungsepisode in Anspruch genommen wurde:
+ * die Anzahl der seit dem letzten bestandenen Versuch freigegebenen
+ * Hinweisstufen (siehe `episodenBeginn` für die Begründung der Grenze).
  *
  * Die Zählung bleibt vollständig serverseitig aus echten `HintReveal`-Zeilen
- * abgeleitet; der Client kann sie weiterhin nicht beeinflussen.
- *
- * Nimmt den Transaktions-Client entgegen, damit sie beim Wiederholungslauf
- * einer serialisierbaren Transaktion erneut und im selben Sichtbereich läuft.
+ * abgeleitet; der Client kann sie nicht beeinflussen.
  */
 async function revealedHintCount(
   tx: Prisma.TransactionClient,
   userId: string,
   exerciseId: string,
 ): Promise<number> {
-  const vorherigerVersuch = await tx.attempt.findFirst({
-    where: { userId, exerciseId },
-    orderBy: { createdAt: 'desc' },
-    select: { createdAt: true },
-  });
-
+  const beginn = await episodenBeginn(tx, userId, exerciseId);
   return tx.hintReveal.count({
-    where: {
-      userId,
-      exerciseId,
-      ...(vorherigerVersuch ? { revealedAt: { gt: vorherigerVersuch.createdAt } } : {}),
-    },
+    where: { userId, exerciseId, ...(beginn ? { revealedAt: { gt: beginn } } : {}) },
   });
 }
 
@@ -269,6 +280,48 @@ function warte(millisekunden: number): Promise<void> {
  */
 function istSchreibkonflikt(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
+}
+
+/**
+ * Beginn der laufenden Übungsepisode für diese Aufgabe: der Zeitpunkt des
+ * letzten BESTANDENEN Versuchs, oder `null`, wenn die Aufgabe noch nie
+ * bestanden wurde.
+ *
+ * Warum diese Grenze und keine andere: Eine Episode ist ein
+ * zusammenhängender Anlauf auf dieselbe Aufgabe. Sie endet, wenn die Aufgabe
+ * sitzt — also beim Bestehen. Alles davor gehört zusammen, auch mehrere
+ * Fehlversuche hintereinander.
+ *
+ * Zwei frühere Fassungen sind daran gescheitert (Codex-Review auf PR #29):
+ *  - Zählung über die gesamte Lebensdauer: Ein vor Wochen gelesener Hinweis
+ *    machte jede spätere geplante Wiederholung auf Dauer "hinweisgestützt".
+ *  - Zählung seit dem VORHERIGEN Versuch: Nach einem Fehlversuch blieb der
+ *    Hinweis sichtbar auf dem Bildschirm stehen, der nächste Versuch wurde
+ *    aber als hilfefrei verbucht — obwohl die Hilfe danebenstand.
+ *
+ * Die Episodengrenze löst beides zugleich: Wiederholungen innerhalb eines
+ * Anlaufs zählen dieselbe Hilfe weiterhin mit, und eine geplante
+ * Wiederholung nach dem Bestehen beginnt sauber bei null.
+ */
+async function episodenBeginn(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  exerciseId: string,
+): Promise<Date | null> {
+  const letzterErfolg = await tx.attempt.findFirst({
+    where: { userId, exerciseId, result: 'PASSED' },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true },
+  });
+  return letzterErfolg?.createdAt ?? null;
+}
+
+/** Gleiche Grenze, außerhalb einer Transaktion (Lesepfade der Seiten). */
+async function episodenBeginnOhneTransaktion(
+  userId: string,
+  exerciseId: string,
+): Promise<Date | null> {
+  return episodenBeginn(prisma, userId, exerciseId);
 }
 
 export interface SubmitAttemptInput {

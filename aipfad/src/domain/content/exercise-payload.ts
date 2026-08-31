@@ -182,7 +182,14 @@ export const submissionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('ordering'), orderedItemIds: z.array(kennung).max(MAX_LISTE) }),
   z.object({
     kind: z.literal('fillIn'),
-    values: z.record(kennung, z.string().max(MAX_EINGABETEXT)),
+    // Auch die ANZAHL der Lücken wird begrenzt: Schlüssel und Werte einzeln
+    // zu beschränken lässt sonst noch immer beliebig viele Einträge zu
+    // (Codex-Review auf PR #29, 43c8a17).
+    values: z
+      .record(kennung, z.string().max(MAX_EINGABETEXT))
+      .refine((werte) => Object.keys(werte).length <= MAX_LISTE, {
+        message: `Höchstens ${MAX_LISTE} Lücken je Antwort.`,
+      }),
   }),
   z.object({ kind: z.literal('scenarioDecision'), optionId: kennung }),
   z.object({
