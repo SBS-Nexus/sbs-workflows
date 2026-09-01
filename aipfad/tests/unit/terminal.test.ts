@@ -202,3 +202,39 @@ describe('mv in ein vorhandenes Verzeichnis', () => {
     expect(fileSystem['/home/lernperson/kiste']).toBeNull();
   });
 });
+
+describe('mv auf ein belegtes Ziel', () => {
+  it('überschreibt ein nicht leeres Zielverzeichnis nicht', () => {
+    // Ohne diese Prüfung verschmolz die Quelle in das vorhandene Verzeichnis
+    // und überschrieb dessen Dateien (Codex-Review auf PR #29).
+    const { fileSystem, letzte } = laufe([
+      'mkdir bilder/dokumente',
+      'touch bilder/dokumente/wichtig.txt',
+      'mv dokumente bilder',
+    ]);
+
+    expect(letzte).toContain('nicht leer');
+    expect(fileSystem['/home/lernperson/bilder/dokumente/wichtig.txt']).toBe('');
+    // Die Quelle bleibt unangetastet.
+    expect(fileSystem['/home/lernperson/dokumente/notizen.txt']).toBe('Erste Notiz.');
+  });
+
+  it('verschiebt auf ein leeres Zielverzeichnis', () => {
+    const { fileSystem, letzte } = laufe(['mkdir bilder/dokumente', 'mv dokumente bilder']);
+
+    expect(letzte).toBe('');
+    expect(fileSystem['/home/lernperson/bilder/dokumente/notizen.txt']).toBe('Erste Notiz.');
+    expect(fileSystem['/home/lernperson/dokumente']).toBeUndefined();
+  });
+
+  it('schiebt eine Datei nicht über ein Verzeichnis', () => {
+    const { fileSystem, letzte } = laufe([
+      'touch notiz.txt',
+      'mkdir bilder/notiz.txt',
+      'mv notiz.txt bilder',
+    ]);
+
+    expect(letzte).toContain('ist ein Verzeichnis');
+    expect(fileSystem['/home/lernperson/notiz.txt']).toBe('');
+  });
+});

@@ -235,6 +235,26 @@ export function fuehreBefehlAus(
       if (!istVerzeichnis(fileSystem, elternVerzeichnis(ziel))) {
         return unveraendert(`mv: Übergeordnetes Verzeichnis fehlt: ${args[1]}`);
       }
+      // Ein belegtes Ziel darf nicht stillschweigend überschrieben werden.
+      // Ohne diese Prüfung verschmolz `mv dokumente bilder` die Quelle in ein
+      // dort bereits vorhandenes `bilder/dokumente` und überschrieb dessen
+      // Dateien — ein stiller Datenverlust im Simulator (Codex-Review auf
+      // PR #29). Eine Datei über eine Datei zu schieben bleibt erlaubt, wie
+      // bei `mv` üblich.
+      if (existiert(fileSystem, ziel)) {
+        const quelleIstVerzeichnis = istVerzeichnis(fileSystem, quelle);
+        const zielIstVerzeichnis = istVerzeichnis(fileSystem, ziel);
+        if (quelleIstVerzeichnis !== zielIstVerzeichnis) {
+          return unveraendert(
+            zielIstVerzeichnis
+              ? `mv: ${args[1]} ist ein Verzeichnis.`
+              : `mv: ${args[1]} ist kein Verzeichnis.`,
+          );
+        }
+        if (zielIstVerzeichnis && nachfahren(fileSystem, ziel).length > 0) {
+          return unveraendert(`mv: Zielverzeichnis ist nicht leer: ${args[1]}`);
+        }
+      }
       // Ein Verzeichnis nimmt seinen gesamten Inhalt mit.
       for (const pfad of [quelle, ...nachfahren(fileSystem, quelle)]) {
         const neu = ziel + pfad.slice(quelle.length);
