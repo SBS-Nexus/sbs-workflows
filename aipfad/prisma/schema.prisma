@@ -362,7 +362,13 @@ model Exercise {
   @@map("exercises")
 }
 
-/// Welche Hinweisstufe eine Person zu einer Aufgabe bereits gesehen hat.
+/// Welche Hinweisstufen einer Aufgabe für eine Person gerade OFFENLIEGEN.
+///
+/// Bewusst kein Verlauf: Die Zeilen werden geräumt, sobald der Anlauf beendet
+/// ist (Aufgabe bestanden, oder die nächste Wiederholung steht erst nach einer
+/// Pause an). Dadurch beginnt ein späterer Anlauf wieder bei Stufe 1 und gilt
+/// nicht auf Dauer als hinweisgestützt. Was tatsächlich an Hilfe genutzt
+/// wurde, bleibt dauerhaft in `Attempt.hintsUsed` erhalten.
 ///
 /// Serverseitig maßgeblich für zwei Dinge: die Hinweisleiter (nur die
 /// jeweils nächste Stufe wird freigegeben, nie eine übersprungen — siehe

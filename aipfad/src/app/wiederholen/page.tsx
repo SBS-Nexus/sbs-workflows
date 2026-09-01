@@ -33,12 +33,10 @@ export default async function WiederholenPage(): Promise<React.ReactElement> {
     dueItems.map(async (item) => ({
       reason: item.reason,
       exercise: await getPublicExercise(item.exercise.slug),
-      // `getRevealedHints` liefert nur die Hinweise der laufenden Episode.
-      // Für eine geplante Wiederholung — sie folgt auf einen bestandenen
-      // Versuch — ist das von selbst leer, die Leiter beginnt also wieder bei
-      // Stufe 1. Innerhalb eines Anlaufs überlebt sie dagegen ein
-      // Seitenneuladen (Codex-Review auf PR #29).
-      revealedHints: await getRevealedHints(user.id, item.exercise.slug, true),
+      // Nach einer abgeschlossenen Übungsepisode liegen keine Hinweise mehr
+      // offen, eine fällige Wiederholung beginnt also von selbst ohne
+      // Vorbelastung (Codex-Review auf PR #29).
+      revealedHints: await getRevealedHints(user.id, item.exercise.slug),
     })),
   );
 
