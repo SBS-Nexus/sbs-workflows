@@ -6,6 +6,7 @@ import { Button, Callout, Badge } from '@/components/ui/primitives';
 import type { PublicExercise } from '@/server/services/exercise-service';
 import type { Hint, Submission } from '@/domain/content/exercise-payload';
 import { hintLevelLabel } from '@/domain/hints/hint-ladder';
+import { fuehreBefehlAus, type SimuliertesDateisystem } from '@/domain/labs/terminal';
 
 /**
  * Rendert eine Aufgabe anhand ihrer Interaktionsform (`payload.kind`) und
@@ -576,21 +577,52 @@ function TerminalForm({
   pending: boolean;
   onSubmit: (submission: Submission) => void;
 }): React.ReactElement {
-  const [history, setHistory] = useState<string[]>([]);
+  // Die eingegebenen Befehle für die Bewertung — bewusst getrennt vom
+  // sichtbaren Verlauf, damit ein `clear` die Abgabe nicht verwirft.
+  const [befehle, setBefehle] = useState<string[]>([]);
+  const [sichtbar, setSichtbar] = useState<{ command: string; output: string }[]>([]);
+  const [cwd, setCwd] = useState(payload.startingDirectory);
+  const [dateisystem, setDateisystem] = useState<SimuliertesDateisystem>(payload.fileSystem);
   const [current, setCurrent] = useState('');
   const [confirmDanger, setConfirmDanger] = useState<string | null>(null);
 
+  /**
+   * Die Befehle werden hier wirklich ausgeführt — mit demselben Simulator wie
+   * im Terminal-Lab. Zuvor wurde die Eingabe nur in eine Liste geschrieben:
+   * `cd` änderte die Eingabeaufforderung nicht, `ls` und `cat` gaben nichts
+   * aus, obwohl der Aufgabe ein Dateibaum mitgegeben wird. Die lernende
+   * Person konnte die Befehlsfolge nur raten oder abschreiben, statt sich
+   * im Dateibaum zu orientieren (Codex-Review auf PR #29).
+   */
   function runCommand(command: string): void {
     const trimmed = command.trim();
     if (!trimmed) return;
-    const commandName = trimmed.split(' ')[0] ?? '';
+    const commandName = trimmed.split(/\s+/)[0] ?? '';
     if (payload.dangerousCommands.includes(commandName) && confirmDanger !== trimmed) {
       setConfirmDanger(trimmed);
       return;
     }
-    setHistory((prev) => [...prev, trimmed]);
+
+    const ergebnis = fuehreBefehlAus(
+      { cwd, fileSystem: dateisystem },
+      trimmed,
+      payload.allowedCommands,
+    );
+    setCwd(ergebnis.cwd);
+    setDateisystem(ergebnis.fileSystem);
+    setBefehle((prev) => [...prev, trimmed]);
+    setSichtbar((prev) =>
+      ergebnis.clearHistory ? [] : [...prev, { command: trimmed, output: ergebnis.output }],
+    );
     setCurrent('');
     setConfirmDanger(null);
+  }
+
+  function zuruecksetzen(): void {
+    setBefehle([]);
+    setSichtbar([]);
+    setCwd(payload.startingDirectory);
+    setDateisystem(payload.fileSystem);
   }
 
   return (
@@ -601,13 +633,18 @@ function TerminalForm({
       </p>
       <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-ink-900 p-4 font-mono text-sm text-ink-50">
         <p className="mb-2 text-ink-300">{payload.startingDirectory} $</p>
-        {history.map((cmd, index) => (
-          <p key={index}>
-            <span className="text-signal-300">$</span> {cmd}
-          </p>
+        {sichtbar.map((entry, index) => (
+          <div key={index}>
+            <p>
+              <span className="text-signal-300">$</span> {entry.command}
+            </p>
+            {entry.output ? (
+              <p className="whitespace-pre-wrap text-ink-200">{entry.output}</p>
+            ) : null}
+          </div>
         ))}
         <div className="mt-2 flex items-center gap-2">
-          <span className="text-signal-300">$</span>
+          <span className="text-signal-300">{cwd} $</span>
           <input
             type="text"
             value={current}
@@ -632,13 +669,13 @@ function TerminalForm({
       ) : null}
       <div className="mt-5 flex gap-3">
         <Button
-          disabled={pending || history.length === 0}
-          onClick={() => onSubmit({ kind: 'terminalSimulation', commands: history })}
+          disabled={pending || befehle.length === 0}
+          onClick={() => onSubmit({ kind: 'terminalSimulation', commands: befehle })}
         >
           {pending ? 'Wird geprüft …' : 'Fertig — Befehle einreichen'}
         </Button>
-        {history.length > 0 ? (
-          <Button variant="secondary" onClick={() => setHistory([])}>
+        {befehle.length > 0 ? (
+          <Button variant="secondary" onClick={zuruecksetzen}>
             Zurücksetzen
           </Button>
         ) : null}

@@ -222,3 +222,36 @@ test('Terminal-Lab führt die beworbenen Befehle wirklich aus', async ({ page })
   // Exakt: derselbe Pfad steht auch in der Eingabeaufforderung darunter.
   await expect(page.getByText('/home/lernperson/test', { exact: true })).toBeVisible();
 });
+
+/**
+ * Regressionstest für den Codex-Fund "Execute commands in the lesson
+ * terminal" (PR #29): Die Terminal-AUFGABE schrieb die Eingabe nur in eine
+ * Liste. `cd` änderte die Eingabeaufforderung nicht, `ls` und `cat` gaben
+ * nichts aus — obwohl der Aufgabe ein Dateibaum mitgegeben wird. Die
+ * lernende Person konnte die Befehlsfolge nur raten oder abschreiben.
+ */
+test('Terminal-Aufgabe in der Lektion führt die Befehle wirklich aus', async ({ page }) => {
+  await registerAndOnboard(page);
+  await page.goto('/lektion/terminal-grundlagen/3');
+
+  const eingabe = page.getByLabel('Befehl eingeben');
+  async function befehl(text: string): Promise<void> {
+    await eingabe.fill(text);
+    await eingabe.press('Enter');
+    await expect(eingabe).toHaveValue('');
+  }
+
+  await befehl('cd post');
+  // Die Eingabeaufforderung folgt dem Wechsel wirklich.
+  await expect(page.getByText('/home/lernperson/post $')).toBeVisible();
+
+  await befehl('ls');
+  await expect(page.getByText('brief.txt', { exact: true })).toBeVisible();
+
+  await befehl('cat brief.txt');
+  await expect(page.getByText('Liebe Grüße aus dem Terminal!')).toBeVisible();
+
+  // Und die eingegebene Folge wird weiterhin bewertet.
+  await page.getByRole('button', { name: 'Fertig — Befehle einreichen' }).click();
+  await expect(page.getByText('Richtig', { exact: true })).toBeVisible();
+});
