@@ -1,8 +1,9 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import './setup';
 import { prisma } from '@/server/db/prisma';
 import { hashPassword } from '@/server/auth/password';
 import { startLesson, checkLessonCompletion } from '@/server/services/lesson-service';
+import { getNextStep } from '@/server/services/path-service';
 import { submitAttempt } from '@/server/services/exercise-service';
 
 /**
@@ -229,5 +230,70 @@ describe('Abschlusszeitpunkt und zuletzt geöffneter Schritt', () => {
     });
     expect(fortschritt.state).toBe('COMPLETED');
     expect(fortschritt.lastSection).toBe('2');
+  });
+});
+
+/**
+ * Regressionstests für zwei Codex-Funde auf PR #29 (Head 627e23a):
+ * Zurückgezogene Inhalte dürfen den Lernpfad nicht blockieren.
+ *  - "Exclude unpublished exercises from due reviews": Eine eingeplante,
+ *    inzwischen auf DRAFT gesetzte Aufgabe ließ `getNextStep()` dauerhaft auf
+ *    das Wiederholungscenter zeigen, das sie gar nicht mehr anzeigen kann.
+ *  - "Skip unpublished lessons when resuming progress": Eine begonnene,
+ *    inzwischen zurückgezogene Lektion führte über "Weiterlernen" auf 404.
+ */
+describe('Zurückgezogene Inhalte blockieren den Pfad nicht', () => {
+  const email = 'unpublished-content@integrationtest.local';
+  let userId: string;
+
+  beforeEach(async () => {
+    await prisma.user.deleteMany({ where: { email } });
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: 'Rückzugstest',
+        passwordHash: await hashPassword('ein-testpasswort-123'),
+      },
+    });
+    userId = user.id;
+  });
+
+  afterEach(async () => {
+    // Inhalte sind geteilte Testdaten — der Ausgangszustand wird
+    // wiederhergestellt, damit andere Tests nicht darauf stoßen.
+    await prisma.exercise.updateMany({ data: { status: 'PUBLISHED' } });
+    await prisma.lesson.updateMany({ data: { status: 'PUBLISHED' } });
+  });
+
+  it('zählt eine zurückgezogene Aufgabe nicht als fällige Wiederholung', async () => {
+    const exercise = await prisma.exercise.findFirstOrThrow({
+      where: { slug: 'was-ist-aipfad-single-choice' },
+    });
+    await prisma.reviewQueueItem.create({
+      data: { userId, exerciseId: exercise.id, dueAt: new Date(Date.now() - 60_000) },
+    });
+
+    const mitVeroeffentlichter = await getNextStep(userId);
+    expect(mitVeroeffentlichter.kind).toBe('review');
+
+    await prisma.exercise.update({ where: { id: exercise.id }, data: { status: 'DRAFT' } });
+
+    const nachRueckzug = await getNextStep(userId);
+    expect(nachRueckzug.kind).not.toBe('review');
+  });
+
+  it('setzt eine zurückgezogene begonnene Lektion nicht fort', async () => {
+    const lesson = await prisma.lesson.findUniqueOrThrow({ where: { slug: 'was-ist-aipfad' } });
+    await startLesson(userId, lesson.id, 2);
+
+    const vorRueckzug = await getNextStep(userId);
+    expect(vorRueckzug.kind === 'lesson' && vorRueckzug.lessonSlug).toBe('was-ist-aipfad');
+
+    await prisma.lesson.update({ where: { id: lesson.id }, data: { status: 'DRAFT' } });
+
+    const nachRueckzug = await getNextStep(userId);
+    // Es wird auf eine andere, weiterhin veröffentlichte Lektion verwiesen —
+    // aber nicht mehr auf die zurückgezogene.
+    expect(nachRueckzug.kind === 'lesson' && nachRueckzug.lessonSlug).not.toBe('was-ist-aipfad');
   });
 });

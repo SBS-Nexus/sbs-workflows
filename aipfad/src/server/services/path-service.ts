@@ -21,13 +21,26 @@ export type NextStep =
   | { kind: 'all-done' };
 
 export async function getNextStep(userId: string): Promise<NextStep> {
+  // Nur Wiederholungen zu weiterhin veröffentlichten Aufgaben zählen. Wird
+  // eine eingeplante Aufgabe redaktionell auf DRAFT zurückgesetzt, wies
+  // `getNextStep()` sonst dauerhaft auf das Wiederholungscenter, das die
+  // Aufgabe gar nicht mehr anzeigen kann — eine Sackgasse, aus der der
+  // Lernpfad nicht mehr herausfand (Codex-Review auf PR #29).
   const reviewCount = await prisma.reviewQueueItem.count({
-    where: { userId, completedAt: null, dueAt: { lte: new Date() } },
+    where: {
+      userId,
+      completedAt: null,
+      dueAt: { lte: new Date() },
+      exercise: { status: 'PUBLISHED' },
+    },
   });
   if (reviewCount > 0) return { kind: 'review', reviewCount };
 
+  // Ebenso nur Lektionen, die es noch gibt: Eine begonnene Lektion, die
+  // inzwischen auf DRAFT steht, führte über "Weiterlernen" auf eine
+  // 404-Seite (Codex-Review auf PR #29).
   const inProgress = await prisma.lessonProgress.findFirst({
-    where: { userId, state: 'IN_PROGRESS' },
+    where: { userId, state: 'IN_PROGRESS', lesson: { status: 'PUBLISHED' } },
     include: { lesson: true },
     orderBy: { updatedAt: 'desc' },
   });

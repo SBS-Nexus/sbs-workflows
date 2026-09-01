@@ -28,7 +28,15 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
       orderBy: { updatedAt: 'desc' },
     }),
     prisma.reviewQueueItem.count({
-      where: { userId: user.id, completedAt: null, dueAt: { lte: new Date() } },
+      // Gleicher Filter wie in `getNextStep()` und im Wiederholungscenter,
+      // damit die angezeigte Zahl zu dem passt, was dort tatsächlich
+      // erscheint (Codex-Review auf PR #29).
+      where: {
+        userId: user.id,
+        completedAt: null,
+        dueAt: { lte: new Date() },
+        exercise: { status: 'PUBLISHED' },
+      },
     }),
     prisma.lessonProgress.count({ where: { userId: user.id, state: 'COMPLETED' } }),
     prisma.lesson.count({ where: { status: 'PUBLISHED' } }),

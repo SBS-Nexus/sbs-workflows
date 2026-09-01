@@ -23,7 +23,14 @@ export default async function WiederholenPage(): Promise<React.ReactElement> {
   if (!user.onboardingCompleted) redirect('/onboarding');
 
   const dueItems = await prisma.reviewQueueItem.findMany({
-    where: { userId: user.id, completedAt: null, dueAt: { lte: new Date() } },
+    // Gleicher Filter wie in `getNextStep()`: Zurückgezogene Aufgaben
+    // erscheinen nicht mehr im Wiederholungscenter.
+    where: {
+      userId: user.id,
+      completedAt: null,
+      dueAt: { lte: new Date() },
+      exercise: { status: 'PUBLISHED' },
+    },
     orderBy: { dueAt: 'asc' },
     take: 12,
     include: { exercise: true },
