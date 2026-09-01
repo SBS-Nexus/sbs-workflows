@@ -294,6 +294,22 @@ export interface SubmitAttemptInput {
   durationMs: number;
   confidenceBefore?: ConfidenceLevel;
   isReview: boolean;
+  /**
+   * Wie viele Hinweise die Oberfläche beim Absenden tatsächlich anzeigte.
+   *
+   * Nur als UNTERGRENZE verwendet, nie als Ersatz für die serverseitige
+   * Zählung: Maßgeblich ist der höhere der beiden Werte. Damit kann eine
+   * Angabe des Clients die Hilfe ausschließlich erhöhen, niemals
+   * kleinrechnen — die Client-Vertrauensgrenze bleibt also gewahrt, obwohl
+   * hier eine Client-Angabe einfließt.
+   *
+   * Gebraucht wird sie für einen Fall, den der Server allein nicht sehen
+   * kann: Ist dieselbe Aufgabe in zwei Tabs offen und wird in einem davon
+   * bestanden, räumt das den gemeinsamen Hilfestand. Der zweite Tab zeigt den
+   * Hinweis weiterhin an; ohne diese Untergrenze verbuchte eine Einreichung
+   * von dort einen hilfefreien Abruf (Codex-Review auf PR #29, 35fc431).
+   */
+  visibleHints?: number;
 }
 
 export interface SubmitAttemptResult {
@@ -324,6 +340,7 @@ export async function submitAttempt(
   const payload = exercisePayloadSchema.parse(exercise.payload);
   const submission = submissionSchema.parse(input.submission);
   const grading = gradeSubmission({ payload, submission });
+  const vorhandeneHinweisstufen = z.array(hintSchema).parse(exercise.hints).length;
 
   const now = new Date();
 
@@ -369,7 +386,7 @@ export async function submitAttempt(
     // Wiederholung desselben Fehlertyps ein (siehe Codex-Review auf PR #29).
     // Die Konzept-Abfragen sind voneinander unabhängig und laufen parallel
     // statt nacheinander (ebenfalls Code-Review auf PR #29).
-    const [hintsUsed, lastFailedAttemptEntries] = await Promise.all([
+    const [offeneHinweise, lastFailedAttemptEntries] = await Promise.all([
       revealedHintCount(tx, userId, exercise.id),
       Promise.all(
         exercise.concepts.map(async (link) => {
@@ -387,6 +404,14 @@ export async function submitAttempt(
       ),
     ]);
     const lastFailedAttemptsByConcept = new Map(lastFailedAttemptEntries);
+
+    // Der höhere der beiden Werte (siehe `SubmitAttemptInput.visibleHints`).
+    // Die Angabe des Clients wird auf die tatsächlich vorhandene Stufenzahl
+    // dieser Aufgabe begrenzt, damit sie nicht ins Beliebige wachsen kann.
+    const hintsUsed = Math.max(
+      offeneHinweise,
+      Math.min(input.visibleHints ?? 0, vorhandeneHinweisstufen),
+    );
 
     await tx.attempt.create({
       data: {

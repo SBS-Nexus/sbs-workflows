@@ -109,6 +109,9 @@ export function ExerciseRunner({
         submission,
         durationMs: Date.now() - startedAt,
         isReview,
+        // Was hier gerade sichtbar ist. Der Server nimmt den Wert nur als
+        // Untergrenze — er kann die Hilfe erhöhen, nie kleinrechnen.
+        visibleHints: revealedHints.length,
       });
       setResult(outcome);
     } catch {

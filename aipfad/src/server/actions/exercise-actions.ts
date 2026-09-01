@@ -24,6 +24,7 @@ export interface SubmitExerciseInput {
   durationMs: number;
   confidenceBefore?: ConfidenceLevel;
   isReview: boolean;
+  visibleHints?: number;
 }
 
 /**
@@ -45,6 +46,9 @@ const submitExerciseInputSchema = z.object({
   durationMs: z.number().int().min(0).max(86_400_000),
   confidenceBefore: z.enum(CONFIDENCE_LEVELS).optional(),
   isReview: z.boolean(),
+  // Nur Untergrenze; der Dienst begrenzt den Wert zusätzlich auf die
+  // tatsächliche Stufenzahl der Aufgabe.
+  visibleHints: z.number().int().min(0).max(50).optional(),
 });
 
 export async function submitExerciseAction(

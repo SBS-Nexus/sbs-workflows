@@ -550,3 +550,87 @@ describe('Ende eines Anlaufs', () => {
     expect(versuch.hintsUsed).toBe(1);
   });
 });
+
+/**
+ * Regressionstest für den Codex-Fund "Preserve hint attribution across open
+ * runners" (PR #29, Head 35fc431): Ist dieselbe Aufgabe in zwei Tabs offen
+ * und wird in einem davon bestanden, räumt das den gemeinsamen Hilfestand.
+ * Der zweite Tab zeigt den Hinweis weiterhin an — eine Einreichung von dort
+ * verbuchte ohne diese Untergrenze einen hilfefreien Abruf.
+ */
+describe('Sichtbare Hinweise als Untergrenze', () => {
+  const email = 'visible-hints@integrationtest.local';
+  const exerciseSlug = 'was-ist-aipfad-single-choice';
+  let userId: string;
+
+  beforeEach(async () => {
+    await prisma.user.deleteMany({ where: { email } });
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: 'Zwei Tabs',
+        passwordHash: await hashPassword('ein-testpasswort-123'),
+      },
+    });
+    userId = user.id;
+  });
+
+  async function letzterVersuchHintsUsed(): Promise<number> {
+    const versuch = await prisma.attempt.findFirstOrThrow({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: { hintsUsed: true },
+    });
+    return versuch.hintsUsed;
+  }
+
+  it('zählt einen noch angezeigten Hinweis, dessen Zeile bereits geräumt wurde', async () => {
+    await revealNextHint(userId, exerciseSlug);
+
+    // Tab A besteht die Aufgabe: der gemeinsame Hilfestand wird geräumt.
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'b' },
+      durationMs: 500,
+      isReview: false,
+    });
+    expect(await prisma.hintReveal.count({ where: { userId } })).toBe(0);
+
+    // Tab B ist weiterhin offen und zeigt den Hinweis noch an.
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'b' },
+      durationMs: 500,
+      isReview: false,
+      visibleHints: 1,
+    });
+    expect(await letzterVersuchHintsUsed()).toBe(1);
+  });
+
+  it('kann die serverseitige Zählung nicht kleinrechnen', async () => {
+    await revealNextHint(userId, exerciseSlug);
+
+    // Der Client behauptet, es sei nichts sichtbar. Maßgeblich bleibt die
+    // offenliegende Zeile.
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'a' },
+      durationMs: 500,
+      isReview: false,
+      visibleHints: 0,
+    });
+    expect(await letzterVersuchHintsUsed()).toBe(1);
+  });
+
+  it('begrenzt eine überhöhte Angabe auf die vorhandenen Stufen', async () => {
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'a' },
+      durationMs: 500,
+      isReview: false,
+      visibleHints: 42,
+    });
+    // Die Aufgabe hat zwei Hinweisstufen.
+    expect(await letzterVersuchHintsUsed()).toBe(2);
+  });
+});
