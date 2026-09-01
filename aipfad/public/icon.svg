@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="AIPfad">
+  <title>AIPfad</title>
+  <rect width="512" height="512" rx="80" fill="#1d1a15"/>
+  <!-- Drei Konzeptknoten, durch Voraussetzungs-Kanten verbunden: eine
+       Miniatur der Wissenslandkarte (Context Graph), dem Signaturbild von
+       AIPfad, statt einer beliebigen Bildmarke. -->
+  <line x1="128" y1="368" x2="256" y2="256" stroke="#24618f" stroke-width="20" stroke-linecap="round"/>
+  <line x1="256" y1="256" x2="384" y2="144" stroke="#24618f" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="128" cy="368" r="40" fill="#b45309"/>
+  <circle cx="256" cy="256" r="40" fill="#efb26a"/>
+  <circle cx="384" cy="144" r="40" fill="#b45309"/>
+</svg>
