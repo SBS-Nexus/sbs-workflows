@@ -38,7 +38,7 @@ export default async function WiederholenPage(): Promise<React.ReactElement> {
       // Versuch — ist das von selbst leer, die Leiter beginnt also wieder bei
       // Stufe 1. Innerhalb eines Anlaufs überlebt sie dagegen ein
       // Seitenneuladen (Codex-Review auf PR #29).
-      revealedHints: await getRevealedHints(user.id, item.exercise.slug),
+      revealedHints: await getRevealedHints(user.id, item.exercise.slug, true),
     })),
   );
 

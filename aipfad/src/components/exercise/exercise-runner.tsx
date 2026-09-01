@@ -194,6 +194,7 @@ export function ExerciseRunner({
           exerciseSlug={exercise.slug}
           hintLevels={exercise.hintLevels}
           revealedHints={revealedHints}
+          isReview={isReview}
           onRevealAction={(hint) => setRevealedHints((prev) => [...prev, hint])}
         />
       ) : null}
@@ -238,11 +239,18 @@ function HintLadder({
   exerciseSlug,
   hintLevels,
   revealedHints,
+  isReview,
   onRevealAction,
 }: {
   exerciseSlug: string;
   hintLevels: number[];
   revealedHints: Hint[];
+  /**
+   * Bei einer geplanten Wiederholung beginnt die Leiter wieder bei Stufe 1.
+   * Die Entscheidung trifft weiterhin ausschließlich der Server; hier wird
+   * nur mitgeteilt, in welchem Zusammenhang gefragt wird.
+   */
+  isReview: boolean;
   onRevealAction: (hint: Hint) => void;
 }): React.ReactElement {
   const [pending, setPending] = useState(false);
@@ -261,7 +269,7 @@ function HintLadder({
     setPending(true);
     setBlockedReason(null);
     try {
-      const result = await revealHintAction(exerciseSlug);
+      const result = await revealHintAction(exerciseSlug, isReview);
       if ('hint' in result) {
         onRevealAction(result.hint);
       } else {

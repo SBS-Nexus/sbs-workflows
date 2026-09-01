@@ -471,3 +471,88 @@ describe('Gleichzeitige Fehlversuche mit derselben Fehlerart', () => {
     expect(alsWiederholungGewertet).toHaveLength(1);
   });
 });
+
+/**
+ * Regressionstest für den Codex-Fund "Start failed-attempt reviews with a
+ * fresh hint episode" (PR #29, Head 3f224d2): Eine geplante Wiederholung
+ * folgt NICHT zwingend auf einen Erfolg. `scheduleNextReview()` plant auch
+ * nach einem Fehlversuch eine Wiederholung ein — bei einem übersehenen
+ * Detail für den nächsten Tag. Lag die Episodengrenze allein am letzten
+ * Erfolg, gehörte ein vor jenem Fehlversuch gelesener Hinweis noch zur
+ * selben Episode: Die Wiederholung startete mit sichtbarer Hilfe und wurde
+ * als hinweisgestützt verbucht.
+ */
+describe('Wiederholung nach einem Fehlversuch', () => {
+  const email = 'review-after-failure@integrationtest.local';
+  const exerciseSlug = 'was-ist-aipfad-single-choice';
+  let userId: string;
+  let exerciseId: string;
+
+  beforeEach(async () => {
+    await prisma.user.deleteMany({ where: { email } });
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: 'Wiederholung nach Fehler',
+        passwordHash: await hashPassword('ein-testpasswort-123'),
+      },
+    });
+    userId = user.id;
+    const exercise = await prisma.exercise.findUniqueOrThrow({ where: { slug: exerciseSlug } });
+    exerciseId = exercise.id;
+  });
+
+  it('beginnt ohne die Hinweise des vorherigen Anlaufs, obwohl nie bestanden wurde', async () => {
+    await revealNextHint(userId, exerciseSlug); // Stufe 1
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'a' }, // falsch → Wiederholung wird geplant
+      durationMs: 500,
+      isReview: false,
+    });
+
+    // Die Aufgabe wurde nie bestanden; es gibt nur eine eingeplante Wiederholung.
+    expect(await prisma.attempt.count({ where: { userId, result: 'PASSED' } })).toBe(0);
+    // Die Wiederholung wurde beim Fehlversuch eingeplant — also NACH dem
+    // Lesen des Hinweises. Genau diese Reihenfolge macht den Fall aus.
+    const geplant = await prisma.reviewQueueItem.findUniqueOrThrow({
+      where: { userId_exerciseId: { userId, exerciseId } },
+    });
+    const hinweis = await prisma.hintReveal.findFirstOrThrow({
+      where: { userId, exerciseId },
+      select: { revealedAt: true },
+    });
+    expect(geplant.dueAt.getTime()).toBeGreaterThanOrEqual(hinweis.revealedAt.getTime());
+
+    // Im Wiederholungszusammenhang gehört der alte Hinweis zum vorherigen
+    // Anlauf: Er wird weder angezeigt noch mitgezählt.
+    await expect(getRevealedHints(userId, exerciseSlug, true)).resolves.toEqual([]);
+
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'b' },
+      durationMs: 500,
+      isReview: true,
+    });
+    const wiederholung = await prisma.attempt.findFirstOrThrow({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: { hintsUsed: true },
+    });
+    expect(wiederholung.hintsUsed).toBe(0);
+  });
+
+  it('zeigt im normalen Anlauf weiterhin den bereits gelesenen Hinweis', async () => {
+    await revealNextHint(userId, exerciseSlug);
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: 'a' },
+      durationMs: 500,
+      isReview: false,
+    });
+
+    // Ohne Wiederholungszusammenhang bleibt der Hinweis sichtbar — sonst
+    // verlöre ein blosses Seitenneuladen die bereits geholte Hilfe.
+    await expect(getRevealedHints(userId, exerciseSlug)).resolves.toHaveLength(1);
+  });
+});

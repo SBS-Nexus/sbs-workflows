@@ -54,7 +54,14 @@ export async function submitExerciseAction(
   return submitAttempt(user.id, submitExerciseInputSchema.parse(input));
 }
 
-export async function revealHintAction(exerciseSlug: string): Promise<RevealHintResult> {
+export async function revealHintAction(
+  exerciseSlug: string,
+  isReview = false,
+): Promise<RevealHintResult> {
   const user = await requireUser();
-  return revealNextHint(user.id, exerciseSlugSchema.parse(exerciseSlug));
+  return revealNextHint(
+    user.id,
+    exerciseSlugSchema.parse(exerciseSlug),
+    z.boolean().parse(isReview),
+  );
 }

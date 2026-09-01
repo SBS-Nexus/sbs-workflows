@@ -96,6 +96,7 @@ export type RevealHintResult = { hint: Hint } | { blocked: true; reason: string 
 export async function revealNextHint(
   userId: string,
   exerciseSlug: string,
+  istWiederholung = false,
 ): Promise<RevealHintResult> {
   enforceRateLimit(`hint:${userId}`, RATE_LIMITS.hintReveal);
 
@@ -109,7 +110,7 @@ export async function revealNextHint(
   // Versuchszahl und aufgedeckte Stufe beziehen sich beide auf die laufende
   // Episode (siehe `episodenBeginn`), damit eine geplante Wiederholung die
   // Leiter wieder von vorn durchläuft statt am historischen Ende zu stehen.
-  const beginn = await episodenBeginnOhneTransaktion(userId, exercise.id);
+  const beginn = await episodenBeginnOhneTransaktion(userId, exercise.id, istWiederholung);
   const [attempts, revealedLevel] = await Promise.all([
     prisma.attempt.count({
       where: { userId, exerciseId: exercise.id, ...(beginn ? { createdAt: { gt: beginn } } : {}) },
@@ -157,7 +158,11 @@ export async function revealNextHint(
  * PR #29). Es werden ausschließlich Hinweise ausgeliefert, für die es eine
  * echte Freigabe in der Datenbank gibt.
  */
-export async function getRevealedHints(userId: string, exerciseSlug: string): Promise<Hint[]> {
+export async function getRevealedHints(
+  userId: string,
+  exerciseSlug: string,
+  istWiederholung = false,
+): Promise<Hint[]> {
   const exercise = await prisma.exercise.findUnique({
     where: { slug: exerciseSlug },
     select: { id: true, hints: true, status: true },
@@ -168,7 +173,7 @@ export async function getRevealedHints(userId: string, exerciseSlug: string): Pr
   // Nur die Hinweise der laufenden Episode. Dadurch beginnt eine geplante
   // Wiederholung von selbst ohne Vorbelastung, und ein Seitenneuladen
   // innerhalb desselben Anlaufs zeigt weiterhin, was schon gelesen wurde.
-  const beginn = await episodenBeginnOhneTransaktion(userId, exercise.id);
+  const beginn = await episodenBeginnOhneTransaktion(userId, exercise.id, istWiederholung);
   const reveals = await prisma.hintReveal.findMany({
     where: {
       userId,
@@ -214,8 +219,9 @@ async function revealedHintCount(
   tx: Prisma.TransactionClient,
   userId: string,
   exerciseId: string,
+  istWiederholung: boolean,
 ): Promise<number> {
-  const beginn = await episodenBeginn(tx, userId, exerciseId);
+  const beginn = await episodenBeginn(tx, userId, exerciseId, istWiederholung);
   return tx.hintReveal.count({
     where: { userId, exerciseId, ...(beginn ? { revealedAt: { gt: beginn } } : {}) },
   });
@@ -307,21 +313,44 @@ async function episodenBeginn(
   tx: Prisma.TransactionClient,
   userId: string,
   exerciseId: string,
+  istWiederholung: boolean,
 ): Promise<Date | null> {
   const letzterErfolg = await tx.attempt.findFirst({
     where: { userId, exerciseId, result: 'PASSED' },
     orderBy: { createdAt: 'desc' },
     select: { createdAt: true },
   });
-  return letzterErfolg?.createdAt ?? null;
+  const nachErfolg = letzterErfolg?.createdAt ?? null;
+
+  if (!istWiederholung) return nachErfolg;
+
+  // Eine geplante Wiederholung folgt NICHT zwingend auf einen Erfolg:
+  // `scheduleNextReview()` plant auch nach einem Fehlversuch eine
+  // Wiederholung ein (bei einem übersehenen Detail für den nächsten Tag).
+  // Bliebe die Grenze am letzten Erfolg, gehörte ein vor jenem Fehlversuch
+  // gelesener Hinweis noch zur selben Episode — die Wiederholung startete mit
+  // sichtbarer Hilfe und würde als hinweisgestützt verbucht (Codex-Review auf
+  // PR #29, 3f224d2).
+  //
+  // Für eine Wiederholung beginnt die Episode deshalb mit ihrer Fälligkeit:
+  // Alles davor gehört zum vorherigen Anlauf, alles danach — auch mehrere
+  // Versuche innerhalb dieser Wiederholung — zur laufenden.
+  const geplant = await tx.reviewQueueItem.findUnique({
+    where: { userId_exerciseId: { userId, exerciseId } },
+    select: { dueAt: true },
+  });
+  if (!geplant) return nachErfolg;
+
+  return nachErfolg && nachErfolg > geplant.dueAt ? nachErfolg : geplant.dueAt;
 }
 
 /** Gleiche Grenze, außerhalb einer Transaktion (Lesepfade der Seiten). */
 async function episodenBeginnOhneTransaktion(
   userId: string,
   exerciseId: string,
+  istWiederholung: boolean,
 ): Promise<Date | null> {
-  return episodenBeginn(prisma, userId, exerciseId);
+  return episodenBeginn(prisma, userId, exerciseId, istWiederholung);
 }
 
 export interface SubmitAttemptInput {
@@ -405,7 +434,7 @@ export async function submitAttempt(
     // Die Konzept-Abfragen sind voneinander unabhängig und laufen parallel
     // statt nacheinander (ebenfalls Code-Review auf PR #29).
     const [hintsUsed, lastFailedAttemptEntries] = await Promise.all([
-      revealedHintCount(tx, userId, exercise.id),
+      revealedHintCount(tx, userId, exercise.id, input.isReview),
       Promise.all(
         exercise.concepts.map(async (link) => {
           const lastFailedAttempt = await tx.attempt.findFirst({
