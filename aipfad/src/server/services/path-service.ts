@@ -17,7 +17,7 @@ import type { LearningPathModel } from '@/generated/prisma/models';
 
 export type NextStep =
   | { kind: 'review'; reviewCount: number }
-  | { kind: 'lesson'; lessonSlug: string; lessonTitle: string }
+  | { kind: 'lesson'; lessonSlug: string; lessonTitle: string; step: number }
   | { kind: 'all-done' };
 
 export async function getNextStep(userId: string): Promise<NextStep> {
@@ -32,10 +32,18 @@ export async function getNextStep(userId: string): Promise<NextStep> {
     orderBy: { updatedAt: 'desc' },
   });
   if (inProgress) {
+    // Der zuletzt geöffnete Schritt, damit eine unterbrochene Lektion dort
+    // weitergeht, wo sie verlassen wurde (Codex-Review auf PR #29). Steht
+    // nichts Verwertbares darin, beginnt sie regulär bei Schritt 1.
+    const gespeicherterSchritt = Number.parseInt(inProgress.lastSection, 10);
     return {
       kind: 'lesson',
       lessonSlug: inProgress.lesson.slug,
       lessonTitle: inProgress.lesson.title,
+      step:
+        Number.isInteger(gespeicherterSchritt) && gespeicherterSchritt > 0
+          ? gespeicherterSchritt
+          : 1,
     };
   }
 
@@ -50,7 +58,7 @@ export async function getNextStep(userId: string): Promise<NextStep> {
     orderBy: [{ module: { order: 'asc' } }, { order: 'asc' }],
   });
   if (nextLesson) {
-    return { kind: 'lesson', lessonSlug: nextLesson.slug, lessonTitle: nextLesson.title };
+    return { kind: 'lesson', lessonSlug: nextLesson.slug, lessonTitle: nextLesson.title, step: 1 };
   }
 
   return { kind: 'all-done' };

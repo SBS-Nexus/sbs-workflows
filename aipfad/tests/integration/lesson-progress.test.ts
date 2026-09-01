@@ -140,3 +140,94 @@ describe('Gleichzeitiges Öffnen derselben Lektion', () => {
     expect(row.state).toBe('COMPLETED');
   });
 });
+
+/**
+ * Regressionstests für zwei Codex-Funde auf PR #29 (Head f8931c9):
+ *  - "Preserve the original lesson completion timestamp": Der
+ *    Reflexionsschritt ruft `checkLessonCompletion()` bei jedem Aufruf erneut
+ *    auf. Bei einer bereits abgeschlossenen Lektion ist die Bedingung
+ *    weiterhin erfüllt, sodass der ursprüngliche Abschlusszeitpunkt jedes Mal
+ *    durch den aktuellen ersetzt wurde.
+ *  - "Resume an in-progress lesson at its saved step": `lastSection` wurde
+ *    nirgends geschrieben, jede unterbrochene Lektion begann wieder bei
+ *    Schritt 1.
+ */
+describe('Abschlusszeitpunkt und zuletzt geöffneter Schritt', () => {
+  const email = 'lesson-progress-details@integrationtest.local';
+  let userId: string;
+  let lessonId: string;
+  let exerciseSlug: string;
+
+  beforeEach(async () => {
+    await prisma.user.deleteMany({ where: { email } });
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: 'Detailtest',
+        passwordHash: await hashPassword('ein-testpasswort-123'),
+      },
+    });
+    userId = user.id;
+    const lesson = await prisma.lesson.findUniqueOrThrow({
+      where: { slug: 'was-ist-aipfad' },
+      include: { exercises: true },
+    });
+    lessonId = lesson.id;
+    const exercise = lesson.exercises[0];
+    if (!exercise) throw new Error('Testfixtur: Lektion hat keine Aufgabe.');
+    exerciseSlug = exercise.slug;
+  });
+
+  it('behält den ursprünglichen Abschlusszeitpunkt bei erneuter Prüfung', async () => {
+    await startLesson(userId, lessonId);
+    const exercise = await prisma.exercise.findUniqueOrThrow({ where: { slug: exerciseSlug } });
+    const payload = exercise.payload as { correctOptionId: string };
+    await submitAttempt(userId, {
+      exerciseSlug,
+      submission: { kind: 'singleChoice', optionId: payload.correctOptionId },
+      durationMs: 1000,
+      isReview: false,
+    });
+
+    await checkLessonCompletion(userId, lessonId);
+    const ersterAbschluss = await prisma.lessonProgress.findUniqueOrThrow({
+      where: { userId_lessonId: { userId, lessonId } },
+    });
+    expect(ersterAbschluss.completedAt).not.toBeNull();
+
+    // Erneutes Öffnen des Reflexionsschritts ruft die Prüfung wieder auf.
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    await checkLessonCompletion(userId, lessonId);
+
+    const nachErneuterPruefung = await prisma.lessonProgress.findUniqueOrThrow({
+      where: { userId_lessonId: { userId, lessonId } },
+    });
+    expect(nachErneuterPruefung.completedAt).toEqual(ersterAbschluss.completedAt);
+  });
+
+  it('merkt sich den zuletzt geöffneten Schritt', async () => {
+    await startLesson(userId, lessonId, 1);
+    await startLesson(userId, lessonId, 3);
+
+    const fortschritt = await prisma.lessonProgress.findUniqueOrThrow({
+      where: { userId_lessonId: { userId, lessonId } },
+    });
+    expect(fortschritt.lastSection).toBe('3');
+  });
+
+  it('rührt den gemerkten Schritt einer abgeschlossenen Lektion nicht an', async () => {
+    await startLesson(userId, lessonId, 2);
+    await prisma.lessonProgress.update({
+      where: { userId_lessonId: { userId, lessonId } },
+      data: { state: 'COMPLETED', completedAt: new Date() },
+    });
+
+    await startLesson(userId, lessonId, 1);
+
+    const fortschritt = await prisma.lessonProgress.findUniqueOrThrow({
+      where: { userId_lessonId: { userId, lessonId } },
+    });
+    expect(fortschritt.state).toBe('COMPLETED');
+    expect(fortschritt.lastSection).toBe('2');
+  });
+});

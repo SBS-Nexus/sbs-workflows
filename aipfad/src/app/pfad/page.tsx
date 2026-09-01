@@ -87,7 +87,7 @@ export default async function PathPage(): Promise<React.ReactElement> {
             <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-signal-600 dark:text-signal-300">
               Nächster Schritt
             </p>
-            <ButtonLink href={`/lektion/${nextStep.lessonSlug}/1`} className="mt-3">
+            <ButtonLink href={`/lektion/${nextStep.lessonSlug}/${nextStep.step}`} className="mt-3">
               Weiterlernen
             </ButtonLink>
           </Card>

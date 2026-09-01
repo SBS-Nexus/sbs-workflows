@@ -197,7 +197,18 @@ export function ExerciseRunner({
           exerciseSlug={exercise.slug}
           hintLevels={exercise.hintLevels}
           revealedHints={revealedHints}
-          onRevealAction={(hint) => setRevealedHints((prev) => [...prev, hint])}
+          onRevealAction={(hint) =>
+            // Nach Stufe ersetzen statt blind anhängen: Wurde der
+            // gemeinsame Hilfestand zwischenzeitlich geräumt (z. B. weil
+            // dieselbe Aufgabe in einem anderen Tab bestanden wurde), liefert
+            // der Server dieselbe Stufe erneut. Blindes Anhängen zählte sie
+            // dann doppelt (Codex-Review auf PR #29).
+            setRevealedHints((prev) =>
+              [...prev.filter((h) => h.level !== hint.level), hint].sort(
+                (a, b) => a.level - b.level,
+              ),
+            )
+          }
         />
       ) : null}
     </div>

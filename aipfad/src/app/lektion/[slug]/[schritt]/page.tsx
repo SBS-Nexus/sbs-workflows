@@ -44,7 +44,7 @@ export default async function LessonStepPage({
   const totalSteps = exerciseCount + 3;
   if (!Number.isInteger(step) || step < 1 || step > totalSteps) notFound();
 
-  await startLesson(user.id, lesson.id);
+  await startLesson(user.id, lesson.id, step);
 
   const stepUrl = (target: number): string => `/lektion/${slug}/${target}`;
 

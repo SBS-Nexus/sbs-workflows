@@ -33,7 +33,7 @@ export async function getLessonBySlug(slug: string): Promise<LessonWithRelations
  * Fortschritt zurück und ließ die Lektion in `getNextStep` erneut
  * auftauchen).
  */
-export async function startLesson(userId: string, lessonId: string): Promise<void> {
+export async function startLesson(userId: string, lessonId: string, step?: number): Promise<void> {
   // Eine vorhandene Zeile hochstufen — aber niemals einen erreichten
   // Abschluss zurücknehmen. Die Bedingung steht bewusst IN der schreibenden
   // Anweisung: ein vorgeschaltetes `findUnique` würde zwischen Lesen und
@@ -41,9 +41,15 @@ export async function startLesson(userId: string, lessonId: string): Promise<voi
   // Zeile anlegt und der Unique-Index auf (userId, lessonId) dann einen
   // Fehler wirft — zwei Tabs oder überlappende Navigation genügen dafür
   // (Codex-Review auf PR #29).
+  // Der zuletzt geöffnete Schritt wird mitgeschrieben, damit "Weiterlernen"
+  // eine unterbrochene Lektion dort fortsetzt, wo sie verlassen wurde, statt
+  // immer wieder bei Schritt 1 zu beginnen (Codex-Review auf PR #29). Bei
+  // einer abgeschlossenen Lektion bleibt alles unangetastet.
+  const lastSection = step === undefined ? undefined : String(step);
+
   const promoted = await prisma.lessonProgress.updateMany({
     where: { userId, lessonId, state: { not: 'COMPLETED' } },
-    data: { state: 'IN_PROGRESS' },
+    data: { state: 'IN_PROGRESS', ...(lastSection ? { lastSection } : {}) },
   });
   if (promoted.count > 0) return;
 
@@ -52,7 +58,7 @@ export async function startLesson(userId: string, lessonId: string): Promise<voi
   // `create` ab, dessen Unique-Verletzung wir als "ist schon da" lesen.
   try {
     await prisma.lessonProgress.create({
-      data: { userId, lessonId, state: 'IN_PROGRESS' },
+      data: { userId, lessonId, state: 'IN_PROGRESS', ...(lastSection ? { lastSection } : {}) },
     });
   } catch (error) {
     if (!isUniqueConstraintViolation(error)) throw error;
@@ -98,10 +104,22 @@ export async function checkLessonCompletion(
   const completed = passedExercises >= exercises.length;
 
   if (completed) {
+    const jetzt = new Date();
+
+    // `completedAt` wird beim Aktualisieren bewusst NICHT mitgeschrieben.
+    // Diese Prüfung läuft bei jedem Aufruf des Reflexionsschritts erneut, und
+    // bei einer bereits abgeschlossenen Lektion ist sie weiterhin erfüllt —
+    // ein Mitschreiben hätte den ursprünglichen Abschlusszeitpunkt jedes Mal
+    // durch den aktuellen ersetzt (Codex-Review auf PR #29). Nachgetragen
+    // wird er nur dort, wo noch keiner steht.
     await prisma.lessonProgress.upsert({
       where: { userId_lessonId: { userId, lessonId } },
-      create: { userId, lessonId, state: 'COMPLETED', completedAt: new Date() },
-      update: { state: 'COMPLETED', completedAt: new Date() },
+      create: { userId, lessonId, state: 'COMPLETED', completedAt: jetzt },
+      update: { state: 'COMPLETED' },
+    });
+    await prisma.lessonProgress.updateMany({
+      where: { userId, lessonId, completedAt: null },
+      data: { completedAt: jetzt },
     });
   }
 
