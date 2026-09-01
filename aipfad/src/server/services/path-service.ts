@@ -1,5 +1,6 @@
 import 'server-only';
 import { prisma } from '@/server/db/prisma';
+import { veroeffentlichteAufgabe, veroeffentlichteLektion } from '@/server/content/publication';
 import type { LearningPathModel } from '@/generated/prisma/models';
 
 /**
@@ -31,7 +32,7 @@ export async function getNextStep(userId: string): Promise<NextStep> {
       userId,
       completedAt: null,
       dueAt: { lte: new Date() },
-      exercise: { status: 'PUBLISHED' },
+      exercise: veroeffentlichteAufgabe,
     },
   });
   if (reviewCount > 0) return { kind: 'review', reviewCount };
@@ -40,7 +41,7 @@ export async function getNextStep(userId: string): Promise<NextStep> {
   // inzwischen auf DRAFT steht, führte über "Weiterlernen" auf eine
   // 404-Seite (Codex-Review auf PR #29).
   const inProgress = await prisma.lessonProgress.findFirst({
-    where: { userId, state: 'IN_PROGRESS', lesson: { status: 'PUBLISHED' } },
+    where: { userId, state: 'IN_PROGRESS', lesson: { is: veroeffentlichteLektion } },
     include: { lesson: true },
     orderBy: { updatedAt: 'desc' },
   });
@@ -67,7 +68,7 @@ export async function getNextStep(userId: string): Promise<NextStep> {
   const completedIds = completed.map((l) => l.lessonId);
 
   const nextLesson = await prisma.lesson.findFirst({
-    where: { status: 'PUBLISHED', id: { notIn: completedIds } },
+    where: { ...veroeffentlichteLektion, id: { notIn: completedIds } },
     orderBy: [{ module: { order: 'asc' } }, { order: 'asc' }],
   });
   if (nextLesson) {

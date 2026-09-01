@@ -120,6 +120,53 @@ in `src/proxy.ts` nur gesetzt, wenn `APP_URL` tatsächlich auf `https` zeigt.
   auf mehrere Instanzen. Dokumentiert, Schnittstelle bleibt beim Wechsel
   auf einen gemeinsamen Zähler (z. B. Redis) gleich.
 
+## Sicherheitsprüfung zu PR #29
+
+### Durchgeführte Prüfungen
+
+Der dedizierte `claude-security`-Workflow **konnte nicht ausgeführt
+werden**: Die dafür nötige Workflow-Fähigkeit von Claude Code stand in der
+Sitzung nicht zur Verfügung. Das ist ausdrücklich **kein** bestandener
+Sicherheitstest und darf nicht als solcher dargestellt werden.
+
+> dedicated claude-security workflow could not execute because the required
+> Claude Code workflow capability was unavailable in this session.
+
+Ersatzweise wurden zwei unabhängige, getrennt aufgesetzte Prüfungen über
+`aipfad/` und `.github/workflows/aipfad-ci.yml` durchgeführt:
+
+1. **Auth, Authorisierung, Missbrauch, Datenschutz** — 0 kritisch, 0 hoch.
+2. **Web, Daten, Lieferkette** — 0 kritisch, 0 hoch.
+
+Ausdrücklich gegengeprüft und ohne Fund: kein IDOR über `LessonProgress`,
+`Attempt`, `HintReveal`, `LabAttempt`, `ConceptMastery`, `ReviewQueueItem`
+(jede Abfrage ist auf die Sitzungs-`userId` bezogen); kein Mass Assignment;
+unveröffentlichte Inhalte sind auf keinem Pfad erreichbar; `toPublicPayload()`
+entfernt die Lösungsdaten aller sieben Interaktionsformen; Hinweistexte
+verlassen die öffentliche Aufgabe nicht; genau ein `dangerouslySetInnerHTML`
+mit einer Konstanten; kein Open Redirect; scrypt mit OWASP-Parametern und
+`timingSafeEqual`; Sitzungstoken nur als SHA-256-Hash gespeichert; Lockfile
+vollständig integritätsgesichert.
+
+### Einstufung der mittleren Funde
+
+| Fund                                                                                       | Einstufung                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ratengrenzen über ein client-gesetztes `x-forwarded-for` umgehbar                          | **BEHOBEN** — zuerst die Plattform-Kopfzeile, sonst der rechte Eintrag der Kette.                                                                                                                                                                                 |
+| Anmeldegrenze nur je (IP, E-Mail), ein Konto über viele Herkünften beliebig oft angreifbar | **BEHOBEN** — zusätzliche kontobezogene Grenze ohne IP-Anteil.                                                                                                                                                                                                    |
+| Rechenaufwand von scrypt vor der Authentifizierung als Verstärkungsfläche                  | **AKZEPTIERT MIT BEGRÜNDUNG** — die Grenzen greifen davor, und auf der Zielplattform ist die Herkunft nicht fälschbar. Vollständig entschärft erst mit dem gemeinsamen Zähler unten; bis dahin ist der Aufwand je Anfrage begrenzt und die Kosten sind gedeckelt. |
+| Ratenbegrenzung im Prozessspeicher, hält nicht über Instanzen                              | **AKZEPTIERT MIT BEGRÜNDUNG** — bereits oben als Restrisiko geführt. Vor dem öffentlichen Start wird auf einen gemeinsamen Zähler gewechselt; die Schnittstelle bleibt gleich.                                                                                    |
+| `script-src` erlaubt `'unsafe-inline'`                                                     | **AKZEPTIERT MIT BEGRÜNDUNG** — Kompromiss des App Routers für das Skript gegen das Themen-Flackern. Es existiert keine Injektionsstelle: genau ein `dangerouslySetInnerHTML`, und das mit einer Konstanten. Umstellung auf ein Nonce ist vorgemerkt.             |
+
+Es bleibt kein mittlerer Fund ohne Einstufung.
+
+Die niedrigen Funde sind dokumentiert und angenommen: unter anderem die
+Existenzauskunft bei der Registrierung, die auf Haupt-Versionen statt auf
+Commit-Hashes gepinnten GitHub-Actions (der Lauf trägt keine Geheimnisse),
+`legacy-peer-deps`, das vorbereitete, aber nicht angebundene
+Double-Submit-Verfahren und die ebenfalls nicht angebundene
+Aufbewahrungsfrist — beide sind oben als solche gekennzeichnet.
+
 ## Bei Verdacht auf eine Sicherheitslücke
 
 Kein öffentliches Formular in dieser Ausbaustufe. Bitte über die im

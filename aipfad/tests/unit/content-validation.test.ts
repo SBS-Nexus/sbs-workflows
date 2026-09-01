@@ -12,6 +12,8 @@ import { concepts as conceptDrafts } from '@/content/concepts';
 import { labs as labDrafts } from '@/content/labs';
 import { exercisePayloadSchema } from '@/domain/content/exercise-payload';
 import { toPublicPayload } from '@/domain/grading/grade';
+import { UMGESETZTE_BEFEHLE } from '@/domain/labs/terminal';
+import { z } from 'zod';
 
 function parseAll() {
   const parsedCourse = courseSchema.parse(course);
@@ -151,6 +153,37 @@ describe('Keine Aufgabe liefert ihre Lösung im öffentlichen Teil mit', () => {
     'ordering-Aufgabe %i enthält im öffentlichen Teil keine correctOrder',
     (_index, payload) => {
       expect(JSON.stringify(toPublicPayload(payload))).not.toContain('correctOrder');
+    },
+  );
+});
+
+/**
+ * "Was angeboten wird, funktioniert auch."
+ *
+ * Das Terminal-Lab wies `mkdir`, `touch`, `cp`, `mv`, `which` und `clear` als
+ * verfügbar aus, ohne sie umzusetzen — der Befehl verpuffte wirkungslos und
+ * die Lernumgebung lehrte still etwas Falsches (Codex-Review auf PR #29).
+ * Diese Prüfung hält den Grundsatz für künftige Inhalte fest.
+ */
+describe('Terminal-Labs bewerben nur umgesetzte Befehle', () => {
+  const terminalConfigSchema = z.object({ allowedCommands: z.array(z.string()) });
+
+  const terminalLabs = labDrafts
+    .map((l) => labSchema.parse(l))
+    .filter((l) => l.kind === 'TERMINAL');
+
+  it('findet überhaupt ein Terminal-Lab zum Prüfen', () => {
+    expect(terminalLabs.length).toBeGreaterThan(0);
+  });
+
+  it.each(terminalLabs.map((l) => [l.slug, l] as const))(
+    '%s: jeder beworbene Befehl ist im Simulator umgesetzt',
+    (_slug, lab) => {
+      const { allowedCommands } = terminalConfigSchema.parse(lab.config);
+      const fehlend = allowedCommands.filter(
+        (c) => !(UMGESETZTE_BEFEHLE as readonly string[]).includes(c),
+      );
+      expect(fehlend).toEqual([]);
     },
   );
 });

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
 import { getPublicExercise, getRevealedHints } from '@/server/services/exercise-service';
+import { veroeffentlichteAufgabe } from '@/server/content/publication';
 import { AppHeader } from '@/components/app/app-header';
 import { EmptyState, SectionHeading } from '@/components/ui/primitives';
 import { ExerciseRunner } from '@/components/exercise/exercise-runner';
@@ -29,7 +30,7 @@ export default async function WiederholenPage(): Promise<React.ReactElement> {
       userId: user.id,
       completedAt: null,
       dueAt: { lte: new Date() },
-      exercise: { status: 'PUBLISHED' },
+      exercise: veroeffentlichteAufgabe,
     },
     orderBy: { dueAt: 'asc' },
     take: 12,

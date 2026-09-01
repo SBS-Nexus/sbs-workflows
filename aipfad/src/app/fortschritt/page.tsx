@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
+import { veroeffentlichteAufgabe, veroeffentlichteLektion } from '@/server/content/publication';
 import { AppHeader } from '@/components/app/app-header';
 import { Card, EmptyState, ProgressBar, SectionHeading } from '@/components/ui/primitives';
 import { describeMastery } from '@/domain/mastery/mastery';
@@ -35,11 +36,11 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
         userId: user.id,
         completedAt: null,
         dueAt: { lte: new Date() },
-        exercise: { status: 'PUBLISHED' },
+        exercise: veroeffentlichteAufgabe,
       },
     }),
     prisma.lessonProgress.count({ where: { userId: user.id, state: 'COMPLETED' } }),
-    prisma.lesson.count({ where: { status: 'PUBLISHED' } }),
+    prisma.lesson.count({ where: veroeffentlichteLektion }),
   ]);
 
   return (

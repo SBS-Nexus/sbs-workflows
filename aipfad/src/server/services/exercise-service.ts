@@ -1,6 +1,7 @@
 import 'server-only';
 import { z } from 'zod';
 import { prisma } from '@/server/db/prisma';
+import { veroeffentlichteAufgabe } from '@/server/content/publication';
 // Kein `import type`: `Prisma.PrismaClientKnownRequestError` wird als Wert für
 // die `instanceof`-Prüfung gebraucht.
 import { Prisma } from '@/generated/prisma/client';
@@ -55,8 +56,12 @@ export interface PublicExercise {
 
 /** Lädt eine Aufgabe OHNE Lösungsdaten — sicher für den Client. */
 export async function getPublicExercise(slug: string): Promise<PublicExercise | null> {
-  const exercise = await prisma.exercise.findUnique({ where: { slug } });
-  if (!exercise || exercise.status !== 'PUBLISHED') return null;
+  // `findFirst` statt `findUnique`: Zur eindeutigen Kennung kommt die
+  // Bedingung, dass auch Lektion, Modul und Kurs veröffentlicht sind.
+  const exercise = await prisma.exercise.findFirst({
+    where: { slug, ...veroeffentlichteAufgabe },
+  });
+  if (!exercise) return null;
 
   const payload = exercisePayloadSchema.parse(exercise.payload);
   const hints = z.array(hintSchema).parse(exercise.hints);
@@ -99,8 +104,10 @@ export async function revealNextHint(
 ): Promise<RevealHintResult> {
   enforceRateLimit(`hint:${userId}`, RATE_LIMITS.hintReveal);
 
-  const exercise = await prisma.exercise.findUnique({ where: { slug: exerciseSlug } });
-  if (!exercise || exercise.status !== 'PUBLISHED') {
+  const exercise = await prisma.exercise.findFirst({
+    where: { slug: exerciseSlug, ...veroeffentlichteAufgabe },
+  });
+  if (!exercise) {
     throw new Error('Aufgabe nicht gefunden.');
   }
 
@@ -152,11 +159,11 @@ export async function revealNextHint(
  * echte Freigabe in der Datenbank gibt.
  */
 export async function getRevealedHints(userId: string, exerciseSlug: string): Promise<Hint[]> {
-  const exercise = await prisma.exercise.findUnique({
-    where: { slug: exerciseSlug },
-    select: { id: true, hints: true, status: true },
+  const exercise = await prisma.exercise.findFirst({
+    where: { slug: exerciseSlug, ...veroeffentlichteAufgabe },
+    select: { id: true, hints: true },
   });
-  if (!exercise || exercise.status !== 'PUBLISHED') return [];
+  if (!exercise) return [];
 
   const hints = z.array(hintSchema).parse(exercise.hints);
   // Die derzeit offenliegenden Hinweise. Nach einer abgeschlossenen Episode
@@ -329,11 +336,11 @@ export async function submitAttempt(
 ): Promise<SubmitAttemptResult> {
   enforceRateLimit(`submit:${userId}`, RATE_LIMITS.submitAttempt);
 
-  const exercise = await prisma.exercise.findUnique({
-    where: { slug: input.exerciseSlug },
+  const exercise = await prisma.exercise.findFirst({
+    where: { slug: input.exerciseSlug, ...veroeffentlichteAufgabe },
     include: { concepts: { include: { concept: true } } },
   });
-  if (!exercise || exercise.status !== 'PUBLISHED') {
+  if (!exercise) {
     throw new Error('Aufgabe nicht gefunden.');
   }
 

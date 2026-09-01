@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/server/db/prisma';
+import { veroeffentlichteLektion } from '@/server/content/publication';
 import { logger, newRequestId } from '@/server/observability/logger';
 
 /**
@@ -16,7 +17,7 @@ export async function GET(): Promise<NextResponse> {
   try {
     const [, lessons] = await Promise.all([
       prisma.$queryRaw`SELECT 1`,
-      prisma.lesson.count({ where: { status: 'PUBLISHED' } }),
+      prisma.lesson.count({ where: veroeffentlichteLektion }),
     ]);
 
     const durationMs = Date.now() - begonnen;

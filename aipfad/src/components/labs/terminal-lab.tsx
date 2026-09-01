@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { LabCompleteButton } from './lab-complete-button';
 import { z } from 'zod';
 import { Button, Callout } from '@/components/ui/primitives';
+import { fuehreBefehlAus, type SimuliertesDateisystem } from '@/domain/labs/terminal';
 
 const configSchema = z.object({
   startingDirectory: z.string(),
@@ -23,20 +24,20 @@ export function TerminalLab({
   const { startingDirectory, fileSystem, allowedCommands, dangerousCommands } =
     configSchema.parse(config);
   const [cwd, setCwd] = useState(startingDirectory);
+  const [dateisystem, setDateisystem] = useState<SimuliertesDateisystem>(fileSystem);
   const [history, setHistory] = useState<{ command: string; output: string }[]>([]);
   const [current, setCurrent] = useState('');
   const [confirmDanger, setConfirmDanger] = useState<string | null>(null);
 
-  function resolve(path: string): string {
-    if (path.startsWith('/')) return path;
-    return `${cwd}/${path}`.replace(/\/+/g, '/');
-  }
-
+  /**
+   * Die eigentliche Auswertung liegt in `domain/labs/terminal.ts` — eine reine
+   * Funktion ohne Shell, ohne Prozessaufruf, ohne Dateisystemzugriff. Hier
+   * bleibt nur die Bestätigung gefährlicher Befehle und die Darstellung.
+   */
   function run(raw: string): void {
     const trimmed = raw.trim();
     if (!trimmed) return;
-    const [cmd, ...args] = trimmed.split(/\s+/);
-    const name = cmd ?? '';
+    const name = trimmed.split(/\s+/)[0] ?? '';
 
     if (dangerousCommands.includes(name) && confirmDanger !== trimmed) {
       setConfirmDanger(trimmed);
@@ -44,38 +45,12 @@ export function TerminalLab({
     }
     setConfirmDanger(null);
 
-    let output: string;
-    if (!allowedCommands.includes(name)) {
-      output = `Befehl nicht verfügbar in diesem Lab: ${name}`;
-    } else if (name === 'pwd') {
-      output = cwd;
-    } else if (name === 'ls') {
-      const prefix = `${cwd}/`;
-      const entries = Object.keys(fileSystem)
-        .filter((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes('/'))
-        .map((p) => p.slice(prefix.length));
-      output = entries.length > 0 ? entries.join('  ') : '(leer)';
-    } else if (name === 'cd') {
-      const target = resolve(args[0] ?? '/');
-      if (Object.prototype.hasOwnProperty.call(fileSystem, target) && fileSystem[target] === null) {
-        setCwd(target);
-        output = '';
-      } else {
-        output = `Kein solches Verzeichnis: ${args[0] ?? ''}`;
-      }
-    } else if (name === 'cat') {
-      const target = resolve(args[0] ?? '');
-      const content = fileSystem[target];
-      output = typeof content === 'string' ? content : `Datei nicht gefunden: ${args[0] ?? ''}`;
-    } else if (name === 'echo') {
-      output = args.join(' ');
-    } else if (name === 'rm') {
-      output = `${args[0] ?? ''} gelöscht. (simuliert — nichts wurde wirklich verändert)`;
-    } else {
-      output = '';
-    }
-
-    setHistory((prev) => [...prev, { command: trimmed, output }]);
+    const ergebnis = fuehreBefehlAus({ cwd, fileSystem: dateisystem }, trimmed, allowedCommands);
+    setCwd(ergebnis.cwd);
+    setDateisystem(ergebnis.fileSystem);
+    setHistory((prev) =>
+      ergebnis.clearHistory ? [] : [...prev, { command: trimmed, output: ergebnis.output }],
+    );
     setCurrent('');
   }
 

@@ -25,8 +25,10 @@ export default async function PathPage(): Promise<React.ReactElement> {
   const path = await getOrCreatePath(user.id);
   const nextStep = await getNextStep(user.id);
 
-  const course = await prisma.course.findUnique({
-    where: { id: path.courseId },
+  // Auch der Kurs selbst muss veröffentlicht sein — bislang wurde nur nach
+  // seiner Kennung gesucht (Codex-Review auf PR #29).
+  const course = await prisma.course.findFirst({
+    where: { id: path.courseId, status: 'PUBLISHED' },
     include: {
       modules: {
         where: { status: 'PUBLISHED' },

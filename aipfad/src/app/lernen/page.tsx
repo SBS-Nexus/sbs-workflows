@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { Badge, Card, SectionHeading } from '@/components/ui/primitives';
 import { prisma } from '@/server/db/prisma';
+import { veroeffentlichtesModul } from '@/server/content/publication';
 
 export const metadata: Metadata = {
   title: 'Lernen',
@@ -14,7 +15,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function LernenPage(): Promise<React.ReactElement> {
   const modules = await prisma.courseModule.findMany({
-    where: { status: 'PUBLISHED' },
+    where: veroeffentlichtesModul,
     orderBy: { order: 'asc' },
     include: {
       lessons: {

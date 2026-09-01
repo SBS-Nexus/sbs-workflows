@@ -1,5 +1,6 @@
 import 'server-only';
 import { prisma } from '@/server/db/prisma';
+import { veroeffentlichteAufgabe, veroeffentlichteLektion } from '@/server/content/publication';
 // Kein `import type`: `Prisma.PrismaClientKnownRequestError` wird unten als
 // Wert für die `instanceof`-Prüfung gebraucht, nicht nur als Typ.
 import { Prisma } from '@/generated/prisma/client';
@@ -13,16 +14,19 @@ const lessonWithRelations = {
   include: {
     module: { include: { course: true } },
     concepts: { include: { concept: true } },
-    exercises: { where: { status: 'PUBLISHED' as const }, orderBy: { order: 'asc' as const } },
+    exercises: { where: veroeffentlichteAufgabe, orderBy: { order: 'asc' as const } },
   },
 } satisfies Prisma.LessonDefaultArgs;
 
 export type LessonWithRelations = Prisma.LessonGetPayload<typeof lessonWithRelations>;
 
 export async function getLessonBySlug(slug: string): Promise<LessonWithRelations | null> {
-  const lesson = await prisma.lesson.findUnique({ where: { slug }, ...lessonWithRelations });
-  if (!lesson || lesson.status !== 'PUBLISHED') return null;
-  return lesson;
+  // Auch Modul und Kurs müssen veröffentlicht sein — ein zurückgezogenes
+  // Modul nimmt seine Lektionen mit (Codex-Review auf PR #29).
+  return prisma.lesson.findFirst({
+    where: { slug, ...veroeffentlichteLektion },
+    ...lessonWithRelations,
+  });
 }
 
 /**
@@ -82,7 +86,7 @@ export async function checkLessonCompletion(
   lessonId: string,
 ): Promise<LessonCompletionCheck> {
   const exercises = await prisma.exercise.findMany({
-    where: { lessonId, status: 'PUBLISHED' },
+    where: { lessonId, ...veroeffentlichteAufgabe },
     select: { id: true },
   });
 

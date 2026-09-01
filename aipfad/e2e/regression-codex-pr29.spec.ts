@@ -173,3 +173,52 @@ test('Ein fehlgeschlagener Lab-Abschluss lässt sich erneut speichern', async ({
   const labCard = page.locator('a', { hasText: 'Prompt-Reparatur-Lab' });
   await expect(labCard.getByText('Abgeschlossen')).toBeVisible();
 });
+
+/**
+ * Regressionstest für den Codex-Fund "Implement or stop advertising no-op
+ * terminal commands" (PR #29): Die beworbenen Befehle hatten keine Wirkung.
+ * Geprüft wird hier die Verdrahtung in der Oberfläche — die Befehlslogik
+ * selbst deckt tests/unit/terminal.test.ts ab.
+ */
+test('Terminal-Lab führt die beworbenen Befehle wirklich aus', async ({ page }) => {
+  await registerAndOnboard(page);
+  await page.goto('/labs/terminal-lab');
+
+  const eingabe = page.getByLabel('Befehl eingeben');
+
+  // Nach dem Ausführen leert die Komponente das Eingabefeld. Darauf wird
+  // gewartet, bevor der nächste Befehl getippt wird — sonst kann ein `fill`
+  // noch vor dem Zurücksetzen landen und wird davon überschrieben.
+  async function befehl(text: string): Promise<void> {
+    await eingabe.fill(text);
+    await eingabe.press('Enter');
+    await expect(eingabe).toHaveValue('');
+  }
+
+  // mkdir legt ein Verzeichnis an, in das man wechseln kann.
+  await befehl('mkdir test');
+  await befehl('cd test');
+  await befehl('pwd');
+  // Exakt: derselbe Pfad steht auch in der Eingabeaufforderung darunter.
+  await expect(page.getByText('/home/lernperson/test', { exact: true })).toBeVisible();
+
+  // touch legt eine Datei an, die ls anschliessend zeigt.
+  await befehl('touch datei.txt');
+  await befehl('ls');
+  await expect(page.getByText('datei.txt', { exact: true })).toBeVisible();
+
+  // which nennt einen plausiblen Pfad.
+  await befehl('which ls');
+  await expect(page.getByText('/usr/bin/ls')).toBeVisible();
+
+  // Ein nicht angebotener Befehl wird klar abgelehnt, statt still zu verpuffen.
+  await befehl('sudo rm -rf /');
+  await expect(page.getByText('Befehl nicht verfügbar in diesem Lab: sudo')).toBeVisible();
+
+  // clear leert den sichtbaren Verlauf, ohne den Simulator zurückzusetzen.
+  await befehl('clear');
+  await expect(page.getByText('/usr/bin/ls')).toHaveCount(0);
+  await befehl('pwd');
+  // Exakt: derselbe Pfad steht auch in der Eingabeaufforderung darunter.
+  await expect(page.getByText('/home/lernperson/test', { exact: true })).toBeVisible();
+});
