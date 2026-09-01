@@ -220,11 +220,14 @@ export function fuehreBefehlAus(
       if (!existiert(fileSystem, quelle)) {
         return unveraendert(`mv: Nicht gefunden: ${args[0]}`);
       }
+      // Ist das Ziel ein vorhandenes Verzeichnis, wandert die Quelle HINEIN —
+      // auch dann, wenn die Quelle selbst ein Verzeichnis ist. Andernfalls
+      // benannte `mv dokumente bilder` das eine Verzeichnis in das andere um
+      // und überschrieb dabei dessen Inhalt (Codex-Review auf PR #29).
       const angegeben = aufloesen(cwd, args[1]);
-      const ziel =
-        istVerzeichnis(fileSystem, angegeben) && !istVerzeichnis(fileSystem, quelle)
-          ? normalisierePfad(`${angegeben}/${quelle.split('/').pop() ?? ''}`)
-          : angegeben;
+      const ziel = istVerzeichnis(fileSystem, angegeben)
+        ? normalisierePfad(`${angegeben}/${quelle.split('/').pop() ?? ''}`)
+        : angegeben;
       if (ziel === quelle) return { cwd, fileSystem, output: '', clearHistory: false };
       if (ziel.startsWith(`${quelle}/`)) {
         return unveraendert(`mv: ${args[1]} liegt innerhalb von ${args[0]}.`);

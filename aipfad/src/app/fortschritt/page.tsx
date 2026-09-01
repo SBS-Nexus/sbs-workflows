@@ -39,7 +39,13 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
         exercise: veroeffentlichteAufgabe,
       },
     }),
-    prisma.lessonProgress.count({ where: { userId: user.id, state: 'COMPLETED' } }),
+    // Zähler und Nenner müssen denselben Bestand meinen: Wird ein Modul
+    // zurückgezogen, verschwinden seine Lektionen aus der Gesamtzahl — dann
+    // dürfen bereits abgeschlossene Lektionen daraus auch nicht mehr
+    // mitgezählt werden, sonst steht dort "5 von 4" (Codex-Review auf PR #29).
+    prisma.lessonProgress.count({
+      where: { userId: user.id, state: 'COMPLETED', lesson: veroeffentlichteLektion },
+    }),
     prisma.lesson.count({ where: veroeffentlichteLektion }),
   ]);
 

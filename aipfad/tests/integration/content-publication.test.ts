@@ -5,6 +5,7 @@ import { hashPassword } from '@/server/auth/password';
 import { getPublicExercise } from '@/server/services/exercise-service';
 import { getLessonBySlug, startLesson } from '@/server/services/lesson-service';
 import { getNextStep } from '@/server/services/path-service';
+import { veroeffentlichteLektion } from '@/server/content/publication';
 
 /**
  * Ein Inhalt ist nur lernbar, wenn seine VOLLSTÄNDIGE Kette veröffentlicht
@@ -93,6 +94,33 @@ describe('Veröffentlichung über die gesamte Inhaltskette', () => {
 
     const nachher = await getNextStep(userId);
     expect(nachher.kind === 'lesson' && nachher.lessonSlug).not.toBe(lessonSlug);
+  });
+
+  it('zählt eine abgeschlossene Lektion unter zurückgezogenem Modul nicht mehr mit', async () => {
+    // Zähler und Nenner der Fortschrittsanzeige müssen denselben Bestand
+    // meinen — sonst steht dort mehr Abgeschlossenes als es Lektionen gibt
+    // (Codex-Review auf PR #29).
+    await prisma.lessonProgress.create({
+      data: { userId, lessonId, state: 'COMPLETED', completedAt: new Date() },
+    });
+
+    const zaehle = () =>
+      Promise.all([
+        prisma.lessonProgress.count({
+          where: { userId, state: 'COMPLETED', lesson: veroeffentlichteLektion },
+        }),
+        prisma.lesson.count({ where: veroeffentlichteLektion }),
+      ]);
+
+    const [vorherAbgeschlossen, vorherGesamt] = await zaehle();
+    expect(vorherAbgeschlossen).toBe(1);
+    expect(vorherGesamt).toBeGreaterThan(0);
+
+    await prisma.courseModule.update({ where: { id: moduleId }, data: { status: 'DRAFT' } });
+
+    const [nachherAbgeschlossen, nachherGesamt] = await zaehle();
+    expect(nachherAbgeschlossen).toBe(0);
+    expect(nachherAbgeschlossen).toBeLessThanOrEqual(nachherGesamt);
   });
 
   it('F) fällige Wiederholung unter zurückgezogenem Modul wird nicht angeboten', async () => {

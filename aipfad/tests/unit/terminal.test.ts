@@ -183,3 +183,22 @@ describe('Nicht verfügbare Befehle', () => {
     }
   });
 });
+
+describe('mv in ein vorhandenes Verzeichnis', () => {
+  it('verschiebt ein Verzeichnis HINEIN statt es zu überschreiben', () => {
+    // Vorher benannte `mv dokumente bilder` das Verzeichnis um und
+    // überschrieb dabei `bilder` samt Inhalt (Codex-Review auf PR #29).
+    const { fileSystem } = laufe(['mv dokumente bilder']);
+
+    expect(fileSystem['/home/lernperson/bilder']).toBeNull();
+    expect(fileSystem['/home/lernperson/bilder/dokumente']).toBeNull();
+    expect(fileSystem['/home/lernperson/bilder/dokumente/notizen.txt']).toBe('Erste Notiz.');
+    expect(fileSystem['/home/lernperson/dokumente']).toBeUndefined();
+  });
+
+  it('behält ein bereits vorhandenes Zielverzeichnis mitsamt Inhalt', () => {
+    const { fileSystem } = laufe(['touch bilder/foto.png', 'mkdir kiste', 'mv bilder kiste']);
+    expect(fileSystem['/home/lernperson/kiste/bilder/foto.png']).toBe('');
+    expect(fileSystem['/home/lernperson/kiste']).toBeNull();
+  });
+});
