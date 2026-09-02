@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { Badge, cx } from '@/components/ui/primitives';
 import { Icon } from '@/components/ui/icon';
-import type { SetupCommand } from '@/content/setup-commands';
+import { istGefaehrlich, type SetupCommand } from '@/content/setup-commands';
+import { GEFAHR_BESCHRIFTUNG, WIRKBEREICH_BESCHRIFTUNG } from '@/domain/commands/safety';
 
 export function CommandCard({ command }: { command: SetupCommand }): React.ReactElement {
   const [copied, setCopied] = useState(false);
@@ -23,7 +24,7 @@ export function CommandCard({ command }: { command: SetupCommand }): React.React
     <div
       className={cx(
         'rounded-[var(--radius-md)] border p-4',
-        command.dangerous
+        istGefaehrlich(command)
           ? 'border-alert-500 bg-alert-100 dark:bg-alert-900/30'
           : 'border-[var(--border)] bg-[var(--bg-raised)]',
       )}
@@ -41,18 +42,38 @@ export function CommandCard({ command }: { command: SetupCommand }): React.React
       </div>
       <p className="mt-2 text-sm text-[var(--fg-muted)]">{command.description}</p>
       <p className="mt-1 text-sm">{command.whatHappens}</p>
+
+      {command.example ? (
+        <p className="mt-3 overflow-x-auto rounded-[var(--radius-sm)] bg-ink-100 px-3 py-2 font-mono text-xs dark:bg-ink-800">
+          {command.example}
+        </p>
+      ) : null}
+
+      {command.prerequisites && command.prerequisites.length > 0 ? (
+        <p className="mt-2 text-xs text-[var(--fg-muted)]">
+          Vorher nötig: {command.prerequisites.join(' · ')}
+        </p>
+      ) : null}
+
       <div className="mt-3 flex flex-wrap gap-2">
-        {command.dangerous ? (
-          <Badge tone="alert">Gefährlich, nicht rückgängig zu machen</Badge>
-        ) : null}
-        {!command.reversible && !command.dangerous ? (
-          <Badge tone="caution">Nicht rückgängig zu machen</Badge>
-        ) : null}
-        {command.network ? (
-          <Badge tone="info">Braucht Netzwerk</Badge>
-        ) : (
-          <Badge tone="neutral">Kein Netzwerk nötig</Badge>
-        )}
+        <Badge
+          tone={
+            istGefaehrlich(command)
+              ? 'alert'
+              : command.safety.gefahr === 'achtsam'
+                ? 'caution'
+                : 'success'
+          }
+        >
+          {GEFAHR_BESCHRIFTUNG[command.safety.gefahr]}
+        </Badge>
+        {command.safety.wirkung.map((bereich) => (
+          <Badge key={bereich} tone="neutral">
+            {WIRKBEREICH_BESCHRIFTUNG[bereich]}
+          </Badge>
+        ))}
+        {!command.safety.reversibel ? <Badge tone="alert">Nicht rückgängig zu machen</Badge> : null}
+        {command.safety.netzwerk ? <Badge tone="info">Braucht Netzwerk</Badge> : null}
       </div>
     </div>
   );

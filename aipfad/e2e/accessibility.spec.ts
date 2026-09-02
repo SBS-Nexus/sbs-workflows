@@ -87,3 +87,61 @@ test('Labs-Übersicht: keine serious/critical Verstöße', async ({ page }) => {
 
   await expectNoSeriousViolations(page);
 });
+
+/**
+ * Ausbaustufe 2: Die neuen, interaktiven Bestandteile werden ausdrücklich
+ * mitgeprüft — Commit-Graph, Git-Simulator und der Konflikteditor sind die
+ * Stellen mit der meisten eigenen Darstellungslogik und damit dem größten
+ * Risiko für fehlende Beschriftungen oder unerreichbare Bedienelemente.
+ *
+ * Bewusst EIN Test über alle Seiten statt fünf einzelne: Jede Anmeldung legt
+ * ein Konto an, und die Registrierung ist absichtlich mengenbegrenzt. Ein
+ * Testlauf, der diese Grenze selbst reißt, prüft am Ende nur noch sich
+ * selbst. Welche Seite gescheitert ist, steht dank `test.step` trotzdem im
+ * Fehlerbericht.
+ */
+test('Ausbaustufe 2: keine serious/critical Verstöße auf den neuen Seiten', async ({ page }) => {
+  const email = `e2e-a11y-git-${Date.now()}-${Math.random().toString(36).slice(2)}@aipfad-test.local`;
+  await page.goto('/registrieren');
+  await page.getByLabel('Name').fill('A11y Test');
+  await page.getByLabel('E-Mail-Adresse').fill(email);
+  await page.getByLabel('Passwort').fill('ein-sehr-sicheres-testpasswort-123');
+  await page.getByRole('button', { name: 'Konto anlegen' }).click();
+  await expect(page).toHaveURL(/\/onboarding$/);
+  await page.getByRole('button', { name: 'Weiter' }).click();
+  // Erst wenn das Onboarding wirklich abgeschlossen ist, weiterspringen —
+  // sonst landet der Aufruf auf der Anmeldeseite.
+  await expect(page).toHaveURL(/\/pfad$/);
+
+  await test.step('Git-State-Lab', async () => {
+    await page.goto('/labs/git-state-lab');
+    await expect(page.getByLabel('Git-Befehl eingeben')).toBeVisible();
+    await expectNoSeriousViolations(page);
+  });
+
+  await test.step('Branch-Lab mit Commit-Graph', async () => {
+    await page.goto('/labs/branch-lab');
+    await expect(page.getByLabel('Git-Befehl eingeben')).toBeVisible();
+    await expectNoSeriousViolations(page);
+  });
+
+  await test.step('Merge-Konflikt-Lab', async () => {
+    await page.goto('/labs/merge-conflict-lab');
+    await expect(page.getByRole('group', { name: /Konfliktstelle k1/ })).toBeVisible();
+    await expectNoSeriousViolations(page);
+  });
+
+  await test.step('Einsortier-Aufgabe', async () => {
+    await page.goto('/lektion/die-drei-orte/3');
+    await expect(
+      page.getByLabel('Kategorie für notizen.txt — neu angelegt, noch kein git add'),
+    ).toBeVisible();
+    await expectNoSeriousViolations(page);
+  });
+
+  await test.step('Interpretationsaufgabe mit git-status-Ansicht', async () => {
+    await page.goto('/lektion/die-drei-orte/4');
+    await expect(page.getByText('Du führst jetzt git commit aus.')).toBeVisible();
+    await expectNoSeriousViolations(page);
+  });
+});

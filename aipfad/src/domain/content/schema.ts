@@ -23,6 +23,9 @@ export const exerciseTypeSchema = z.enum([
   'SCENARIO_DECISION',
   'TERMINAL_SIMULATION',
   'PROMPT_REPAIR',
+  'INTERPRETATION',
+  'CLASSIFICATION',
+  'CONFLICT_RESOLUTION',
   'TRANSFER',
   'SPACED_REVIEW',
 ]);
@@ -131,7 +134,15 @@ export const courseSchema = z.object({
 export type CourseContent = z.infer<typeof courseSchema>;
 export type CourseDraft = z.input<typeof courseSchema>;
 
-export const labKindSchema = z.enum(['TERMINAL', 'TOKENIZER', 'CONTEXT_WINDOW', 'PROMPT_REPAIR']);
+export const labKindSchema = z.enum([
+  'TERMINAL',
+  'TOKENIZER',
+  'CONTEXT_WINDOW',
+  'PROMPT_REPAIR',
+  'GIT_STATE',
+  'BRANCH',
+  'MERGE_CONFLICT',
+]);
 
 export const labSchema = z.object({
   slug: z.string().regex(/^[a-z0-9-]+$/),
@@ -191,10 +202,31 @@ function checkPlaceholders(where: string, text: string, issues: ContentIssue[]):
  * Prüft einen Kurs samt Konzepten und Labs auf Konsistenz. Wird vom
  * Seed-Skript, vom Content-Validator-Skript und von den Unit-Tests verwendet.
  */
+/**
+ * Grenze, ab der ein Fließtext auf einer Lernseite zur Textwand wird.
+ *
+ * Die Regel "ein Bildschirm, eine Entscheidung" lässt sich nicht messen, die
+ * Textlänge schon. Der Wert liegt bewusst großzügig: Er soll Ausreißer
+ * melden, nicht Prosa verbieten.
+ */
+const MAX_FLIESSTEXT = 600;
+
+/**
+ * Befehle, die in Lernprosa auftauchen, gehören in die Befehlsreferenz.
+ * Sonst steht im Lernstoff ein Befehl, den niemand nachschlagen kann.
+ */
+const BEFEHL_IM_TEXT = /\b(git|gh)\s+[a-z][a-z-]*/g;
+
 export function validateCourseGraph(input: {
   course: CourseContent;
   concepts: ConceptContent[];
   labs: LabContent[];
+  /**
+   * Die Befehle aus der Referenz — für die Prüfung, ob im Lernstoff genannte
+   * Befehle auch nachschlagbar sind. Wird nichts übergeben, entfällt die
+   * Prüfung (die reinen Inhaltstests brauchen sie nicht).
+   */
+  referenzBefehle?: string[];
 }): ContentValidationResult {
   const issues: ContentIssue[] = [];
   const conceptSlugs = new Set(input.concepts.map((c) => c.slug));
@@ -244,6 +276,9 @@ export function validateCourseGraph(input: {
       lessonSlugs.add(lesson.slug);
 
       checkPlaceholders(where, `${lesson.everydayProblem} ${lesson.mentalModel}`, issues);
+      checkTextwand(where, 'everydayProblem', lesson.everydayProblem, issues);
+      checkTextwand(where, 'mentalModel', lesson.mentalModel, issues);
+      checkBefehleNachschlagbar(where, lesson, input.referenzBefehle, issues);
 
       for (const slug of [
         ...lesson.primaryConceptSlugs,
@@ -314,6 +349,14 @@ export function validateCourseGraph(input: {
     }
     labSlugs.add(lab.slug);
     checkPlaceholders(where, `${lab.summary} ${lab.instructions}`, issues);
+    if (lab.relatedConceptSlugs.length === 0) {
+      issues.push({
+        severity: 'warning',
+        where,
+        message:
+          'Kein verknüpftes Konzept. Ohne Konzeptbezug taucht das Lab weder im Wissensgraphen noch in der Wiederholung auf.',
+      });
+    }
     for (const slug of lab.relatedConceptSlugs) {
       if (!conceptSlugs.has(slug)) {
         issues.push({ severity: 'error', where, message: `Konzept "${slug}" existiert nicht.` });
@@ -322,6 +365,106 @@ export function validateCourseGraph(input: {
   }
 
   return { ok: issues.every((i) => i.severity !== 'error'), issues };
+}
+
+/**
+ * Prüft die Befehlsreferenz selbst.
+ *
+ * Ein destruktiver oder nicht rückholbarer Befehl MUSS erklären, was genau
+ * verloren gehen kann — sonst steht dort eine Warnfarbe ohne Inhalt. Die
+ * Bedingung stammt aus `domain/commands/safety.ts`, damit Anzeige und
+ * Prüfung dieselbe Regel meinen.
+ */
+export function validateCommandReference(
+  befehle: {
+    command: string;
+    whatHappens: string;
+    safety: { gefahr: string; reversibel: boolean; wirkung: string[] };
+  }[],
+): ContentValidationResult {
+  const issues: ContentIssue[] = [];
+  const gesehen = new Set<string>();
+
+  for (const befehl of befehle) {
+    const where = `befehl:${befehl.command}`;
+    if (gesehen.has(befehl.command)) {
+      issues.push({ severity: 'error', where, message: 'Doppelter Befehlseintrag.' });
+    }
+    gesehen.add(befehl.command);
+
+    checkPlaceholders(where, `${befehl.command} ${befehl.whatHappens}`, issues);
+
+    const heikel = befehl.safety.gefahr === 'destruktiv' || !befehl.safety.reversibel;
+    if (heikel && befehl.whatHappens.length < 60) {
+      issues.push({
+        severity: 'error',
+        where,
+        message:
+          'Destruktiver oder nicht rückholbarer Befehl ohne ausreichende Erklärung. Es muss dastehen, was konkret verloren gehen kann.',
+      });
+    }
+
+    if (befehl.safety.wirkung.length === 0) {
+      issues.push({ severity: 'error', where, message: 'Kein Wirkbereich angegeben.' });
+    }
+    if (befehl.safety.wirkung.includes('nur-lesend') && befehl.safety.wirkung.length > 1) {
+      issues.push({
+        severity: 'error',
+        where,
+        message: '"nur-lesend" schließt andere Wirkbereiche aus — das widerspricht sich.',
+      });
+    }
+  }
+
+  return { ok: issues.every((i) => i.severity !== 'error'), issues };
+}
+
+function checkTextwand(where: string, feld: string, text: string, issues: ContentIssue[]): void {
+  if (text.length > MAX_FLIESSTEXT) {
+    issues.push({
+      severity: 'warning',
+      where,
+      message: `${feld} ist ${text.length} Zeichen lang. Ab ${MAX_FLIESSTEXT} wird daraus eine Textwand — lieber aufteilen oder ins Nachschlagen auslagern.`,
+    });
+  }
+}
+
+/**
+ * Nennt eine Lektion einen Git- oder gh-Befehl, muss er in der
+ * Befehlsreferenz stehen. Sonst liest jemand "git reset --hard" im Lernstoff
+ * und findet nirgends, was der Befehl anrichtet.
+ */
+function checkBefehleNachschlagbar(
+  where: string,
+  lesson: LessonContent,
+  referenzBefehle: string[] | undefined,
+  issues: ContentIssue[],
+): void {
+  if (!referenzBefehle) return;
+
+  // Auf den Befehlsnamen ohne Argumente normalisieren: In der Referenz steht
+  // `git add <datei>`, im Text `git add liesmich.md`.
+  const bekannt = new Set(
+    referenzBefehle.map((befehl) => befehl.split(/\s+/).slice(0, 2).join(' ')),
+  );
+
+  const text = [
+    lesson.everydayProblem,
+    lesson.mentalModel,
+    ...lesson.learningObjectives,
+    ...lesson.commonMistakes.flatMap((m) => [m.mistake, m.why, m.fix]),
+  ].join(' ');
+
+  const genannt = new Set(text.match(BEFEHL_IM_TEXT) ?? []);
+  for (const befehl of genannt) {
+    if (!bekannt.has(befehl)) {
+      issues.push({
+        severity: 'warning',
+        where,
+        message: `"${befehl}" wird im Lernstoff genannt, steht aber nicht in der Befehlsreferenz.`,
+      });
+    }
+  }
 }
 
 function validateExercise(

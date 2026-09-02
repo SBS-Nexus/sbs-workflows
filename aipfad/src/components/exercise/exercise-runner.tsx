@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { submitExerciseAction, revealHintAction } from '@/server/actions/exercise-actions';
-import { Button, Callout, Badge } from '@/components/ui/primitives';
+import { Button, Callout, Badge, inputClass } from '@/components/ui/primitives';
+import { CommitGraph, DiffAnsicht, GitStatusAnsicht } from '@/components/git/git-views';
+import type { DateiStatus } from '@/domain/git/working-tree';
 import type { PublicExercise } from '@/server/services/exercise-service';
 import type { Hint, Submission } from '@/domain/content/exercise-payload';
 import { hintLevelLabel } from '@/domain/hints/hint-ladder';
@@ -36,7 +38,43 @@ type PublicPayload =
       allowedCommands: string[];
       dangerousCommands: string[];
     }
-  | { kind: 'promptRepair'; flawedPrompt: string; flaws: string[]; options: PublicChoiceOption[] };
+  | { kind: 'promptRepair'; flawedPrompt: string; flaws: string[]; options: PublicChoiceOption[] }
+  | {
+      kind: 'interpretation';
+      ansicht: PublicAnsicht;
+      frage: string;
+      options: PublicChoiceOption[];
+    }
+  | {
+      kind: 'classification';
+      instruction: string;
+      categories: { id: string; label: string; description?: string }[];
+      items: { id: string; text: string }[];
+    }
+  | {
+      kind: 'conflictResolution';
+      pfad: string;
+      unserLabel: string;
+      ihrLabel: string;
+      abschnitte: (
+        | { art: 'gemeinsam'; zeilen: string[] }
+        | { art: 'konflikt'; id: string; unsere: string[]; ihre: string[] }
+      )[];
+    };
+
+/** Was eine Interpretationsaufgabe zeigt — ohne jede Lösungsangabe. */
+type PublicAnsicht =
+  | { art: 'diff'; pfad: string; zeilen: { marke: 'kontext' | 'hinzu' | 'weg'; text: string }[] }
+  | {
+      art: 'branchGraph';
+      commits: { id: string; nachricht: string; eltern: string[] }[];
+      branches: Record<string, string>;
+      aktuellerBranch: string;
+    }
+  | {
+      art: 'gitStatus';
+      eintraege: { pfad: string; status: DateiStatus; auchUngestagt: boolean }[];
+    };
 
 export function ExerciseRunner({
   exercise,
@@ -239,7 +277,238 @@ function ExerciseForm({
       return <FillInForm payload={payload} pending={pending} onSubmit={onSubmit} />;
     case 'terminalSimulation':
       return <TerminalForm payload={payload} pending={pending} onSubmit={onSubmit} />;
+    case 'interpretation':
+      return <InterpretationForm payload={payload} pending={pending} onSubmit={onSubmit} />;
+    case 'classification':
+      return <ClassificationForm payload={payload} pending={pending} onSubmit={onSubmit} />;
+    case 'conflictResolution':
+      return <ConflictResolutionForm payload={payload} pending={pending} onSubmit={onSubmit} />;
   }
+}
+
+/** Zeigt die Ansicht einer Interpretationsaufgabe. */
+function AnsichtDarstellung({ ansicht }: { ansicht: PublicAnsicht }): React.ReactElement {
+  switch (ansicht.art) {
+    case 'diff':
+      return <DiffAnsicht pfad={ansicht.pfad} zeilen={ansicht.zeilen} />;
+    case 'branchGraph':
+      return (
+        <CommitGraph
+          commits={ansicht.commits}
+          branches={ansicht.branches}
+          aktuellerBranch={ansicht.aktuellerBranch}
+        />
+      );
+    case 'gitStatus':
+      return <GitStatusAnsicht eintraege={ansicht.eintraege} />;
+  }
+}
+
+/**
+ * Erst ansehen, dann schließen. Die Ansicht steht oben, die Frage darunter —
+ * die Reihenfolge ist Absicht: Es geht um das Ablesen, nicht um das Erinnern.
+ */
+function InterpretationForm({
+  payload,
+  pending,
+  onSubmit,
+}: {
+  payload: Extract<PublicPayload, { kind: 'interpretation' }>;
+  pending: boolean;
+  onSubmit: (submission: Submission) => void;
+}): React.ReactElement {
+  const [selected, setSelected] = useState<string | null>(null);
+
+  return (
+    <div>
+      <div className="mb-4">
+        <AnsichtDarstellung ansicht={payload.ansicht} />
+      </div>
+      <fieldset className="space-y-2.5">
+        <legend className="mb-2 text-sm font-semibold">{payload.frage}</legend>
+        {payload.options.map((option) => (
+          <label
+            key={option.id}
+            className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border)] p-3 has-[:checked]:border-signal-500 has-[:checked]:bg-signal-100 dark:has-[:checked]:bg-signal-900/30"
+          >
+            <input
+              type="radio"
+              name="interpretation"
+              checked={selected === option.id}
+              onChange={() => setSelected(option.id)}
+              className="mt-1"
+            />
+            <span>{option.text}</span>
+          </label>
+        ))}
+      </fieldset>
+      <Button
+        className="mt-5"
+        disabled={pending || !selected}
+        onClick={() => selected && onSubmit({ kind: 'interpretation', optionId: selected })}
+      >
+        {pending ? 'Wird geprüft …' : 'Antwort abgeben'}
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Einsortieren über Auswahllisten statt Ziehen-und-Ablegen: Das ist mit der
+ * Tastatur bedienbar, funktioniert auf dem Telefon und braucht keine
+ * Ersatzbedienung nebenher.
+ */
+function ClassificationForm({
+  payload,
+  pending,
+  onSubmit,
+}: {
+  payload: Extract<PublicPayload, { kind: 'classification' }>;
+  pending: boolean;
+  onSubmit: (submission: Submission) => void;
+}): React.ReactElement {
+  const [zuordnung, setZuordnung] = useState<Record<string, string>>({});
+  const vollstaendig = payload.items.every((item) => zuordnung[item.id]);
+
+  return (
+    <div>
+      <p className="mb-4 text-[var(--fg-muted)]">{payload.instruction}</p>
+
+      <ul className="space-y-2.5">
+        {payload.items.map((item) => (
+          <li
+            key={item.id}
+            className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <span className="font-mono text-sm">{item.text}</span>
+            <select
+              aria-label={`Kategorie für ${item.text}`}
+              value={zuordnung[item.id] ?? ''}
+              onChange={(e) => setZuordnung((prev) => ({ ...prev, [item.id]: e.target.value }))}
+              className={inputClass}
+            >
+              <option value="">Bitte wählen …</option>
+              {payload.categories.map((kategorie) => (
+                <option key={kategorie.id} value={kategorie.id}>
+                  {kategorie.label}
+                </option>
+              ))}
+            </select>
+          </li>
+        ))}
+      </ul>
+
+      {payload.categories.some((k) => k.description) ? (
+        <dl className="mt-4 space-y-1 text-xs text-[var(--fg-muted)]">
+          {payload.categories
+            .filter((k) => k.description)
+            .map((k) => (
+              <div key={k.id} className="flex gap-2">
+                <dt className="font-medium">{k.label}:</dt>
+                <dd>{k.description}</dd>
+              </div>
+            ))}
+        </dl>
+      ) : null}
+
+      <Button
+        className="mt-5"
+        disabled={pending || !vollstaendig}
+        onClick={() => onSubmit({ kind: 'classification', zuordnung })}
+      >
+        {pending ? 'Wird geprüft …' : 'Antwort abgeben'}
+      </Button>
+    </div>
+  );
+}
+
+/** Je Konfliktstelle bewusst entscheiden — dieselbe Frage wie im Lab, nur bewertet. */
+function ConflictResolutionForm({
+  payload,
+  pending,
+  onSubmit,
+}: {
+  payload: Extract<PublicPayload, { kind: 'conflictResolution' }>;
+  pending: boolean;
+  onSubmit: (submission: Submission) => void;
+}): React.ReactElement {
+  const [entscheidungen, setEntscheidungen] = useState<Record<string, 'unsere' | 'ihre' | 'beide'>>(
+    {},
+  );
+  const konflikte = payload.abschnitte.filter(
+    (a): a is Extract<(typeof payload.abschnitte)[number], { art: 'konflikt' }> =>
+      a.art === 'konflikt',
+  );
+  const vollstaendig = konflikte.every((k) => entscheidungen[k.id]);
+
+  const wahlen = [
+    { wert: 'unsere' as const, text: `Meine behalten (${payload.unserLabel})` },
+    { wert: 'ihre' as const, text: `Ihre übernehmen (${payload.ihrLabel})` },
+    { wert: 'beide' as const, text: 'Beide behalten' },
+  ];
+
+  return (
+    <div>
+      <p className="mb-3 font-mono text-xs text-[var(--fg-muted)]">{payload.pfad}</p>
+
+      <div className="mb-4 overflow-x-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-ink-900 p-4">
+        <pre className="min-w-max font-mono text-xs leading-relaxed text-ink-50">
+          {payload.abschnitte.map((abschnitt, index) =>
+            abschnitt.art === 'gemeinsam' ? (
+              <span key={index} className="block">
+                {abschnitt.zeilen.join('\n') || ' '}
+              </span>
+            ) : (
+              <span key={index} className="block text-alert-100">
+                {[
+                  `<<<<<<< ${payload.unserLabel}`,
+                  ...abschnitt.unsere,
+                  '=======',
+                  ...abschnitt.ihre,
+                  `>>>>>>> ${payload.ihrLabel}`,
+                ].join('\n')}
+              </span>
+            ),
+          )}
+        </pre>
+      </div>
+
+      <div className="space-y-3">
+        {konflikte.map((konflikt) => (
+          <fieldset
+            key={konflikt.id}
+            className="rounded-[var(--radius-md)] border border-[var(--border)] p-3"
+          >
+            <legend className="px-1 text-xs font-semibold">Konfliktstelle {konflikt.id}</legend>
+            <div className="space-y-2">
+              {wahlen.map((wahl) => (
+                <label key={wahl.wert} className="flex cursor-pointer items-start gap-3 text-sm">
+                  <input
+                    type="radio"
+                    name={`konflikt-${konflikt.id}`}
+                    checked={entscheidungen[konflikt.id] === wahl.wert}
+                    onChange={() =>
+                      setEntscheidungen((prev) => ({ ...prev, [konflikt.id]: wahl.wert }))
+                    }
+                    className="mt-1"
+                  />
+                  <span>{wahl.text}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </div>
+
+      <Button
+        className="mt-5"
+        disabled={pending || !vollstaendig}
+        onClick={() => onSubmit({ kind: 'conflictResolution', entscheidungen })}
+      >
+        {pending ? 'Wird geprüft …' : 'Antwort abgeben'}
+      </Button>
+    </div>
+  );
 }
 
 /**

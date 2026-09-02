@@ -91,7 +91,135 @@ export function gradeSubmission({ payload, submission }: GradeInput): GradingRes
         payload,
         submission as Extract<Submission, { kind: 'terminalSimulation' }>,
       );
+    case 'interpretation':
+      return gradeInterpretation(
+        payload,
+        submission as Extract<Submission, { kind: 'interpretation' }>,
+      );
+    case 'classification':
+      return gradeClassification(
+        payload,
+        submission as Extract<Submission, { kind: 'classification' }>,
+      );
+    case 'conflictResolution':
+      return gradeConflictResolution(
+        payload,
+        submission as Extract<Submission, { kind: 'conflictResolution' }>,
+      );
   }
+}
+
+/**
+ * Eine Interpretationsaufgabe wird wie eine Einfachauswahl bewertet — der
+ * Unterschied liegt nicht in der Bewertung, sondern in dem, was zu sehen ist.
+ */
+function gradeInterpretation(
+  payload: Extract<ExercisePayload, { kind: 'interpretation' }>,
+  submission: Extract<Submission, { kind: 'interpretation' }>,
+): GradingResult {
+  const chosen = payload.options.find((o) => o.id === submission.optionId);
+  const correct = submission.optionId === payload.correctOptionId;
+
+  return {
+    outcome: correct ? 'PASSED' : 'FAILED',
+    score: correct ? 1 : 0,
+    errorType: correct ? 'NONE' : 'MISCONCEPTION',
+    feedback: [
+      chosen
+        ? { tone: correct ? 'success' : 'issue', message: chosen.feedback }
+        : { tone: 'issue', message: 'Es wurde keine Antwort ausgewählt.' },
+    ],
+    marks: { [submission.optionId]: correct },
+  };
+}
+
+/**
+ * Einsortieren: Jedes Element zählt einzeln. Teilweise richtig ist hier eine
+ * ehrliche Zwischenstufe — wer vier von fünf Dateizuständen trifft, hat das
+ * Modell im Kern verstanden und an einer Stelle danebengegriffen.
+ */
+function gradeClassification(
+  payload: Extract<ExercisePayload, { kind: 'classification' }>,
+  submission: Extract<Submission, { kind: 'classification' }>,
+): GradingResult {
+  const marks: Record<string, boolean> = {};
+  const feedback: FeedbackItem[] = [];
+  let richtig = 0;
+
+  for (const item of payload.items) {
+    const gewaehlt = submission.zuordnung[item.id];
+    const trifftZu = gewaehlt === item.correctCategoryId;
+    marks[item.id] = trifftZu;
+    if (trifftZu) richtig += 1;
+    else feedback.push({ tone: 'issue', message: `${item.text}: ${item.feedback}` });
+  }
+
+  const alleRichtig = richtig === payload.items.length;
+  if (alleRichtig) {
+    feedback.unshift({ tone: 'success', message: 'Alle Zuordnungen stimmen.' });
+  } else {
+    feedback.unshift({
+      tone: 'info',
+      message: `${richtig} von ${payload.items.length} richtig zugeordnet.`,
+    });
+  }
+
+  const anteil = richtig / payload.items.length;
+  const teilweise = anteil >= 0.5;
+
+  return {
+    outcome: alleRichtig ? 'PASSED' : teilweise ? 'PARTIAL' : 'FAILED',
+    score: alleRichtig ? 1 : teilweise ? anteil * 0.6 : 0,
+    errorType: alleRichtig ? 'NONE' : teilweise ? 'INCOMPLETE' : 'MISCONCEPTION',
+    feedback,
+    marks,
+  };
+}
+
+/**
+ * Konfliktauflösung: je Konfliktstelle eine bewusste Entscheidung. Bewertet
+ * wird, ob die fachlich richtige Fassung gewählt wurde — nicht, ob überhaupt
+ * etwas gewählt wurde.
+ */
+function gradeConflictResolution(
+  payload: Extract<ExercisePayload, { kind: 'conflictResolution' }>,
+  submission: Extract<Submission, { kind: 'conflictResolution' }>,
+): GradingResult {
+  const konflikte = payload.abschnitte.filter(
+    (a): a is Extract<(typeof payload.abschnitte)[number], { art: 'konflikt' }> =>
+      a.art === 'konflikt',
+  );
+
+  const marks: Record<string, boolean> = {};
+  const feedback: FeedbackItem[] = [];
+  let richtig = 0;
+
+  for (const konflikt of konflikte) {
+    const gewaehlt = submission.entscheidungen[konflikt.id];
+    const trifftZu = gewaehlt === konflikt.korrekt;
+    marks[konflikt.id] = trifftZu;
+    if (trifftZu) richtig += 1;
+    else feedback.push({ tone: 'issue', message: konflikt.feedback });
+  }
+
+  const alleRichtig = richtig === konflikte.length;
+  if (alleRichtig) {
+    feedback.unshift({
+      tone: 'success',
+      message: 'Jede Konfliktstelle ist bewusst und richtig entschieden.',
+    });
+  }
+
+  const anteil = konflikte.length === 0 ? 0 : richtig / konflikte.length;
+  const teilweise = !alleRichtig && anteil >= 0.5;
+
+  return {
+    outcome: alleRichtig ? 'PASSED' : teilweise ? 'PARTIAL' : 'FAILED',
+    score: alleRichtig ? 1 : teilweise ? anteil * 0.6 : 0,
+    errorType: alleRichtig ? 'NONE' : teilweise ? 'INCOMPLETE' : 'MISCONCEPTION',
+    feedback,
+    marks,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -406,7 +534,50 @@ export function toPublicPayload(payload: ExercisePayload): unknown {
         flaws: payload.flaws,
         options: payload.options.map((o) => ({ id: o.id, text: o.text })),
       };
+    case 'interpretation':
+      return {
+        kind: payload.kind,
+        ansicht: payload.ansicht,
+        frage: payload.frage,
+        options: payload.options.map((o) => ({ id: o.id, text: o.text })),
+      };
+    case 'classification':
+      return {
+        kind: payload.kind,
+        instruction: payload.instruction,
+        categories: payload.categories.map((c) => ({
+          id: c.id,
+          label: c.label,
+          description: c.description,
+        })),
+        // `correctCategoryId` und `feedback` bleiben ausdrücklich hier.
+        items: payload.items.map((i) => ({ id: i.id, text: i.text })),
+      };
+    case 'conflictResolution':
+      return {
+        kind: payload.kind,
+        pfad: payload.pfad,
+        unserLabel: payload.unserLabel,
+        ihrLabel: payload.ihrLabel,
+        abschnitte: payload.abschnitte.map((a) =>
+          a.art === 'gemeinsam'
+            ? { art: a.art, zeilen: a.zeilen }
+            : // `korrekt` und `feedback` verlassen den Server nicht.
+              { art: a.art, id: a.id, unsere: a.unsere, ihre: a.ihre },
+        ),
+      };
+    default:
+      // Erzwingt, dass jede neue Interaktionsform hier bewusst behandelt wird.
+      // Der Rückgabetyp ist `unknown`, deshalb würde ein vergessener Fall sonst
+      // stillschweigend `undefined` liefern — und im Browser eine leere Aufgabe.
+      return unbehandelteForm(payload);
   }
+}
+
+function unbehandelteForm(payload: never): never {
+  throw new Error(
+    `Interaktionsform ohne öffentliche Fassung: ${JSON.stringify(payload).slice(0, 80)}`,
+  );
 }
 
 /**

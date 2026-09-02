@@ -123,6 +123,132 @@ export const promptRepairPayloadSchema = z.object({
     .min(3),
 });
 
+// ---------------------------------------------------------------------------
+// Interaktionsformen für Git und GitHub
+// ---------------------------------------------------------------------------
+
+/**
+ * Drei neue Formen decken die Aufgabentypen dieser Ausbaustufe ab, ohne eine
+ * zweite Aufgaben-Architektur aufzumachen:
+ *
+ *  - `interpretation`      etwas Fachliches ANSEHEN und daraus schließen
+ *                          (Diff, Commit-Graph, git-status-Ausgabe)
+ *  - `classification`      mehrere Dinge in Kategorien einsortieren
+ *                          (Dateizustände, Gefährlichkeit von Befehlen)
+ *  - `conflictResolution`  je Konfliktstelle bewusst entscheiden
+ *
+ * Alles andere — Befehlsauswahl, Merge-Entscheidung, Rettungsszenario,
+ * Reihenfolge im PR-Ablauf — kommt mit den vorhandenen Formen `singleChoice`,
+ * `scenarioDecision` und `ordering` aus.
+ */
+
+/** Eine Diff-Zeile in der üblichen Schreibweise mit + und -. */
+const diffZeileSchema = z.object({
+  marke: z.enum(['kontext', 'hinzu', 'weg']),
+  text: z.string(),
+});
+
+const diffAnsichtSchema = z.object({
+  art: z.literal('diff'),
+  pfad: z.string().min(1),
+  zeilen: z.array(diffZeileSchema).min(1),
+});
+
+const branchGraphAnsichtSchema = z.object({
+  art: z.literal('branchGraph'),
+  commits: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        nachricht: z.string().min(1),
+        eltern: z.array(z.string().min(1)).default([]),
+      }),
+    )
+    .min(2),
+  /** Branchname -> Commit-Kennung. */
+  branches: z.record(z.string().min(1), z.string().min(1)),
+  /** Auf welchem Branch HEAD steht. */
+  aktuellerBranch: z.string().min(1),
+});
+
+const gitStatusAnsichtSchema = z.object({
+  art: z.literal('gitStatus'),
+  eintraege: z
+    .array(
+      z.object({
+        pfad: z.string().min(1),
+        status: z.enum(['untracked', 'modified', 'staged', 'committed']),
+        auchUngestagt: z.boolean().default(false),
+      }),
+    )
+    .min(1),
+});
+
+export const ansichtSchema = z.discriminatedUnion('art', [
+  diffAnsichtSchema,
+  branchGraphAnsichtSchema,
+  gitStatusAnsichtSchema,
+]);
+
+export type Ansicht = z.infer<typeof ansichtSchema>;
+
+export const interpretationPayloadSchema = z.object({
+  kind: z.literal('interpretation'),
+  /** Was zu sehen ist. */
+  ansicht: ansichtSchema,
+  /** Die Frage dazu. */
+  frage: z.string().min(10),
+  options: z.array(choiceOptionSchema).min(2),
+  correctOptionId: z.string().min(1),
+});
+
+export const classificationPayloadSchema = z.object({
+  kind: z.literal('classification'),
+  instruction: z.string().min(10),
+  categories: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        label: z.string().min(1),
+        description: z.string().optional(),
+      }),
+    )
+    .min(2),
+  items: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        text: z.string().min(1),
+        correctCategoryId: z.string().min(1),
+        feedback: z.string().min(1),
+      }),
+    )
+    .min(2),
+});
+
+/** Ein Abschnitt einer Konfliktdatei — unstrittig oder umkämpft. */
+const konfliktAbschnittSchema = z.discriminatedUnion('art', [
+  z.object({ art: z.literal('gemeinsam'), zeilen: z.array(z.string()).min(1) }),
+  z.object({
+    art: z.literal('konflikt'),
+    id: z.string().min(1),
+    unsere: z.array(z.string()).min(1),
+    ihre: z.array(z.string()).min(1),
+    /** Welche Auflösung hier fachlich richtig ist. */
+    korrekt: z.enum(['unsere', 'ihre', 'beide']),
+    feedback: z.string().min(1),
+  }),
+]);
+
+export const conflictResolutionPayloadSchema = z.object({
+  kind: z.literal('conflictResolution'),
+  pfad: z.string().min(1),
+  /** Beschriftung der Marker, z. B. "HEAD" und "feature/preise". */
+  unserLabel: z.string().min(1),
+  ihrLabel: z.string().min(1),
+  abschnitte: z.array(konfliktAbschnittSchema).min(2),
+});
+
 export const exercisePayloadSchema = z.discriminatedUnion('kind', [
   singleChoicePayloadSchema,
   multipleChoicePayloadSchema,
@@ -131,6 +257,9 @@ export const exercisePayloadSchema = z.discriminatedUnion('kind', [
   scenarioDecisionPayloadSchema,
   terminalSimulationPayloadSchema,
   promptRepairPayloadSchema,
+  interpretationPayloadSchema,
+  classificationPayloadSchema,
+  conflictResolutionPayloadSchema,
 ]);
 
 export type ExercisePayload = z.infer<typeof exercisePayloadSchema>;
@@ -197,6 +326,25 @@ export const submissionSchema = z.discriminatedUnion('kind', [
     commands: z.array(z.string().max(MAX_EINGABETEXT)).max(MAX_LISTE),
   }),
   z.object({ kind: z.literal('promptRepair'), optionId: kennung }),
+  z.object({ kind: z.literal('interpretation'), optionId: kennung }),
+  z.object({
+    kind: z.literal('classification'),
+    /** Element-Kennung -> gewählte Kategorie. */
+    zuordnung: z
+      .record(kennung, kennung)
+      .refine((werte) => Object.keys(werte).length <= MAX_LISTE, {
+        message: `Höchstens ${MAX_LISTE} Zuordnungen je Antwort.`,
+      }),
+  }),
+  z.object({
+    kind: z.literal('conflictResolution'),
+    /** Konflikt-Kennung -> gewählte Auflösung. */
+    entscheidungen: z
+      .record(kennung, z.enum(['unsere', 'ihre', 'beide']))
+      .refine((werte) => Object.keys(werte).length <= MAX_LISTE, {
+        message: `Höchstens ${MAX_LISTE} Konfliktstellen je Antwort.`,
+      }),
+  }),
 ]);
 
 export type Submission = z.infer<typeof submissionSchema>;

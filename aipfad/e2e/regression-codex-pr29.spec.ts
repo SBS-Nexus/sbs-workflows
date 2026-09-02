@@ -70,7 +70,7 @@ test('Eine abgeschlossene Lektion bleibt beim erneuten Öffnen abgeschlossen', a
 
   await page.getByRole('link', { name: 'Zum Pfad' }).click();
   await expect(page).toHaveURL(/\/pfad$/);
-  await expect(page.getByText('1 von 13 Lektionen abgeschlossen')).toBeVisible();
+  await expect(page.getByText(/^1 von \d+ Lektionen abgeschlossen$/)).toBeVisible();
 
   // Dieselbe Lektion erneut öffnen (z. B. zum Nachschlagen) …
   await page.getByRole('link', { name: 'Was ist AIPfad?' }).click();
@@ -78,7 +78,7 @@ test('Eine abgeschlossene Lektion bleibt beim erneuten Öffnen abgeschlossen', a
 
   // … darf den Abschluss NICHT zurücksetzen.
   await page.goto('/pfad');
-  await expect(page.getByText('1 von 13 Lektionen abgeschlossen')).toBeVisible();
+  await expect(page.getByText(/^1 von \d+ Lektionen abgeschlossen$/)).toBeVisible();
   await expect(page.getByText('Abgeschlossen').first()).toBeVisible();
 });
 

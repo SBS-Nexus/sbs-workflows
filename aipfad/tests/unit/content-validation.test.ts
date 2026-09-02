@@ -4,12 +4,14 @@ import {
   conceptSchema,
   labSchema,
   validateCourseGraph,
+  validateCommandReference,
   type ConceptContent,
   type ConceptDraft,
 } from '@/domain/content/schema';
 import { course } from '@/content/course';
 import { concepts as conceptDrafts } from '@/content/concepts';
 import { labs as labDrafts } from '@/content/labs';
+import { SETUP_SECTIONS } from '@/content/setup-commands';
 import { exercisePayloadSchema } from '@/domain/content/exercise-payload';
 import { toPublicPayload } from '@/domain/grading/grade';
 import { UMGESETZTE_BEFEHLE } from '@/domain/labs/terminal';
@@ -99,11 +101,18 @@ describe('AIPfad content (Stage 0/1/4/5)', () => {
     }
   });
 
-  it('has a real, non-placeholder concept graph with all four modules represented', () => {
+  it('has a real, non-placeholder concept graph with every module represented', () => {
     const { parsedCourse } = parseAll();
-    expect(parsedCourse.modules).toHaveLength(4);
+    // Bewusst eine Untergrenze statt einer festen Zahl: Der Kurs wächst je
+    // Ausbaustufe, und ein Test, der bei jedem neuen Modul rot wird, prüft
+    // nur noch sich selbst.
+    expect(parsedCourse.modules.length).toBeGreaterThanOrEqual(4);
     const totalLessons = parsedCourse.modules.reduce((sum, m) => sum + m.lessons.length, 0);
     expect(totalLessons).toBeGreaterThanOrEqual(10);
+    // Jedes Modul trägt mindestens eine Lektion.
+    for (const modul of parsedCourse.modules) {
+      expect(modul.lessons.length).toBeGreaterThan(0);
+    }
   });
 
   it('placement-relevant concept slugs referenced in content actually exist', () => {
@@ -186,4 +195,128 @@ describe('Terminal-Labs bewerben nur umgesetzte Befehle', () => {
       expect(fehlend).toEqual([]);
     },
   );
+});
+
+/**
+ * Erweiterte Inhaltsprüfungen der Ausbaustufe 2.
+ *
+ * Die Befehlsreferenz ist Lernmaterial wie jedes andere: Ein Befehl, der
+ * Arbeit vernichten kann, muss auch sagen, welche. Und ein Befehl, der im
+ * Lernstoff genannt wird, muss nachschlagbar sein.
+ */
+describe('Befehlsreferenz', () => {
+  const alleBefehle = SETUP_SECTIONS.flatMap((s) => s.commands);
+
+  it('ist in sich stimmig', () => {
+    const result = validateCommandReference(alleBefehle);
+    expect(result.issues.filter((i) => i.severity === 'error')).toEqual([]);
+  });
+
+  it('erklärt bei jedem destruktiven Befehl, was verloren gehen kann', () => {
+    const destruktiv = alleBefehle.filter((b) => b.safety.gefahr === 'destruktiv');
+    expect(destruktiv.length).toBeGreaterThan(0);
+    for (const befehl of destruktiv) {
+      expect(befehl.whatHappens.length).toBeGreaterThanOrEqual(60);
+    }
+  });
+
+  it('meldet einen destruktiven Befehl ohne Erklärung', () => {
+    const result = validateCommandReference([
+      {
+        command: 'git reset --hard',
+        whatHappens: 'Setzt zurück.',
+        safety: { gefahr: 'destruktiv', reversibel: false, wirkung: ['verlauf'] },
+      },
+    ]);
+    expect(result.ok).toBe(false);
+    expect(result.issues[0]?.message).toContain('ohne ausreichende Erklärung');
+  });
+
+  it('meldet einen widersprüchlichen Wirkbereich', () => {
+    const result = validateCommandReference([
+      {
+        command: 'git status',
+        whatHappens: 'Liest nur.',
+        safety: { gefahr: 'harmlos', reversibel: true, wirkung: ['nur-lesend', 'verlauf'] },
+      },
+    ]);
+    expect(result.ok).toBe(false);
+    expect(result.issues[0]?.message).toContain('widerspricht sich');
+  });
+
+  it('deckt die Git- und GitHub-Befehle des Lernstoffs ab', () => {
+    const namen = new Set(alleBefehle.map((b) => b.command.split(/\s+/).slice(0, 2).join(' ')));
+    for (const erwartet of [
+      'git init',
+      'git status',
+      'git add',
+      'git commit',
+      'git diff',
+      'git log',
+      'git branch',
+      'git switch',
+      'git merge',
+      'git remote',
+      'git fetch',
+      'git pull',
+      'git push',
+      'git restore',
+      'git revert',
+      'git reset',
+      'git reflog',
+      'gh auth',
+      'gh pr',
+      'gh issue',
+      'gh run',
+    ]) {
+      expect(namen).toContain(erwartet);
+    }
+  });
+});
+
+describe('Lernstoff nennt nur nachschlagbare Befehle', () => {
+  it('meldet keinen Git-Befehl ohne Referenzeintrag', () => {
+    const result = validateCourseGraph({
+      course: courseSchema.parse(course),
+      concepts: conceptDrafts.map((c) => conceptSchema.parse(c)),
+      labs: labDrafts.map((l) => labSchema.parse(l)),
+      referenzBefehle: SETUP_SECTIONS.flatMap((s) => s.commands).map((b) => b.command),
+    });
+    const fehlend = result.issues.filter((i) => i.message.includes('Befehlsreferenz'));
+    expect(fehlend).toEqual([]);
+  });
+
+  it('erkennt einen im Text genannten, nicht nachschlagbaren Befehl', () => {
+    const parsed = courseSchema.parse(course);
+    const ersteLektion = parsed.modules[0]?.lessons[0];
+    expect(ersteLektion).toBeDefined();
+    const manipuliert = {
+      ...parsed,
+      modules: [
+        {
+          ...parsed.modules[0]!,
+          lessons: [
+            { ...ersteLektion!, mentalModel: `${ersteLektion!.mentalModel} Nutze git flurfunk.` },
+            ...parsed.modules[0]!.lessons.slice(1),
+          ],
+        },
+        ...parsed.modules.slice(1),
+      ],
+    };
+    const result = validateCourseGraph({
+      course: manipuliert,
+      concepts: conceptDrafts.map((c) => conceptSchema.parse(c)),
+      labs: labDrafts.map((l) => labSchema.parse(l)),
+      referenzBefehle: SETUP_SECTIONS.flatMap((s) => s.commands).map((b) => b.command),
+    });
+    expect(result.issues.some((i) => i.message.includes('git flurfunk'))).toBe(true);
+  });
+});
+
+describe('Labs sind im Wissensgraphen verankert', () => {
+  it('verknüpft jedes Lab mit mindestens einem Konzept', () => {
+    for (const lab of labDrafts.map((l) => labSchema.parse(l))) {
+      expect(lab.relatedConceptSlugs.length).toBeGreaterThan(0);
+    }
+  });
 });
