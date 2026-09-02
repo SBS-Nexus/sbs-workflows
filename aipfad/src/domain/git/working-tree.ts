@@ -202,10 +202,25 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
         return KEINE_AENDERUNG(zustand, 'git add: Bitte gib an, was vorgemerkt werden soll.');
       }
       const alles = args.includes('.') || args.includes('-A') || args.includes('--all');
-      const betroffen = alles ? dateien : dateien.filter((d) => args.includes(d.pfad));
 
+      if (!alles) {
+        // JEDER angegebene Pfad muss existieren, bevor irgendetwas vorgemerkt
+        // wird. Zuvor genügte ein Treffer: `git add preise.md fehlt.txt`
+        // merkte preise.md vor und verschwieg den Tippfehler. Echtes Git
+        // bricht ab und merkt nichts vor (Codex-Review auf PR #30).
+        const bekannt = new Set(dateien.map((d) => d.pfad));
+        const fehlend = args.filter((a) => !a.startsWith('-') && !bekannt.has(a));
+        if (fehlend.length > 0) {
+          return KEINE_AENDERUNG(
+            zustand,
+            `fatal: pathspec '${fehlend[0]}' did not match any files`,
+          );
+        }
+      }
+
+      const betroffen = alles ? dateien : dateien.filter((d) => args.includes(d.pfad));
       if (betroffen.length === 0) {
-        return KEINE_AENDERUNG(zustand, `git add: Nicht gefunden: ${args.join(' ')}`);
+        return KEINE_AENDERUNG(zustand, 'git add: Bitte gib an, was vorgemerkt werden soll.');
       }
       for (const datei of betroffen) datei.index = datei.arbeitsbaum;
       return {
@@ -287,9 +302,21 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       }
       const ausIndex = args.includes('--staged');
       const pfade = args.filter((a) => !a.startsWith('-'));
+      // Auch hier gilt: erst alle Pfade prüfen, dann handeln. Ein
+      // unbekannter Pfad neben einem bekannten wurde zuvor stillschweigend
+      // übergangen (Codex-Review auf PR #30).
+      const bekannt = new Set(dateien.map((d) => d.pfad));
+      const unbekannt = pfade.filter((pf) => !bekannt.has(pf));
+      if (unbekannt.length > 0) {
+        return KEINE_AENDERUNG(
+          zustand,
+          `error: pathspec '${unbekannt[0]}' did not match any file(s) known to git`,
+        );
+      }
+
       const betroffen = dateien.filter((d) => pfade.includes(d.pfad));
       if (betroffen.length === 0) {
-        return KEINE_AENDERUNG(zustand, `git restore: Nicht gefunden: ${pfade.join(' ')}`);
+        return KEINE_AENDERUNG(zustand, 'git restore: Bitte gib eine Datei an.');
       }
 
       // Eine unversionierte Datei kennt Git nicht — es gibt keinen Stand, auf

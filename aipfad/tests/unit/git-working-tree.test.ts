@@ -109,7 +109,21 @@ describe('git add', () => {
   });
 
   it('meldet eine unbekannte Datei', () => {
-    expect(laufe(['git add gibtsnicht.txt']).letzte).toContain('Nicht gefunden');
+    expect(laufe(['git add gibtsnicht.txt']).letzte).toContain(
+      "pathspec 'gibtsnicht.txt' did not match any files",
+    );
+  });
+
+  it('merkt NICHTS vor, wenn einer von mehreren Pfaden nicht existiert', () => {
+    // Zuvor genügte ein Treffer: preise.md wurde vorgemerkt und der
+    // Tippfehler verschwiegen (Codex-Review auf PR #30).
+    const ergebnis = fuehreGitBefehlAus(start(), 'git add liesmich.md fehlt.txt');
+
+    expect(ergebnis.ausgabe).toContain("pathspec 'fehlt.txt' did not match any files");
+    expect(ergebnis.veraendert).toBe(false);
+    expect(status(ergebnis.zustand).find((e) => e.pfad === 'liesmich.md')?.status).toBe(
+      'committed',
+    );
   });
 });
 
@@ -188,6 +202,19 @@ describe('git restore', () => {
     const eintrag = status(ergebnis.zustand).find((e) => e.pfad === 'notizen.txt');
     expect(eintrag?.status).toBe('untracked');
     expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'notizen.txt')?.arbeitsbaum).toBe('Neu');
+  });
+
+  it('setzt NICHTS zurück, wenn einer von mehreren Pfaden nicht existiert', () => {
+    let zustand = start();
+    zustand = bearbeiteDatei(zustand, 'liesmich.md', 'Geändert');
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git restore liesmich.md fehlt.txt');
+
+    expect(ergebnis.ausgabe).toContain("pathspec 'fehlt.txt' did not match");
+    expect(ergebnis.veraendert).toBe(false);
+    // Die Änderung ist noch da.
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'liesmich.md')?.arbeitsbaum).toBe(
+      'Geändert',
+    );
   });
 
   it('lehnt auch mit --staged eine unversionierte Datei ab', () => {

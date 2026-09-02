@@ -204,3 +204,18 @@ describe('Graph nach einem Merge', () => {
     expect(merge?.commit.eltern).toEqual(['c04', 'c03']);
   });
 });
+
+describe('Nicht umgesetzte Schalter von git branch', () => {
+  it('legt bei -d KEINEN Branch an, sondern lehnt ab', () => {
+    // Zuvor wurde der Schalter übergangen und ein Branch ANGELEGT — das
+    // Gegenteil des Verlangten (Codex-Review auf PR #30).
+    const { zustand, letzte } = laufe(['git branch -d topic']);
+
+    expect(letzte).toContain('nicht umgesetzt');
+    expect(zustand.branches['topic']).toBeUndefined();
+  });
+
+  it('listet mit -a weiterhin auf', () => {
+    expect(laufe(['git branch -a']).letzte).toContain('main');
+  });
+});

@@ -103,6 +103,18 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
 
   switch (unterbefehl) {
     case 'branch': {
+      // Schalter, die dieser Simulator nicht umsetzt, werden abgelehnt statt
+      // übergangen: `git branch -d topic` hätte sonst einen Branch ANGELEGT,
+      // also das Gegenteil des Verlangten (Codex-Review auf PR #30).
+      const unbekannterSchalter = args.find(
+        (a) => a.startsWith('-') && !['-a', '--all', '-l', '--list'].includes(a),
+      );
+      if (unbekannterSchalter) {
+        return UNVERAENDERT(
+          zustand,
+          `git branch ${unbekannterSchalter}: in diesem Simulator nicht umgesetzt. Verfügbar: git branch [name] zum Auflisten und Anlegen.`,
+        );
+      }
       const name = args.find((a) => !a.startsWith('-'));
       if (!name) {
         const zeilen = Object.keys(zustand.branches)

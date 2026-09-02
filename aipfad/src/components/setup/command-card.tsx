@@ -11,7 +11,10 @@ export function CommandCard({ command }: { command: SetupCommand }): React.React
 
   async function handleCopy(): Promise<void> {
     try {
-      await navigator.clipboard.writeText(command.command);
+      // Kopiert wird die lauffähige Beispielzeile, nicht die Schreibweise mit
+      // Platzhaltern: `git clone <url>` in eine Shell eingefügt behandelt die
+      // spitzen Klammern als Umlenkung und scheitert (Codex-Review auf PR #30).
+      await navigator.clipboard.writeText(command.example ?? command.command);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
