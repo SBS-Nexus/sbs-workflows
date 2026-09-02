@@ -320,3 +320,60 @@ describe('Labs sind im Wissensgraphen verankert', () => {
     }
   });
 });
+
+/**
+ * Keine Aufgabe im gesamten Kurs liefert Lösungsdaten an den Browser.
+ *
+ * Bewusst über den ECHTEN Inhalt statt über Beispiele, und bewusst über alle
+ * Interaktionsformen statt je eine Stichprobe: `PublicExercise.payload` ist
+ * `unknown` und wird im Browser wieder gecastet — der Übersetzer prüft auf
+ * diesem Weg nichts. Diese Prüfung ist die einzige Stelle, an der ein
+ * vergessenes Feld auffällt, bevor es ausgeliefert wird.
+ */
+describe('Keine Lösungsdaten in der öffentlichen Fassung — gesamter Kurs', () => {
+  const alleAufgaben = courseSchema
+    .parse(course)
+    .modules.flatMap((m) => m.lessons)
+    .flatMap((l) => l.exercises);
+
+  /** Feldnamen, die ausschließlich der Bewertung dienen. */
+  const VERRAETERISCHE_FELDER = [
+    'correctOptionId',
+    'correctOptionIds',
+    'correctOrder',
+    'correctCategoryId',
+    'korrekt',
+    'accepted',
+    'wrongHint',
+    'quality',
+    'expectedCommands',
+    'feedback',
+    'solutionNotes',
+  ];
+
+  it('prüft eine aussagekräftige Zahl an Aufgaben', () => {
+    expect(alleAufgaben.length).toBeGreaterThanOrEqual(40);
+  });
+
+  it.each(alleAufgaben.map((a) => [a.slug, a] as const))(
+    '%s: öffentliche Fassung enthält kein Bewertungsfeld',
+    (_slug, aufgabe) => {
+      const oeffentlich = JSON.stringify(toPublicPayload(aufgabe.payload));
+      for (const feld of VERRAETERISCHE_FELDER) {
+        expect(oeffentlich).not.toContain(feld);
+      }
+    },
+  );
+
+  it('deckt jede eingesetzte Interaktionsform ab', () => {
+    const formen = new Set(alleAufgaben.map((a) => a.payload.kind));
+    // Die drei neuen Formen dieser Ausbaustufe sind tatsächlich im Einsatz.
+    expect(formen).toContain('interpretation');
+    expect(formen).toContain('classification');
+    expect(formen).toContain('conflictResolution');
+    // Und jede Form kommt durch toPublicPayload, ohne zu werfen.
+    for (const aufgabe of alleAufgaben) {
+      expect(toPublicPayload(aufgabe.payload)).toBeDefined();
+    }
+  });
+});

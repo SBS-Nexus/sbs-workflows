@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { Badge, Button, Callout, cx } from '@/components/ui/primitives';
 import { LabCompleteButton } from './lab-complete-button';
+import { BefehlsKonsole } from './befehls-konsole';
 import {
   bearbeiteDatei,
   fuehreGitBefehlAus,
@@ -56,15 +57,11 @@ export function GitStateLab({
 
   const [zustand, setZustand] = useState<GitArbeitsbaumZustand>(start);
   const [verlauf, setVerlauf] = useState<{ befehl: string; ausgabe: string }[]>([]);
-  const [eingabe, setEingabe] = useState('');
 
-  function fuehreAus(roh: string): void {
-    const befehl = roh.trim();
-    if (!befehl) return;
+  function fuehreAus(befehl: string): void {
     const ergebnis = fuehreGitBefehlAus(zustand, befehl);
     setZustand(ergebnis.zustand);
     setVerlauf((prev) => [...prev, { befehl, ausgabe: ergebnis.ausgabe }]);
-    setEingabe('');
   }
 
   function bearbeite(pfad: string, inhalt: string): void {
@@ -102,32 +99,7 @@ export function GitStateLab({
         <p className="mb-2 font-mono text-xs text-[var(--fg-muted)]">
           Verfügbar: {UMGESETZTE_GIT_BEFEHLE.join(', ')}
         </p>
-        <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-ink-900 p-4 font-mono text-sm text-ink-50">
-          {verlauf.map((eintrag, index) => (
-            <div key={index} className="mb-1.5">
-              <p>
-                <span className="text-signal-300">$</span> {eintrag.befehl}
-              </p>
-              {eintrag.ausgabe ? (
-                <p className="whitespace-pre-wrap text-ink-200">{eintrag.ausgabe}</p>
-              ) : null}
-            </div>
-          ))}
-          <div className="flex items-center gap-2">
-            <span className="text-signal-300">$</span>
-            <input
-              type="text"
-              value={eingabe}
-              onChange={(e) => setEingabe(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') fuehreAus(eingabe);
-              }}
-              className="flex-1 bg-transparent outline-none"
-              aria-label="Git-Befehl eingeben"
-              placeholder="git status"
-            />
-          </div>
-        </div>
+        <BefehlsKonsole eintraege={verlauf} platzhalter="git status" onBefehlAction={fuehreAus} />
       </div>
 
       {eintraege.some((e) => e.status === 'staged' && e.auchUngestagt) ? (

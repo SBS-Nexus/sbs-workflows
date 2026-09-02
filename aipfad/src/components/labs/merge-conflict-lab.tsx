@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { Badge, Button, Callout, cx } from '@/components/ui/primitives';
 import { LabCompleteButton } from './lab-complete-button';
+import { BefehlsKonsole } from './befehls-konsole';
 import {
   alleKonflikteGeloest,
   aufgeloesterInhalt,
@@ -239,15 +240,8 @@ export function MergeConflictLab({
         </div>
 
         {verlauf.length > 0 ? (
-          <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-ink-900 p-4 font-mono text-xs text-ink-50">
-            {verlauf.map((eintrag, index) => (
-              <div key={index} className="mb-1.5">
-                <p>
-                  <span className="text-signal-300">$</span> {eintrag.befehl}
-                </p>
-                <p className="whitespace-pre-wrap text-ink-200">{eintrag.ausgabe}</p>
-              </div>
-            ))}
+          <div className="mt-3">
+            <BefehlsKonsole eintraege={verlauf} />
           </div>
         ) : null}
       </section>

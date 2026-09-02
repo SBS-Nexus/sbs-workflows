@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { Button, Callout } from '@/components/ui/primitives';
 import { LabCompleteButton } from './lab-complete-button';
+import { BefehlsKonsole } from './befehls-konsole';
 import { CommitGraph } from '@/components/git/git-views';
 import {
   fuehreBranchBefehlAus,
@@ -48,15 +49,11 @@ export function BranchLab({
     aktuellerBranch: start.aktuellerBranch,
   });
   const [verlauf, setVerlauf] = useState<{ befehl: string; ausgabe: string }[]>([]);
-  const [eingabe, setEingabe] = useState('');
 
-  function fuehreAus(roh: string): void {
-    const befehl = roh.trim();
-    if (!befehl) return;
+  function fuehreAus(befehl: string): void {
     const ergebnis = fuehreBranchBefehlAus(zustand, befehl);
     setZustand(ergebnis.zustand);
     setVerlauf((prev) => [...prev, { befehl, ausgabe: ergebnis.ausgabe }]);
-    setEingabe('');
   }
 
   // Was würde ein Merge des jeweils anderen Branches gerade bewirken? Diese
@@ -118,32 +115,12 @@ export function BranchLab({
         <p className="mb-2 font-mono text-xs text-[var(--fg-muted)]">
           Verfügbar: {UMGESETZTE_BRANCH_BEFEHLE.join(', ')}
         </p>
-        <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-ink-900 p-4 font-mono text-sm text-ink-50">
-          {verlauf.map((eintrag, index) => (
-            <div key={index} className="mb-1.5">
-              <p>
-                <span className="text-signal-300">$</span> {eintrag.befehl}
-              </p>
-              {eintrag.ausgabe ? (
-                <p className="whitespace-pre-wrap text-ink-200">{eintrag.ausgabe}</p>
-              ) : null}
-            </div>
-          ))}
-          <div className="flex items-center gap-2">
-            <span className="text-signal-300">{zustand.aktuellerBranch} $</span>
-            <input
-              type="text"
-              value={eingabe}
-              onChange={(e) => setEingabe(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') fuehreAus(eingabe);
-              }}
-              className="flex-1 bg-transparent outline-none"
-              aria-label="Git-Befehl eingeben"
-              placeholder="git switch -c feature"
-            />
-          </div>
-        </div>
+        <BefehlsKonsole
+          eintraege={verlauf}
+          eingabeaufforderung={`${zustand.aktuellerBranch} $`}
+          platzhalter="git switch -c feature"
+          onBefehlAction={fuehreAus}
+        />
       </div>
 
       {zustand.commits.some((c) => c.eltern.length === 2) ? (
