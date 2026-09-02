@@ -129,7 +129,9 @@ export function MergeConflictLab({
 
       <section className="space-y-4">
         <h3 className="text-sm font-semibold">
-          Entscheide jede Stelle ({konflikte.length - offen.length} von {konflikte.length} erledigt)
+          {laeuft
+            ? `Entscheide jede Stelle (${konflikte.length - offen.length} von ${konflikte.length} erledigt)`
+            : 'Konfliktstellen dieses Merges'}
         </h3>
 
         {konflikte.map((konflikt) => {
@@ -141,7 +143,9 @@ export function MergeConflictLab({
             >
               <legend className="flex items-center gap-2 px-1 text-xs font-semibold">
                 Konfliktstelle {konflikt.id}
-                {aktuell.art === 'offen' ? (
+                {!laeuft ? (
+                  <Badge tone="neutral">kein Merge im Gange</Badge>
+                ) : aktuell.art === 'offen' ? (
                   <Badge tone="caution">offen</Badge>
                 ) : (
                   <Badge tone="success">entschieden</Badge>
@@ -157,6 +161,7 @@ export function MergeConflictLab({
                 <Button
                   size="sm"
                   variant={aktuell.art === 'unsere' ? 'primary' : 'secondary'}
+                  disabled={!laeuft}
                   onClick={() => waehle(konflikt.id, 'unsere')}
                 >
                   Meine behalten
@@ -164,6 +169,7 @@ export function MergeConflictLab({
                 <Button
                   size="sm"
                   variant={aktuell.art === 'ihre' ? 'primary' : 'secondary'}
+                  disabled={!laeuft}
                   onClick={() => waehle(konflikt.id, 'ihre')}
                 >
                   Ihre übernehmen
@@ -171,6 +177,7 @@ export function MergeConflictLab({
                 <Button
                   size="sm"
                   variant={aktuell.art === 'beide' ? 'primary' : 'secondary'}
+                  disabled={!laeuft}
                   onClick={() => waehle(konflikt.id, 'beide')}
                 >
                   Beide behalten
@@ -187,6 +194,7 @@ export function MergeConflictLab({
                 <textarea
                   id={`eigene-${konflikt.id}`}
                   rows={2}
+                  disabled={!laeuft}
                   value={eigeneTexte[konflikt.id] ?? ''}
                   onChange={(e) =>
                     setEigeneTexte((prev) => ({ ...prev, [konflikt.id]: e.target.value }))
@@ -197,7 +205,7 @@ export function MergeConflictLab({
                   size="sm"
                   variant={aktuell.art === 'eigene' ? 'primary' : 'secondary'}
                   className="mt-1.5"
-                  disabled={(eigeneTexte[konflikt.id] ?? '').trim().length === 0}
+                  disabled={!laeuft || (eigeneTexte[konflikt.id] ?? '').trim().length === 0}
                   onClick={() => waehle(konflikt.id, 'eigene')}
                 >
                   Eigene Fassung übernehmen

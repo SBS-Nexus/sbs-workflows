@@ -291,6 +291,22 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       if (betroffen.length === 0) {
         return KEINE_AENDERUNG(zustand, `git restore: Nicht gefunden: ${pfade.join(' ')}`);
       }
+
+      // Eine unversionierte Datei kennt Git nicht — es gibt keinen Stand, auf
+      // den zurückgesetzt werden könnte. Ohne diese Prüfung setzte die
+      // Schleife unten den Inhalt auf `undefined` und LÖSCHTE die Datei,
+      // während sie Erfolg meldete: In einer Lernumgebung die schlechteste
+      // Variante, weil sie still etwas Falsches beibringt (Codex-Review auf
+      // PR #30). Echtes Git bricht hier mit einer Pfadangaben-Meldung ab und
+      // lässt die Datei unangetastet.
+      const unversioniert = betroffen.filter((d) => !istBekannt(d));
+      if (unversioniert.length > 0) {
+        return KEINE_AENDERUNG(
+          zustand,
+          `error: pathspec '${unversioniert[0]?.pfad}' did not match any file(s) known to git`,
+        );
+      }
+
       for (const datei of betroffen) {
         if (ausIndex) datei.index = datei.head;
         else datei.arbeitsbaum = datei.index ?? datei.head;

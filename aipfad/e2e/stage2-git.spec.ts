@@ -232,3 +232,32 @@ test('Ein abgebrochener Merge ist beendet, nicht zurückgesetzt', async ({ page 
   await expect(page.getByText('Merge abgeschlossen', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'git merge --abort' })).toBeDisabled();
 });
+
+/**
+ * Regressionstest für den Codex-Fund "Disable conflict choices when no merge
+ * is running" (PR #30): Nach einem Abbruch blieben die Auswahlknöpfe und das
+ * Textfeld bedienbar, ohne noch etwas zu bewirken — Bedienelemente, die still
+ * nichts tun.
+ */
+test('Nach dem Abbruch sind die Konfliktentscheidungen nicht mehr bedienbar', async ({ page }) => {
+  await registerAndOnboard(page);
+  await page.goto('/labs/merge-conflict-lab');
+
+  const k1 = page.getByRole('group', { name: /Konfliktstelle k1/ });
+  await expect(k1.getByRole('button', { name: 'Ihre übernehmen' })).toBeEnabled();
+
+  await page.getByRole('button', { name: 'git merge --abort' }).click();
+  await expect(page.getByText('Merge abgebrochen', { exact: true })).toBeVisible();
+
+  // Kein laufender Merge: keine bedienbaren Entscheidungen, kein Textfeld.
+  await expect(k1.getByRole('button', { name: 'Ihre übernehmen' })).toBeDisabled();
+  await expect(k1.getByRole('button', { name: 'Meine behalten' })).toBeDisabled();
+  await expect(k1.getByRole('button', { name: 'Beide behalten' })).toBeDisabled();
+  await expect(page.locator('#eigene-k1')).toBeDisabled();
+  await expect(page.getByText('kein Merge im Gange').first()).toBeVisible();
+
+  // Nach dem Neubeginn sind sie wieder da.
+  await page.getByRole('button', { name: 'Merge erneut beginnen' }).click();
+  await expect(k1.getByRole('button', { name: 'Ihre übernehmen' })).toBeEnabled();
+  await expect(page.locator('#eigene-k1')).toBeEnabled();
+});

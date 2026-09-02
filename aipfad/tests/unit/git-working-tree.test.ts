@@ -176,6 +176,26 @@ describe('git restore', () => {
     expect(zustand.dateien.find((d) => d.pfad === 'liesmich.md')?.arbeitsbaum).toBe('Hallo Welt');
   });
 
+  it('lehnt eine unversionierte Datei ab, statt sie zu löschen', () => {
+    // Ohne diese Prüfung setzte git restore den Inhalt auf undefined und
+    // LÖSCHTE die Datei, während es Erfolg meldete — in einer Lernumgebung
+    // die schlechteste Variante (Codex-Review auf PR #30).
+    const ergebnis = fuehreGitBefehlAus(start(), 'git restore notizen.txt');
+
+    expect(ergebnis.ausgabe).toContain('did not match any file(s) known to git');
+    expect(ergebnis.veraendert).toBe(false);
+    // Die Datei ist unangetastet und weiterhin unversioniert.
+    const eintrag = status(ergebnis.zustand).find((e) => e.pfad === 'notizen.txt');
+    expect(eintrag?.status).toBe('untracked');
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'notizen.txt')?.arbeitsbaum).toBe('Neu');
+  });
+
+  it('lehnt auch mit --staged eine unversionierte Datei ab', () => {
+    const ergebnis = fuehreGitBefehlAus(start(), 'git restore --staged notizen.txt');
+    expect(ergebnis.ausgabe).toContain('did not match any file(s) known to git');
+    expect(ergebnis.veraendert).toBe(false);
+  });
+
   it('verwirft ohne --staged die Änderung im Arbeitsverzeichnis', () => {
     let zustand = start();
     zustand = bearbeiteDatei(zustand, 'liesmich.md', 'Hallo Welt');
