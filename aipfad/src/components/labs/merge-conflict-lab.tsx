@@ -64,12 +64,13 @@ export function MergeConflictLab({
     datei: { pfad, abschnitte: abschnitte as Abschnitt[] },
     aufloesungen: {},
     vorgemerkt: false,
-    abgeschlossen: false,
+    status: 'laeuft',
   });
   const [verlauf, setVerlauf] = useState<{ befehl: string; ausgabe: string }[]>([]);
   const [eigeneTexte, setEigeneTexte] = useState<Record<string, string>>({});
 
   const beschriftung = { unser: unserBranch, ihr: ihrBranch };
+  const laeuft = zustand.status === 'laeuft';
   const konflikte = zustand.datei.abschnitte.filter(
     (a): a is Extract<Abschnitt, { art: 'konflikt' }> => a.art === 'konflikt',
   );
@@ -227,16 +228,26 @@ export function MergeConflictLab({
             size="sm"
             variant="secondary"
             onClick={() => befehl(`git add ${pfad}`)}
-            disabled={zustand.abgeschlossen}
+            disabled={!laeuft}
           >
             git add {pfad}
           </Button>
-          <Button size="sm" onClick={() => befehl('git commit')} disabled={zustand.abgeschlossen}>
+          <Button size="sm" onClick={() => befehl('git commit')} disabled={!laeuft}>
             git commit
           </Button>
-          <Button size="sm" variant="danger" onClick={() => befehl('git merge --abort')}>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => befehl('git merge --abort')}
+            disabled={!laeuft}
+          >
             git merge --abort
           </Button>
+          {zustand.status === 'abgebrochen' ? (
+            <Button size="sm" onClick={() => befehl(`git merge ${ihrBranch}`)}>
+              Merge erneut beginnen
+            </Button>
+          ) : null}
         </div>
 
         {verlauf.length > 0 ? (
@@ -246,7 +257,16 @@ export function MergeConflictLab({
         ) : null}
       </section>
 
-      {zustand.abgeschlossen ? (
+      {zustand.status === 'abgebrochen' ? (
+        <Callout tone="info" title="Merge abgebrochen" live>
+          Der Stand von vor dem Merge ist wieder da — die Konfliktmarker sind weg und deine
+          Entscheidungen verworfen. Genau dafür gibt es{' '}
+          <code className="font-mono">git merge --abort</code>: Es kostet nichts, einen Merge
+          abzubrechen und in Ruhe neu anzusetzen.
+        </Callout>
+      ) : null}
+
+      {zustand.status === 'abgeschlossen' ? (
         <Callout tone="success" title="Merge abgeschlossen" live>
           Der Merge-Commit hält beide Entwicklungslinien zusammen. Im Verlauf ist dauerhaft
           ablesbar, dass hier zwei Wege zusammengeführt wurden — und wie du entschieden hast.
@@ -256,10 +276,10 @@ export function MergeConflictLab({
       <LabCompleteButton
         onCompleteAction={onCompleteAction}
         label="Fertig — Lab abschließen"
-        disabled={!zustand.abgeschlossen}
+        disabled={zustand.status !== 'abgeschlossen'}
       />
 
-      {!zustand.abgeschlossen && alleKonflikteGeloest(zustand) && !zustand.vorgemerkt ? (
+      {laeuft && alleKonflikteGeloest(zustand) && !zustand.vorgemerkt ? (
         <p className="text-sm text-[var(--fg-muted)]">
           Alles entschieden. Es fehlt noch <code className="font-mono">git add</code> und{' '}
           <code className="font-mono">git commit</code>.

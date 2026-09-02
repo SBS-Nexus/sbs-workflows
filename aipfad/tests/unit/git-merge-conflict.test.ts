@@ -35,7 +35,7 @@ function start(): KonfliktZustand {
     },
     aufloesungen: {},
     vorgemerkt: false,
-    abgeschlossen: false,
+    status: 'laeuft',
   };
 }
 
@@ -111,7 +111,7 @@ describe('Ablauf auflösen → add → commit', () => {
     const geloest = loeseKonflikt(start(), 'k1', { art: 'ihre' });
     const ergebnis = fuehreKonfliktBefehlAus(geloest, 'git commit');
     expect(ergebnis.ausgabe).toContain('git add');
-    expect(ergebnis.zustand.abgeschlossen).toBe(false);
+    expect(ergebnis.zustand.status).toBe('laeuft');
   });
 
   it('schließt den Merge nach auflösen, add und commit ab', () => {
@@ -119,7 +119,7 @@ describe('Ablauf auflösen → add → commit', () => {
     zustand = fuehreKonfliktBefehlAus(zustand, 'git add preise.md').zustand;
     expect(zustand.vorgemerkt).toBe(true);
     zustand = fuehreKonfliktBefehlAus(zustand, 'git commit').zustand;
-    expect(zustand.abgeschlossen).toBe(true);
+    expect(zustand.status).toBe('abgeschlossen');
   });
 
   it('lehnt das Vormerken ab, wenn noch Marker im Text stehen', () => {
@@ -158,14 +158,71 @@ describe('git status im Konflikt', () => {
   });
 });
 
+/**
+ * Ein abgebrochener Merge ist kein zurückgesetzter Merge.
+ *
+ * Zuvor verwarf `--abort` nur die Entscheidungen und zeigte die Marker sofort
+ * wieder an; `git status` meldete weiterhin einen laufenden Merge, und der
+ * Abbruch war selbst nach dem Abschluss noch möglich. Echtes Git kann beides
+ * nicht: Nach Abbruch oder Merge-Commit gibt es keinen laufenden Merge und
+ * keine Konfliktdatei mehr (Codex-Review auf PR #30).
+ */
 describe('git merge --abort', () => {
-  it('stellt den Ausgangszustand wieder her', () => {
+  it('verwirft die Entscheidungen und beendet den Merge', () => {
     let zustand = loeseKonflikt(start(), 'k1', { art: 'ihre' });
     zustand = fuehreKonfliktBefehlAus(zustand, 'git add preise.md').zustand;
     const ergebnis = fuehreKonfliktBefehlAus(zustand, 'git merge --abort');
 
     expect(ergebnis.zustand.aufloesungen).toEqual({});
     expect(ergebnis.zustand.vorgemerkt).toBe(false);
-    expect(offeneKonflikte(ergebnis.zustand)).toEqual(['k1']);
+    expect(ergebnis.zustand.status).toBe('abgebrochen');
+  });
+
+  it('zeigt danach die eigene Fassung ohne Marker', () => {
+    const abgebrochen = fuehreKonfliktBefehlAus(start(), 'git merge --abort').zustand;
+    const zeilen = mitKonfliktMarkern(abgebrochen, BESCHRIFTUNG);
+
+    expect(enthaeltMarker(zeilen)).toBe(false);
+    expect(zeilen).toContain('Basis: 9 Euro');
+    expect(zeilen).not.toContain('Basis: 12 Euro');
+  });
+
+  it('meldet danach keinen laufenden Merge mehr', () => {
+    const abgebrochen = fuehreKonfliktBefehlAus(start(), 'git merge --abort').zustand;
+    const ausgabe = fuehreKonfliktBefehlAus(abgebrochen, 'git status').ausgabe;
+
+    expect(ausgabe).toContain('Kein Merge im Gange');
+    expect(ausgabe).not.toContain('Offene Konfliktstellen');
+  });
+
+  it('lässt sich nach dem Abschluss NICHT mehr abbrechen', () => {
+    let zustand = loeseKonflikt(start(), 'k1', { art: 'ihre' });
+    zustand = fuehreKonfliktBefehlAus(zustand, 'git add preise.md').zustand;
+    zustand = fuehreKonfliktBefehlAus(zustand, 'git commit').zustand;
+    expect(zustand.status).toBe('abgeschlossen');
+
+    const ergebnis = fuehreKonfliktBefehlAus(zustand, 'git merge --abort');
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand.status).toBe('abgeschlossen');
+    expect(ergebnis.ausgabe).toContain('Kein Merge im Gange');
+  });
+
+  it('nimmt nach dem Abbruch weder Entscheidungen noch add oder commit an', () => {
+    const abgebrochen = fuehreKonfliktBefehlAus(start(), 'git merge --abort').zustand;
+
+    expect(loeseKonflikt(abgebrochen, 'k1', { art: 'ihre' })).toBe(abgebrochen);
+    expect(fuehreKonfliktBefehlAus(abgebrochen, 'git add preise.md').zustand.vorgemerkt).toBe(
+      false,
+    );
+    expect(fuehreKonfliktBefehlAus(abgebrochen, 'git commit').zustand.status).toBe('abgebrochen');
+  });
+
+  it('lässt denselben Merge nach einem Abbruch erneut beginnen', () => {
+    const abgebrochen = fuehreKonfliktBefehlAus(start(), 'git merge --abort').zustand;
+    const erneut = fuehreKonfliktBefehlAus(abgebrochen, 'git merge feature/preise');
+
+    expect(erneut.zustand.status).toBe('laeuft');
+    expect(offeneKonflikte(erneut.zustand)).toEqual(['k1']);
+    expect(enthaeltMarker(mitKonfliktMarkern(erneut.zustand, BESCHRIFTUNG))).toBe(true);
   });
 });

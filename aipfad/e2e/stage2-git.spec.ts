@@ -193,3 +193,42 @@ test('Der Fortschritt weist die Git-Lektion aus', async ({ page }) => {
   await expect(page.getByText('Lektionen abgeschlossen')).toBeVisible();
   await expect(page.getByText(/^1 von \d+$/)).toBeVisible();
 });
+
+/**
+ * Regressionstest für den Codex-Fund "Preserve an aborted merge as an
+ * inactive state" (PR #30): Ein Abbruch verwarf zuvor nur die
+ * Entscheidungen und zeigte die Marker sofort wieder an; `git status`
+ * meldete weiterhin einen laufenden Merge, und der Abbruch war selbst nach
+ * dem Abschluss noch möglich.
+ */
+test('Ein abgebrochener Merge ist beendet, nicht zurückgesetzt', async ({ page }) => {
+  await registerAndOnboard(page);
+  await page.goto('/labs/merge-conflict-lab');
+
+  const k1 = page.getByRole('group', { name: /Konfliktstelle k1/ });
+  await k1.getByRole('button', { name: 'Ihre übernehmen' }).click();
+
+  await page.getByRole('button', { name: 'git merge --abort' }).click();
+  await expect(page.getByText('Merge abgebrochen', { exact: true })).toBeVisible();
+
+  // Die Marker sind weg und der eigene Stand ist wieder da.
+  await expect(page.getByText('<<<<<<< main')).toHaveCount(0);
+  await expect(page.getByText('Basis: 9 Euro pro Monat').first()).toBeVisible();
+
+  // Ohne laufenden Merge nimmt das Lab weder add noch commit an.
+  await page.getByRole('button', { name: 'git status' }).click();
+  await expect(page.getByText(/Kein Merge im Gange/)).toBeVisible();
+
+  // Der Merge lässt sich aber neu beginnen — ein Abbruch kostet nichts.
+  await page.getByRole('button', { name: 'Merge erneut beginnen' }).click();
+  await expect(page.getByText('<<<<<<< main').first()).toBeVisible();
+
+  // Und nach dem Abschluss ist kein Abbruch mehr möglich.
+  await k1.getByRole('button', { name: 'Ihre übernehmen' }).click();
+  const k2 = page.getByRole('group', { name: /Konfliktstelle k2/ });
+  await k2.getByRole('button', { name: 'Beide behalten' }).click();
+  await page.getByRole('button', { name: 'git add preise.md' }).click();
+  await page.getByRole('button', { name: 'git commit' }).click();
+  await expect(page.getByText('Merge abgeschlossen', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'git merge --abort' })).toBeDisabled();
+});

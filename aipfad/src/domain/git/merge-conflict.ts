@@ -35,14 +35,23 @@ export type Aufloesung =
   | { art: 'beide' }
   | { art: 'eigene'; zeilen: string[] };
 
+/**
+ * Der Merge selbst hat drei Zustände — und nur im ersten gibt es überhaupt
+ * einen Konflikt.
+ *
+ * Zwei getrennte Wahrheitswerte "abgebrochen" und "abgeschlossen" wären
+ * dieselbe Information in einer Form, die widersprüchliche Kombinationen
+ * zulässt. Als ein Feld kann der Zustand nicht auseinanderlaufen.
+ */
+export type MergeZustand = 'laeuft' | 'abgebrochen' | 'abgeschlossen';
+
 export interface KonfliktZustand {
   datei: KonfliktDatei;
   /** Konflikt-Kennung -> Auflösung. */
   aufloesungen: Record<string, Aufloesung>;
   /** Wurde die Datei als aufgelöst vorgemerkt (git add)? */
   vorgemerkt: boolean;
-  /** Wurde der Merge abgeschlossen (git commit)? */
-  abgeschlossen: boolean;
+  status: MergeZustand;
 }
 
 export const KONFLIKT_START = '<<<<<<<';
@@ -65,6 +74,14 @@ export function mitKonfliktMarkern(
   zustand: KonfliktZustand,
   beschriftung: MarkerBeschriftung,
 ): string[] {
+  // Nach einem Abbruch gibt es keinen Konflikt mehr: Git stellt den Stand von
+  // vor dem Merge wieder her — die eigene Fassung, ohne Marker.
+  if (zustand.status === 'abgebrochen') {
+    return zustand.datei.abschnitte.flatMap((abschnitt) =>
+      abschnitt.art === 'gemeinsam' ? abschnitt.zeilen : abschnitt.unsere,
+    );
+  }
+
   const zeilen: string[] = [];
   for (const abschnitt of zustand.datei.abschnitte) {
     if (abschnitt.art === 'gemeinsam') {
@@ -157,6 +174,8 @@ export function loeseKonflikt(
   konfliktId: string,
   aufloesung: Aufloesung,
 ): KonfliktZustand {
+  // Entschieden wird nur, solange der Merge läuft.
+  if (zustand.status !== 'laeuft') return zustand;
   return {
     ...zustand,
     // Eine Auflösung nach dem Vormerken macht die Vormerkung ungültig — die
@@ -183,8 +202,20 @@ export function fuehreKonfliktBefehlAus(
 
   switch (unterbefehl) {
     case 'status': {
-      if (zustand.abgeschlossen)
-        return { zustand, ausgabe: 'Merge abgeschlossen.', veraendert: false };
+      if (zustand.status === 'abgeschlossen') {
+        return {
+          zustand,
+          ausgabe: 'Kein Merge im Gange. Der Merge ist abgeschlossen.',
+          veraendert: false,
+        };
+      }
+      if (zustand.status === 'abgebrochen') {
+        return {
+          zustand,
+          ausgabe: 'Kein Merge im Gange. Der Stand von vor dem Merge ist wiederhergestellt.',
+          veraendert: false,
+        };
+      }
       const offen = offeneKonflikte(zustand);
       if (offen.length > 0) {
         return {
@@ -209,6 +240,9 @@ export function fuehreKonfliktBefehlAus(
     }
 
     case 'add': {
+      if (zustand.status !== 'laeuft') {
+        return { zustand, ausgabe: 'Kein Merge im Gange.', veraendert: false };
+      }
       if (!alleKonflikteGeloest(zustand)) {
         return {
           zustand,
@@ -232,6 +266,9 @@ export function fuehreKonfliktBefehlAus(
     }
 
     case 'commit': {
+      if (zustand.status !== 'laeuft') {
+        return { zustand, ausgabe: 'Kein Merge im Gange.', veraendert: false };
+      }
       if (!alleKonflikteGeloest(zustand)) {
         return { zustand, ausgabe: 'Es sind noch Konflikte offen.', veraendert: false };
       }
@@ -243,7 +280,7 @@ export function fuehreKonfliktBefehlAus(
         };
       }
       return {
-        zustand: { ...zustand, abgeschlossen: true },
+        zustand: { ...zustand, status: 'abgeschlossen' },
         ausgabe: 'Merge abgeschlossen. Der Merge-Commit hält beide Entwicklungslinien zusammen.',
         veraendert: true,
       };
@@ -251,24 +288,51 @@ export function fuehreKonfliktBefehlAus(
 
     case 'merge': {
       if (teile.includes('--abort')) {
+        if (zustand.status !== 'laeuft') {
+          // Echtes Git kennt keinen Abbruch ohne laufenden Merge — und schon
+          // gar nicht nach einem abgeschlossenen. Sonst ließe sich hier ein
+          // fertiger Merge nachträglich zurücknehmen.
+          return {
+            zustand,
+            ausgabe: 'Kein Merge im Gange, den man abbrechen könnte.',
+            veraendert: false,
+          };
+        }
         return {
           zustand: {
             ...zustand,
             aufloesungen: {},
             vorgemerkt: false,
-            abgeschlossen: false,
+            status: 'abgebrochen',
           },
-          ausgabe: 'Merge abgebrochen. Der Stand von vorher ist wieder da.',
+          ausgabe: 'Merge abgebrochen. Der Stand von vor dem Merge ist wieder da.',
           veraendert: true,
         };
       }
-      return { zustand, ausgabe: 'Ein Merge läuft bereits.', veraendert: false };
+
+      if (zustand.status === 'laeuft') {
+        return { zustand, ausgabe: 'Ein Merge läuft bereits.', veraendert: false };
+      }
+      if (zustand.status === 'abgeschlossen') {
+        return {
+          zustand,
+          ausgabe: 'Bereits zusammengeführt — es gibt nichts mehr zu tun.',
+          veraendert: false,
+        };
+      }
+      // Nach einem Abbruch lässt sich derselbe Merge erneut beginnen.
+      return {
+        zustand: { ...zustand, aufloesungen: {}, vorgemerkt: false, status: 'laeuft' },
+        ausgabe:
+          'Automatischer Merge fehlgeschlagen; behebe die Konflikte und committe das Ergebnis.',
+        veraendert: true,
+      };
     }
 
     default:
       return {
         zustand,
-        ausgabe: `git ${unterbefehl}: in diesem Lab nicht umgesetzt. Verfügbar: git status, git add, git commit, git merge --abort.`,
+        ausgabe: `git ${unterbefehl}: in diesem Lab nicht umgesetzt. Verfügbar: git status, git add, git commit, git merge, git merge --abort.`,
         veraendert: false,
       };
   }
