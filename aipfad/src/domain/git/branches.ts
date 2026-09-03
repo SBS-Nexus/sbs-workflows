@@ -43,6 +43,8 @@ const UNVERAENDERT = (zustand: BranchZustand, ausgabe: string): BranchErgebnis =
   veraendert: false,
 });
 
+import { leseSchalter, schalterNichtUmgesetzt } from './schalter';
+
 function commitById(zustand: BranchZustand, id: string): Commit | undefined {
   return zustand.commits.find((c) => c.id === id);
 }
@@ -103,25 +105,28 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
 
   switch (unterbefehl) {
     case 'branch': {
-      // Schalter, die dieser Simulator nicht umsetzt, werden abgelehnt statt
-      // übergangen: `git branch -d topic` hätte sonst einen Branch ANGELEGT,
-      // also das Gegenteil des Verlangten (Codex-Review auf PR #30).
-      const unbekannterSchalter = args.find(
-        (a) => a.startsWith('-') && !['-a', '--all', '-l', '--list'].includes(a),
-      );
-      if (unbekannterSchalter) {
-        return UNVERAENDERT(
-          zustand,
-          `git branch ${unbekannterSchalter}: in diesem Simulator nicht umgesetzt. Verfügbar: git branch [name] zum Auflisten und Anlegen.`,
-        );
+      const schalter = leseSchalter(args, [
+        { schreibweisen: ['-a', '--all', '-l', '--list'], name: 'auflisten' },
+      ]);
+      if (schalter.unbekannt) {
+        // `git branch -d topic` legte zuvor einen Branch AN — das Gegenteil
+        // des Verlangten (Codex-Review auf PR #30).
+        return UNVERAENDERT(zustand, schalterNichtUmgesetzt('git branch', schalter.unbekannt));
       }
-      const name = args.find((a) => !a.startsWith('-'));
-      if (!name) {
+
+      const auflisten = schalter.gesetzt.has('auflisten');
+      const name = schalter.operanden[0];
+
+      // Mit einem Auflisten-Schalter ist ein Operand ein Suchmuster, kein
+      // neuer Branchname. `git branch -l topic` darf also nichts anlegen.
+      if (auflisten || name === undefined) {
         const zeilen = Object.keys(zustand.branches)
           .sort()
+          .filter((b) => name === undefined || b.includes(name))
           .map((b) => `${b === zustand.aktuellerBranch ? '*' : ' '} ${b}`);
-        return UNVERAENDERT(zustand, zeilen.join('\n'));
+        return UNVERAENDERT(zustand, zeilen.join('\n') || 'Kein Branch passt auf dieses Muster.');
       }
+
       if (zustand.branches[name] !== undefined) {
         return UNVERAENDERT(zustand, `Branch "${name}" gibt es bereits.`);
       }
@@ -134,8 +139,12 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
     }
 
     case 'switch': {
-      const neu = args.includes('-c') || args.includes('--create');
-      const name = args.find((a) => !a.startsWith('-'));
+      const schalter = leseSchalter(args, [{ schreibweisen: ['-c', '--create'], name: 'anlegen' }]);
+      if (schalter.unbekannt) {
+        return UNVERAENDERT(zustand, schalterNichtUmgesetzt('git switch', schalter.unbekannt));
+      }
+      const neu = schalter.gesetzt.has('anlegen');
+      const name = schalter.operanden[0];
       if (!name) return UNVERAENDERT(zustand, 'git switch: Bitte gib einen Branch an.');
 
       if (neu) {
@@ -189,7 +198,14 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
     }
 
     case 'merge': {
-      const name = args.find((a) => !a.startsWith('-'));
+      // `--squash`, `--no-ff` und Verwandte ändern das Ergebnis grundlegend.
+      // Sie zu übergehen hätte einen Merge-Commit angelegt, wo echtes Git
+      // keinen anlegt (Codex-Review auf PR #30).
+      const schalter = leseSchalter(args, []);
+      if (schalter.unbekannt) {
+        return UNVERAENDERT(zustand, schalterNichtUmgesetzt('git merge', schalter.unbekannt));
+      }
+      const name = schalter.operanden[0];
       if (!name) return UNVERAENDERT(zustand, 'git merge: Bitte gib einen Branch an.');
       const quelle = zustand.branches[name];
       if (quelle === undefined) {

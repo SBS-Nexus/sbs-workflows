@@ -18,6 +18,8 @@
  * Fassungen — so wie `git status` ihn auch berechnet, statt ihn abzulesen.
  */
 
+import { leseSchalter, schalterNichtUmgesetzt } from './schalter';
+
 /** Eine Datei in bis zu drei Fassungen. `undefined` heißt: dort nicht vorhanden. */
 export interface GitDatei {
   pfad: string;
@@ -198,36 +200,31 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       return KEINE_AENDERUNG(zustand, formatiereStatus(status(zustand)));
 
     case 'add': {
-      if (args.length === 0) {
+      const schalter = leseSchalter(args, [{ schreibweisen: ['-A', '--all'], name: 'alle' }]);
+      if (schalter.unbekannt) {
+        return KEINE_AENDERUNG(zustand, schalterNichtUmgesetzt('git add', schalter.unbekannt));
+      }
+      if (schalter.operanden.length === 0 && !schalter.gesetzt.has('alle')) {
         return KEINE_AENDERUNG(zustand, 'git add: Bitte gib an, was vorgemerkt werden soll.');
       }
-      const alles = args.includes('.') || args.includes('-A') || args.includes('--all');
 
-      if (!alles) {
-        // JEDER angegebene Pfad muss existieren, bevor irgendetwas vorgemerkt
-        // wird. Zuvor genügte ein Treffer: `git add preise.md fehlt.txt`
-        // merkte preise.md vor und verschwieg den Tippfehler. Echtes Git
-        // bricht ab und merkt nichts vor (Codex-Review auf PR #30).
-        const bekannt = new Set(dateien.map((d) => d.pfad));
-        const fehlend = args.filter((a) => !a.startsWith('-') && !bekannt.has(a));
-        if (fehlend.length > 0) {
-          return KEINE_AENDERUNG(
-            zustand,
-            `fatal: pathspec '${fehlend[0]}' did not match any files`,
-          );
-        }
+      // JEDER angegebene Pfad muss existieren, bevor irgendetwas vorgemerkt
+      // wird — auch neben einem `.` oder `-A`. Zuvor genügte ein Treffer, und
+      // `git add . fehlt.txt` verschwieg den Tippfehler. Echtes Git bricht ab
+      // und merkt nichts vor (Codex-Review auf PR #30).
+      const bekannt = new Set(dateien.map((d) => d.pfad));
+      const fehlend = schalter.operanden.filter((pf) => pf !== '.' && !bekannt.has(pf));
+      if (fehlend.length > 0) {
+        return KEINE_AENDERUNG(zustand, `fatal: pathspec '${fehlend[0]}' did not match any files`);
       }
 
-      const betroffen = alles ? dateien : dateien.filter((d) => args.includes(d.pfad));
-      if (betroffen.length === 0) {
-        return KEINE_AENDERUNG(zustand, 'git add: Bitte gib an, was vorgemerkt werden soll.');
-      }
+      const alles = schalter.gesetzt.has('alle') || schalter.operanden.includes('.');
+      const betroffen = alles
+        ? dateien
+        : dateien.filter((d) => schalter.operanden.includes(d.pfad));
+
       for (const datei of betroffen) datei.index = datei.arbeitsbaum;
-      return {
-        zustand: { ...zustand, dateien },
-        ausgabe: '',
-        veraendert: true,
-      };
+      return { zustand: { ...zustand, dateien }, ausgabe: '', veraendert: true };
     }
 
     case 'commit': {
@@ -297,16 +294,23 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
     }
 
     case 'restore': {
-      if (args.length === 0) {
+      const schalter = leseSchalter(args, [
+        // `-S` ist die Kurzform von `--staged`. Sie zu übersehen war
+        // besonders heikel: Der Befehl verwarf dann die Arbeit im
+        // Arbeitsverzeichnis, statt die Vormerkung zurückzunehmen
+        // (Codex-Review auf PR #30).
+        { schreibweisen: ['-S', '--staged'], name: 'staged' },
+      ]);
+      if (schalter.unbekannt) {
+        return KEINE_AENDERUNG(zustand, schalterNichtUmgesetzt('git restore', schalter.unbekannt));
+      }
+      if (schalter.operanden.length === 0) {
         return KEINE_AENDERUNG(zustand, 'git restore: Bitte gib eine Datei an.');
       }
-      const ausIndex = args.includes('--staged');
-      const pfade = args.filter((a) => !a.startsWith('-'));
-      // Auch hier gilt: erst alle Pfade prüfen, dann handeln. Ein
-      // unbekannter Pfad neben einem bekannten wurde zuvor stillschweigend
-      // übergangen (Codex-Review auf PR #30).
-      const bekannt = new Set(dateien.map((d) => d.pfad));
-      const unbekannt = pfade.filter((pf) => !bekannt.has(pf));
+
+      const ausIndex = schalter.gesetzt.has('staged');
+      const bekannteDateien = new Set(dateien.map((d) => d.pfad));
+      const unbekannt = schalter.operanden.filter((pf) => !bekannteDateien.has(pf));
       if (unbekannt.length > 0) {
         return KEINE_AENDERUNG(
           zustand,
@@ -314,18 +318,12 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
         );
       }
 
-      const betroffen = dateien.filter((d) => pfade.includes(d.pfad));
-      if (betroffen.length === 0) {
-        return KEINE_AENDERUNG(zustand, 'git restore: Bitte gib eine Datei an.');
-      }
+      const betroffen = dateien.filter((d) => schalter.operanden.includes(d.pfad));
 
       // Eine unversionierte Datei kennt Git nicht — es gibt keinen Stand, auf
       // den zurückgesetzt werden könnte. Ohne diese Prüfung setzte die
       // Schleife unten den Inhalt auf `undefined` und LÖSCHTE die Datei,
-      // während sie Erfolg meldete: In einer Lernumgebung die schlechteste
-      // Variante, weil sie still etwas Falsches beibringt (Codex-Review auf
-      // PR #30). Echtes Git bricht hier mit einer Pfadangaben-Meldung ab und
-      // lässt die Datei unangetastet.
+      // während sie Erfolg meldete.
       const unversioniert = betroffen.filter((d) => !istBekannt(d));
       if (unversioniert.length > 0) {
         return KEINE_AENDERUNG(
