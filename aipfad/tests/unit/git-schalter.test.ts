@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { leseSchalter } from '@/domain/git/schalter';
+import { leseSchalter, zerlegeBefehl } from '@/domain/git/schalter';
 import { fuehreGitBefehlAus, status, type GitArbeitsbaumZustand } from '@/domain/git/working-tree';
 import { fuehreBranchBefehlAus, type BranchZustand } from '@/domain/git/branches';
 import { fuehreKonfliktBefehlAus, loeseKonflikt } from '@/domain/git/merge-conflict';
@@ -200,26 +200,28 @@ describe('Schalterprüfung deckt alle Unterbefehle ab', () => {
   });
 });
 
+function konfliktStart() {
+  return {
+    datei: {
+      pfad: 'preise.md',
+      abschnitte: [
+        { art: 'gemeinsam' as const, zeilen: ['# Preise'] },
+        {
+          art: 'konflikt' as const,
+          id: 'k1',
+          unsere: ['9 Euro'],
+          ihre: ['12 Euro'],
+        },
+      ],
+    },
+    aufloesungen: {},
+    vorgemerkt: false,
+    status: 'laeuft' as const,
+  };
+}
+
 describe('Konflikt-Simulator prüft Schalter und Pfad', () => {
-  function konflikt() {
-    return {
-      datei: {
-        pfad: 'preise.md',
-        abschnitte: [
-          { art: 'gemeinsam' as const, zeilen: ['# Preise'] },
-          {
-            art: 'konflikt' as const,
-            id: 'k1',
-            unsere: ['9 Euro'],
-            ihre: ['12 Euro'],
-          },
-        ],
-      },
-      aufloesungen: {},
-      vorgemerkt: false,
-      status: 'laeuft' as const,
-    };
-  }
+  const konflikt = konfliktStart;
 
   it('merkt keinen fremden Pfad vor', () => {
     const geloest = loeseKonflikt(konflikt(), 'k1', { art: 'ihre' });
@@ -239,5 +241,147 @@ describe('Konflikt-Simulator prüft Schalter und Pfad', () => {
     const geloest = loeseKonflikt(konflikt(), 'k1', { art: 'ihre' });
     const ergebnis = fuehreKonfliktBefehlAus(geloest, 'git add preise.md');
     expect(ergebnis.zustand.vorgemerkt).toBe(true);
+  });
+});
+
+/**
+ * Der Schaltervertrag kannte anfangs nur die NAMEN der Schalter. Die
+ * Commit-Nachricht las deshalb ein eigener regulärer Ausdruck aus der rohen
+ * Eingabe — an der Prüfung vorbei. Der kannte `-m`, aber nicht `--message`,
+ * und er bemerkte nicht, wenn gar kein Wert dastand (Codex-Review auf PR #30).
+ */
+describe('Schalter mit Wert', () => {
+  const MIT_WERT = [{ schreibweisen: ['-m', '--message'], name: 'nachricht', brauchtWert: true }];
+
+  it('nimmt den folgenden Bestandteil als Wert', () => {
+    expect(leseSchalter(['-m', 'Erster Commit'], MIT_WERT).werte.get('nachricht')).toBe(
+      'Erster Commit',
+    );
+  });
+
+  it('meldet einen Schalter, dem sein Wert fehlt', () => {
+    expect(leseSchalter(['-m'], MIT_WERT).ohneWert).toBe('-m');
+  });
+
+  it('zählt den Wert nicht als Operanden', () => {
+    const ergebnis = leseSchalter(['-m', 'Text', 'datei.md'], MIT_WERT);
+    expect(ergebnis.operanden).toEqual(['datei.md']);
+  });
+
+  it('nimmt auch einen Wert, der wie ein Schalter aussieht', () => {
+    // `git commit -m -x` meint in echtem Git die Nachricht "-x".
+    const ergebnis = leseSchalter(['-m', '-x'], MIT_WERT);
+    expect(ergebnis.werte.get('nachricht')).toBe('-x');
+    expect(ergebnis.unbekannt).toBeUndefined();
+  });
+});
+
+describe('Befehlszeile zerlegen', () => {
+  it('hält einen Text in Anführungszeichen zusammen', () => {
+    expect(zerlegeBefehl('git commit -m "Zwei Wörter"')).toEqual([
+      'git',
+      'commit',
+      '-m',
+      'Zwei Wörter',
+    ]);
+  });
+
+  it('versteht einfache Anführungszeichen genauso', () => {
+    expect(zerlegeBefehl("git commit -m 'Zwei Wörter'")).toEqual([
+      'git',
+      'commit',
+      '-m',
+      'Zwei Wörter',
+    ]);
+  });
+
+  it('behält einen leeren Text als eigenen Bestandteil', () => {
+    // Sonst sähe `-m ""` aus wie ein `-m` ganz ohne Wert — zwei
+    // verschiedene Fehler mit zwei verschiedenen Meldungen.
+    expect(zerlegeBefehl('git commit -m ""')).toEqual(['git', 'commit', '-m', '']);
+  });
+});
+
+describe('Commit-Nachricht in allen Simulatoren', () => {
+  it('versteht die lange Schreibweise --message', () => {
+    const zustand = fuehreGitBefehlAus(arbeitsbaum(), 'git add preise.md').zustand;
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git commit --message "Preise angepasst"');
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.commits[ergebnis.zustand.commits.length - 1]?.nachricht).toBe(
+      'Preise angepasst',
+    );
+  });
+
+  it('versteht --message auch im Branch-Simulator', () => {
+    const ergebnis = fuehreBranchBefehlAus(branches(), 'git commit --message "Neuer Stand"');
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.ausgabe).toContain('Neuer Stand');
+  });
+
+  it('lehnt -m ohne Nachricht ab, statt etwas zu tun', () => {
+    const zustand = fuehreGitBefehlAus(arbeitsbaum(), 'git add preise.md').zustand;
+    const vorher = zustand.commits.length;
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git commit -m');
+
+    expect(ergebnis.ausgabe).toContain("switch 'm' requires a value");
+    expect(ergebnis.zustand.commits.length).toBe(vorher);
+  });
+
+  it('schließt den Merge bei -m ohne Nachricht NICHT ab', () => {
+    // Zuvor genügte ein nacktes -m, um den Merge abzuschließen.
+    let zustand = loeseKonflikt(konfliktStart(), 'k1', { art: 'ihre' });
+    zustand = fuehreKonfliktBefehlAus(zustand, 'git add preise.md').zustand;
+    const ergebnis = fuehreKonfliktBefehlAus(zustand, 'git commit -m');
+
+    expect(ergebnis.ausgabe).toContain("switch 'm' requires a value");
+    expect(ergebnis.zustand.status).toBe('laeuft');
+    expect(ergebnis.veraendert).toBe(false);
+  });
+});
+
+describe('Pfadangaben ergänzen einander', () => {
+  it('behält bei git add . die Alles-Bedeutung neben einem weiteren Pfad', () => {
+    // `.` ist selbst eine Pfadangabe für alles. Zuvor schaltete jeder
+    // danebenstehende Pfad sie ab, und `git add . preise.md` ließ die
+    // zweite Änderung ungemerkt liegen.
+    const zustand: GitArbeitsbaumZustand = {
+      dateien: [
+        { pfad: 'preise.md', arbeitsbaum: 'neu', index: 'alt', head: 'alt' },
+        { pfad: 'liesmich.md', arbeitsbaum: 'auch neu', index: 'alt', head: 'alt' },
+      ],
+      commits: [],
+    };
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git add . preise.md');
+
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'preise.md')?.index).toBe('neu');
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'liesmich.md')?.index).toBe('auch neu');
+  });
+});
+
+describe('git merge mit mehreren Köpfen', () => {
+  it('lehnt zwei Branches ab, statt den zweiten fallen zu lassen', () => {
+    // Echtes Git führt beide zusammen. Dieses Modell kennt nur zwei Eltern —
+    // ein stillschweigend halber Merge wäre die schlechteste Antwort.
+    let zustand = fuehreBranchBefehlAus(branches(), 'git switch -c feature').zustand;
+    zustand = fuehreBranchBefehlAus(zustand, 'git commit -m "Feature"').zustand;
+    zustand = fuehreBranchBefehlAus(zustand, 'git switch main').zustand;
+    zustand = fuehreBranchBefehlAus(zustand, 'git switch -c hotfix').zustand;
+    zustand = fuehreBranchBefehlAus(zustand, 'git commit -m "Hotfix"').zustand;
+    zustand = fuehreBranchBefehlAus(zustand, 'git switch main').zustand;
+
+    const ergebnis = fuehreBranchBefehlAus(zustand, 'git merge feature hotfix');
+
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.ausgabe).toContain('Octopus-Merge');
+    expect(ergebnis.zustand.branches['main']).toBe(zustand.branches['main']);
+  });
+
+  it('führt einen einzelnen Branch weiterhin zusammen', () => {
+    let zustand = fuehreBranchBefehlAus(branches(), 'git switch -c feature').zustand;
+    zustand = fuehreBranchBefehlAus(zustand, 'git commit -m "Feature"').zustand;
+    zustand = fuehreBranchBefehlAus(zustand, 'git switch main').zustand;
+
+    expect(fuehreBranchBefehlAus(zustand, 'git merge feature').veraendert).toBe(true);
   });
 });

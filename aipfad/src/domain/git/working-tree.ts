@@ -18,7 +18,7 @@
  * Fassungen — so wie `git status` ihn auch berechnet, statt ihn abzulesen.
  */
 
-import { leseSchalter, schalterNichtUmgesetzt } from './schalter';
+import { leseSchalter, schalterNichtUmgesetzt, schalterOhneWert, zerlegeBefehl } from './schalter';
 
 /** Eine Datei in bis zu drei Fassungen. `undefined` heißt: dort nicht vorhanden. */
 export interface GitDatei {
@@ -186,7 +186,7 @@ function zeilenDiff(vorher: string | undefined, nachher: string | undefined): st
  * tun — dieselbe Regel wie im Terminal-Simulator.
  */
 export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: string): GitErgebnis {
-  const teile = eingabe.trim().split(/\s+/);
+  const teile = zerlegeBefehl(eingabe);
   if (teile[0] !== 'git') {
     return KEINE_AENDERUNG(zustand, `Kein Git-Befehl: ${eingabe.trim()}`);
   }
@@ -223,13 +223,16 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
         return KEINE_AENDERUNG(zustand, `fatal: pathspec '${fehlend[0]}' did not match any files`);
       }
 
-      // `-A` und `.` wirken auf alles — aber nur, solange kein Pfad
-      // danebensteht. `git add -A unterordner` begrenzt in echtem Git auf
-      // diesen Pfad (Codex-Review auf PR #30).
+      // Pfadangaben ergänzen einander. `.` ist selbst eine Pfadangabe für
+      // alles und behält diese Bedeutung auch, wenn ein weiterer Pfad
+      // danebensteht: `git add . preise.md` merkt beides vor. `-A` dagegen
+      // ist ein Schalter und wird von einer Pfadangabe begrenzt —
+      // `git add -A unterordner` betrifft nur diesen Pfad
+      // (Codex-Review auf PR #30).
       const ausdrueckliche = schalter.operanden.filter((pf) => pf !== '.');
       const alles =
-        (schalter.gesetzt.has('alle') || schalter.operanden.includes('.')) &&
-        ausdrueckliche.length === 0;
+        schalter.operanden.includes('.') ||
+        (schalter.gesetzt.has('alle') && ausdrueckliche.length === 0);
       const betroffen = alles ? dateien : dateien.filter((d) => ausdrueckliche.includes(d.pfad));
 
       for (const datei of betroffen) datei.index = datei.arbeitsbaum;
@@ -238,14 +241,17 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
 
     case 'commit': {
       const schalter = leseSchalter(args, [
-        { schreibweisen: ['-m', '--message'], name: 'nachricht' },
+        { schreibweisen: ['-m', '--message'], name: 'nachricht', brauchtWert: true },
       ]);
       if (schalter.unbekannt) {
         // Besonders `--amend` ist heikel: Es schreibt den letzten Commit um,
         // statt einen neuen anzulegen (Codex-Review auf PR #30).
         return KEINE_AENDERUNG(zustand, schalterNichtUmgesetzt('git commit', schalter.unbekannt));
       }
-      const nachricht = leseNachricht(eingabe);
+      if (schalter.ohneWert) {
+        return KEINE_AENDERUNG(zustand, schalterOhneWert(schalter.ohneWert));
+      }
+      const nachricht = schalter.werte.get('nachricht')?.trim() || null;
       if (!nachricht) {
         return KEINE_AENDERUNG(
           zustand,
@@ -378,14 +384,6 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
         `git ${unterbefehl}: in diesem Simulator nicht umgesetzt. Verfügbar: ${UMGESETZTE_GIT_BEFEHLE.join(', ')}.`,
       );
   }
-}
-
-/** Liest die Nachricht aus `-m "…"` bzw. `-m '…'`. */
-function leseNachricht(eingabe: string): string | null {
-  const treffer = /-m\s+("([^"]*)"|'([^']*)'|(\S+))/.exec(eingabe);
-  if (!treffer) return null;
-  const wert = treffer[2] ?? treffer[3] ?? treffer[4] ?? '';
-  return wert.trim().length > 0 ? wert.trim() : null;
 }
 
 function naechsteCommitId(commits: GitCommit[]): string {

@@ -43,7 +43,7 @@ const UNVERAENDERT = (zustand: BranchZustand, ausgabe: string): BranchErgebnis =
   veraendert: false,
 });
 
-import { leseSchalter, schalterNichtUmgesetzt } from './schalter';
+import { leseSchalter, schalterNichtUmgesetzt, schalterOhneWert, zerlegeBefehl } from './schalter';
 
 function commitById(zustand: BranchZustand, id: string): Commit | undefined {
   return zustand.commits.find((c) => c.id === id);
@@ -93,7 +93,7 @@ function naechsteId(commits: Commit[]): string {
 }
 
 export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): BranchErgebnis {
-  const teile = eingabe.trim().split(/\s+/);
+  const teile = zerlegeBefehl(eingabe);
   if (teile[0] !== 'git') return UNVERAENDERT(zustand, `Kein Git-Befehl: ${eingabe.trim()}`);
 
   const unterbefehl = teile[1] ?? '';
@@ -179,15 +179,17 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
 
     case 'commit': {
       const schalter = leseSchalter(args, [
-        { schreibweisen: ['-m', '--message'], name: 'nachricht' },
+        { schreibweisen: ['-m', '--message'], name: 'nachricht', brauchtWert: true },
       ]);
       if (schalter.unbekannt) {
         // `--amend` schriebe den letzten Commit um, statt einen neuen
         // anzulegen (Codex-Review auf PR #30).
         return UNVERAENDERT(zustand, schalterNichtUmgesetzt('git commit', schalter.unbekannt));
       }
-      const treffer = /-m\s+("([^"]*)"|'([^']*)'|(\S+))/.exec(eingabe);
-      const nachricht = (treffer?.[2] ?? treffer?.[3] ?? treffer?.[4] ?? '').trim();
+      if (schalter.ohneWert) {
+        return UNVERAENDERT(zustand, schalterOhneWert(schalter.ohneWert));
+      }
+      const nachricht = (schalter.werte.get('nachricht') ?? '').trim();
       if (!nachricht) {
         return UNVERAENDERT(zustand, 'git commit: Es fehlt eine Nachricht (-m "…").');
       }
@@ -217,6 +219,16 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
       }
       const name = schalter.operanden[0];
       if (!name) return UNVERAENDERT(zustand, 'git merge: Bitte gib einen Branch an.');
+      // Echtes Git nimmt mehrere Köpfe entgegen und führt sie ALLE zusammen
+      // (ein Octopus-Merge). Dieses Modell kennt nur zwei Eltern. Den Rest
+      // still fallen zu lassen hätte einen erfolgreichen Merge gemeldet, in
+      // dem der zweite Branch gar nicht steckt (Codex-Review auf PR #30).
+      if (schalter.operanden.length > 1) {
+        return UNVERAENDERT(
+          zustand,
+          'git merge: Mehrere Branches auf einmal (ein Octopus-Merge) sind in diesem Simulator nicht umgesetzt. Führe sie nacheinander zusammen.',
+        );
+      }
       const quelle = zustand.branches[name];
       if (quelle === undefined) {
         return UNVERAENDERT(zustand, `Branch "${name}" gibt es nicht.`);

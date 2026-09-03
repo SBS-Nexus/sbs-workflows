@@ -54,7 +54,7 @@ export interface KonfliktZustand {
   status: MergeZustand;
 }
 
-import { leseSchalter, schalterNichtUmgesetzt } from './schalter';
+import { leseSchalter, schalterNichtUmgesetzt, schalterOhneWert, zerlegeBefehl } from './schalter';
 
 export const KONFLIKT_START = '<<<<<<<';
 export const KONFLIKT_TRENNER = '=======';
@@ -196,7 +196,7 @@ export function fuehreKonfliktBefehlAus(
   zustand: KonfliktZustand,
   eingabe: string,
 ): KonfliktErgebnis {
-  const teile = eingabe.trim().split(/\s+/);
+  const teile = zerlegeBefehl(eingabe);
   if (teile[0] !== 'git') {
     return { zustand, ausgabe: `Kein Git-Befehl: ${eingabe.trim()}`, veraendert: false };
   }
@@ -293,10 +293,16 @@ export function fuehreKonfliktBefehlAus(
 
     case 'commit': {
       const schalter = leseSchalter(args, [
-        { schreibweisen: ['-m', '--message'], name: 'nachricht' },
+        { schreibweisen: ['-m', '--message'], name: 'nachricht', brauchtWert: true },
       ]);
       if (schalter.unbekannt) {
         return unveraendert(schalterNichtUmgesetzt('git commit', schalter.unbekannt));
+      }
+      // Ein `-m` ohne Nachricht schloss den Merge zuvor trotzdem ab. Echtes
+      // Git bricht hier ab, bevor irgendetwas geschieht
+      // (Codex-Review auf PR #30).
+      if (schalter.ohneWert) {
+        return unveraendert(schalterOhneWert(schalter.ohneWert));
       }
       if (zustand.status !== 'laeuft') {
         return { zustand, ausgabe: 'Kein Merge im Gange.', veraendert: false };

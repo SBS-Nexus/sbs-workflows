@@ -20,15 +20,29 @@ export interface SchalterDefinition {
   schreibweisen: string[];
   /** Einheitlicher Name, unter dem der Befehl ihn abfragt. */
   name: string;
+  /**
+   * Ob auf den Schalter ein Wert folgen muss, wie bei `-m "Nachricht"`.
+   *
+   * Ohne diese Angabe kannte der Vertrag nur die Namen der Schalter. Die
+   * Nachricht wurde deshalb nebenher mit einem eigenen regulären Ausdruck
+   * aus der Eingabe gefischt — der kannte `-m`, aber nicht `--message`, und
+   * er bemerkte auch nicht, wenn gar kein Wert dastand. Beides ist an
+   * derselben Stelle behoben, an der auch die Schalternamen stehen.
+   */
+  brauchtWert?: boolean;
 }
 
 export interface SchalterErgebnis {
   /** Die erkannten Schalter unter ihrem einheitlichen Namen. */
   gesetzt: Set<string>;
+  /** Die Werte der Schalter, die einen tragen, unter demselben Namen. */
+  werte: Map<string, string>;
   /** Alles, was kein Schalter ist — Pfade, Branchnamen, Nachrichten. */
   operanden: string[];
   /** Der erste nicht unterstützte Schalter, falls vorhanden. */
   unbekannt?: string;
+  /** Der erste Schalter, dem sein Wert fehlt, falls vorhanden. */
+  ohneWert?: string;
 }
 
 /**
@@ -42,10 +56,13 @@ export function leseSchalter(
   erlaubt: readonly SchalterDefinition[],
 ): SchalterErgebnis {
   const gesetzt = new Set<string>();
+  const werte = new Map<string, string>();
   const operanden: string[] = [];
   let nurNochOperanden = false;
 
-  for (const arg of args) {
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i] as string;
+
     if (nurNochOperanden) {
       operanden.push(arg);
       continue;
@@ -60,14 +77,71 @@ export function leseSchalter(
     }
 
     const treffer = erlaubt.find((s) => s.schreibweisen.includes(arg));
-    if (!treffer) return { gesetzt, operanden, unbekannt: arg };
+    if (!treffer) return { gesetzt, werte, operanden, unbekannt: arg };
     gesetzt.add(treffer.name);
+
+    if (treffer.brauchtWert) {
+      // Der nächste Bestandteil ist der Wert — auch dann, wenn er mit einem
+      // Bindestrich beginnt: `git commit -m -x` meint in echtem Git die
+      // Nachricht "-x", nicht den Schalter `-x`.
+      const wert = args[i + 1];
+      if (wert === undefined) return { gesetzt, werte, operanden, ohneWert: arg };
+      werte.set(treffer.name, wert);
+      i += 1;
+    }
   }
 
-  return { gesetzt, operanden };
+  return { gesetzt, werte, operanden };
+}
+
+/**
+ * Zerlegt eine Befehlszeile in ihre Bestandteile und beachtet dabei
+ * Anführungszeichen.
+ *
+ * Ein einfaches Trennen an Leerzeichen zerrisse `git commit -m "Zwei Wörter"`
+ * — deshalb las die Nachricht zuvor ein eigener regulärer Ausdruck aus der
+ * rohen Eingabe, an der Schalterprüfung vorbei. Mit einer gemeinsamen
+ * Zerlegung erübrigt sich das: Was der Vertrag sieht, ist auch das, was
+ * dasteht.
+ */
+export function zerlegeBefehl(eingabe: string): string[] {
+  const teile: string[] = [];
+  let aktuell = '';
+  let offen = false;
+  let anfuehrung: '"' | "'" | null = null;
+
+  for (const zeichen of eingabe.trim()) {
+    if (anfuehrung) {
+      if (zeichen === anfuehrung) anfuehrung = null;
+      else aktuell += zeichen;
+      continue;
+    }
+    if (zeichen === '"' || zeichen === "'") {
+      anfuehrung = zeichen;
+      // Auch `-m ""` ist ein Bestandteil — ein leerer, den der Befehl
+      // dann als fehlende Nachricht ablehnen darf.
+      offen = true;
+      continue;
+    }
+    if (/\s/.test(zeichen)) {
+      if (aktuell.length > 0 || offen) teile.push(aktuell);
+      aktuell = '';
+      offen = false;
+      continue;
+    }
+    aktuell += zeichen;
+  }
+  if (aktuell.length > 0 || offen) teile.push(aktuell);
+
+  return teile;
 }
 
 /** Einheitliche Meldung für einen Schalter, den ein Simulator nicht umsetzt. */
 export function schalterNichtUmgesetzt(befehl: string, schalter: string): string {
   return `${befehl} ${schalter}: in diesem Simulator nicht umgesetzt. Der Schalter wird bewusst abgelehnt, statt still etwas anderes zu tun.`;
+}
+
+/** Einheitliche Meldung für einen Schalter, dem sein Wert fehlt. */
+export function schalterOhneWert(schalter: string): string {
+  return `error: switch '${schalter.replace(/^-+/, '')}' requires a value`;
 }
