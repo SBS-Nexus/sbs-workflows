@@ -96,10 +96,21 @@ describe('git branch: Auflisten legt nichts an', () => {
     expect(ergebnis.veraendert).toBe(false);
   });
 
-  it('filtert mit -a nach dem Muster, statt anzulegen', () => {
+  it('lehnt bei -a einen Operanden ab, statt ihn als Muster zu lesen', () => {
+    // Diese Prüfung stand vorher andersherum: Sie hielt das Filtern mit -a
+    // für richtig. `-a` und `-l` sind aber nicht dasselbe — `-a` nimmt gar
+    // keinen Operanden entgegen (Codex-Review auf PR #30).
     const ergebnis = fuehreBranchBefehlAus(branches(), 'git branch -a main');
-    expect(ergebnis.ausgabe).toContain('main');
+
+    expect(ergebnis.ausgabe).toContain('do not take a branch name');
+    expect(ergebnis.veraendert).toBe(false);
     expect(Object.keys(ergebnis.zustand.branches)).toEqual(['main']);
+  });
+
+  it('listet mit -a ohne Operanden alle Branches auf', () => {
+    const ergebnis = fuehreBranchBefehlAus(branches(), 'git branch -a');
+    expect(ergebnis.ausgabe).toContain('main');
+    expect(ergebnis.veraendert).toBe(false);
   });
 
   it('legt ohne Auflisten-Schalter weiterhin an', () => {
@@ -516,5 +527,59 @@ describe('Mehrfaches -c', () => {
 
     expect(ergebnis.zustand.aktuellerBranch).toBe('zwei');
     expect(ergebnis.zustand.branches['eins']).toBeUndefined();
+  });
+});
+
+/**
+ * Muster sind Git-Muster, keine Teilzeichenketten. Ein schlichtes
+ * `includes` lag in beide Richtungen falsch: `eat` passte auf `feature`,
+ * `feat*` auf nichts (Codex-Review auf PR #30).
+ */
+describe('Muster beim Auflisten von Branches', () => {
+  function mitBranches() {
+    let zustand = fuehreBranchBefehlAus(branches(), 'git branch feature').zustand;
+    zustand = fuehreBranchBefehlAus(zustand, 'git branch hotfix').zustand;
+    return zustand;
+  }
+
+  it('passt NICHT auf einen Teil des Namens', () => {
+    const ergebnis = fuehreBranchBefehlAus(mitBranches(), 'git branch -l eat');
+    expect(ergebnis.ausgabe).toContain('Kein Branch passt');
+  });
+
+  it('versteht den Stern als Platzhalter', () => {
+    const ergebnis = fuehreBranchBefehlAus(mitBranches(), 'git branch -l "feat*"');
+    expect(ergebnis.ausgabe).toContain('feature');
+    expect(ergebnis.ausgabe).not.toContain('hotfix');
+  });
+
+  it('versteht das Fragezeichen als einzelnes Zeichen', () => {
+    const ergebnis = fuehreBranchBefehlAus(mitBranches(), 'git branch -l "mai?"');
+    expect(ergebnis.ausgabe).toContain('main');
+    expect(ergebnis.ausgabe).not.toContain('feature');
+  });
+
+  it('nimmt den vollen Namen weiterhin an', () => {
+    const ergebnis = fuehreBranchBefehlAus(mitBranches(), 'git branch -l feature');
+    expect(ergebnis.ausgabe).toContain('feature');
+    expect(ergebnis.ausgabe).not.toContain('hotfix');
+  });
+
+  it('lehnt Zeichenklassen ab, statt sie als Zeichen zu lesen', () => {
+    const ergebnis = fuehreBranchBefehlAus(mitBranches(), 'git branch -l "[fh]*"');
+    expect(ergebnis.ausgabe).toContain('nicht umgesetzt');
+  });
+});
+
+describe('git merge --abort mit Operanden', () => {
+  it('bricht nichts ab, wenn ein Branchname danebensteht', () => {
+    // Zuvor wurden alle Entscheidungen verworfen und Erfolg gemeldet.
+    const zustand = loeseKonflikt(konfliktStart(), 'k1', { art: 'ihre' });
+    const ergebnis = fuehreKonfliktBefehlAus(zustand, 'git merge --abort feature');
+
+    expect(ergebnis.ausgabe).toContain('--abort expects no arguments');
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand.status).toBe('laeuft');
+    expect(ergebnis.zustand.aufloesungen).toEqual(zustand.aufloesungen);
   });
 });

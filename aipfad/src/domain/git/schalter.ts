@@ -175,3 +175,32 @@ export function fuegeAbsaetzeZusammen(werte: readonly string[] | undefined): str
 export function operandenNichtUmgesetzt(befehl: string, operanden: readonly string[]): string {
   return `${befehl}: "${operanden.join(' ')}" wird hier nicht ausgewertet. Dieser Simulator kennt die Form ohne zusätzliche Angaben.`;
 }
+
+/**
+ * Prüft einen Branchnamen gegen ein Muster, wie Git es tut.
+ *
+ * Zuvor war das ein schlichtes `includes`, und damit passte `eat` auf
+ * `feature`, während `feat*` auf nichts passte — der Stern galt als
+ * gewöhnliches Zeichen. Beides ist genau verkehrt herum
+ * (Codex-Review auf PR #30).
+ *
+ * Umgesetzt sind `*` und `?`. Zeichenklassen in eckigen Klammern kennt
+ * dieser Simulator nicht; sie werden abgelehnt, statt als gewöhnliche
+ * Zeichen durchzugehen.
+ */
+export function passtAufMuster(name: string, muster: string): boolean {
+  const regex = muster
+    .split('')
+    .map((zeichen) => {
+      if (zeichen === '*') return '[^]*';
+      if (zeichen === '?') return '[^]';
+      return zeichen.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    })
+    .join('');
+  return new RegExp(`^${regex}$`).test(name);
+}
+
+/** Ob ein Muster Bestandteile enthält, die dieser Simulator nicht kennt. */
+export function musterNichtUmgesetzt(muster: string): boolean {
+  return muster.includes('[') || muster.includes(']');
+}

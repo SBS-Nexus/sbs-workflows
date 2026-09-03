@@ -46,7 +46,9 @@ const UNVERAENDERT = (zustand: BranchZustand, ausgabe: string): BranchErgebnis =
 import {
   fuegeAbsaetzeZusammen,
   leseSchalter,
+  musterNichtUmgesetzt,
   operandenNichtUmgesetzt,
+  passtAufMuster,
   schalterNichtUmgesetzt,
   schalterOhneWert,
   zerlegeBefehl,
@@ -112,8 +114,13 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
 
   switch (unterbefehl) {
     case 'branch': {
+      // `-a` und `-l` sind NICHT dasselbe: `-l` nimmt Suchmuster entgegen,
+      // `-a` nimmt gar keinen Operanden. Unter einem gemeinsamen Namen
+      // gelesen wurde `git branch -a feature` zu einer gefilterten Liste,
+      // statt abgelehnt zu werden (Codex-Review auf PR #30).
       const schalter = leseSchalter(args, [
-        { schreibweisen: ['-a', '--all', '-l', '--list'], name: 'auflisten' },
+        { schreibweisen: ['-a', '--all'], name: 'alle' },
+        { schreibweisen: ['-l', '--list'], name: 'auflisten' },
       ]);
       if (schalter.unbekannt) {
         // `git branch -d topic` legte zuvor einen Branch AN — das Gegenteil
@@ -121,17 +128,33 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
         return UNVERAENDERT(zustand, schalterNichtUmgesetzt('git branch', schalter.unbekannt));
       }
 
+      const alle = schalter.gesetzt.has('alle');
       const auflisten = schalter.gesetzt.has('auflisten');
       const name = schalter.operanden[0];
       const muster = schalter.operanden;
 
+      if (alle && !auflisten && muster.length > 0) {
+        return UNVERAENDERT(
+          zustand,
+          "fatal: the -a, and -r, options to 'git branch' do not take a branch name",
+        );
+      }
+
       // Mit einem Auflisten-Schalter ist ein Operand ein Suchmuster, kein
       // neuer Branchname. `git branch -l topic` darf also nichts anlegen.
-      if (auflisten || name === undefined) {
-        // Jedes angegebene Muster zählt, nicht nur das erste.
+      if (alle || auflisten || name === undefined) {
+        const unbekanntesMuster = muster.find(musterNichtUmgesetzt);
+        if (unbekanntesMuster !== undefined) {
+          return UNVERAENDERT(
+            zustand,
+            `git branch: Zeichenklassen im Muster ("${unbekanntesMuster}") sind in diesem Simulator nicht umgesetzt. Umgesetzt sind * und ?.`,
+          );
+        }
+        // Jedes angegebene Muster zählt, nicht nur das erste — und es wird
+        // wie ein Git-Muster gelesen, nicht als Teilzeichenkette.
         const zeilen = Object.keys(zustand.branches)
           .sort()
-          .filter((b) => muster.length === 0 || muster.some((m) => b.includes(m)))
+          .filter((b) => muster.length === 0 || muster.some((m) => passtAufMuster(b, m)))
           .map((b) => `${b === zustand.aktuellerBranch ? '*' : ' '} ${b}`);
         return UNVERAENDERT(zustand, zeilen.join('\n') || 'Kein Branch passt auf dieses Muster.');
       }

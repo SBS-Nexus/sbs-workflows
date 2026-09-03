@@ -344,6 +344,12 @@ export function fuehreKonfliktBefehlAus(
         return unveraendert(schalterNichtUmgesetzt('git merge', schalter.unbekannt));
       }
       if (schalter.gesetzt.has('abbrechen')) {
+        // `git merge --abort feature` ist in echtem Git ein Fehler. Den
+        // Branchnamen zu übergehen hätte alle Entscheidungen verworfen —
+        // und zwar mit Erfolgsmeldung (Codex-Review auf PR #30).
+        if (schalter.operanden.length > 0) {
+          return unveraendert('fatal: --abort expects no arguments');
+        }
         if (zustand.status !== 'laeuft') {
           // Echtes Git kennt keinen Abbruch ohne laufenden Merge — und schon
           // gar nicht nach einem abgeschlossenen. Sonst ließe sich hier ein
