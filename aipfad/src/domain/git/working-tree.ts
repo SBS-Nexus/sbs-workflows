@@ -18,7 +18,13 @@
  * Fassungen — so wie `git status` ihn auch berechnet, statt ihn abzulesen.
  */
 
-import { leseSchalter, schalterNichtUmgesetzt, schalterOhneWert, zerlegeBefehl } from './schalter';
+import {
+  fuegeAbsaetzeZusammen,
+  leseSchalter,
+  schalterNichtUmgesetzt,
+  schalterOhneWert,
+  zerlegeBefehl,
+} from './schalter';
 
 /** Eine Datei in bis zu drei Fassungen. `undefined` heißt: dort nicht vorhanden. */
 export interface GitDatei {
@@ -251,7 +257,7 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       if (schalter.ohneWert) {
         return KEINE_AENDERUNG(zustand, schalterOhneWert(schalter.ohneWert));
       }
-      const nachricht = schalter.werte.get('nachricht')?.trim() || null;
+      const nachricht = fuegeAbsaetzeZusammen(schalter.werte.get('nachricht')) || null;
       if (!nachricht) {
         return KEINE_AENDERUNG(
           zustand,

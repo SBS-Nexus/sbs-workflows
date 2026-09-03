@@ -35,8 +35,14 @@ export interface SchalterDefinition {
 export interface SchalterErgebnis {
   /** Die erkannten Schalter unter ihrem einheitlichen Namen. */
   gesetzt: Set<string>;
-  /** Die Werte der Schalter, die einen tragen, unter demselben Namen. */
-  werte: Map<string, string>;
+  /**
+   * Die Werte der Schalter, die einen tragen, unter demselben Namen.
+   *
+   * Eine Liste, weil ein Schalter mehrfach stehen darf: `git commit -m
+   * "Titel" -m "Details"` ergibt in echtem Git zwei Absätze. Nur den
+   * letzten zu behalten hätte den ersten stillschweigend verschluckt.
+   */
+  werte: Map<string, string[]>;
   /** Alles, was kein Schalter ist — Pfade, Branchnamen, Nachrichten. */
   operanden: string[];
   /** Der erste nicht unterstützte Schalter, falls vorhanden. */
@@ -56,7 +62,7 @@ export function leseSchalter(
   erlaubt: readonly SchalterDefinition[],
 ): SchalterErgebnis {
   const gesetzt = new Set<string>();
-  const werte = new Map<string, string>();
+  const werte = new Map<string, string[]>();
   const operanden: string[] = [];
   let nurNochOperanden = false;
 
@@ -86,7 +92,7 @@ export function leseSchalter(
       // Nachricht "-x", nicht den Schalter `-x`.
       const wert = args[i + 1];
       if (wert === undefined) return { gesetzt, werte, operanden, ohneWert: arg };
-      werte.set(treffer.name, wert);
+      werte.set(treffer.name, [...(werte.get(treffer.name) ?? []), wert]);
       i += 1;
     }
   }
@@ -144,4 +150,15 @@ export function schalterNichtUmgesetzt(befehl: string, schalter: string): string
 /** Einheitliche Meldung für einen Schalter, dem sein Wert fehlt. */
 export function schalterOhneWert(schalter: string): string {
   return `error: switch '${schalter.replace(/^-+/, '')}' requires a value`;
+}
+
+/**
+ * Fügt mehrfach angegebene Nachrichten so zusammen, wie Git es tut: als
+ * Absätze, durch eine Leerzeile getrennt.
+ */
+export function fuegeAbsaetzeZusammen(werte: readonly string[] | undefined): string {
+  return (werte ?? [])
+    .map((wert) => wert.trim())
+    .filter((wert) => wert.length > 0)
+    .join('\n\n');
 }

@@ -254,9 +254,9 @@ describe('Schalter mit Wert', () => {
   const MIT_WERT = [{ schreibweisen: ['-m', '--message'], name: 'nachricht', brauchtWert: true }];
 
   it('nimmt den folgenden Bestandteil als Wert', () => {
-    expect(leseSchalter(['-m', 'Erster Commit'], MIT_WERT).werte.get('nachricht')).toBe(
+    expect(leseSchalter(['-m', 'Erster Commit'], MIT_WERT).werte.get('nachricht')).toEqual([
       'Erster Commit',
-    );
+    ]);
   });
 
   it('meldet einen Schalter, dem sein Wert fehlt', () => {
@@ -271,7 +271,7 @@ describe('Schalter mit Wert', () => {
   it('nimmt auch einen Wert, der wie ein Schalter aussieht', () => {
     // `git commit -m -x` meint in echtem Git die Nachricht "-x".
     const ergebnis = leseSchalter(['-m', '-x'], MIT_WERT);
-    expect(ergebnis.werte.get('nachricht')).toBe('-x');
+    expect(ergebnis.werte.get('nachricht')).toEqual(['-x']);
     expect(ergebnis.unbekannt).toBeUndefined();
   });
 });
@@ -383,5 +383,55 @@ describe('git merge mit mehreren Köpfen', () => {
     zustand = fuehreBranchBefehlAus(zustand, 'git switch main').zustand;
 
     expect(fuehreBranchBefehlAus(zustand, 'git merge feature').veraendert).toBe(true);
+  });
+});
+
+/**
+ * Zwei Funde derselben Art wie zuvor, nur eine Ebene tiefer: Diesmal ging
+ * es nicht darum, WELCHE Schalter es gibt, sondern was hinter ihnen steht
+ * (Codex-Review auf PR #30).
+ */
+describe('Schalter, die ihren Wert bei sich tragen', () => {
+  it('nimmt den Namen NACH -c, nicht den Operanden davor', () => {
+    // `git switch topic -c` legte zuvor "topic" an. Echtes Git verlangt den
+    // Namen hinter dem Schalter und legt sonst gar nichts an.
+    const ergebnis = fuehreBranchBefehlAus(branches(), 'git switch topic -c');
+
+    expect(ergebnis.ausgabe).toContain("switch 'c' requires a value");
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand.branches['topic']).toBeUndefined();
+  });
+
+  it('legt mit -c weiterhin den genannten Branch an', () => {
+    const ergebnis = fuehreBranchBefehlAus(branches(), 'git switch -c topic');
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.aktuellerBranch).toBe('topic');
+  });
+
+  it('lehnt mehr als einen Branch beim Wechseln ab', () => {
+    const ergebnis = fuehreBranchBefehlAus(branches(), 'git switch main topic');
+    expect(ergebnis.ausgabe).toContain('only one reference expected');
+    expect(ergebnis.veraendert).toBe(false);
+  });
+});
+
+describe('Mehrfaches -m', () => {
+  it('behält beide Nachrichten als Absätze', () => {
+    // Zuvor überschrieb die zweite die erste. Git fügt sie zusammen.
+    const ergebnis = fuehreBranchBefehlAus(
+      branches(),
+      'git commit -m "Titel" -m "Warum das nötig war"',
+    );
+
+    expect(ergebnis.ausgabe).toContain('Titel');
+    expect(ergebnis.ausgabe).toContain('Warum das nötig war');
+  });
+
+  it('trennt die Absätze im Arbeitsbaum-Simulator durch eine Leerzeile', () => {
+    const zustand = fuehreGitBefehlAus(arbeitsbaum(), 'git add preise.md').zustand;
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git commit -m "Titel" -m "Details"');
+    const commit = ergebnis.zustand.commits[ergebnis.zustand.commits.length - 1];
+
+    expect(commit?.nachricht).toBe('Titel\n\nDetails');
   });
 });

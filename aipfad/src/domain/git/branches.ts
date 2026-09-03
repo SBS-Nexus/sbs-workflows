@@ -43,7 +43,13 @@ const UNVERAENDERT = (zustand: BranchZustand, ausgabe: string): BranchErgebnis =
   veraendert: false,
 });
 
-import { leseSchalter, schalterNichtUmgesetzt, schalterOhneWert, zerlegeBefehl } from './schalter';
+import {
+  fuegeAbsaetzeZusammen,
+  leseSchalter,
+  schalterNichtUmgesetzt,
+  schalterOhneWert,
+  zerlegeBefehl,
+} from './schalter';
 
 function commitById(zustand: BranchZustand, id: string): Commit | undefined {
   return zustand.commits.find((c) => c.id === id);
@@ -141,12 +147,28 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
     }
 
     case 'switch': {
-      const schalter = leseSchalter(args, [{ schreibweisen: ['-c', '--create'], name: 'anlegen' }]);
+      // `-c` trägt den neuen Branchnamen bei sich: `git switch -c neu`.
+      // Als reiner Ja/Nein-Schalter gelesen hätte `git switch topic -c` den
+      // vorangehenden Operanden als Namen genommen und `topic` angelegt —
+      // echtes Git verlangt den Namen NACH dem Schalter
+      // (Codex-Review auf PR #30).
+      const schalter = leseSchalter(args, [
+        { schreibweisen: ['-c', '--create'], name: 'anlegen', brauchtWert: true },
+      ]);
       if (schalter.unbekannt) {
         return UNVERAENDERT(zustand, schalterNichtUmgesetzt('git switch', schalter.unbekannt));
       }
+      if (schalter.ohneWert) {
+        return UNVERAENDERT(zustand, schalterOhneWert(schalter.ohneWert));
+      }
       const neu = schalter.gesetzt.has('anlegen');
-      const name = schalter.operanden[0];
+      // Ein Branch auf einmal. Weitere Operanden still fallen zu lassen wäre
+      // dieselbe Falle wie beim Merge mit mehreren Köpfen.
+      const uebrig = neu ? schalter.operanden.length : schalter.operanden.length - 1;
+      if (uebrig > 0) {
+        return UNVERAENDERT(zustand, 'fatal: only one reference expected');
+      }
+      const name = neu ? schalter.werte.get('anlegen')?.[0] : schalter.operanden[0];
       if (!name) return UNVERAENDERT(zustand, 'git switch: Bitte gib einen Branch an.');
 
       if (neu) {
@@ -189,7 +211,7 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
       if (schalter.ohneWert) {
         return UNVERAENDERT(zustand, schalterOhneWert(schalter.ohneWert));
       }
-      const nachricht = (schalter.werte.get('nachricht') ?? '').trim();
+      const nachricht = fuegeAbsaetzeZusammen(schalter.werte.get('nachricht'));
       if (!nachricht) {
         return UNVERAENDERT(zustand, 'git commit: Es fehlt eine Nachricht (-m "…").');
       }
