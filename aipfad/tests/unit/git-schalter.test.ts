@@ -173,11 +173,20 @@ describe('Schalterprüfung deckt alle Unterbefehle ab', () => {
   });
 
   it('begrenzt git add -A auf einen angegebenen Pfad', () => {
-    // Ohne die Begrenzung merkte -A trotz Pfadangabe ALLES vor.
-    const ergebnis = fuehreGitBefehlAus(arbeitsbaum(), 'git add -A preise.md');
+    // Ohne die Begrenzung merkte -A trotz Pfadangabe ALLES vor. Beide
+    // Dateien tragen deshalb eine nicht vorgemerkte Änderung: Nur so fällt
+    // auf, wenn die Begrenzung fehlt.
+    const zustand: GitArbeitsbaumZustand = {
+      dateien: [
+        { pfad: 'preise.md', arbeitsbaum: 'neu', index: 'alt', head: 'alt' },
+        { pfad: 'liesmich.md', arbeitsbaum: 'auch neu', index: 'alt', head: 'alt' },
+      ],
+      commits: [],
+    };
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git add -A preise.md');
+
     expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'preise.md')?.index).toBe('neu');
-    // liesmich.md war unverändert und bleibt es.
-    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'liesmich.md')?.index).toBe('x');
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'liesmich.md')?.index).toBe('alt');
   });
 
   it('berücksichtigt beim Auflisten jedes angegebene Muster', () => {
