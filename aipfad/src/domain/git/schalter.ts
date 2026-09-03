@@ -112,28 +112,42 @@ export function leseSchalter(
  */
 export function zerlegeBefehl(eingabe: string): string[] {
   const teile: string[] = [];
+  const text = eingabe.trim();
   let aktuell = '';
   let offen = false;
   let anfuehrung: '"' | "'" | null = null;
 
-  let maskiert = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const zeichen = text[i] as string;
 
-  for (const zeichen of eingabe.trim()) {
-    // Ein Rückstrich nimmt dem nächsten Zeichen seine Sonderbedeutung —
-    // so kommt ein Anführungszeichen IN die Nachricht: -m "sagt \"hallo\"".
+    // Ein Rückstrich nimmt dem nächsten Zeichen seine Sonderbedeutung — so
+    // kommt ein Anführungszeichen IN die Nachricht: -m "sagt \"hallo\"".
     // Ohne das beendete es den Text und die Nachricht wurde still eine
-    // andere (Codex-Review auf PR #30). In einfachen Anführungszeichen
-    // gibt es keine Maskierung, wie in einer echten Shell auch.
-    if (maskiert) {
-      aktuell += zeichen;
-      maskiert = false;
-      continue;
-    }
+    // andere.
+    //
+    // Wo er das tut, ist aber nicht überall gleich, und das ist der Punkt:
+    // In doppelten Anführungszeichen ist er nur vor " $ ` \ besonders,
+    // sonst bleibt er stehen — `-m "C:\temp"` soll den Rückstrich behalten.
+    // In einfachen Anführungszeichen gibt es gar keine Maskierung. Beides
+    // wie in einer echten Shell (Codex-Review auf PR #30).
     if (zeichen === '\\' && anfuehrung !== "'") {
-      maskiert = true;
-      offen = true;
+      const naechstes = text[i + 1];
+      const maskierbar =
+        anfuehrung === '"'
+          ? naechstes !== undefined && ['"', '\\', '$', '`'].includes(naechstes)
+          : naechstes !== undefined;
+
+      if (maskierbar) {
+        aktuell += naechstes;
+        offen = true;
+        i += 1;
+        continue;
+      }
+      // Nicht maskierbar: Der Rückstrich ist ein gewöhnliches Zeichen.
+      aktuell += zeichen;
       continue;
     }
+
     if (anfuehrung) {
       if (zeichen === anfuehrung) anfuehrung = null;
       else aktuell += zeichen;

@@ -372,32 +372,32 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       // Dateinamen zu lesen ließ `git restore .` wirkungslos verpuffen
       // (Codex-Review auf PR #30).
       const allePfade = schalter.operanden.includes('.');
-      const bekannteDateien = new Set(dateien.map((d) => d.pfad));
-      const unbekannt = schalter.operanden.filter((pf) => pf !== '.' && !bekannteDateien.has(pf));
-      if (unbekannt.length > 0) {
-        return KEINE_AENDERUNG(
-          zustand,
-          `error: pathspec '${unbekannt[0]}' did not match any file(s) known to git`,
-        );
+      const ausdrueckliche = schalter.operanden.filter((pf) => pf !== '.');
+
+      // JEDER ausdrücklich genannte Pfad wird geprüft — auch neben einem
+      // Punkt. Sonst schluckte `git restore . tippfehler.txt` die falsche
+      // Angabe, setzte alles andere zurück und meldete Erfolg
+      // (Codex-Review auf PR #30).
+      //
+      // Eine unversionierte Datei kennt Git nicht: Es gibt keinen Stand, auf
+      // den zurückgesetzt werden könnte. Ohne diese Prüfung setzte die
+      // Schleife unten den Inhalt auf `undefined` und LÖSCHTE die Datei,
+      // während sie Erfolg meldete.
+      for (const pfad of ausdrueckliche) {
+        const datei = dateien.find((d) => d.pfad === pfad);
+        if (datei === undefined || !istBekannt(datei)) {
+          return KEINE_AENDERUNG(
+            zustand,
+            `error: pathspec '${pfad}' did not match any file(s) known to git`,
+          );
+        }
       }
 
       // Bei `.` sind das alle VERSIONIERTEN Dateien — unversionierte rührt
       // git restore auch dann nicht an, sonst wäre `.` ein Löschbefehl.
       const betroffen = allePfade
         ? dateien.filter(istBekannt)
-        : dateien.filter((d) => schalter.operanden.includes(d.pfad));
-
-      // Eine unversionierte Datei kennt Git nicht — es gibt keinen Stand, auf
-      // den zurückgesetzt werden könnte. Ohne diese Prüfung setzte die
-      // Schleife unten den Inhalt auf `undefined` und LÖSCHTE die Datei,
-      // während sie Erfolg meldete.
-      const unversioniert = betroffen.filter((d) => !istBekannt(d));
-      if (unversioniert.length > 0) {
-        return KEINE_AENDERUNG(
-          zustand,
-          `error: pathspec '${unversioniert[0]?.pfad}' did not match any file(s) known to git`,
-        );
-      }
+        : dateien.filter((d) => ausdrueckliche.includes(d.pfad));
 
       for (const datei of betroffen) {
         if (ausIndex) datei.index = datei.head;

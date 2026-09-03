@@ -387,22 +387,29 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
  */
 function branchnameFehler(name: string): string | null {
   const verboten = /[\s~^:?*[\\]/;
+  const bestandteile = name.split('/');
+
   const ungueltig =
     name.length === 0 ||
     verboten.test(name) ||
     name.includes('..') ||
     name.includes('@{') ||
     name === '@' ||
-    name.startsWith('/') ||
-    name.endsWith('/') ||
-    name.startsWith('.') ||
-    name.endsWith('.') ||
     name.endsWith('.lock') ||
     // eslint-disable-next-line no-control-regex
-    /[\u0000-\u001f\u007f]/.test(name);
+    /[\u0000-\u001f\u007f]/.test(name) ||
+    // Die Regeln zu Punkt und `.lock` gelten für JEDEN durch Schrägstrich
+    // getrennten Bestandteil, nicht nur für den ganzen Namen: `feature/.preise`
+    // und `feature.lock/preise` lehnt echtes Git ebenso ab
+    // (Codex-Review auf PR #30). Ein leerer Bestandteil deckt zugleich
+    // führende, abschließende und doppelte Schrägstriche ab.
+    bestandteile.some(
+      (teil) =>
+        teil.length === 0 || teil.startsWith('.') || teil.endsWith('.') || teil.endsWith('.lock'),
+    );
 
   return ungueltig
-    ? `fatal: '${name}' is not a valid branch name. Erlaubt sind keine Leerzeichen und keine der Zeichen ~ ^ : ? * [ \\ sowie kein ".." im Namen.`
+    ? `fatal: '${name}' is not a valid branch name. Erlaubt sind keine Leerzeichen und keine der Zeichen ~ ^ : ? * [ \\ sowie kein ".." im Namen; kein Namensteil darf mit einem Punkt beginnen oder enden oder auf ".lock" enden.`
     : null;
 }
 

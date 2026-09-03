@@ -678,3 +678,66 @@ describe('Maskierte Anführungszeichen', () => {
     expect(zerlegeBefehl("git commit -m 'a\\b'")).toEqual(['git', 'commit', '-m', 'a\\b']);
   });
 });
+
+/**
+ * Drei Rückfälle aus der Runde davor: Jede der drei Behebungen hatte eine
+ * Ecke offen gelassen, die dieselbe Art von stillem Danebengehen erlaubte
+ * (Codex-Review auf PR #30).
+ */
+describe('Nachbesserungen', () => {
+  it('prüft bei git restore auch die Pfade neben dem Punkt', () => {
+    // `.` deckte den Tippfehler zu: Alles wurde zurückgesetzt, Erfolg
+    // gemeldet, die falsche Angabe verschwiegen.
+    const zustand: GitArbeitsbaumZustand = {
+      dateien: [
+        { pfad: 'preise.md', arbeitsbaum: 'neu', index: 'alt', head: 'alt' },
+        { pfad: 'notizen.txt', arbeitsbaum: 'Unversioniert' },
+      ],
+      commits: [],
+    };
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git restore . notizen.txt');
+
+    expect(ergebnis.ausgabe).toContain("pathspec 'notizen.txt' did not match");
+    expect(ergebnis.veraendert).toBe(false);
+    // Nichts wurde zurückgesetzt.
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'preise.md')?.arbeitsbaum).toBe('neu');
+  });
+
+  it('prüft jeden Bestandteil eines Branchnamens, nicht nur den ganzen', () => {
+    for (const befehl of [
+      'git branch feature/.preise',
+      'git branch feature.lock/preise',
+      'git switch -c feature/.preise',
+      'git branch feature/preise.',
+      'git branch feature//preise',
+    ]) {
+      const ergebnis = fuehreBranchBefehlAus(branches(), befehl);
+      expect(ergebnis.ausgabe, befehl).toContain('not a valid branch name');
+      expect(ergebnis.veraendert, befehl).toBe(false);
+    }
+  });
+
+  it('nimmt einen üblichen Namen mit Schrägstrich weiterhin an', () => {
+    const ergebnis = fuehreBranchBefehlAus(branches(), 'git branch feature/preise');
+    expect(ergebnis.zustand.branches['feature/preise']).toBeDefined();
+  });
+
+  it('behält einen gewöhnlichen Rückstrich in doppelten Anführungszeichen', () => {
+    // In einer Shell ist der Rückstrich dort nur vor " $ ` \ besonders.
+    // `C:\temp` als `C:temp` zu speichern wäre eine andere Nachricht.
+    expect(zerlegeBefehl('git commit -m "C:\\temp"')).toEqual(['git', 'commit', '-m', 'C:\\temp']);
+  });
+
+  it('maskiert dort weiterhin das Anführungszeichen selbst', () => {
+    expect(zerlegeBefehl('git commit -m "sagt \\"hallo\\""')).toEqual([
+      'git',
+      'commit',
+      '-m',
+      'sagt "hallo"',
+    ]);
+  });
+
+  it('maskiert außerhalb von Anführungszeichen jedes Zeichen', () => {
+    expect(zerlegeBefehl('git add mein\\ ordner')).toEqual(['git', 'add', 'mein ordner']);
+  });
+});
