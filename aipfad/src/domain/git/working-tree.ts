@@ -368,8 +368,12 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       }
 
       const ausIndex = schalter.gesetzt.has('staged');
+      // `.` wählt wie bei `git add` alle versionierten Pfade aus. Es als
+      // Dateinamen zu lesen ließ `git restore .` wirkungslos verpuffen
+      // (Codex-Review auf PR #30).
+      const allePfade = schalter.operanden.includes('.');
       const bekannteDateien = new Set(dateien.map((d) => d.pfad));
-      const unbekannt = schalter.operanden.filter((pf) => !bekannteDateien.has(pf));
+      const unbekannt = schalter.operanden.filter((pf) => pf !== '.' && !bekannteDateien.has(pf));
       if (unbekannt.length > 0) {
         return KEINE_AENDERUNG(
           zustand,
@@ -377,7 +381,11 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
         );
       }
 
-      const betroffen = dateien.filter((d) => schalter.operanden.includes(d.pfad));
+      // Bei `.` sind das alle VERSIONIERTEN Dateien — unversionierte rührt
+      // git restore auch dann nicht an, sonst wäre `.` ein Löschbefehl.
+      const betroffen = allePfade
+        ? dateien.filter(istBekannt)
+        : dateien.filter((d) => schalter.operanden.includes(d.pfad));
 
       // Eine unversionierte Datei kennt Git nicht — es gibt keinen Stand, auf
       // den zurückgesetzt werden könnte. Ohne diese Prüfung setzte die

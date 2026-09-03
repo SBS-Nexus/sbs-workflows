@@ -583,3 +583,98 @@ describe('git merge --abort mit Operanden', () => {
     expect(ergebnis.zustand.aufloesungen).toEqual(zustand.aufloesungen);
   });
 });
+
+describe('git restore mit Punkt', () => {
+  function geaendert(): GitArbeitsbaumZustand {
+    return {
+      dateien: [
+        { pfad: 'preise.md', arbeitsbaum: 'neu', index: 'alt', head: 'alt' },
+        { pfad: 'liesmich.md', arbeitsbaum: 'auch neu', index: 'auch neu', head: 'alt' },
+        { pfad: 'notizen.txt', arbeitsbaum: 'Unversioniert' },
+      ],
+      commits: [],
+    };
+  }
+
+  it('verwirft mit . alle Änderungen im Arbeitsverzeichnis', () => {
+    // Zuvor galt `.` als unbekannter Dateiname: Der Befehl tat nichts.
+    const ergebnis = fuehreGitBefehlAus(geaendert(), 'git restore .');
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'preise.md')?.arbeitsbaum).toBe('alt');
+  });
+
+  it('nimmt mit --staged . alle Vormerkungen zurück', () => {
+    const ergebnis = fuehreGitBefehlAus(geaendert(), 'git restore --staged .');
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'liesmich.md')?.index).toBe('alt');
+    // Die Arbeit bleibt erhalten — das ist der ganze Unterschied.
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'liesmich.md')?.arbeitsbaum).toBe(
+      'auch neu',
+    );
+  });
+
+  it('lässt unversionierte Dateien in Ruhe', () => {
+    // Sonst wäre `git restore .` ein Löschbefehl.
+    const ergebnis = fuehreGitBefehlAus(geaendert(), 'git restore .');
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'notizen.txt')?.arbeitsbaum).toBe(
+      'Unversioniert',
+    );
+  });
+});
+
+describe('Branchnamen', () => {
+  it('lehnt Namen ab, die echtes Git ablehnt', () => {
+    // Zuvor entstanden Branches, auf denen sich wechseln und committen
+    // ließ und die es draußen nicht geben kann.
+    for (const befehl of [
+      'git branch "feature name"',
+      'git branch foo..bar',
+      'git branch "feat*"',
+      'git branch .versteckt',
+      'git branch ding.lock',
+    ]) {
+      const ergebnis = fuehreBranchBefehlAus(branches(), befehl);
+      expect(ergebnis.ausgabe, befehl).toContain('not a valid branch name');
+      expect(ergebnis.veraendert, befehl).toBe(false);
+    }
+  });
+
+  it('lehnt sie auch bei git switch -c ab', () => {
+    const ergebnis = fuehreBranchBefehlAus(branches(), 'git switch -c "feature name"');
+    expect(ergebnis.ausgabe).toContain('not a valid branch name');
+    expect(ergebnis.zustand.aktuellerBranch).toBe('main');
+  });
+
+  it('nimmt übliche Namen weiterhin an', () => {
+    for (const name of ['feature/preise', 'fix-42', 'release_2']) {
+      const ergebnis = fuehreBranchBefehlAus(branches(), `git branch ${name}`);
+      expect(ergebnis.zustand.branches[name], name).toBeDefined();
+    }
+  });
+});
+
+describe('Maskierte Anführungszeichen', () => {
+  it('nimmt ein Anführungszeichen in die Nachricht auf', () => {
+    expect(zerlegeBefehl('git commit -m "sagt \\"hallo\\""')).toEqual([
+      'git',
+      'commit',
+      '-m',
+      'sagt "hallo"',
+    ]);
+  });
+
+  it('trägt sie bis in den Commit', () => {
+    const zustand = fuehreGitBefehlAus(arbeitsbaum(), 'git add preise.md').zustand;
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git commit -m "sagt \\"hallo\\""');
+
+    expect(ergebnis.zustand.commits[ergebnis.zustand.commits.length - 1]?.nachricht).toBe(
+      'sagt "hallo"',
+    );
+  });
+
+  it('maskiert in einfachen Anführungszeichen nicht, wie eine echte Shell', () => {
+    expect(zerlegeBefehl("git commit -m 'a\\b'")).toEqual(['git', 'commit', '-m', 'a\\b']);
+  });
+});

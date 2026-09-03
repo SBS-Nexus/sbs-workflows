@@ -116,7 +116,24 @@ export function zerlegeBefehl(eingabe: string): string[] {
   let offen = false;
   let anfuehrung: '"' | "'" | null = null;
 
+  let maskiert = false;
+
   for (const zeichen of eingabe.trim()) {
+    // Ein Rückstrich nimmt dem nächsten Zeichen seine Sonderbedeutung —
+    // so kommt ein Anführungszeichen IN die Nachricht: -m "sagt \"hallo\"".
+    // Ohne das beendete es den Text und die Nachricht wurde still eine
+    // andere (Codex-Review auf PR #30). In einfachen Anführungszeichen
+    // gibt es keine Maskierung, wie in einer echten Shell auch.
+    if (maskiert) {
+      aktuell += zeichen;
+      maskiert = false;
+      continue;
+    }
+    if (zeichen === '\\' && anfuehrung !== "'") {
+      maskiert = true;
+      offen = true;
+      continue;
+    }
     if (anfuehrung) {
       if (zeichen === anfuehrung) anfuehrung = null;
       else aktuell += zeichen;

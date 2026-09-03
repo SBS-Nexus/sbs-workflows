@@ -162,6 +162,8 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
       if (zustand.branches[name] !== undefined) {
         return UNVERAENDERT(zustand, `Branch "${name}" gibt es bereits.`);
       }
+      const namensfehler = branchnameFehler(name);
+      if (namensfehler) return UNVERAENDERT(zustand, namensfehler);
 
       // `git branch <name> <startpunkt>` legt den Zeiger dort an, nicht am
       // aktuellen Stand. Den zweiten Operanden zu übergehen hätte einen
@@ -221,6 +223,8 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
         if (zustand.branches[name] !== undefined) {
           return UNVERAENDERT(zustand, `Branch "${name}" gibt es bereits.`);
         }
+        const fehler = branchnameFehler(name);
+        if (fehler) return UNVERAENDERT(zustand, fehler);
         return {
           zustand: {
             ...zustand,
@@ -368,6 +372,38 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
         `git ${unterbefehl}: in diesem Simulator nicht umgesetzt. Verfügbar: ${UMGESETZTE_BRANCH_BEFEHLE.join(', ')}.`,
       );
   }
+}
+
+/**
+ * Prüft einen Branchnamen nach den Regeln von `git check-ref-format`.
+ *
+ * Ohne diese Prüfung entstanden Branches, die echtes Git ablehnt — mit
+ * Leerzeichen, mit `..`, mit einem Stern. Danach ließ sich auf ihnen
+ * wechseln und committen, und wer das im Lab lernt, lernt etwas, das
+ * draußen scheitert (Codex-Review auf PR #30).
+ *
+ * Umgesetzt sind die Regeln, die hier auffallen können; die vollständige
+ * Liste ist länger und für ein Lab ohne Belang.
+ */
+function branchnameFehler(name: string): string | null {
+  const verboten = /[\s~^:?*[\\]/;
+  const ungueltig =
+    name.length === 0 ||
+    verboten.test(name) ||
+    name.includes('..') ||
+    name.includes('@{') ||
+    name === '@' ||
+    name.startsWith('/') ||
+    name.endsWith('/') ||
+    name.startsWith('.') ||
+    name.endsWith('.') ||
+    name.endsWith('.lock') ||
+    // eslint-disable-next-line no-control-regex
+    /[\u0000-\u001f\u007f]/.test(name);
+
+  return ungueltig
+    ? `fatal: '${name}' is not a valid branch name. Erlaubt sind keine Leerzeichen und keine der Zeichen ~ ^ : ? * [ \\ sowie kein ".." im Namen.`
+    : null;
 }
 
 // ---------------------------------------------------------------------------
