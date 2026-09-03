@@ -21,6 +21,7 @@
 import {
   fuegeAbsaetzeZusammen,
   leseSchalter,
+  operandenNichtUmgesetzt,
   schalterNichtUmgesetzt,
   schalterOhneWert,
   zerlegeBefehl,
@@ -207,6 +208,9 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       if (schalter.unbekannt) {
         return KEINE_AENDERUNG(zustand, schalterNichtUmgesetzt('git status', schalter.unbekannt));
       }
+      if (schalter.operanden.length > 0) {
+        return KEINE_AENDERUNG(zustand, operandenNichtUmgesetzt('git status', schalter.operanden));
+      }
       return KEINE_AENDERUNG(zustand, formatiereStatus(status(zustand)));
     }
 
@@ -257,6 +261,16 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       if (schalter.ohneWert) {
         return KEINE_AENDERUNG(zustand, schalterOhneWert(schalter.ohneWert));
       }
+      // `git commit -m "…" datei.md` committet in echtem Git NUR diese Datei
+      // und lässt den Rest vorgemerkt. Dieser Simulator kennt nur den
+      // Commit über alles Vorgemerkte — die Angabe zu ignorieren hätte
+      // etwas anderes committet als verlangt (Codex-Review auf PR #30).
+      if (schalter.operanden.length > 0) {
+        return KEINE_AENDERUNG(
+          zustand,
+          `git commit: Ein Commit einzelner Pfade ("${schalter.operanden.join(' ')}") ist in diesem Simulator nicht umgesetzt. git commit nimmt hier alles Vorgemerkte.`,
+        );
+      }
       const nachricht = fuegeAbsaetzeZusammen(schalter.werte.get('nachricht')) || null;
       if (!nachricht) {
         return KEINE_AENDERUNG(
@@ -296,6 +310,9 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       if (schalter.unbekannt) {
         return KEINE_AENDERUNG(zustand, schalterNichtUmgesetzt('git diff', schalter.unbekannt));
       }
+      if (schalter.operanden.length > 0) {
+        return KEINE_AENDERUNG(zustand, operandenNichtUmgesetzt('git diff', schalter.operanden));
+      }
       // Ohne Zusatz zeigt `git diff` die NICHT vorgemerkten Änderungen —
       // genau der Punkt, an dem viele "aber ich habe doch etwas geändert"
       // denken, nachdem sie bereits `git add` ausgeführt haben.
@@ -324,6 +341,9 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       const schalter = leseSchalter(args, []);
       if (schalter.unbekannt) {
         return KEINE_AENDERUNG(zustand, schalterNichtUmgesetzt('git log', schalter.unbekannt));
+      }
+      if (schalter.operanden.length > 0) {
+        return KEINE_AENDERUNG(zustand, operandenNichtUmgesetzt('git log', schalter.operanden));
       }
       if (zustand.commits.length === 0) {
         return KEINE_AENDERUNG(zustand, 'Noch keine Commits.');

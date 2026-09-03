@@ -435,3 +435,86 @@ describe('Mehrfaches -m', () => {
     expect(commit?.nachricht).toBe('Titel\n\nDetails');
   });
 });
+
+/**
+ * Nach den Schaltern war das die zweite Stelle, an der still etwas unter den
+ * Tisch fiel: Operanden, die ein Unterbefehl gar nicht auswertet. Auch hier
+ * gilt die Regel über alle Unterbefehle hinweg, nicht nur an den gemeldeten
+ * Stellen (Codex-Review auf PR #30).
+ */
+describe('Operanden fallen nicht still unter den Tisch', () => {
+  it('lehnt einen Commit einzelner Pfade ab, statt alles zu committen', () => {
+    // `git commit -m "…" notizen.txt` committet in echtem Git NUR diese
+    // Datei. Die Angabe zu ignorieren hätte etwas anderes committet als
+    // verlangt — und die vorgemerkte Änderung dabei aufgebraucht.
+    const zustand = fuehreGitBefehlAus(arbeitsbaum(), 'git add preise.md').zustand;
+    const vorher = zustand.commits.length;
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git commit -m "Speichern" liesmich.md');
+
+    expect(ergebnis.ausgabe).toContain('nicht umgesetzt');
+    expect(ergebnis.zustand.commits.length).toBe(vorher);
+    // Die Vormerkung ist noch da.
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'preise.md')?.index).toBe('neu');
+  });
+
+  it('lehnt nicht ausgewertete Operanden in allen betroffenen Unterbefehlen ab', () => {
+    for (const befehl of ['git status preise.md', 'git diff preise.md', 'git log preise.md']) {
+      const ergebnis = fuehreGitBefehlAus(arbeitsbaum(), befehl);
+      expect(ergebnis.ausgabe, befehl).toContain('nicht ausgewertet');
+      expect(ergebnis.veraendert, befehl).toBe(false);
+    }
+  });
+
+  it('lehnt sie auch im Branch- und im Konflikt-Simulator ab', () => {
+    expect(fuehreBranchBefehlAus(branches(), 'git log main').ausgabe).toContain(
+      'nicht ausgewertet',
+    );
+    expect(fuehreKonfliktBefehlAus(konfliktStart(), 'git status preise.md').ausgabe).toContain(
+      'nicht ausgewertet',
+    );
+  });
+});
+
+describe('git branch mit Startpunkt', () => {
+  function mitFeature() {
+    let zustand = fuehreBranchBefehlAus(branches(), 'git switch -c feature').zustand;
+    zustand = fuehreBranchBefehlAus(zustand, 'git commit -m "Feature"').zustand;
+    return fuehreBranchBefehlAus(zustand, 'git switch main').zustand;
+  }
+
+  it('legt den Zeiger am angegebenen Startpunkt an, nicht am aktuellen Stand', () => {
+    // Zuvor wurde der zweite Operand verworfen und topic entstand auf main —
+    // ausgerechnet hier, wo der Zeiger die ganze Lehre ist.
+    const zustand = mitFeature();
+    const ergebnis = fuehreBranchBefehlAus(zustand, 'git branch topic feature');
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.branches['topic']).toBe(zustand.branches['feature']);
+    expect(ergebnis.zustand.branches['topic']).not.toBe(zustand.branches['main']);
+  });
+
+  it('nimmt auch eine Commit-Kennung als Startpunkt', () => {
+    const zustand = mitFeature();
+    const ziel = zustand.branches['feature'] as string;
+    const ergebnis = fuehreBranchBefehlAus(zustand, `git branch topic ${ziel}`);
+
+    expect(ergebnis.zustand.branches['topic']).toBe(ziel);
+  });
+
+  it('lehnt einen unbekannten Startpunkt ab, statt ihn zu übergehen', () => {
+    const ergebnis = fuehreBranchBefehlAus(mitFeature(), 'git branch topic gibtsnicht');
+
+    expect(ergebnis.ausgabe).toContain('not a valid object name');
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand.branches['topic']).toBeUndefined();
+  });
+});
+
+describe('Mehrfaches -c', () => {
+  it('nimmt den letzten Namen, wie echtes Git', () => {
+    const ergebnis = fuehreBranchBefehlAus(branches(), 'git switch -c eins -c zwei');
+
+    expect(ergebnis.zustand.aktuellerBranch).toBe('zwei');
+    expect(ergebnis.zustand.branches['eins']).toBeUndefined();
+  });
+});

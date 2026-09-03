@@ -54,7 +54,13 @@ export interface KonfliktZustand {
   status: MergeZustand;
 }
 
-import { leseSchalter, schalterNichtUmgesetzt, schalterOhneWert, zerlegeBefehl } from './schalter';
+import {
+  leseSchalter,
+  operandenNichtUmgesetzt,
+  schalterNichtUmgesetzt,
+  schalterOhneWert,
+  zerlegeBefehl,
+} from './schalter';
 
 export const KONFLIKT_START = '<<<<<<<';
 export const KONFLIKT_TRENNER = '=======';
@@ -214,6 +220,9 @@ export function fuehreKonfliktBefehlAus(
       if (schalter.unbekannt) {
         return unveraendert(schalterNichtUmgesetzt('git status', schalter.unbekannt));
       }
+      if (schalter.operanden.length > 0) {
+        return unveraendert(operandenNichtUmgesetzt('git status', schalter.operanden));
+      }
       if (zustand.status === 'abgeschlossen') {
         return {
           zustand,
@@ -303,6 +312,11 @@ export function fuehreKonfliktBefehlAus(
       // (Codex-Review auf PR #30).
       if (schalter.ohneWert) {
         return unveraendert(schalterOhneWert(schalter.ohneWert));
+      }
+      if (schalter.operanden.length > 0) {
+        return unveraendert(
+          `git commit: Ein Commit einzelner Pfade ("${schalter.operanden.join(' ')}") ist in diesem Simulator nicht umgesetzt.`,
+        );
       }
       if (zustand.status !== 'laeuft') {
         return { zustand, ausgabe: 'Kein Merge im Gange.', veraendert: false };

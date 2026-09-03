@@ -162,3 +162,16 @@ export function fuegeAbsaetzeZusammen(werte: readonly string[] | undefined): str
     .filter((wert) => wert.length > 0)
     .join('\n\n');
 }
+
+/**
+ * Meldung für Operanden, die ein Unterbefehl nicht auswertet.
+ *
+ * Nach den Schaltern war das die zweite Stelle, an der still etwas unter den
+ * Tisch fiel: `git commit -m "…" datei.md`, `git branch topic feature`,
+ * `git switch main topic` — jeweils wurde ein Teil der Eingabe ignoriert und
+ * trotzdem Erfolg gemeldet. Wer eine Angabe macht, soll sie wirken sehen oder
+ * erfahren, dass sie hier nichts bewirkt (Codex-Review auf PR #30).
+ */
+export function operandenNichtUmgesetzt(befehl: string, operanden: readonly string[]): string {
+  return `${befehl}: "${operanden.join(' ')}" wird hier nicht ausgewertet. Dieser Simulator kennt die Form ohne zusätzliche Angaben.`;
+}

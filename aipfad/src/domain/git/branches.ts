@@ -46,6 +46,7 @@ const UNVERAENDERT = (zustand: BranchZustand, ausgabe: string): BranchErgebnis =
 import {
   fuegeAbsaetzeZusammen,
   leseSchalter,
+  operandenNichtUmgesetzt,
   schalterNichtUmgesetzt,
   schalterOhneWert,
   zerlegeBefehl,
@@ -138,10 +139,31 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
       if (zustand.branches[name] !== undefined) {
         return UNVERAENDERT(zustand, `Branch "${name}" gibt es bereits.`);
       }
-      // Ein neuer Branch ist nur ein weiterer Zeiger auf denselben Commit.
+
+      // `git branch <name> <startpunkt>` legt den Zeiger dort an, nicht am
+      // aktuellen Stand. Den zweiten Operanden zu übergehen hätte einen
+      // Branch an einer anderen Stelle angelegt als verlangt — und
+      // ausgerechnet hier ist der Zeiger die ganze Lehre
+      // (Codex-Review auf PR #30).
+      if (schalter.operanden.length > 2) {
+        return UNVERAENDERT(zustand, 'fatal: too many arguments');
+      }
+      const startpunkt = schalter.operanden[1];
+      let ziel = kopfCommit;
+      if (startpunkt !== undefined) {
+        const ausBranch = zustand.branches[startpunkt];
+        const ausCommit = zustand.commits.find((c) => c.id === startpunkt)?.id;
+        const aufgeloest = ausBranch ?? ausCommit;
+        if (aufgeloest === undefined) {
+          return UNVERAENDERT(zustand, `fatal: not a valid object name: '${startpunkt}'`);
+        }
+        ziel = aufgeloest;
+      }
+
+      // Ein neuer Branch ist nur ein weiterer Zeiger auf einen Commit.
       return {
-        zustand: { ...zustand, branches: { ...zustand.branches, [name]: kopfCommit } },
-        ausgabe: `Branch "${name}" zeigt jetzt auf ${kopfCommit}.`,
+        zustand: { ...zustand, branches: { ...zustand.branches, [name]: ziel } },
+        ausgabe: `Branch "${name}" zeigt jetzt auf ${ziel}.`,
         veraendert: true,
       };
     }
@@ -168,7 +190,8 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
       if (uebrig > 0) {
         return UNVERAENDERT(zustand, 'fatal: only one reference expected');
       }
-      const name = neu ? schalter.werte.get('anlegen')?.[0] : schalter.operanden[0];
+      // Mehrfaches `-c`: Der letzte gewinnt, wie in echtem Git.
+      const name = neu ? schalter.werte.get('anlegen')?.at(-1) : schalter.operanden[0];
       if (!name) return UNVERAENDERT(zustand, 'git switch: Bitte gib einen Branch an.');
 
       if (neu) {
@@ -210,6 +233,12 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
       }
       if (schalter.ohneWert) {
         return UNVERAENDERT(zustand, schalterOhneWert(schalter.ohneWert));
+      }
+      if (schalter.operanden.length > 0) {
+        return UNVERAENDERT(
+          zustand,
+          `git commit: Ein Commit einzelner Pfade ("${schalter.operanden.join(' ')}") ist in diesem Simulator nicht umgesetzt.`,
+        );
       }
       const nachricht = fuegeAbsaetzeZusammen(schalter.werte.get('nachricht'));
       if (!nachricht) {
@@ -298,6 +327,9 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
       const schalter = leseSchalter(args, []);
       if (schalter.unbekannt) {
         return UNVERAENDERT(zustand, schalterNichtUmgesetzt('git log', schalter.unbekannt));
+      }
+      if (schalter.operanden.length > 0) {
+        return UNVERAENDERT(zustand, operandenNichtUmgesetzt('git log', schalter.operanden));
       }
       const erreichbar = vorfahren(zustand, kopfCommit);
       const zeilen = [...zustand.commits]
