@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { leseSchalter } from '@/domain/git/schalter';
 import { fuehreGitBefehlAus, status, type GitArbeitsbaumZustand } from '@/domain/git/working-tree';
 import { fuehreBranchBefehlAus, type BranchZustand } from '@/domain/git/branches';
+import { fuehreKonfliktBefehlAus, loeseKonflikt } from '@/domain/git/merge-conflict';
 
 /**
  * Der wiederkehrende Fehler dieser Simulatoren war immer derselbe: Ein nicht
@@ -134,5 +135,100 @@ describe('git switch: nicht umgesetzte Schalter', () => {
     const ergebnis = fuehreBranchBefehlAus(branches(), 'git switch -d c01');
     expect(ergebnis.ausgabe).toContain('nicht umgesetzt');
     expect(ergebnis.zustand.aktuellerBranch).toBe('main');
+  });
+});
+
+/**
+ * Die Schalterprüfung gilt für JEDEN Unterbefehl, nicht nur für die, bei
+ * denen bisher ein Fund gemeldet wurde. Ein vergessener Schalter soll
+ * abgelehnt werden, egal wo (Codex-Review auf PR #30).
+ */
+describe('Schalterprüfung deckt alle Unterbefehle ab', () => {
+  it('lehnt unbekannte Schalter im Arbeitsbaum-Simulator überall ab', () => {
+    for (const befehl of [
+      'git status --short',
+      'git commit --amend -m "x"',
+      'git diff --stat',
+      'git log --oneline',
+      'git add --patch preise.md',
+      'git restore --source=HEAD preise.md',
+    ]) {
+      const ergebnis = fuehreGitBefehlAus(arbeitsbaum(), befehl);
+      expect(ergebnis.ausgabe, befehl).toContain('nicht umgesetzt');
+      expect(ergebnis.veraendert, befehl).toBe(false);
+    }
+  });
+
+  it('lehnt unbekannte Schalter im Branch-Simulator überall ab', () => {
+    for (const befehl of [
+      'git commit --amend -m "x"',
+      'git log --graph',
+      'git switch --detach main',
+      'git merge --no-commit feature',
+    ]) {
+      const ergebnis = fuehreBranchBefehlAus(branches(), befehl);
+      expect(ergebnis.ausgabe, befehl).toContain('nicht umgesetzt');
+      expect(ergebnis.veraendert, befehl).toBe(false);
+    }
+  });
+
+  it('begrenzt git add -A auf einen angegebenen Pfad', () => {
+    // Ohne die Begrenzung merkte -A trotz Pfadangabe ALLES vor.
+    const ergebnis = fuehreGitBefehlAus(arbeitsbaum(), 'git add -A preise.md');
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'preise.md')?.index).toBe('neu');
+    // liesmich.md war unverändert und bleibt es.
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'liesmich.md')?.index).toBe('x');
+  });
+
+  it('berücksichtigt beim Auflisten jedes angegebene Muster', () => {
+    let zustand = fuehreBranchBefehlAus(branches(), 'git branch feature').zustand;
+    zustand = fuehreBranchBefehlAus(zustand, 'git branch hotfix').zustand;
+
+    const ergebnis = fuehreBranchBefehlAus(zustand, 'git branch -l feature hotfix');
+    expect(ergebnis.ausgabe).toContain('feature');
+    expect(ergebnis.ausgabe).toContain('hotfix');
+    expect(ergebnis.ausgabe).not.toContain('main');
+  });
+});
+
+describe('Konflikt-Simulator prüft Schalter und Pfad', () => {
+  function konflikt() {
+    return {
+      datei: {
+        pfad: 'preise.md',
+        abschnitte: [
+          { art: 'gemeinsam' as const, zeilen: ['# Preise'] },
+          {
+            art: 'konflikt' as const,
+            id: 'k1',
+            unsere: ['9 Euro'],
+            ihre: ['12 Euro'],
+          },
+        ],
+      },
+      aufloesungen: {},
+      vorgemerkt: false,
+      status: 'laeuft' as const,
+    };
+  }
+
+  it('merkt keinen fremden Pfad vor', () => {
+    const geloest = loeseKonflikt(konflikt(), 'k1', { art: 'ihre' });
+    const ergebnis = fuehreKonfliktBefehlAus(geloest, 'git add tippfehler.md');
+
+    expect(ergebnis.ausgabe).toContain("pathspec 'tippfehler.md' did not match any files");
+    expect(ergebnis.zustand.vorgemerkt).toBe(false);
+  });
+
+  it('lehnt unbekannte Schalter ab', () => {
+    const ergebnis = fuehreKonfliktBefehlAus(konflikt(), 'git merge --continue');
+    expect(ergebnis.ausgabe).toContain('nicht umgesetzt');
+    expect(ergebnis.veraendert).toBe(false);
+  });
+
+  it('merkt die Konfliktdatei weiterhin vor', () => {
+    const geloest = loeseKonflikt(konflikt(), 'k1', { art: 'ihre' });
+    const ergebnis = fuehreKonfliktBefehlAus(geloest, 'git add preise.md');
+    expect(ergebnis.zustand.vorgemerkt).toBe(true);
   });
 });

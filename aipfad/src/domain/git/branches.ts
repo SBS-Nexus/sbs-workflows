@@ -116,13 +116,15 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
 
       const auflisten = schalter.gesetzt.has('auflisten');
       const name = schalter.operanden[0];
+      const muster = schalter.operanden;
 
       // Mit einem Auflisten-Schalter ist ein Operand ein Suchmuster, kein
       // neuer Branchname. `git branch -l topic` darf also nichts anlegen.
       if (auflisten || name === undefined) {
+        // Jedes angegebene Muster zählt, nicht nur das erste.
         const zeilen = Object.keys(zustand.branches)
           .sort()
-          .filter((b) => name === undefined || b.includes(name))
+          .filter((b) => muster.length === 0 || muster.some((m) => b.includes(m)))
           .map((b) => `${b === zustand.aktuellerBranch ? '*' : ' '} ${b}`);
         return UNVERAENDERT(zustand, zeilen.join('\n') || 'Kein Branch passt auf dieses Muster.');
       }
@@ -176,6 +178,14 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
     }
 
     case 'commit': {
+      const schalter = leseSchalter(args, [
+        { schreibweisen: ['-m', '--message'], name: 'nachricht' },
+      ]);
+      if (schalter.unbekannt) {
+        // `--amend` schriebe den letzten Commit um, statt einen neuen
+        // anzulegen (Codex-Review auf PR #30).
+        return UNVERAENDERT(zustand, schalterNichtUmgesetzt('git commit', schalter.unbekannt));
+      }
       const treffer = /-m\s+("([^"]*)"|'([^']*)'|(\S+))/.exec(eingabe);
       const nachricht = (treffer?.[2] ?? treffer?.[3] ?? treffer?.[4] ?? '').trim();
       if (!nachricht) {
@@ -251,6 +261,10 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
     }
 
     case 'log': {
+      const schalter = leseSchalter(args, []);
+      if (schalter.unbekannt) {
+        return UNVERAENDERT(zustand, schalterNichtUmgesetzt('git log', schalter.unbekannt));
+      }
       const erreichbar = vorfahren(zustand, kopfCommit);
       const zeilen = [...zustand.commits]
         .reverse()

@@ -196,8 +196,13 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
   const dateien = zustand.dateien.map((d) => ({ ...d }));
 
   switch (unterbefehl) {
-    case 'status':
+    case 'status': {
+      const schalter = leseSchalter(args, []);
+      if (schalter.unbekannt) {
+        return KEINE_AENDERUNG(zustand, schalterNichtUmgesetzt('git status', schalter.unbekannt));
+      }
       return KEINE_AENDERUNG(zustand, formatiereStatus(status(zustand)));
+    }
 
     case 'add': {
       const schalter = leseSchalter(args, [{ schreibweisen: ['-A', '--all'], name: 'alle' }]);
@@ -218,16 +223,28 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
         return KEINE_AENDERUNG(zustand, `fatal: pathspec '${fehlend[0]}' did not match any files`);
       }
 
-      const alles = schalter.gesetzt.has('alle') || schalter.operanden.includes('.');
-      const betroffen = alles
-        ? dateien
-        : dateien.filter((d) => schalter.operanden.includes(d.pfad));
+      // `-A` und `.` wirken auf alles — aber nur, solange kein Pfad
+      // danebensteht. `git add -A unterordner` begrenzt in echtem Git auf
+      // diesen Pfad (Codex-Review auf PR #30).
+      const ausdrueckliche = schalter.operanden.filter((pf) => pf !== '.');
+      const alles =
+        (schalter.gesetzt.has('alle') || schalter.operanden.includes('.')) &&
+        ausdrueckliche.length === 0;
+      const betroffen = alles ? dateien : dateien.filter((d) => ausdrueckliche.includes(d.pfad));
 
       for (const datei of betroffen) datei.index = datei.arbeitsbaum;
       return { zustand: { ...zustand, dateien }, ausgabe: '', veraendert: true };
     }
 
     case 'commit': {
+      const schalter = leseSchalter(args, [
+        { schreibweisen: ['-m', '--message'], name: 'nachricht' },
+      ]);
+      if (schalter.unbekannt) {
+        // Besonders `--amend` ist heikel: Es schreibt den letzten Commit um,
+        // statt einen neuen anzulegen (Codex-Review auf PR #30).
+        return KEINE_AENDERUNG(zustand, schalterNichtUmgesetzt('git commit', schalter.unbekannt));
+      }
       const nachricht = leseNachricht(eingabe);
       if (!nachricht) {
         return KEINE_AENDERUNG(
@@ -261,10 +278,16 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
     }
 
     case 'diff': {
+      const schalter = leseSchalter(args, [
+        { schreibweisen: ['--staged', '--cached'], name: 'staged' },
+      ]);
+      if (schalter.unbekannt) {
+        return KEINE_AENDERUNG(zustand, schalterNichtUmgesetzt('git diff', schalter.unbekannt));
+      }
       // Ohne Zusatz zeigt `git diff` die NICHT vorgemerkten Änderungen —
       // genau der Punkt, an dem viele "aber ich habe doch etwas geändert"
       // denken, nachdem sie bereits `git add` ausgeführt haben.
-      const gestagt = args.includes('--staged') || args.includes('--cached');
+      const gestagt = schalter.gesetzt.has('staged');
       const bloecke: string[] = [];
       for (const datei of dateien) {
         const vorher = gestagt ? datei.head : (datei.index ?? datei.head);
@@ -286,6 +309,10 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
     }
 
     case 'log': {
+      const schalter = leseSchalter(args, []);
+      if (schalter.unbekannt) {
+        return KEINE_AENDERUNG(zustand, schalterNichtUmgesetzt('git log', schalter.unbekannt));
+      }
       if (zustand.commits.length === 0) {
         return KEINE_AENDERUNG(zustand, 'Noch keine Commits.');
       }

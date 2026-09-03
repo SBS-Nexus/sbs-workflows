@@ -54,6 +54,8 @@ export interface KonfliktZustand {
   status: MergeZustand;
 }
 
+import { leseSchalter, schalterNichtUmgesetzt } from './schalter';
+
 export const KONFLIKT_START = '<<<<<<<';
 export const KONFLIKT_TRENNER = '=======';
 export const KONFLIKT_ENDE = '>>>>>>>';
@@ -199,9 +201,19 @@ export function fuehreKonfliktBefehlAus(
     return { zustand, ausgabe: `Kein Git-Befehl: ${eingabe.trim()}`, veraendert: false };
   }
   const unterbefehl = teile[1] ?? '';
+  const args = teile.slice(2);
+  const unveraendert = (ausgabe: string): KonfliktErgebnis => ({
+    zustand,
+    ausgabe,
+    veraendert: false,
+  });
 
   switch (unterbefehl) {
     case 'status': {
+      const schalter = leseSchalter(args, []);
+      if (schalter.unbekannt) {
+        return unveraendert(schalterNichtUmgesetzt('git status', schalter.unbekannt));
+      }
       if (zustand.status === 'abgeschlossen') {
         return {
           zustand,
@@ -240,6 +252,20 @@ export function fuehreKonfliktBefehlAus(
     }
 
     case 'add': {
+      const schalter = leseSchalter(args, []);
+      if (schalter.unbekannt) {
+        return unveraendert(schalterNichtUmgesetzt('git add', schalter.unbekannt));
+      }
+      // Der angegebene Pfad muss die Konfliktdatei sein. Zuvor merkte jeder
+      // beliebige Pfad die Konfliktdatei vor — auch ein Tippfehler
+      // (Codex-Review auf PR #30).
+      const fremd = schalter.operanden.filter((pf) => pf !== '.' && pf !== zustand.datei.pfad);
+      if (fremd.length > 0) {
+        return unveraendert(`fatal: pathspec '${fremd[0]}' did not match any files`);
+      }
+      if (schalter.operanden.length === 0) {
+        return unveraendert(`git add: Bitte gib die Datei an: git add ${zustand.datei.pfad}`);
+      }
       if (zustand.status !== 'laeuft') {
         return { zustand, ausgabe: 'Kein Merge im Gange.', veraendert: false };
       }
@@ -266,6 +292,12 @@ export function fuehreKonfliktBefehlAus(
     }
 
     case 'commit': {
+      const schalter = leseSchalter(args, [
+        { schreibweisen: ['-m', '--message'], name: 'nachricht' },
+      ]);
+      if (schalter.unbekannt) {
+        return unveraendert(schalterNichtUmgesetzt('git commit', schalter.unbekannt));
+      }
       if (zustand.status !== 'laeuft') {
         return { zustand, ausgabe: 'Kein Merge im Gange.', veraendert: false };
       }
@@ -287,7 +319,11 @@ export function fuehreKonfliktBefehlAus(
     }
 
     case 'merge': {
-      if (teile.includes('--abort')) {
+      const schalter = leseSchalter(args, [{ schreibweisen: ['--abort'], name: 'abbrechen' }]);
+      if (schalter.unbekannt) {
+        return unveraendert(schalterNichtUmgesetzt('git merge', schalter.unbekannt));
+      }
+      if (schalter.gesetzt.has('abbrechen')) {
         if (zustand.status !== 'laeuft') {
           // Echtes Git kennt keinen Abbruch ohne laufenden Merge — und schon
           // gar nicht nach einem abgeschlossenen. Sonst ließe sich hier ein
