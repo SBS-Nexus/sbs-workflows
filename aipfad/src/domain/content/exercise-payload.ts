@@ -192,39 +192,70 @@ export const ansichtSchema = z.discriminatedUnion('art', [
 
 export type Ansicht = z.infer<typeof ansichtSchema>;
 
-export const interpretationPayloadSchema = z.object({
-  kind: z.literal('interpretation'),
-  /** Was zu sehen ist. */
-  ansicht: ansichtSchema,
-  /** Die Frage dazu. */
-  frage: z.string().min(10),
-  options: z.array(choiceOptionSchema).min(2),
-  correctOptionId: z.string().min(1),
-});
+export const interpretationPayloadSchema = z
+  .object({
+    kind: z.literal('interpretation'),
+    /** Was zu sehen ist. */
+    ansicht: ansichtSchema,
+    /** Die Frage dazu. */
+    frage: z.string().min(10),
+    options: z.array(choiceOptionSchema).min(2),
+    correctOptionId: z.string().min(1),
+  })
+  .superRefine((payload, ctx) => {
+    // Dieselbe Beziehung wie bei `singleChoice`, die dort längst geprüft wird.
+    // Fehlte sie hier, nahm der Kurs einen Tippfehler stillschweigend an: Der
+    // Browser zeigt nur die aufgeführten Optionen, die Bewertung vergleicht
+    // aber gegen eine unerreichbare Kennung — jede normale Abgabe scheitert,
+    // und die Aufgabe ist nicht lösbar (Codex-Review auf PR #30).
+    if (!payload.options.some((option) => option.id === payload.correctOptionId)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['correctOptionId'],
+        message: `correctOptionId "${payload.correctOptionId}" zeigt auf keine Option.`,
+      });
+    }
+  });
 
-export const classificationPayloadSchema = z.object({
-  kind: z.literal('classification'),
-  instruction: z.string().min(10),
-  categories: z
-    .array(
-      z.object({
-        id: z.string().min(1),
-        label: z.string().min(1),
-        description: z.string().optional(),
-      }),
-    )
-    .min(2),
-  items: z
-    .array(
-      z.object({
-        id: z.string().min(1),
-        text: z.string().min(1),
-        correctCategoryId: z.string().min(1),
-        feedback: z.string().min(1),
-      }),
-    )
-    .min(2),
-});
+export const classificationPayloadSchema = z
+  .object({
+    kind: z.literal('classification'),
+    instruction: z.string().min(10),
+    categories: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          label: z.string().min(1),
+          description: z.string().optional(),
+        }),
+      )
+      .min(2),
+    items: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          text: z.string().min(1),
+          correctCategoryId: z.string().min(1),
+          feedback: z.string().min(1),
+        }),
+      )
+      .min(2),
+  })
+  .superRefine((payload, ctx) => {
+    // Dieselbe übersehene Beziehung wie bei `interpretation`, nur eine Ebene
+    // tiefer: Zeigt ein Element auf eine Kategorie, die es nicht gibt, ist es
+    // nicht einsortierbar und die Aufgabe nicht lösbar.
+    const kategorien = new Set(payload.categories.map((kategorie) => kategorie.id));
+    for (const [i, element] of payload.items.entries()) {
+      if (!kategorien.has(element.correctCategoryId)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['items', i, 'correctCategoryId'],
+          message: `correctCategoryId "${element.correctCategoryId}" zeigt auf keine Kategorie.`,
+        });
+      }
+    }
+  });
 
 /** Ein Abschnitt einer Konfliktdatei — unstrittig oder umkämpft. */
 const konfliktAbschnittSchema = z.discriminatedUnion('art', [
@@ -240,14 +271,45 @@ const konfliktAbschnittSchema = z.discriminatedUnion('art', [
   }),
 ]);
 
-export const conflictResolutionPayloadSchema = z.object({
-  kind: z.literal('conflictResolution'),
-  pfad: z.string().min(1),
-  /** Beschriftung der Marker, z. B. "HEAD" und "feature/preise". */
-  unserLabel: z.string().min(1),
-  ihrLabel: z.string().min(1),
-  abschnitte: z.array(konfliktAbschnittSchema).min(2),
-});
+export const conflictResolutionPayloadSchema = z
+  .object({
+    kind: z.literal('conflictResolution'),
+    pfad: z.string().min(1),
+    /** Beschriftung der Marker, z. B. "HEAD" und "feature/preise". */
+    unserLabel: z.string().min(1),
+    ihrLabel: z.string().min(1),
+    abschnitte: z.array(konfliktAbschnittSchema).min(2),
+  })
+  .superRefine((payload, ctx) => {
+    // Ohne Konfliktstelle ist die Aufgabe keine: `ConflictResolutionForm`
+    // gibt die Abgabe sofort frei, weil `every()` über eine leere Liste wahr
+    // ist, und die Bewertung zählt null von null richtigen Entscheidungen als
+    // vollständig richtig — bestanden mit voller Punktzahl, ohne dass jemand
+    // etwas entschieden hätte (Codex-Review auf PR #30).
+    const konflikte = payload.abschnitte.filter((abschnitt) => abschnitt.art === 'konflikt');
+    if (konflikte.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['abschnitte'],
+        message:
+          'Kein Abschnitt mit art "konflikt". Ohne Konfliktstelle gilt die Aufgabe sofort als gelöst.',
+      });
+    }
+
+    // Die Kennungen adressieren die Entscheidungen der Abgabe. Doppelt
+    // vergeben, verdeckt die zweite Stelle die erste.
+    const gesehen = new Set<string>();
+    for (const konflikt of konflikte) {
+      if (gesehen.has(konflikt.id)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['abschnitte'],
+          message: `Doppelte Konflikt-Kennung "${konflikt.id}".`,
+        });
+      }
+      gesehen.add(konflikt.id);
+    }
+  });
 
 export const exercisePayloadSchema = z.discriminatedUnion('kind', [
   singleChoicePayloadSchema,

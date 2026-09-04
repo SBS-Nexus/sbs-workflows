@@ -1,5 +1,6 @@
 import type { ExercisePayload, Submission } from '@/domain/content/exercise-payload';
 import type { ErrorCategoryName } from '@/domain/mastery/mastery';
+import { eigenerEintrag } from '@/domain/eintraege';
 
 /**
  * Bewertung einer eingereichten Lösung. Muster aus PythonPfad/SQLPfad (siehe
@@ -195,7 +196,7 @@ function gradeConflictResolution(
   let richtig = 0;
 
   for (const konflikt of konflikte) {
-    const gewaehlt = submission.entscheidungen[konflikt.id];
+    const gewaehlt = eigenerEintrag(submission.entscheidungen, konflikt.id);
     const trifftZu = gewaehlt === konflikt.korrekt;
     marks[konflikt.id] = trifftZu;
     if (trifftZu) richtig += 1;

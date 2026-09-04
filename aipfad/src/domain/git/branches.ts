@@ -54,6 +54,7 @@ import {
   schalterOhneWert,
   zerlegeBefehl,
 } from './schalter';
+import { eigenerEintrag } from '../eintraege';
 
 function commitById(zustand: BranchZustand, id: string): Commit | undefined {
   return zustand.commits.find((c) => c.id === id);
@@ -109,7 +110,7 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
 
   const unterbefehl = teile[1] ?? '';
   const args = teile.slice(2);
-  const kopfCommit = zustand.branches[zustand.aktuellerBranch];
+  const kopfCommit = eigenerEintrag(zustand.branches, zustand.aktuellerBranch);
   if (kopfCommit === undefined) {
     return UNVERAENDERT(zustand, 'Kein aktueller Branch.');
   }
@@ -161,7 +162,7 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
         return UNVERAENDERT(zustand, zeilen.join('\n') || 'Kein Branch passt auf dieses Muster.');
       }
 
-      if (zustand.branches[name] !== undefined) {
+      if (eigenerEintrag(zustand.branches, name) !== undefined) {
         return UNVERAENDERT(zustand, `Branch "${name}" gibt es bereits.`);
       }
       const namensfehler = branchnameFehler(name);
@@ -178,7 +179,7 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
       const startpunkt = schalter.operanden[1];
       let ziel = kopfCommit;
       if (startpunkt !== undefined) {
-        const ausBranch = zustand.branches[startpunkt];
+        const ausBranch = eigenerEintrag(zustand.branches, startpunkt);
         const ausCommit = zustand.commits.find((c) => c.id === startpunkt)?.id;
         const aufgeloest = ausBranch ?? ausCommit;
         if (aufgeloest === undefined) {
@@ -222,7 +223,7 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
       if (!name) return UNVERAENDERT(zustand, 'git switch: Bitte gib einen Branch an.');
 
       if (neu) {
-        if (zustand.branches[name] !== undefined) {
+        if (eigenerEintrag(zustand.branches, name) !== undefined) {
           return UNVERAENDERT(zustand, `Branch "${name}" gibt es bereits.`);
         }
         const fehler = branchnameFehler(name);
@@ -238,7 +239,7 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
         };
       }
 
-      if (zustand.branches[name] === undefined) {
+      if (eigenerEintrag(zustand.branches, name) === undefined) {
         return UNVERAENDERT(
           zustand,
           `Branch "${name}" gibt es nicht. Mit git switch -c ${name} legst du ihn an.`,
@@ -309,7 +310,7 @@ export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): 
           'git merge: Mehrere Branches auf einmal (ein Octopus-Merge) sind in diesem Simulator nicht umgesetzt. Führe sie nacheinander zusammen.',
         );
       }
-      const quelle = zustand.branches[name];
+      const quelle = eigenerEintrag(zustand.branches, name);
       if (quelle === undefined) {
         return UNVERAENDERT(zustand, `Branch "${name}" gibt es nicht.`);
       }
@@ -478,7 +479,7 @@ export function baueGraph(zustand: BranchZustand): GraphKnoten[] {
   );
   const zeileFuer = new Map<string, number>();
   branchNamen.forEach((branch, index) => {
-    let aktuell = zustand.branches[branch];
+    let aktuell = eigenerEintrag(zustand.branches, branch);
     // Nur der ersten Elternkette folgen: Der zweite Elternteil eines
     // Merge-Commits gehört zum hereingeholten Ast und behält dessen Zeile.
     while (aktuell !== undefined && !zeileFuer.has(aktuell)) {

@@ -62,6 +62,7 @@ import {
   schalterOhneWert,
   zerlegeBefehl,
 } from './schalter';
+import { eigenerEintrag } from '../eintraege';
 
 export const KONFLIKT_START = '<<<<<<<';
 export const KONFLIKT_TRENNER = '=======';
@@ -97,7 +98,9 @@ export function mitKonfliktMarkern(
       zeilen.push(...abschnitt.zeilen);
       continue;
     }
-    const aufloesung = zustand.aufloesungen[abschnitt.id] ?? { art: 'offen' as const };
+    const aufloesung = eigenerEintrag(zustand.aufloesungen, abschnitt.id) ?? {
+      art: 'offen' as const,
+    };
     if (aufloesung.art === 'offen') {
       zeilen.push(
         `${KONFLIKT_START} ${beschriftung.unser}`,
@@ -139,7 +142,9 @@ export function aufgeloesterInhalt(zustand: KonfliktZustand): string[] {
       zeilen.push(...abschnitt.zeilen);
       continue;
     }
-    const aufloesung = zustand.aufloesungen[abschnitt.id] ?? { art: 'offen' as const };
+    const aufloesung = eigenerEintrag(zustand.aufloesungen, abschnitt.id) ?? {
+      art: 'offen' as const,
+    };
     zeilen.push(...aufgeloesteZeilen(abschnitt, aufloesung));
   }
   return zeilen;
@@ -148,7 +153,7 @@ export function aufgeloesterInhalt(zustand: KonfliktZustand): string[] {
 export function offeneKonflikte(zustand: KonfliktZustand): string[] {
   return zustand.datei.abschnitte
     .filter((a): a is Extract<Abschnitt, { art: 'konflikt' }> => a.art === 'konflikt')
-    .filter((a) => (zustand.aufloesungen[a.id] ?? { art: 'offen' }).art === 'offen')
+    .filter((a) => (eigenerEintrag(zustand.aufloesungen, a.id) ?? { art: 'offen' }).art === 'offen')
     .map((a) => a.id);
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { leseSchalter, zerlegeBefehl } from '@/domain/git/schalter';
 import { fuehreGitBefehlAus, status, type GitArbeitsbaumZustand } from '@/domain/git/working-tree';
 import { fuehreBranchBefehlAus, type BranchZustand } from '@/domain/git/branches';
+import { eigenerEintrag } from '@/domain/eintraege';
 import { fuehreKonfliktBefehlAus, loeseKonflikt } from '@/domain/git/merge-conflict';
 
 /**
@@ -892,5 +893,79 @@ describe('HEAD als Branch-Kurzform', () => {
         'feature/-topic'
       ],
     ).toBe('c02');
+  });
+});
+
+/**
+ * Ein gewöhnliches Objekt antwortet auch auf Namen, die niemand hineingelegt
+ * hat. Echtes Git kennt diese Namen als ganz normale Branchnamen — falsch
+ * ist allein, dass ein NICHT angelegter Name eine Antwort bekommt
+ * (Codex-Review auf PR #30).
+ */
+describe('Geerbte Eigenschaften sind keine Branches', () => {
+  const GEERBT = ['toString', 'constructor', 'hasOwnProperty', '__proto__', 'valueOf'];
+
+  it('wechselt nicht auf einen nicht angelegten geerbten Namen', () => {
+    for (const name of GEERBT) {
+      const ergebnis = fuehreBranchBefehlAus(branches(), `git switch ${name}`);
+
+      expect(ergebnis.ausgabe, name).toContain(name);
+      expect(ergebnis.veraendert, name).toBe(false);
+      expect(ergebnis.zustand.aktuellerBranch, name).toBe('main');
+      expect(Object.keys(ergebnis.zustand.branches), name).toEqual(['main']);
+    }
+  });
+
+  it('merged keinen nicht angelegten geerbten Namen', () => {
+    for (const name of GEERBT) {
+      const ergebnis = fuehreBranchBefehlAus(branches(), `git merge ${name}`);
+
+      expect(ergebnis.veraendert, name).toBe(false);
+      expect(ergebnis.zustand.commits, name).toHaveLength(2);
+    }
+  });
+
+  it('nimmt keinen geerbten Namen als Startpunkt', () => {
+    for (const name of GEERBT) {
+      const ergebnis = fuehreBranchBefehlAus(branches(), `git branch neu ${name}`);
+
+      expect(ergebnis.veraendert, name).toBe(false);
+      expect(ergebnis.zustand.branches['neu'], name).toBeUndefined();
+      // Vorher stand hier die geerbte Funktion in der Ausgabe.
+      expect(ergebnis.ausgabe, name).not.toContain('native code');
+    }
+  });
+
+  it('legt einen geerbten Namen als echten Branch an und wechselt darauf', () => {
+    // Echtes Git 2.52 legt all diese Namen an — sie zu verbieten hieße,
+    // im Lab etwas anderes beizubringen als draußen gilt.
+    for (const name of GEERBT) {
+      let zustand = fuehreBranchBefehlAus(branches(), `git branch ${name}`).zustand;
+      expect(Object.hasOwn(zustand.branches, name), name).toBe(true);
+      expect(zustand.branches[name], name).toBe('c02');
+
+      const gewechselt = fuehreBranchBefehlAus(zustand, `git switch ${name}`);
+      expect(gewechselt.zustand.aktuellerBranch, name).toBe(name);
+
+      // Und ein Commit darauf hängt an einem echten Elternteil, nicht an
+      // einer geerbten Funktion.
+      zustand = fuehreBranchBefehlAus(gewechselt.zustand, 'git commit -m "darauf"').zustand;
+      const letzter = zustand.commits[zustand.commits.length - 1];
+      expect(letzter?.eltern, name).toEqual(['c02']);
+      expect(eigenerEintrag(zustand.branches, name), name).toBe(letzter?.id);
+    }
+  });
+
+  it('lässt den gewöhnlichen Branchablauf unverändert', () => {
+    let zustand = fuehreBranchBefehlAus(branches(), 'git switch -c feature').zustand;
+    zustand = fuehreBranchBefehlAus(zustand, 'git commit -m "A"').zustand;
+    zustand = fuehreBranchBefehlAus(zustand, 'git switch main').zustand;
+    const ergebnis = fuehreBranchBefehlAus(zustand, 'git merge feature');
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.aktuellerBranch).toBe('main');
+    expect(eigenerEintrag(ergebnis.zustand.branches, 'main')).toBe(
+      eigenerEintrag(ergebnis.zustand.branches, 'feature'),
+    );
   });
 });

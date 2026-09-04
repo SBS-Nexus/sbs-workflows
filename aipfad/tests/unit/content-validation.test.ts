@@ -377,3 +377,104 @@ describe('Keine Lösungsdaten in der öffentlichen Fassung — gesamter Kurs', (
     }
   });
 });
+
+/**
+ * Beziehungen INNERHALB eines Payloads: Eine Kennung, die auf nichts zeigt,
+ * macht die Aufgabe unlösbar — und im Fall des Konflikts sogar automatisch
+ * bestanden. Die Prüfung sitzt im kanonischen Payload-Schema, damit sie für
+ * jeden Weg gilt, der Inhalte einliest (Codex-Review auf PR #30).
+ */
+describe('Kennungen im Payload zeigen auf etwas', () => {
+  const interpretation = (correctOptionId: string) => ({
+    kind: 'interpretation' as const,
+    ansicht: {
+      art: 'gitStatus' as const,
+      eintraege: [{ pfad: 'preise.md', status: 'staged' as const }],
+    },
+    frage: 'Was sagt dieser Status über die Datei aus?',
+    options: [
+      { id: 'a', text: 'Vorgemerkt', feedback: 'Richtig — sie steht im Index.' },
+      { id: 'b', text: 'Nur geändert', feedback: 'Dann stünde sie nicht im Index.' },
+    ],
+    correctOptionId,
+  });
+
+  it('nimmt eine interpretation mit gültiger Kennung an', () => {
+    expect(exercisePayloadSchema.safeParse(interpretation('a')).success).toBe(true);
+  });
+
+  it('lehnt eine interpretation mit unbekannter correctOptionId ab', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(interpretation('gibt-es-nicht'));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('zeigt auf keine Option');
+  });
+
+  const classification = (correctCategoryId: string) => ({
+    kind: 'classification' as const,
+    instruction: 'Ordne jede Datei ihrem Zustand zu.',
+    categories: [
+      { id: 'k1', label: 'Vorgemerkt' },
+      { id: 'k2', label: 'Unversioniert' },
+    ],
+    items: [
+      { id: 'i1', text: 'preise.md', correctCategoryId: 'k1', feedback: 'Steht im Index.' },
+      { id: 'i2', text: 'notiz.txt', correctCategoryId, feedback: 'Git kennt sie nicht.' },
+    ],
+  });
+
+  it('nimmt eine classification mit gültiger Kennung an', () => {
+    expect(exercisePayloadSchema.safeParse(classification('k2')).success).toBe(true);
+  });
+
+  it('lehnt eine classification mit unbekannter correctCategoryId ab', () => {
+    // Dieselbe übersehene Beziehung wie bei interpretation, eine Ebene tiefer.
+    const ergebnis = exercisePayloadSchema.safeParse(classification('gibt-es-nicht'));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('zeigt auf keine Kategorie');
+  });
+});
+
+describe('Konfliktaufgaben enthalten einen Konflikt', () => {
+  const gemeinsam = (zeile: string) => ({ art: 'gemeinsam' as const, zeilen: [zeile] });
+  const konflikt = (id: string) => ({
+    art: 'konflikt' as const,
+    id,
+    unsere: ['Preis: 10'],
+    ihre: ['Preis: 12'],
+    korrekt: 'ihre' as const,
+    feedback: 'Der neuere Preis gilt.',
+  });
+  const payload = (abschnitte: unknown[]) => ({
+    kind: 'conflictResolution' as const,
+    pfad: 'preise.md',
+    unserLabel: 'HEAD',
+    ihrLabel: 'feature/preise',
+    abschnitte,
+  });
+
+  it('nimmt eine Aufgabe mit echter Konfliktstelle an', () => {
+    expect(
+      exercisePayloadSchema.safeParse(payload([gemeinsam('Titel'), konflikt('k1')])).success,
+    ).toBe(true);
+  });
+
+  it('lehnt eine Aufgabe ohne jede Konfliktstelle ab', () => {
+    // Ohne diese Regel gab die Maske die Abgabe sofort frei und die Bewertung
+    // zählte null von null als vollständig richtig: bestanden, volle Punkte.
+    const ergebnis = exercisePayloadSchema.safeParse(
+      payload([gemeinsam('Titel'), gemeinsam('Fuß')]),
+    );
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Kein Abschnitt mit art');
+  });
+
+  it('lehnt doppelte Konflikt-Kennungen ab', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(payload([konflikt('k1'), konflikt('k1')]));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Doppelte Konflikt-Kennung');
+  });
+});
