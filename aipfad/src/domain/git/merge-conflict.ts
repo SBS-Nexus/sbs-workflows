@@ -55,6 +55,7 @@ export interface KonfliktZustand {
 }
 
 import {
+  anfuehrungNichtGeschlossen,
   leseSchalter,
   operandenNichtUmgesetzt,
   schalterNichtUmgesetzt,
@@ -202,7 +203,10 @@ export function fuehreKonfliktBefehlAus(
   zustand: KonfliktZustand,
   eingabe: string,
 ): KonfliktErgebnis {
-  const teile = zerlegeBefehl(eingabe);
+  const { teile, offeneAnfuehrung } = zerlegeBefehl(eingabe);
+  if (offeneAnfuehrung) {
+    return { zustand, ausgabe: anfuehrungNichtGeschlossen(offeneAnfuehrung), veraendert: false };
+  }
   if (teile[0] !== 'git') {
     return { zustand, ausgabe: `Kein Git-Befehl: ${eingabe.trim()}`, veraendert: false };
   }

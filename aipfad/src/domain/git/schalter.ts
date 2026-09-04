@@ -100,6 +100,22 @@ export function leseSchalter(
   return { gesetzt, werte, operanden };
 }
 
+/** Das Ergebnis der Zerlegung einer Befehlszeile. */
+export interface Zerlegung {
+  /** Die Bestandteile der Eingabe. */
+  teile: string[];
+  /**
+   * Das Anführungszeichen, das offen geblieben ist — sonst `null`.
+   *
+   * Ohne diese Angabe endete die Zerlegung an einer offenen Anführung
+   * einfach und lieferte einen Bestandteil, der so nie dastand: Aus
+   * `-m "oops\\"` wurde die Nachricht `oops"`, und der Simulator legte
+   * damit einen Commit an. Eine Shell führte hier gar nichts aus, sondern
+   * wartete auf den Rest der Zeile (Codex-Review auf PR #30).
+   */
+  offeneAnfuehrung: '"' | "'" | null;
+}
+
 /**
  * Zerlegt eine Befehlszeile in ihre Bestandteile und beachtet dabei
  * Anführungszeichen.
@@ -109,8 +125,11 @@ export function leseSchalter(
  * rohen Eingabe, an der Schalterprüfung vorbei. Mit einer gemeinsamen
  * Zerlegung erübrigt sich das: Was der Vertrag sieht, ist auch das, was
  * dasteht.
+ *
+ * Eine offene Anführung wird gemeldet statt stillschweigend geschlossen; die
+ * Aufrufer weisen die Eingabe ab, bevor irgendein Simulator etwas verändert.
  */
-export function zerlegeBefehl(eingabe: string): string[] {
+export function zerlegeBefehl(eingabe: string): Zerlegung {
   const teile: string[] = [];
   const text = eingabe.trim();
   let aktuell = '';
@@ -170,7 +189,17 @@ export function zerlegeBefehl(eingabe: string): string[] {
   }
   if (aktuell.length > 0 || offen) teile.push(aktuell);
 
-  return teile;
+  return { teile, offeneAnfuehrung: anfuehrung };
+}
+
+/**
+ * Einheitliche Meldung für eine Anführung, die nicht geschlossen wurde.
+ *
+ * Bewusst kein `fatal:` — das hier ist kein Git-Fehler. Git bekommt die Zeile
+ * nie zu sehen: Die Shell wartet auf das schließende Zeichen.
+ */
+export function anfuehrungNichtGeschlossen(zeichen: '"' | "'"): string {
+  return `Anführungszeichen nicht geschlossen: Das öffnende ${zeichen} hat kein Gegenstück. Eine Shell würde hier auf den Rest der Eingabe warten und Git gar nicht erst aufrufen.`;
 }
 
 /** Einheitliche Meldung für einen Schalter, den ein Simulator nicht umsetzt. */

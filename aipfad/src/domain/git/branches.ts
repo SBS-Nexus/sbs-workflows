@@ -44,6 +44,7 @@ const UNVERAENDERT = (zustand: BranchZustand, ausgabe: string): BranchErgebnis =
 });
 
 import {
+  anfuehrungNichtGeschlossen,
   fuegeAbsaetzeZusammen,
   leseSchalter,
   musterNichtUmgesetzt,
@@ -102,7 +103,8 @@ function naechsteId(commits: Commit[]): string {
 }
 
 export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): BranchErgebnis {
-  const teile = zerlegeBefehl(eingabe);
+  const { teile, offeneAnfuehrung } = zerlegeBefehl(eingabe);
+  if (offeneAnfuehrung) return UNVERAENDERT(zustand, anfuehrungNichtGeschlossen(offeneAnfuehrung));
   if (teile[0] !== 'git') return UNVERAENDERT(zustand, `Kein Git-Befehl: ${eingabe.trim()}`);
 
   const unterbefehl = teile[1] ?? '';
@@ -391,6 +393,13 @@ function branchnameFehler(name: string): string | null {
 
   const ungueltig =
     name.length === 0 ||
+    // Ein führender Bindestrich ist die eine Regel, die NICHT je
+    // Bestandteil gilt: `git branch -- -topic` lehnt echtes Git ab,
+    // `feature/-topic` legt es an. Sie fehlte hier, und weil `-c` seinen
+    // Wert auch dann nimmt, wenn er mit einem Bindestrich beginnt, legte
+    // `git switch -c -topic` den Branch wirklich an und wechselte darauf
+    // (Codex-Review auf PR #30).
+    name.startsWith('-') ||
     verboten.test(name) ||
     name.includes('..') ||
     name.includes('@{') ||
@@ -409,7 +418,7 @@ function branchnameFehler(name: string): string | null {
     );
 
   return ungueltig
-    ? `fatal: '${name}' is not a valid branch name. Erlaubt sind keine Leerzeichen und keine der Zeichen ~ ^ : ? * [ \\ sowie kein ".." im Namen; kein Namensteil darf mit einem Punkt beginnen oder enden oder auf ".lock" enden.`
+    ? `fatal: '${name}' is not a valid branch name. Erlaubt sind keine Leerzeichen und keine der Zeichen ~ ^ : ? * [ \\ sowie kein ".." im Namen; kein Namensteil darf mit einem Punkt beginnen oder enden oder auf ".lock" enden, und der Name selbst nicht mit einem Bindestrich beginnen.`
     : null;
 }
 

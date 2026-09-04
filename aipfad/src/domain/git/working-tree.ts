@@ -19,6 +19,7 @@
  */
 
 import {
+  anfuehrungNichtGeschlossen,
   fuegeAbsaetzeZusammen,
   leseSchalter,
   operandenNichtUmgesetzt,
@@ -193,7 +194,10 @@ function zeilenDiff(vorher: string | undefined, nachher: string | undefined): st
  * tun — dieselbe Regel wie im Terminal-Simulator.
  */
 export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: string): GitErgebnis {
-  const teile = zerlegeBefehl(eingabe);
+  const { teile, offeneAnfuehrung } = zerlegeBefehl(eingabe);
+  if (offeneAnfuehrung) {
+    return KEINE_AENDERUNG(zustand, anfuehrungNichtGeschlossen(offeneAnfuehrung));
+  }
   if (teile[0] !== 'git') {
     return KEINE_AENDERUNG(zustand, `Kein Git-Befehl: ${eingabe.trim()}`);
   }

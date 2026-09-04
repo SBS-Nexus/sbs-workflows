@@ -289,7 +289,7 @@ describe('Schalter mit Wert', () => {
 
 describe('Befehlszeile zerlegen', () => {
   it('hält einen Text in Anführungszeichen zusammen', () => {
-    expect(zerlegeBefehl('git commit -m "Zwei Wörter"')).toEqual([
+    expect(zerlegeBefehl('git commit -m "Zwei Wörter"').teile).toEqual([
       'git',
       'commit',
       '-m',
@@ -298,7 +298,7 @@ describe('Befehlszeile zerlegen', () => {
   });
 
   it('versteht einfache Anführungszeichen genauso', () => {
-    expect(zerlegeBefehl("git commit -m 'Zwei Wörter'")).toEqual([
+    expect(zerlegeBefehl("git commit -m 'Zwei Wörter'").teile).toEqual([
       'git',
       'commit',
       '-m',
@@ -309,7 +309,7 @@ describe('Befehlszeile zerlegen', () => {
   it('behält einen leeren Text als eigenen Bestandteil', () => {
     // Sonst sähe `-m ""` aus wie ein `-m` ganz ohne Wert — zwei
     // verschiedene Fehler mit zwei verschiedenen Meldungen.
-    expect(zerlegeBefehl('git commit -m ""')).toEqual(['git', 'commit', '-m', '']);
+    expect(zerlegeBefehl('git commit -m ""').teile).toEqual(['git', 'commit', '-m', '']);
   });
 });
 
@@ -657,7 +657,7 @@ describe('Branchnamen', () => {
 
 describe('Maskierte Anführungszeichen', () => {
   it('nimmt ein Anführungszeichen in die Nachricht auf', () => {
-    expect(zerlegeBefehl('git commit -m "sagt \\"hallo\\""')).toEqual([
+    expect(zerlegeBefehl('git commit -m "sagt \\"hallo\\""').teile).toEqual([
       'git',
       'commit',
       '-m',
@@ -675,7 +675,7 @@ describe('Maskierte Anführungszeichen', () => {
   });
 
   it('maskiert in einfachen Anführungszeichen nicht, wie eine echte Shell', () => {
-    expect(zerlegeBefehl("git commit -m 'a\\b'")).toEqual(['git', 'commit', '-m', 'a\\b']);
+    expect(zerlegeBefehl("git commit -m 'a\\b'").teile).toEqual(['git', 'commit', '-m', 'a\\b']);
   });
 });
 
@@ -725,11 +725,16 @@ describe('Nachbesserungen', () => {
   it('behält einen gewöhnlichen Rückstrich in doppelten Anführungszeichen', () => {
     // In einer Shell ist der Rückstrich dort nur vor " $ ` \ besonders.
     // `C:\temp` als `C:temp` zu speichern wäre eine andere Nachricht.
-    expect(zerlegeBefehl('git commit -m "C:\\temp"')).toEqual(['git', 'commit', '-m', 'C:\\temp']);
+    expect(zerlegeBefehl('git commit -m "C:\\temp"').teile).toEqual([
+      'git',
+      'commit',
+      '-m',
+      'C:\\temp',
+    ]);
   });
 
   it('maskiert dort weiterhin das Anführungszeichen selbst', () => {
-    expect(zerlegeBefehl('git commit -m "sagt \\"hallo\\""')).toEqual([
+    expect(zerlegeBefehl('git commit -m "sagt \\"hallo\\""').teile).toEqual([
       'git',
       'commit',
       '-m',
@@ -738,6 +743,91 @@ describe('Nachbesserungen', () => {
   });
 
   it('maskiert außerhalb von Anführungszeichen jedes Zeichen', () => {
-    expect(zerlegeBefehl('git add mein\\ ordner')).toEqual(['git', 'add', 'mein ordner']);
+    expect(zerlegeBefehl('git add mein\\ ordner').teile).toEqual(['git', 'add', 'mein ordner']);
+  });
+});
+/**
+ * Zwei Ecken, an denen die Eingabe noch immer etwas anderes bewirkte als sie
+ * sagte — beide aus derselben Klasse wie die Runden davor
+ * (Codex-Review auf PR #30).
+ */
+describe('Führender Bindestrich im Branchnamen', () => {
+  it('lehnt ihn ab, statt den Branch anzulegen', () => {
+    // `-c` nimmt seinen Wert auch dann, wenn er mit einem Bindestrich
+    // beginnt — richtig so. Nur war der Name danach ungeprüft, und der Lab
+    // legte einen Branch an, den echtes Git nicht anlegt.
+    const ergebnis = fuehreBranchBefehlAus(branches(), 'git switch -c -topic');
+
+    expect(ergebnis.ausgabe).toContain('not a valid branch name');
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand.branches['-topic']).toBeUndefined();
+    expect(ergebnis.zustand.aktuellerBranch).toBe('main');
+  });
+
+  it('lehnt ihn auch bei git branch ab', () => {
+    for (const name of ['-topic', '-']) {
+      const ergebnis = fuehreBranchBefehlAus(branches(), `git branch -- ${name}`);
+      expect(ergebnis.ausgabe, name).toContain('not a valid branch name');
+      expect(ergebnis.zustand.branches[name], name).toBeUndefined();
+    }
+  });
+
+  it('gilt nur für den ganzen Namen, nicht je Bestandteil', () => {
+    // Echtes Git legt `feature/-topic` an. Die Regel hier per Bestandteil zu
+    // ziehen wäre die Übertreibung der Lehre aus der Runde davor.
+    const ergebnis = fuehreBranchBefehlAus(branches(), 'git branch feature/-topic');
+    expect(ergebnis.zustand.branches['feature/-topic']).toBe('c02');
+  });
+
+  it('nimmt einen Bindestrich in der Mitte weiterhin an', () => {
+    const ergebnis = fuehreBranchBefehlAus(branches(), 'git branch fix-42');
+    expect(ergebnis.zustand.branches['fix-42']).toBe('c02');
+  });
+});
+
+describe('Nicht geschlossene Anführungszeichen', () => {
+  it('meldet die offene Anführung, statt sie stillschweigend zu schließen', () => {
+    const zerlegung = zerlegeBefehl('git commit -m "oops\\"');
+    expect(zerlegung.offeneAnfuehrung).toBe('"');
+  });
+
+  it('legt deshalb keinen Commit an', () => {
+    // Zuvor wurde das maskierte Anführungszeichen zum Text geschlagen, die
+    // Anführung blieb offen — und der Commit trug die Nachricht `oops"`,
+    // die so nie dastand. Eine Shell ruft Git hier gar nicht erst auf.
+    const zustand = fuehreGitBefehlAus(arbeitsbaum(), 'git add preise.md').zustand;
+    const vorher = zustand.commits.length;
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git commit -m "oops\\"');
+
+    expect(ergebnis.ausgabe).toContain('nicht geschlossen');
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand.commits).toHaveLength(vorher);
+  });
+
+  it('gilt in allen drei Simulatoren', () => {
+    expect(fuehreGitBefehlAus(arbeitsbaum(), 'git commit -m "offen').ausgabe).toContain(
+      'nicht geschlossen',
+    );
+    expect(fuehreBranchBefehlAus(branches(), 'git switch -c "offen').ausgabe).toContain(
+      'nicht geschlossen',
+    );
+    expect(fuehreKonfliktBefehlAus(konfliktStart(), 'git commit -m "offen').ausgabe).toContain(
+      'nicht geschlossen',
+    );
+  });
+
+  it('erkennt auch eine offene einfache Anführung', () => {
+    expect(zerlegeBefehl("git commit -m 'offen").offeneAnfuehrung).toBe("'");
+  });
+
+  it('meldet bei geschlossenen Anführungen nichts', () => {
+    for (const eingabe of [
+      'git commit -m "alles gut"',
+      "git commit -m 'alles gut'",
+      'git commit -m "sagt \\"hallo\\""',
+      'git status',
+    ]) {
+      expect(zerlegeBefehl(eingabe).offeneAnfuehrung, eingabe).toBeNull();
+    }
   });
 });
