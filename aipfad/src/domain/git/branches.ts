@@ -458,15 +458,29 @@ export interface GraphKnoten {
  */
 export function baueGraph(zustand: BranchZustand): GraphKnoten[] {
   const tiefe = new Map<string, number>();
+  // `unterwegs` bricht Zyklen ab. Ohne das rief sich die Tiefenberechnung bei
+  // einem Commit, der sich selbst (oder über einen zweiten Commit) als
+  // Elternteil nennt, endlos auf und riss mit einem Stapelüberlauf die ganze
+  // Seite mit — der Graph kommt auch aus Lab-Konfigurationen, und deren
+  // `config` ist nicht typisiert (Codex-Review auf PR #30).
+  //
+  // Die Inhaltsprüfung lehnt solche Graphen zusätzlich ab; hier steht die
+  // Absicherung für den Fall, dass doch einer durchkommt. Ein Zyklus hat
+  // keine sinnvolle Tiefe — 0 ist die ruhigste Antwort, die nichts erfindet.
+  const unterwegs = new Set<string>();
   const berechneTiefe = (id: string): number => {
     const bekannt = tiefe.get(id);
     if (bekannt !== undefined) return bekannt;
+    if (unterwegs.has(id)) return 0;
+
     const commit = commitById(zustand, id);
     if (!commit || commit.eltern.length === 0) {
       tiefe.set(id, 0);
       return 0;
     }
+    unterwegs.add(id);
     const wert = Math.max(...commit.eltern.map(berechneTiefe)) + 1;
+    unterwegs.delete(id);
     tiefe.set(id, wert);
     return wert;
   };

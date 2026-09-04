@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { leseSchalter, zerlegeBefehl } from '@/domain/git/schalter';
 import { fuehreGitBefehlAus, status, type GitArbeitsbaumZustand } from '@/domain/git/working-tree';
-import { fuehreBranchBefehlAus, type BranchZustand } from '@/domain/git/branches';
+import { baueGraph, fuehreBranchBefehlAus, type BranchZustand } from '@/domain/git/branches';
 import { eigenerEintrag } from '@/domain/eintraege';
 import { fuehreKonfliktBefehlAus, loeseKonflikt } from '@/domain/git/merge-conflict';
 
@@ -967,5 +967,54 @@ describe('Geerbte Eigenschaften sind keine Branches', () => {
     expect(eigenerEintrag(ergebnis.zustand.branches, 'main')).toBe(
       eigenerEintrag(ergebnis.zustand.branches, 'feature'),
     );
+  });
+});
+
+/**
+ * Der Commit-Graph kommt nicht nur aus dem Simulator, sondern auch aus
+ * Lab-Konfigurationen und Aufgaben-Payloads. Ein Zyklus darin ließ die
+ * Tiefenberechnung endlos laufen (Codex-Review auf PR #30).
+ */
+describe('Zyklischer Commit-Graph reißt die Seite nicht ab', () => {
+  it('überlebt einen Commit, der sich selbst als Elternteil nennt', () => {
+    const zustand: BranchZustand = {
+      commits: [
+        { id: 'c01', nachricht: 'Erster', eltern: ['c01'] },
+        { id: 'c02', nachricht: 'Zweiter', eltern: ['c01'] },
+      ],
+      branches: { main: 'c02' },
+      aktuellerBranch: 'main',
+    };
+
+    expect(() => baueGraph(zustand)).not.toThrow();
+    expect(baueGraph(zustand)).toHaveLength(2);
+  });
+
+  it('überlebt zwei Commits, die einander als Elternteil nennen', () => {
+    const zustand: BranchZustand = {
+      commits: [
+        { id: 'a', nachricht: 'A', eltern: ['b'] },
+        { id: 'b', nachricht: 'B', eltern: ['a'] },
+      ],
+      branches: { main: 'a' },
+      aktuellerBranch: 'main',
+    };
+
+    expect(() => baueGraph(zustand)).not.toThrow();
+  });
+
+  it('ordnet einen gesunden Graphen unverändert an', () => {
+    const zustand: BranchZustand = {
+      commits: [
+        { id: 'c01', nachricht: 'Erster', eltern: [] },
+        { id: 'c02', nachricht: 'Zweiter', eltern: ['c01'] },
+        { id: 'c03', nachricht: 'Dritter', eltern: ['c02'] },
+      ],
+      branches: { main: 'c03' },
+      aktuellerBranch: 'main',
+    };
+    const knoten = baueGraph(zustand);
+
+    expect(knoten.map((k) => k.spalte)).toEqual([0, 1, 2]);
   });
 });

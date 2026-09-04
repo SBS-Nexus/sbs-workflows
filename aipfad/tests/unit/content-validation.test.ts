@@ -478,3 +478,93 @@ describe('Konfliktaufgaben enthalten einen Konflikt', () => {
     expect(JSON.stringify(ergebnis.error?.issues)).toContain('Doppelte Konflikt-Kennung');
   });
 });
+
+/**
+ * Kennungen, die Masken und Bewertung als Schlüssel benutzen, müssen
+ * eindeutig sein — sonst teilen sich zwei Elemente eine Auswahl und die
+ * Aufgabe ist nicht zu bestehen (Codex-Review auf PR #30).
+ */
+describe('Eindeutige Kennungen im Payload', () => {
+  const mitElementIds = (idA: string, idB: string) => ({
+    kind: 'classification' as const,
+    instruction: 'Ordne jede Datei ihrem Zustand zu.',
+    categories: [
+      { id: 'k1', label: 'Vorgemerkt' },
+      { id: 'k2', label: 'Unversioniert' },
+    ],
+    items: [
+      { id: idA, text: 'preise.md', correctCategoryId: 'k1', feedback: 'Steht im Index.' },
+      { id: idB, text: 'notiz.txt', correctCategoryId: 'k2', feedback: 'Git kennt sie nicht.' },
+    ],
+  });
+
+  it('nimmt unterschiedliche Element-Kennungen an', () => {
+    expect(exercisePayloadSchema.safeParse(mitElementIds('i1', 'i2')).success).toBe(true);
+  });
+
+  it('lehnt doppelte Element-Kennungen ab', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(mitElementIds('i1', 'i1'));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Doppelte Element-Kennung');
+  });
+
+  it('lehnt doppelte Kategorie-Kennungen ab', () => {
+    const ergebnis = exercisePayloadSchema.safeParse({
+      ...mitElementIds('i1', 'i2'),
+      categories: [
+        { id: 'k1', label: 'Vorgemerkt' },
+        { id: 'k1', label: 'Unversioniert' },
+      ],
+    });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Doppelte Kategorie-Kennung');
+  });
+});
+
+describe('Commit-Graph einer Aufgabe ist kreisfrei', () => {
+  const mitEltern = (elternA: string[], elternB: string[]) => ({
+    kind: 'interpretation' as const,
+    ansicht: {
+      art: 'branchGraph' as const,
+      commits: [
+        { id: 'c01', nachricht: 'Erster', eltern: elternA },
+        { id: 'c02', nachricht: 'Zweiter', eltern: elternB },
+      ],
+      branches: { main: 'c02' },
+      aktuellerBranch: 'main',
+    },
+    frage: 'Welcher Commit ist der jüngere in dieser Vorgeschichte?',
+    options: [
+      { id: 'a', text: 'c02', feedback: 'Richtig — er hat c01 als Elternteil.' },
+      { id: 'b', text: 'c01', feedback: 'c01 ist der ältere.' },
+    ],
+    correctOptionId: 'a',
+  });
+
+  it('nimmt eine gesunde Vorgeschichte an', () => {
+    expect(exercisePayloadSchema.safeParse(mitEltern([], ['c01'])).success).toBe(true);
+  });
+
+  it('lehnt einen selbst-elterlichen Commit ab', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(mitEltern(['c01'], ['c01']));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Zyklische Vorgeschichte');
+  });
+
+  it('lehnt zwei einander bedingende Commits ab', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(mitEltern(['c02'], ['c01']));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Zyklische Vorgeschichte');
+  });
+
+  it('lehnt einen Elternteil ab, den es nicht gibt', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(mitEltern([], ['gibt-es-nicht']));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('ist kein Commit dieser Ansicht');
+  });
+});

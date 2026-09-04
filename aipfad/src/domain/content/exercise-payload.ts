@@ -154,22 +154,66 @@ const diffAnsichtSchema = z.object({
   zeilen: z.array(diffZeileSchema).min(1),
 });
 
-const branchGraphAnsichtSchema = z.object({
-  art: z.literal('branchGraph'),
-  commits: z
-    .array(
-      z.object({
-        id: z.string().min(1),
-        nachricht: z.string().min(1),
-        eltern: z.array(z.string().min(1)).default([]),
-      }),
-    )
-    .min(2),
-  /** Branchname -> Commit-Kennung. */
-  branches: z.record(z.string().min(1), z.string().min(1)),
-  /** Auf welchem Branch HEAD steht. */
-  aktuellerBranch: z.string().min(1),
-});
+const branchGraphAnsichtSchema = z
+  .object({
+    art: z.literal('branchGraph'),
+    commits: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          nachricht: z.string().min(1),
+          eltern: z.array(z.string().min(1)).default([]),
+        }),
+      )
+      .min(2),
+    /** Branchname -> Commit-Kennung. */
+    branches: z.record(z.string().min(1), z.string().min(1)),
+    /** Auf welchem Branch HEAD steht. */
+    aktuellerBranch: z.string().min(1),
+  })
+  .superRefine((ansicht, ctx) => {
+    // Ein Commit, der sich selbst als Vorfahr nennt, ließ die Tiefenberechnung
+    // in `baueGraph()` endlos laufen und riss die Seite mit einem
+    // Stapelüberlauf ab. Ein Zyklus ist ohnehin kein Commit-Graph: Vorher
+    // heißt vorher (Codex-Review auf PR #30).
+    const bekannt = new Set(ansicht.commits.map((commit) => commit.id));
+    for (const [i, commit] of ansicht.commits.entries()) {
+      for (const elternteil of commit.eltern) {
+        if (!bekannt.has(elternteil)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['commits', i, 'eltern'],
+            message: `Elternteil "${elternteil}" ist kein Commit dieser Ansicht.`,
+          });
+        }
+      }
+    }
+
+    const eltern = new Map(ansicht.commits.map((commit) => [commit.id, commit.eltern]));
+    const besucht = new Map<string, 'laeuft' | 'fertig'>();
+    const findeZyklus = (id: string): string | null => {
+      if (besucht.get(id) === 'laeuft') return id;
+      if (besucht.get(id) === 'fertig') return null;
+      besucht.set(id, 'laeuft');
+      for (const elternteil of eltern.get(id) ?? []) {
+        const treffer = findeZyklus(elternteil);
+        if (treffer) return treffer;
+      }
+      besucht.set(id, 'fertig');
+      return null;
+    };
+    for (const commit of ansicht.commits) {
+      const treffer = findeZyklus(commit.id);
+      if (treffer) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['commits'],
+          message: `Zyklische Vorgeschichte bei Commit "${treffer}".`,
+        });
+        break;
+      }
+    }
+  });
 
 const gitStatusAnsichtSchema = z.object({
   art: z.literal('gitStatus'),
@@ -246,6 +290,7 @@ export const classificationPayloadSchema = z
     // tiefer: Zeigt ein Element auf eine Kategorie, die es nicht gibt, ist es
     // nicht einsortierbar und die Aufgabe nicht lösbar.
     const kategorien = new Set(payload.categories.map((kategorie) => kategorie.id));
+    const gesehen = new Set<string>();
     for (const [i, element] of payload.items.entries()) {
       if (!kategorien.has(element.correctCategoryId)) {
         ctx.addIssue({
@@ -254,6 +299,27 @@ export const classificationPayloadSchema = z
           message: `correctCategoryId "${element.correctCategoryId}" zeigt auf keine Kategorie.`,
         });
       }
+      // Maske und Bewertung führen die Auswahl unter der Kennung. Zweimal
+      // dieselbe, und beide Elemente teilen sich eine Auswahl — mindestens
+      // eines gilt dann immer als falsch, die Aufgabe ist nicht zu bestehen
+      // (Codex-Review auf PR #30).
+      if (gesehen.has(element.id)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['items', i, 'id'],
+          message: `Doppelte Element-Kennung "${element.id}".`,
+        });
+      }
+      gesehen.add(element.id);
+    }
+
+    const kategorienIds = payload.categories.map((kategorie) => kategorie.id);
+    if (new Set(kategorienIds).size !== kategorienIds.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['categories'],
+        message: 'Doppelte Kategorie-Kennung.',
+      });
     }
   });
 

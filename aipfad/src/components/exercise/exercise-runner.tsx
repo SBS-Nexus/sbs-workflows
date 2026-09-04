@@ -9,6 +9,7 @@ import type { PublicExercise } from '@/server/services/exercise-service';
 import type { Hint, Submission } from '@/domain/content/exercise-payload';
 import { hintLevelLabel } from '@/domain/hints/hint-ladder';
 import { fuehreBefehlAus, type SimuliertesDateisystem } from '@/domain/labs/terminal';
+import { eigenerEintrag } from '@/domain/eintraege';
 
 /**
  * Rendert eine Aufgabe anhand ihrer Interaktionsform (`payload.kind`) und
@@ -368,7 +369,7 @@ function ClassificationForm({
   onSubmit: (submission: Submission) => void;
 }): React.ReactElement {
   const [zuordnung, setZuordnung] = useState<Record<string, string>>({});
-  const vollstaendig = payload.items.every((item) => zuordnung[item.id]);
+  const vollstaendig = payload.items.every((item) => eigenerEintrag(zuordnung, item.id));
 
   return (
     <div>
@@ -383,7 +384,7 @@ function ClassificationForm({
             <span className="font-mono text-sm">{item.text}</span>
             <select
               aria-label={`Kategorie für ${item.text}`}
-              value={zuordnung[item.id] ?? ''}
+              value={eigenerEintrag(zuordnung, item.id) ?? ''}
               onChange={(e) => setZuordnung((prev) => ({ ...prev, [item.id]: e.target.value }))}
               className={inputClass}
             >
@@ -439,7 +440,7 @@ function ConflictResolutionForm({
     (a): a is Extract<(typeof payload.abschnitte)[number], { art: 'konflikt' }> =>
       a.art === 'konflikt',
   );
-  const vollstaendig = konflikte.every((k) => entscheidungen[k.id]);
+  const vollstaendig = konflikte.every((k) => eigenerEintrag(entscheidungen, k.id));
 
   const wahlen = [
     { wert: 'unsere' as const, text: `Meine behalten (${payload.unserLabel})` },
@@ -486,7 +487,7 @@ function ConflictResolutionForm({
                   <input
                     type="radio"
                     name={`konflikt-${konflikt.id}`}
-                    checked={entscheidungen[konflikt.id] === wahl.wert}
+                    checked={eigenerEintrag(entscheidungen, konflikt.id) === wahl.wert}
                     onChange={() =>
                       setEntscheidungen((prev) => ({ ...prev, [konflikt.id]: wahl.wert }))
                     }
@@ -820,7 +821,7 @@ function FillInForm({
               key={index}
               type="text"
               aria-label={blank?.description ?? 'Lücke'}
-              value={values[blankId] ?? ''}
+              value={eigenerEintrag(values, blankId) ?? ''}
               onChange={(e) => setValues((prev) => ({ ...prev, [blankId]: e.target.value }))}
               className="mx-1 w-32 rounded border-b-2 border-[var(--border-strong)] bg-transparent px-1 font-mono text-inherit focus:border-signal-500 focus:outline-none"
             />
@@ -828,7 +829,9 @@ function FillInForm({
         })}
       </p>
       <Button
-        disabled={pending || payload.blanks.some((b) => !(values[b.id] ?? '').trim())}
+        disabled={
+          pending || payload.blanks.some((b) => !(eigenerEintrag(values, b.id) ?? '').trim())
+        }
         onClick={() => onSubmit({ kind: 'fillIn', values })}
       >
         {pending ? 'Wird geprüft …' : 'Antwort abgeben'}

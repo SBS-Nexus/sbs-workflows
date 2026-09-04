@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Badge, Button, Callout, cx } from '@/components/ui/primitives';
 import { LabCompleteButton } from './lab-complete-button';
 import { BefehlsKonsole } from './befehls-konsole';
+import { eigenerEintrag } from '@/domain/eintraege';
 import {
   alleKonflikteGeloest,
   aufgeloesterInhalt,
@@ -86,7 +87,7 @@ export function MergeConflictLab({
 
   function waehle(konfliktId: string, wahl: Wahl): void {
     if (wahl === 'eigene') {
-      const zeilen = (eigeneTexte[konfliktId] ?? '').split('\n');
+      const zeilen = (eigenerEintrag(eigeneTexte, konfliktId) ?? '').split('\n');
       setZustand((prev) => loeseKonflikt(prev, konfliktId, { art: 'eigene', zeilen }));
       return;
     }
@@ -135,7 +136,9 @@ export function MergeConflictLab({
         </h3>
 
         {konflikte.map((konflikt) => {
-          const aktuell = zustand.aufloesungen[konflikt.id] ?? { art: 'offen' as const };
+          const aktuell = eigenerEintrag(zustand.aufloesungen, konflikt.id) ?? {
+            art: 'offen' as const,
+          };
           return (
             <fieldset
               key={konflikt.id}
@@ -195,7 +198,7 @@ export function MergeConflictLab({
                   id={`eigene-${konflikt.id}`}
                   rows={2}
                   disabled={!laeuft}
-                  value={eigeneTexte[konflikt.id] ?? ''}
+                  value={eigenerEintrag(eigeneTexte, konflikt.id) ?? ''}
                   onChange={(e) =>
                     setEigeneTexte((prev) => ({ ...prev, [konflikt.id]: e.target.value }))
                   }
@@ -205,7 +208,9 @@ export function MergeConflictLab({
                   size="sm"
                   variant={aktuell.art === 'eigene' ? 'primary' : 'secondary'}
                   className="mt-1.5"
-                  disabled={!laeuft || (eigeneTexte[konflikt.id] ?? '').trim().length === 0}
+                  disabled={
+                    !laeuft || (eigenerEintrag(eigeneTexte, konflikt.id) ?? '').trim().length === 0
+                  }
                   onClick={() => waehle(konflikt.id, 'eigene')}
                 >
                   Eigene Fassung übernehmen
