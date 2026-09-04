@@ -393,17 +393,22 @@ function branchnameFehler(name: string): string | null {
 
   const ungueltig =
     name.length === 0 ||
-    // Ein führender Bindestrich ist die eine Regel, die NICHT je
-    // Bestandteil gilt: `git branch -- -topic` lehnt echtes Git ab,
-    // `feature/-topic` legt es an. Sie fehlte hier, und weil `-c` seinen
-    // Wert auch dann nimmt, wenn er mit einem Bindestrich beginnt, legte
-    // `git switch -c -topic` den Branch wirklich an und wechselte darauf
-    // (Codex-Review auf PR #30).
+    // Zwei Regeln gelten für den GANZEN Namen und ausdrücklich nicht je
+    // Bestandteil — sie stammen aus der Kurzform, mit der man einen Branch
+    // benennt, nicht aus der Prüfung einer vollständigen Ref:
+    //
+    //   `-topic`  abgelehnt, `feature/-topic` angelegt
+    //   `HEAD`    abgelehnt, `feature/HEAD` und `HEAD/x` angelegt
+    //
+    // `refs/heads/HEAD` besteht `git check-ref-format` sogar; verboten ist
+    // allein die Kurzform, weil `HEAD` dort schon den aktuellen Commit
+    // meint. Beide je Bestandteil zu ziehen wäre die Übertreibung der
+    // Lehre aus den Runden davor (Codex-Review auf PR #30).
     name.startsWith('-') ||
+    name === 'HEAD' ||
     verboten.test(name) ||
     name.includes('..') ||
     name.includes('@{') ||
-    name === '@' ||
     name.endsWith('.lock') ||
     // eslint-disable-next-line no-control-regex
     /[\u0000-\u001f\u007f]/.test(name) ||
@@ -418,7 +423,7 @@ function branchnameFehler(name: string): string | null {
     );
 
   return ungueltig
-    ? `fatal: '${name}' is not a valid branch name. Erlaubt sind keine Leerzeichen und keine der Zeichen ~ ^ : ? * [ \\ sowie kein ".." im Namen; kein Namensteil darf mit einem Punkt beginnen oder enden oder auf ".lock" enden, und der Name selbst nicht mit einem Bindestrich beginnen.`
+    ? `fatal: '${name}' is not a valid branch name. Erlaubt sind keine Leerzeichen und keine der Zeichen ~ ^ : ? * [ \\ sowie kein ".." im Namen; kein Namensteil darf mit einem Punkt beginnen oder enden oder auf ".lock" enden; der Name selbst darf nicht mit einem Bindestrich beginnen und nicht "HEAD" lauten.`
     : null;
 }
 

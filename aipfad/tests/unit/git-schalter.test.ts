@@ -831,3 +831,66 @@ describe('Nicht geschlossene Anführungszeichen', () => {
     }
   });
 });
+
+/**
+ * Die Kurzform, mit der man einen Branch benennt, ist nicht dasselbe wie
+ * `git check-ref-format` auf einer vollständigen Ref. Gegen echtes Git 2.52
+ * nachgestellt (Codex-Review auf PR #30).
+ */
+describe('HEAD als Branch-Kurzform', () => {
+  it('lehnt HEAD ab und lässt den Zustand unverändert', () => {
+    for (const befehl of ['git branch HEAD', 'git switch -c HEAD']) {
+      const ergebnis = fuehreBranchBefehlAus(branches(), befehl);
+
+      expect(ergebnis.ausgabe, befehl).toContain('not a valid branch name');
+      expect(ergebnis.veraendert, befehl).toBe(false);
+      expect(ergebnis.zustand.branches['HEAD'], befehl).toBeUndefined();
+      expect(ergebnis.zustand.aktuellerBranch, befehl).toBe('main');
+      expect(Object.keys(ergebnis.zustand.branches), befehl).toEqual(['main']);
+    }
+  });
+
+  it('gilt nur für den ganzen Namen, nicht je Bestandteil', () => {
+    // Echtes Git legt beide an: verboten ist allein die Kurzform `HEAD`.
+    for (const name of ['feature/HEAD', 'HEAD/x']) {
+      const ergebnis = fuehreBranchBefehlAus(branches(), `git branch ${name}`);
+      expect(ergebnis.zustand.branches[name], name).toBe('c02');
+    }
+  });
+
+  it('trifft nur die genaue Schreibweise', () => {
+    // `strcmp` gegen "HEAD": Kleinschreibung und Anhängsel sind erlaubt.
+    for (const name of ['head', 'Head', 'HEADS']) {
+      const ergebnis = fuehreBranchBefehlAus(branches(), `git branch ${name}`);
+      expect(ergebnis.zustand.branches[name], name).toBe('c02');
+    }
+  });
+
+  it('nimmt @ an, denn echtes Git legt refs/heads/@ wirklich an', () => {
+    // Diese Regel stand hier vorher als Verbot — eine Überkorrektur.
+    for (const befehl of ['git branch @', 'git switch -c @']) {
+      const ergebnis = fuehreBranchBefehlAus(branches(), befehl);
+      expect(ergebnis.ausgabe, befehl).not.toContain('not a valid branch name');
+      expect(ergebnis.zustand.branches['@'], befehl).toBe('c02');
+    }
+  });
+
+  it('lehnt die Reflog-Schreibweise weiterhin ab', () => {
+    for (const name of ['@{1}', 'a@{1}']) {
+      const ergebnis = fuehreBranchBefehlAus(branches(), `git branch ${name}`);
+      expect(ergebnis.ausgabe, name).toContain('not a valid branch name');
+      expect(ergebnis.veraendert, name).toBe(false);
+    }
+  });
+
+  it('lässt die Regeln der Runden davor unberührt', () => {
+    expect(fuehreBranchBefehlAus(branches(), 'git branch -- -topic').ausgabe).toContain(
+      'not a valid branch name',
+    );
+    expect(
+      fuehreBranchBefehlAus(branches(), 'git branch feature/-topic').zustand.branches[
+        'feature/-topic'
+      ],
+    ).toBe('c02');
+  });
+});
