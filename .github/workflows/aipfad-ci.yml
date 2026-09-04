@@ -82,6 +82,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # Vor den Unit-Tests, damit ein kaputter Inhaltsstand als das auffällt,
+      # was er ist, statt mittelbar über einen roten Test. Braucht weder
+      # Datenbank noch Netz.
+      - name: Inhaltsvalidierung
+        run: npm run content:validate
+
       - name: Unit-Tests
         run: npm run test:unit
 

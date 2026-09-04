@@ -82,6 +82,12 @@ enum ExerciseType {
   SCENARIO_DECISION
   TERMINAL_SIMULATION
   PROMPT_REPAIR
+  /// Etwas Fachliches ansehen und daraus schließen (Diff, Commit-Graph, git status).
+  INTERPRETATION
+  /// Mehrere Dinge in Kategorien einsortieren (Dateizustände, Gefährdung von Befehlen).
+  CLASSIFICATION
+  /// Je Konfliktstelle bewusst entscheiden, welche Fassung gilt.
+  CONFLICT_RESOLUTION
   TRANSFER
   SPACED_REVIEW
 }
@@ -129,6 +135,12 @@ enum LabKind {
   TOKENIZER
   CONTEXT_WINDOW
   PROMPT_REPAIR
+  /// Arbeitsverzeichnis, Staging Area und Commit im Zusammenspiel.
+  GIT_STATE
+  /// Branches anlegen, wechseln, zusammenführen; Commit-Graph.
+  BRANCH
+  /// Einen echten Merge-Konflikt lesen und auflösen.
+  MERGE_CONFLICT
 }
 
 // ---------------------------------------------------------------------------

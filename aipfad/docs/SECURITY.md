@@ -167,6 +167,41 @@ Commit-Hashes gepinnten GitHub-Actions (der Lauf trägt keine Geheimnisse),
 Double-Submit-Verfahren und die ebenfalls nicht angebundene
 Aufbewahrungsfrist — beide sind oben als solche gekennzeichnet.
 
+## Git-Simulatoren (Ausbaustufe 2)
+
+Die drei Git-Simulatoren unter `src/domain/git/` sind **reine Funktionen über
+einem übergebenen Zustand**. Sie führen kein echtes Git aus, öffnen keine
+Shell, greifen auf kein Dateisystem zu und sprechen kein Netz an. Ein
+eingegebener Befehl wird zerlegt und mit einer festen Liste umgesetzter
+Unterbefehle verglichen; alles andere wird abgelehnt. Damit gibt es keine
+Command Injection, weil es keinen Interpreter gibt, in den etwas
+hineingereicht werden könnte.
+
+Nicht umgesetzte Schalter werden ausdrücklich abgelehnt statt übergangen
+(`src/domain/git/schalter.ts`). Das ist zunächst eine didaktische
+Entscheidung — ein still anderes Ergebnis lehrt etwas Falsches —, hat aber
+denselben Effekt wie eine Erlaubnisliste: Was nicht ausdrücklich vorgesehen
+ist, passiert nicht.
+
+Es werden **keine GitHub-Zugangsdaten** verarbeitet, gespeichert oder
+abgefragt. Das GitHub-Kapitel erklärt den Ablauf; es verbindet sich mit
+keinem realen Repository, und es gibt keinen Schreibpfad nach außen.
+
+Mechanisch über den gesamten Stage-2-Code geprüft und ohne Fund: kein
+`child_process`, kein `exec`/`spawn`, kein Dateisystemzugriff, kein
+`eval`/`new Function`, kein Netzwerkaufruf, kein `dangerouslySetInnerHTML`,
+keine neue Abhängigkeit.
+
+### Bewusst geänderte Grenze: Registrierungen je IP-Adresse
+
+`registerPerIp` wurde von 15 auf 60 Anmeldungen je Stunde angehoben. Hinter
+einer öffentlichen IP-Adresse steckt oft ein ganzes Netz — eine Schulklasse,
+ein Büro, ein Café. Bei fünfzehn Anmeldungen je Stunde hätte der erste
+Kurstag reguläre Nutzung blockiert, und ein fälschlich ausgesperrter Kurs
+ist hier der größere Schaden. Gegen massenhafte Kontoerstellung bleibt die
+Grenze wirksam; die Begrenzung je Konto und je Anmeldeversuch ist
+unverändert.
+
 ## Bei Verdacht auf eine Sicherheitslücke
 
 Kein öffentliches Formular in dieser Ausbaustufe. Bitte über die im

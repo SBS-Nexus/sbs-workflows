@@ -123,6 +123,260 @@ export const promptRepairPayloadSchema = z.object({
     .min(3),
 });
 
+// ---------------------------------------------------------------------------
+// Interaktionsformen für Git und GitHub
+// ---------------------------------------------------------------------------
+
+/**
+ * Drei neue Formen decken die Aufgabentypen dieser Ausbaustufe ab, ohne eine
+ * zweite Aufgaben-Architektur aufzumachen:
+ *
+ *  - `interpretation`      etwas Fachliches ANSEHEN und daraus schließen
+ *                          (Diff, Commit-Graph, git-status-Ausgabe)
+ *  - `classification`      mehrere Dinge in Kategorien einsortieren
+ *                          (Dateizustände, Gefährlichkeit von Befehlen)
+ *  - `conflictResolution`  je Konfliktstelle bewusst entscheiden
+ *
+ * Alles andere — Befehlsauswahl, Merge-Entscheidung, Rettungsszenario,
+ * Reihenfolge im PR-Ablauf — kommt mit den vorhandenen Formen `singleChoice`,
+ * `scenarioDecision` und `ordering` aus.
+ */
+
+/** Eine Diff-Zeile in der üblichen Schreibweise mit + und -. */
+const diffZeileSchema = z.object({
+  marke: z.enum(['kontext', 'hinzu', 'weg']),
+  text: z.string(),
+});
+
+const diffAnsichtSchema = z.object({
+  art: z.literal('diff'),
+  pfad: z.string().min(1),
+  zeilen: z.array(diffZeileSchema).min(1),
+});
+
+const branchGraphAnsichtSchema = z
+  .object({
+    art: z.literal('branchGraph'),
+    commits: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          nachricht: z.string().min(1),
+          eltern: z.array(z.string().min(1)).default([]),
+        }),
+      )
+      .min(2),
+    /** Branchname -> Commit-Kennung. */
+    branches: z.record(z.string().min(1), z.string().min(1)),
+    /** Auf welchem Branch HEAD steht. */
+    aktuellerBranch: z.string().min(1),
+  })
+  .superRefine((ansicht, ctx) => {
+    // Ein Commit, der sich selbst als Vorfahr nennt, ließ die Tiefenberechnung
+    // in `baueGraph()` endlos laufen und riss die Seite mit einem
+    // Stapelüberlauf ab. Ein Zyklus ist ohnehin kein Commit-Graph: Vorher
+    // heißt vorher (Codex-Review auf PR #30).
+    const bekannt = new Set(ansicht.commits.map((commit) => commit.id));
+    for (const [i, commit] of ansicht.commits.entries()) {
+      for (const elternteil of commit.eltern) {
+        if (!bekannt.has(elternteil)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['commits', i, 'eltern'],
+            message: `Elternteil "${elternteil}" ist kein Commit dieser Ansicht.`,
+          });
+        }
+      }
+    }
+
+    const eltern = new Map(ansicht.commits.map((commit) => [commit.id, commit.eltern]));
+    const besucht = new Map<string, 'laeuft' | 'fertig'>();
+    const findeZyklus = (id: string): string | null => {
+      if (besucht.get(id) === 'laeuft') return id;
+      if (besucht.get(id) === 'fertig') return null;
+      besucht.set(id, 'laeuft');
+      for (const elternteil of eltern.get(id) ?? []) {
+        const treffer = findeZyklus(elternteil);
+        if (treffer) return treffer;
+      }
+      besucht.set(id, 'fertig');
+      return null;
+    };
+    for (const commit of ansicht.commits) {
+      const treffer = findeZyklus(commit.id);
+      if (treffer) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['commits'],
+          message: `Zyklische Vorgeschichte bei Commit "${treffer}".`,
+        });
+        break;
+      }
+    }
+  });
+
+const gitStatusAnsichtSchema = z.object({
+  art: z.literal('gitStatus'),
+  eintraege: z
+    .array(
+      z.object({
+        pfad: z.string().min(1),
+        status: z.enum(['untracked', 'modified', 'staged', 'committed']),
+        auchUngestagt: z.boolean().default(false),
+      }),
+    )
+    .min(1),
+});
+
+export const ansichtSchema = z.discriminatedUnion('art', [
+  diffAnsichtSchema,
+  branchGraphAnsichtSchema,
+  gitStatusAnsichtSchema,
+]);
+
+export type Ansicht = z.infer<typeof ansichtSchema>;
+
+export const interpretationPayloadSchema = z
+  .object({
+    kind: z.literal('interpretation'),
+    /** Was zu sehen ist. */
+    ansicht: ansichtSchema,
+    /** Die Frage dazu. */
+    frage: z.string().min(10),
+    options: z.array(choiceOptionSchema).min(2),
+    correctOptionId: z.string().min(1),
+  })
+  .superRefine((payload, ctx) => {
+    // Dieselbe Beziehung wie bei `singleChoice`, die dort längst geprüft wird.
+    // Fehlte sie hier, nahm der Kurs einen Tippfehler stillschweigend an: Der
+    // Browser zeigt nur die aufgeführten Optionen, die Bewertung vergleicht
+    // aber gegen eine unerreichbare Kennung — jede normale Abgabe scheitert,
+    // und die Aufgabe ist nicht lösbar (Codex-Review auf PR #30).
+    if (!payload.options.some((option) => option.id === payload.correctOptionId)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['correctOptionId'],
+        message: `correctOptionId "${payload.correctOptionId}" zeigt auf keine Option.`,
+      });
+    }
+  });
+
+export const classificationPayloadSchema = z
+  .object({
+    kind: z.literal('classification'),
+    instruction: z.string().min(10),
+    categories: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          label: z.string().min(1),
+          description: z.string().optional(),
+        }),
+      )
+      .min(2),
+    items: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          text: z.string().min(1),
+          correctCategoryId: z.string().min(1),
+          feedback: z.string().min(1),
+        }),
+      )
+      .min(2),
+  })
+  .superRefine((payload, ctx) => {
+    // Dieselbe übersehene Beziehung wie bei `interpretation`, nur eine Ebene
+    // tiefer: Zeigt ein Element auf eine Kategorie, die es nicht gibt, ist es
+    // nicht einsortierbar und die Aufgabe nicht lösbar.
+    const kategorien = new Set(payload.categories.map((kategorie) => kategorie.id));
+    const gesehen = new Set<string>();
+    for (const [i, element] of payload.items.entries()) {
+      if (!kategorien.has(element.correctCategoryId)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['items', i, 'correctCategoryId'],
+          message: `correctCategoryId "${element.correctCategoryId}" zeigt auf keine Kategorie.`,
+        });
+      }
+      // Maske und Bewertung führen die Auswahl unter der Kennung. Zweimal
+      // dieselbe, und beide Elemente teilen sich eine Auswahl — mindestens
+      // eines gilt dann immer als falsch, die Aufgabe ist nicht zu bestehen
+      // (Codex-Review auf PR #30).
+      if (gesehen.has(element.id)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['items', i, 'id'],
+          message: `Doppelte Element-Kennung "${element.id}".`,
+        });
+      }
+      gesehen.add(element.id);
+    }
+
+    const kategorienIds = payload.categories.map((kategorie) => kategorie.id);
+    if (new Set(kategorienIds).size !== kategorienIds.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['categories'],
+        message: 'Doppelte Kategorie-Kennung.',
+      });
+    }
+  });
+
+/** Ein Abschnitt einer Konfliktdatei — unstrittig oder umkämpft. */
+const konfliktAbschnittSchema = z.discriminatedUnion('art', [
+  z.object({ art: z.literal('gemeinsam'), zeilen: z.array(z.string()).min(1) }),
+  z.object({
+    art: z.literal('konflikt'),
+    id: z.string().min(1),
+    unsere: z.array(z.string()).min(1),
+    ihre: z.array(z.string()).min(1),
+    /** Welche Auflösung hier fachlich richtig ist. */
+    korrekt: z.enum(['unsere', 'ihre', 'beide']),
+    feedback: z.string().min(1),
+  }),
+]);
+
+export const conflictResolutionPayloadSchema = z
+  .object({
+    kind: z.literal('conflictResolution'),
+    pfad: z.string().min(1),
+    /** Beschriftung der Marker, z. B. "HEAD" und "feature/preise". */
+    unserLabel: z.string().min(1),
+    ihrLabel: z.string().min(1),
+    abschnitte: z.array(konfliktAbschnittSchema).min(2),
+  })
+  .superRefine((payload, ctx) => {
+    // Ohne Konfliktstelle ist die Aufgabe keine: `ConflictResolutionForm`
+    // gibt die Abgabe sofort frei, weil `every()` über eine leere Liste wahr
+    // ist, und die Bewertung zählt null von null richtigen Entscheidungen als
+    // vollständig richtig — bestanden mit voller Punktzahl, ohne dass jemand
+    // etwas entschieden hätte (Codex-Review auf PR #30).
+    const konflikte = payload.abschnitte.filter((abschnitt) => abschnitt.art === 'konflikt');
+    if (konflikte.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['abschnitte'],
+        message:
+          'Kein Abschnitt mit art "konflikt". Ohne Konfliktstelle gilt die Aufgabe sofort als gelöst.',
+      });
+    }
+
+    // Die Kennungen adressieren die Entscheidungen der Abgabe. Doppelt
+    // vergeben, verdeckt die zweite Stelle die erste.
+    const gesehen = new Set<string>();
+    for (const konflikt of konflikte) {
+      if (gesehen.has(konflikt.id)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['abschnitte'],
+          message: `Doppelte Konflikt-Kennung "${konflikt.id}".`,
+        });
+      }
+      gesehen.add(konflikt.id);
+    }
+  });
+
 export const exercisePayloadSchema = z.discriminatedUnion('kind', [
   singleChoicePayloadSchema,
   multipleChoicePayloadSchema,
@@ -131,6 +385,9 @@ export const exercisePayloadSchema = z.discriminatedUnion('kind', [
   scenarioDecisionPayloadSchema,
   terminalSimulationPayloadSchema,
   promptRepairPayloadSchema,
+  interpretationPayloadSchema,
+  classificationPayloadSchema,
+  conflictResolutionPayloadSchema,
 ]);
 
 export type ExercisePayload = z.infer<typeof exercisePayloadSchema>;
@@ -197,6 +454,25 @@ export const submissionSchema = z.discriminatedUnion('kind', [
     commands: z.array(z.string().max(MAX_EINGABETEXT)).max(MAX_LISTE),
   }),
   z.object({ kind: z.literal('promptRepair'), optionId: kennung }),
+  z.object({ kind: z.literal('interpretation'), optionId: kennung }),
+  z.object({
+    kind: z.literal('classification'),
+    /** Element-Kennung -> gewählte Kategorie. */
+    zuordnung: z
+      .record(kennung, kennung)
+      .refine((werte) => Object.keys(werte).length <= MAX_LISTE, {
+        message: `Höchstens ${MAX_LISTE} Zuordnungen je Antwort.`,
+      }),
+  }),
+  z.object({
+    kind: z.literal('conflictResolution'),
+    /** Konflikt-Kennung -> gewählte Auflösung. */
+    entscheidungen: z
+      .record(kennung, z.enum(['unsere', 'ihre', 'beide']))
+      .refine((werte) => Object.keys(werte).length <= MAX_LISTE, {
+        message: `Höchstens ${MAX_LISTE} Konfliktstellen je Antwort.`,
+      }),
+  }),
 ]);
 
 export type Submission = z.infer<typeof submissionSchema>;
