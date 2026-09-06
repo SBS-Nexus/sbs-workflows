@@ -7,8 +7,10 @@ import {
   loeseKonflikt,
   mitKonfliktMarkern,
   offeneKonflikte,
+  type Abschnitt,
   type KonfliktZustand,
 } from '@/domain/git/merge-conflict';
+import { mergeConflictConfigSchema } from '@/domain/labs/merge-conflict-config';
 
 /**
  * Das Konflikt-Lab soll drei Dinge tragfähig machen: die Marker lesen können,
@@ -282,5 +284,63 @@ describe('Neustart nach Abbruch verlangt den richtigen Branch', () => {
 
     expect(ergebnis.veraendert).toBe(false);
     expect(ergebnis.zustand.status).toBe('abgebrochen');
+  });
+});
+
+/**
+ * Der Neustartknopf der Maske baut `git merge ${ihrBranch}`. Damit das je
+ * ein einziger Operand bleibt, muss der Name ein gültiger Branchname sein —
+ * dafür sorgt der gemeinsame Vertrag in der Lab-Konfiguration
+ * (Codex-Review auf PR #30).
+ */
+describe('Der Befehl des Neustartknopfes ist ausführbar', () => {
+  const KONFIG = mergeConflictConfigSchema.parse({
+    pfad: 'preise.md',
+    unserBranch: 'main',
+    ihrBranch: 'feature/preise',
+    hintergrund: 'Beide Seiten haben dieselbe Datei berührt.',
+    abschnitte: [{ art: 'konflikt', id: 'k1', unsere: ['Basis: 9'], ihre: ['Basis: 12'] }],
+  });
+
+  it('startet den Merge mit genau dem Befehl, den der Knopf schickt', () => {
+    const zustand: KonfliktZustand = {
+      datei: { pfad: KONFIG.pfad, abschnitte: KONFIG.abschnitte as Abschnitt[] },
+      aufloesungen: {},
+      vorgemerkt: false,
+      status: 'laeuft',
+      ihrBranch: KONFIG.ihrBranch,
+    };
+    const abgebrochen = fuehreKonfliktBefehlAus(zustand, 'git merge --abort').zustand;
+    expect(abgebrochen.status).toBe('abgebrochen');
+
+    // Wortgleich mit der Maske.
+    const ergebnis = fuehreKonfliktBefehlAus(abgebrochen, `git merge ${KONFIG.ihrBranch}`);
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.status).toBe('laeuft');
+  });
+
+  it('gilt auch für die gültigen Sonderfälle der Branchnamen', () => {
+    for (const name of ['feature/-topic', '@', 'HEAD/x']) {
+      const konfig = mergeConflictConfigSchema.parse({ ...KONFIG, ihrBranch: name });
+      const zustand: KonfliktZustand = {
+        datei: { pfad: konfig.pfad, abschnitte: konfig.abschnitte as Abschnitt[] },
+        aufloesungen: {},
+        vorgemerkt: false,
+        status: 'abgebrochen',
+        ihrBranch: konfig.ihrBranch,
+      };
+      const ergebnis = fuehreKonfliktBefehlAus(zustand, `git merge ${konfig.ihrBranch}`);
+
+      expect(ergebnis.zustand.status, name).toBe('laeuft');
+    }
+  });
+
+  it('lässt einen Namen mit Leerzeichen gar nicht erst in die Konfiguration', () => {
+    // Der Fund selbst: Vorher kam er durch, der Knopf baute zwei Operanden,
+    // und das Lab blieb in "abgebrochen" hängen.
+    expect(
+      mergeConflictConfigSchema.safeParse({ ...KONFIG, ihrBranch: 'feature prices' }).success,
+    ).toBe(false);
   });
 });

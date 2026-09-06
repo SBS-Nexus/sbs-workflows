@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { branchnameSchema } from '../git/branch-name';
 
 /**
  * Der Vertrag für die Konfiguration des Merge-Konflikt-Labs.
@@ -15,10 +16,19 @@ import { z } from 'zod';
 export const mergeConflictConfigSchema = z
   .object({
     pfad: z.string().min(1),
-    /** Der Branch, auf dem gearbeitet wird — die "unsere" Seite. */
-    unserBranch: z.string().min(1),
+    /**
+     * Der Branch, auf dem gearbeitet wird — die "unsere" Seite.
+     *
+     * Beide Branchnamen gehen durch denselben Vertrag wie der
+     * Branch-Simulator. Vorher stand hier `z.string()`, und
+     * `ihrBranch: 'feature prices'` kam durch: Der Neustartknopf baute
+     * daraus `git merge feature prices`, also zwei Merge-Köpfe, und der
+     * Simulator wies den Befehl seiner eigenen Maske zurück
+     * (Codex-Review auf PR #30).
+     */
+    unserBranch: branchnameSchema,
     /** Der Branch, der hereingeholt wird — die "ihre" Seite. */
-    ihrBranch: z.string().min(1),
+    ihrBranch: branchnameSchema,
     /** Worum es im Konflikt fachlich geht — damit die Entscheidung begründbar ist. */
     hintergrund: z.string().min(1),
     abschnitte: z

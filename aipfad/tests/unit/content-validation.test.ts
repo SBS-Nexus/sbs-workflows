@@ -690,3 +690,72 @@ describe('Konfiguration des Merge-Konflikt-Labs', () => {
     ).toBe(true);
   });
 });
+
+/**
+ * Ein Branchname in einer Lab-Konfiguration ist derselbe Begriff wie im
+ * Simulator. Vorher war er hier nur "irgendein Text", und
+ * `ihrBranch: 'feature prices'` erzeugte im Neustartknopf zwei Merge-Köpfe
+ * — das Lab wies den Befehl seiner eigenen Maske zurück
+ * (Codex-Review auf PR #30).
+ */
+describe('Branchnamen im Merge-Lab folgen dem Git-Vertrag', () => {
+  const mitBranch = (feld: 'ihrBranch' | 'unserBranch', name: string) =>
+    mergeConflictConfigSchema.safeParse({
+      pfad: 'preise.md',
+      unserBranch: 'main',
+      ihrBranch: 'feature/preise',
+      hintergrund: 'Beide Seiten haben dieselbe Datei berührt.',
+      abschnitte: [{ art: 'konflikt', id: 'k1', unsere: ['a'], ihre: ['b'] }],
+      [feld]: name,
+    });
+
+  const UNGUELTIG = ['feature prices', 'HEAD', '-topic', 'feature/.preise', 'a..b', 'stern*'];
+  const GUELTIG = ['feature/-topic', '@', 'head', 'Head', 'HEADS', 'feature/HEAD', 'HEAD/x'];
+
+  it('lehnt ungültige Namen bei ihrBranch ab', () => {
+    for (const name of UNGUELTIG) {
+      const ergebnis = mitBranch('ihrBranch', name);
+      expect(ergebnis.success, name).toBe(false);
+      expect(JSON.stringify(ergebnis.error?.issues), name).toContain('not a valid branch name');
+    }
+  });
+
+  it('lehnt ungültige Namen auch bei unserBranch ab', () => {
+    // Derselbe Begriff, dieselbe Prüfung — beide Felder benennen Branches.
+    for (const name of UNGUELTIG) {
+      expect(mitBranch('unserBranch', name).success, name).toBe(false);
+    }
+  });
+
+  it('nimmt die gültigen Sonderfälle weiterhin an', () => {
+    // Genau die Fälle, die gegen echtes Git 2.52 nachgestellt wurden. Der
+    // Vertrag darf hier nicht enger werden als im Simulator.
+    for (const name of GUELTIG) {
+      expect(mitBranch('ihrBranch', name).success, name).toBe(true);
+      expect(mitBranch('unserBranch', name).success, name).toBe(true);
+    }
+  });
+
+  it('meldet einen ungültigen Branchnamen über validateCourseGraph', () => {
+    const labs = labDrafts.map((l) => labSchema.parse(l));
+    const kaputt = labs.map((l) =>
+      l.kind === 'MERGE_CONFLICT'
+        ? {
+            ...l,
+            config: { ...(l.config as Record<string, unknown>), ihrBranch: 'feature prices' },
+          }
+        : l,
+    );
+    const ergebnis = validateCourseGraph({
+      course: courseSchema.parse(course),
+      concepts: conceptDrafts.map((c) => conceptSchema.parse(c)),
+      labs: kaputt,
+    });
+
+    expect(
+      ergebnis.issues.some(
+        (i) => i.severity === 'error' && i.message.includes('not a valid branch name'),
+      ),
+    ).toBe(true);
+  });
+});
