@@ -229,6 +229,7 @@ function konfliktStart() {
     aufloesungen: {},
     vorgemerkt: false,
     status: 'laeuft' as const,
+    ihrBranch: 'feature/preise',
   };
 }
 

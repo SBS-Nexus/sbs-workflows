@@ -36,6 +36,7 @@ function start(): KonfliktZustand {
     aufloesungen: {},
     vorgemerkt: false,
     status: 'laeuft',
+    ihrBranch: 'feature/preise',
   };
 }
 
@@ -224,5 +225,62 @@ describe('git merge --abort', () => {
     expect(erneut.zustand.status).toBe('laeuft');
     expect(offeneKonflikte(erneut.zustand)).toEqual(['k1']);
     expect(enthaeltMarker(mitKonfliktMarkern(erneut.zustand, BESCHRIFTUNG))).toBe(true);
+  });
+});
+
+/**
+ * Nach einem Abbruch startete JEDE Merge-Eingabe den Konflikt neu — auch
+ * `git merge` ohne Angabe und `git merge tippfehler`. Ein Merge sagt aber
+ * immer, WAS hereingeholt wird; genau das war im Lab nicht mehr zu sehen
+ * (Codex-Review auf PR #30).
+ */
+describe('Neustart nach Abbruch verlangt den richtigen Branch', () => {
+  function abgebrochen(): KonfliktZustand {
+    const ergebnis = fuehreKonfliktBefehlAus(start(), 'git merge --abort');
+    expect(ergebnis.zustand.status).toBe('abgebrochen');
+    return ergebnis.zustand;
+  }
+
+  it('lehnt jede falsche Form ab und lässt den Zustand unangetastet', () => {
+    const vorher = abgebrochen();
+    for (const befehl of [
+      'git merge',
+      'git merge typo',
+      'git merge anderer-branch',
+      'git merge main',
+      `git merge ${vorher.ihrBranch} extra`,
+    ]) {
+      const ergebnis = fuehreKonfliktBefehlAus(vorher, befehl);
+
+      expect(ergebnis.veraendert, befehl).toBe(false);
+      expect(ergebnis.zustand.status, befehl).toBe('abgebrochen');
+      // Nicht nur der Text: Der Zustand ist derselbe geblieben.
+      expect(ergebnis.zustand, befehl).toBe(vorher);
+    }
+  });
+
+  it('nimmt genau den eingerichteten Branch an', () => {
+    const vorher = abgebrochen();
+    const ergebnis = fuehreKonfliktBefehlAus(vorher, `git merge ${vorher.ihrBranch}`);
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.status).toBe('laeuft');
+    expect(ergebnis.zustand.vorgemerkt).toBe(false);
+    expect(ergebnis.zustand.aufloesungen).toEqual({});
+  });
+
+  it('nennt in der Ablehnung den Branch, um den es geht', () => {
+    const vorher = abgebrochen();
+
+    expect(fuehreKonfliktBefehlAus(vorher, 'git merge').ausgabe).toContain(vorher.ihrBranch);
+    expect(fuehreKonfliktBefehlAus(vorher, 'git merge typo').ausgabe).toContain('typo');
+  });
+
+  it('lehnt einen nicht umgesetzten Schalter weiterhin ab', () => {
+    const vorher = abgebrochen();
+    const ergebnis = fuehreKonfliktBefehlAus(vorher, 'git merge --no-ff feature/preise');
+
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand.status).toBe('abgebrochen');
   });
 });

@@ -52,6 +52,14 @@ export interface KonfliktZustand {
   /** Wurde die Datei als aufgelöst vorgemerkt (git add)? */
   vorgemerkt: boolean;
   status: MergeZustand;
+  /**
+   * Der Branch, der hereingeholt wird — die "ihre" Seite des Konflikts.
+   *
+   * Ohne ihn wusste der Simulator nicht, welcher Merge hier eigentlich
+   * ansteht, und startete nach einem Abbruch auf JEDE Merge-Eingabe hin
+   * denselben Konflikt neu (Codex-Review auf PR #30).
+   */
+  ihrBranch: string;
 }
 
 import {
@@ -391,7 +399,27 @@ export function fuehreKonfliktBefehlAus(
           veraendert: false,
         };
       }
-      // Nach einem Abbruch lässt sich derselbe Merge erneut beginnen.
+      // Nach einem Abbruch lässt sich derselbe Merge erneut beginnen — aber
+      // nur derselbe. Zuvor startete JEDE Merge-Eingabe den Konflikt neu,
+      // auch `git merge` ohne Angabe und `git merge tippfehler`. Damit war
+      // im Lab nicht mehr zu sehen, dass ein Merge immer sagt, WAS
+      // hereingeholt wird (Codex-Review auf PR #30).
+      if (schalter.operanden.length === 0) {
+        return unveraendert(
+          `git merge: Es fehlt die Angabe, was hereingeholt werden soll. Hier ist das ${zustand.ihrBranch}.`,
+        );
+      }
+      if (schalter.operanden.length > 1) {
+        return unveraendert(
+          `git merge: Mehrere Angaben auf einmal sind in diesem Lab nicht umgesetzt. Hier geht es allein um ${zustand.ihrBranch}.`,
+        );
+      }
+      const hereinzuholen = schalter.operanden[0];
+      if (hereinzuholen !== zustand.ihrBranch) {
+        return unveraendert(
+          `merge: ${hereinzuholen} - not something we can merge. In diesem Lab gibt es nur ${zustand.ihrBranch}.`,
+        );
+      }
       return {
         zustand: { ...zustand, aufloesungen: {}, vorgemerkt: false, status: 'laeuft' },
         ausgabe:

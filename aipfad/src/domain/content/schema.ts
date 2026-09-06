@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { exercisePayloadSchema, hintSchema } from './exercise-payload';
+import { mergeConflictConfigSchema } from '../labs/merge-conflict-config';
 
 /**
  * Zod-Schemata für redaktionelle Inhalte. Muster aus PythonPfad/SQLPfad
@@ -360,6 +361,25 @@ export function validateCourseGraph(input: {
     for (const slug of lab.relatedConceptSlugs) {
       if (!conceptSlugs.has(slug)) {
         issues.push({ severity: 'error', where, message: `Konzept "${slug}" existiert nicht.` });
+      }
+    }
+
+    // `config` bleibt für die allgemeine Lab-Form bewusst offen — die Labs
+    // haben zu verschiedene Konfigurationen für einen gemeinsamen Typ. Wo es
+    // aber einen getypten Vertrag gibt, wird er hier auch angewandt; sonst
+    // fiele ein Fehler darin erst auf, wenn jemand das Lab im Browser
+    // öffnet (Codex-Review auf PR #30).
+    if (lab.kind === 'MERGE_CONFLICT') {
+      const geprueft = mergeConflictConfigSchema.safeParse(lab.config);
+      if (!geprueft.success) {
+        for (const fehler of geprueft.error.issues) {
+          const pfad = fehler.path.map(String).join('.');
+          issues.push({
+            severity: 'error',
+            where: pfad.length > 0 ? `${where}.config.${pfad}` : `${where}.config`,
+            message: fehler.message,
+          });
+        }
       }
     }
   }

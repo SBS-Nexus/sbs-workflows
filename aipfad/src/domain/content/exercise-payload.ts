@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { eigenerEintrag } from '@/domain/eintraege';
 
 /**
  * Aufgaben-Nutzlasten.
@@ -212,6 +213,31 @@ const branchGraphAnsichtSchema = z
         });
         break;
       }
+    }
+
+    // Ein Branch, der auf keinen Commit dieser Ansicht zeigt, ließ sich im
+    // Graphen an nichts anheften: Die Darstellung zeigte dann stillschweigend
+    // eine Vorgeschichte ohne den Branch, um den es in der Aufgabe geht
+    // (Codex-Review auf PR #30).
+    for (const [branch, id] of Object.entries(ansicht.branches)) {
+      if (!bekannt.has(id)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['branches', branch],
+          message: `Branch "${branch}" zeigt auf "${id}" — das ist kein Commit dieser Ansicht.`,
+        });
+      }
+    }
+
+    // Und HEAD muss auf einem Branch stehen, den es hier wirklich gibt.
+    // Gefragt wird nach einem EIGENEN Schlüssel: `aktuellerBranch: 'toString'`
+    // fand sonst die geerbte Eigenschaft und galt als vorhanden.
+    if (eigenerEintrag(ansicht.branches, ansicht.aktuellerBranch) === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['aktuellerBranch'],
+        message: `Aktueller Branch "${ansicht.aktuellerBranch}" steht nicht in branches.`,
+      });
     }
   });
 

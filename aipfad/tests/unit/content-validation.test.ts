@@ -13,6 +13,7 @@ import { concepts as conceptDrafts } from '@/content/concepts';
 import { labs as labDrafts } from '@/content/labs';
 import { SETUP_SECTIONS } from '@/content/setup-commands';
 import { exercisePayloadSchema } from '@/domain/content/exercise-payload';
+import { mergeConflictConfigSchema } from '@/domain/labs/merge-conflict-config';
 import { toPublicPayload } from '@/domain/grading/grade';
 import { UMGESETZTE_BEFEHLE } from '@/domain/labs/terminal';
 import { z } from 'zod';
@@ -566,5 +567,126 @@ describe('Commit-Graph einer Aufgabe ist kreisfrei', () => {
 
     expect(ergebnis.success).toBe(false);
     expect(JSON.stringify(ergebnis.error?.issues)).toContain('ist kein Commit dieser Ansicht');
+  });
+});
+
+describe('Branchzeiger im Commit-Graphen zeigen auf etwas', () => {
+  const graph = (branches: Record<string, string>, aktuellerBranch: string) => ({
+    kind: 'interpretation' as const,
+    ansicht: {
+      art: 'branchGraph' as const,
+      commits: [
+        { id: 'c01', nachricht: 'Erster', eltern: [] },
+        { id: 'c02', nachricht: 'Zweiter', eltern: ['c01'] },
+      ],
+      branches,
+      aktuellerBranch,
+    },
+    frage: 'Welcher Commit ist der jüngere in dieser Vorgeschichte?',
+    options: [
+      { id: 'a', text: 'c02', feedback: 'Richtig — er hat c01 als Elternteil.' },
+      { id: 'b', text: 'c01', feedback: 'c01 ist der ältere.' },
+    ],
+    correctOptionId: 'a',
+  });
+
+  it('nimmt einen stimmigen Graphen an', () => {
+    expect(exercisePayloadSchema.safeParse(graph({ main: 'c02' }, 'main')).success).toBe(true);
+  });
+
+  it('lehnt einen Branch ab, der auf keinen Commit zeigt', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(graph({ main: 'missing' }, 'main'));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('kein Commit dieser Ansicht');
+  });
+
+  it('lehnt einen aktuellen Branch ab, den es nicht gibt', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(graph({ main: 'c02' }, 'feature'));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('steht nicht in branches');
+  });
+
+  it('lässt sich dabei nicht von einer geerbten Eigenschaft täuschen', () => {
+    // `aktuellerBranch: 'toString'` fand zuvor die geerbte Funktion und galt
+    // damit als vorhanden.
+    const ohne = exercisePayloadSchema.safeParse(graph({ main: 'c02' }, 'toString'));
+    expect(ohne.success).toBe(false);
+    expect(JSON.stringify(ohne.error?.issues)).toContain('steht nicht in branches');
+
+    // Als echter eigener Schlüssel ist derselbe Name in Ordnung.
+    const mit = exercisePayloadSchema.safeParse(graph({ toString: 'c02' }, 'toString'));
+    expect(mit.success).toBe(true);
+  });
+});
+
+describe('Konfiguration des Merge-Konflikt-Labs', () => {
+  const config = (abschnitte: unknown[]) => ({
+    pfad: 'preise.md',
+    unserBranch: 'main',
+    ihrBranch: 'feature/preise',
+    hintergrund: 'Beide Seiten haben dieselbe Datei berührt.',
+    abschnitte,
+  });
+  const konflikt = (id: string) => ({
+    art: 'konflikt' as const,
+    id,
+    unsere: ['Basis: 9 Euro'],
+    ihre: ['Basis: 12 Euro'],
+  });
+
+  it('nimmt zwei unterschiedliche Konfliktstellen an', () => {
+    const ergebnis = mergeConflictConfigSchema.safeParse(
+      config([{ art: 'gemeinsam', zeilen: ['# Preise'] }, konflikt('k1'), konflikt('k2')]),
+    );
+    expect(ergebnis.success).toBe(true);
+  });
+
+  it('lehnt doppelte Konflikt-Kennungen ab', () => {
+    // Eine Entscheidung räumte sonst beide Stellen ab: `git add` und
+    // `git commit` wurden frei, obwohl die zweite nie bedacht wurde.
+    const ergebnis = mergeConflictConfigSchema.safeParse(config([konflikt('k1'), konflikt('k1')]));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Doppelte Konflikt-Kennung');
+  });
+
+  it('lehnt eine Konfiguration ohne jede Konfliktstelle ab', () => {
+    const ergebnis = mergeConflictConfigSchema.safeParse(
+      config([{ art: 'gemeinsam', zeilen: ['# Preise'] }]),
+    );
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Kein Abschnitt mit art');
+  });
+
+  it('gilt für die echte Konfiguration des Labs', () => {
+    const lab = labDrafts.map((l) => labSchema.parse(l)).find((l) => l.kind === 'MERGE_CONFLICT');
+    expect(lab).toBeDefined();
+    expect(mergeConflictConfigSchema.safeParse(lab?.config).success).toBe(true);
+  });
+
+  it('wird von validateCourseGraph mitgeprüft, nicht nur von der Maske', () => {
+    const labs = labDrafts.map((l) => labSchema.parse(l));
+    const kaputt = labs.map((l) =>
+      l.kind === 'MERGE_CONFLICT'
+        ? {
+            ...l,
+            config: config([konflikt('k1'), konflikt('k1')]) as unknown as typeof l.config,
+          }
+        : l,
+    );
+    const ergebnis = validateCourseGraph({
+      course: courseSchema.parse(course),
+      concepts: conceptDrafts.map((c) => conceptSchema.parse(c)),
+      labs: kaputt,
+    });
+
+    expect(
+      ergebnis.issues.some(
+        (i) => i.severity === 'error' && i.message.includes('Doppelte Konflikt-Kennung'),
+      ),
+    ).toBe(true);
   });
 });

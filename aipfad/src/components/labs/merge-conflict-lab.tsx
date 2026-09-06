@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { z } from 'zod';
 import { Badge, Button, Callout, cx } from '@/components/ui/primitives';
 import { LabCompleteButton } from './lab-complete-button';
 import { BefehlsKonsole } from './befehls-konsole';
 import { eigenerEintrag } from '@/domain/eintraege';
+import { mergeConflictConfigSchema } from '@/domain/labs/merge-conflict-config';
 import {
   alleKonflikteGeloest,
   aufgeloesterInhalt,
@@ -20,25 +20,6 @@ import {
   type Abschnitt,
   type KonfliktZustand,
 } from '@/domain/git/merge-conflict';
-
-const configSchema = z.object({
-  pfad: z.string(),
-  unserBranch: z.string(),
-  ihrBranch: z.string(),
-  /** Worum es im Konflikt fachlich geht — damit die Entscheidung begründbar ist. */
-  hintergrund: z.string(),
-  abschnitte: z.array(
-    z.union([
-      z.object({ art: z.literal('gemeinsam'), zeilen: z.array(z.string()) }),
-      z.object({
-        art: z.literal('konflikt'),
-        id: z.string(),
-        unsere: z.array(z.string()),
-        ihre: z.array(z.string()),
-      }),
-    ]),
-  ),
-});
 
 type Wahl = 'unsere' | 'ihre' | 'beide' | 'eigene';
 
@@ -59,13 +40,15 @@ export function MergeConflictLab({
   config: unknown;
   onCompleteAction: () => Promise<boolean>;
 }): React.ReactElement {
-  const { pfad, unserBranch, ihrBranch, hintergrund, abschnitte } = configSchema.parse(config);
+  const { pfad, unserBranch, ihrBranch, hintergrund, abschnitte } =
+    mergeConflictConfigSchema.parse(config);
 
   const [zustand, setZustand] = useState<KonfliktZustand>({
     datei: { pfad, abschnitte: abschnitte as Abschnitt[] },
     aufloesungen: {},
     vorgemerkt: false,
     status: 'laeuft',
+    ihrBranch,
   });
   const [verlauf, setVerlauf] = useState<{ befehl: string; ausgabe: string }[]>([]);
   const [eigeneTexte, setEigeneTexte] = useState<Record<string, string>>({});
