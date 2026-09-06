@@ -5,6 +5,7 @@ import {
   fuehreGitBefehlAus,
   status,
   type GitArbeitsbaumZustand,
+  type GitDatei,
 } from '@/domain/git/working-tree';
 
 /**
@@ -244,5 +245,224 @@ describe('Nicht umgesetzte Befehle', () => {
 
   it('lehnt einen Nicht-Git-Befehl ab', () => {
     expect(fuehreGitBefehlAus(start(), 'ls -la').ausgabe).toContain('Kein Git-Befehl');
+  });
+});
+
+/**
+ * `index === undefined` ist eine Aussage über den Zustand: Der Pfad liegt
+ * NICHT in der Staging Area. Bei einer vorgemerkten Löschung ist das
+ * gewollt. Das frühere `index ?? head` machte daraus "kein Indexwert, also
+ * ersatzweise HEAD" und zerstörte damit genau diese Unterscheidung.
+ *
+ * Alle erwarteten Ergebnisse sind gegen echtes Git 2.52 nachgestellt
+ * (Code-Review vor dem Merge von PR #30).
+ */
+describe('Drei Orte: HEAD, INDEX, Arbeitsbaum', () => {
+  it('deckt die ganze Zustandsmatrix ab', () => {
+    const faelle: {
+      name: string;
+      datei: GitDatei;
+      status: string;
+      auchUngestagt: boolean;
+      geloescht: boolean;
+    }[] = [
+      {
+        name: 'A: unverändert',
+        datei: { pfad: 'f.md', head: 'A', index: 'A', arbeitsbaum: 'A' },
+        status: 'committed',
+        auchUngestagt: false,
+        geloescht: false,
+      },
+      {
+        name: 'B: ungemerkte Änderung',
+        datei: { pfad: 'f.md', head: 'A', index: 'A', arbeitsbaum: 'B' },
+        status: 'modified',
+        auchUngestagt: true,
+        geloescht: false,
+      },
+      {
+        name: 'C: vorgemerkte Änderung',
+        datei: { pfad: 'f.md', head: 'A', index: 'B', arbeitsbaum: 'B' },
+        status: 'staged',
+        auchUngestagt: false,
+        geloescht: false,
+      },
+      {
+        name: 'D: vorgemerkt und danach weiter geändert',
+        datei: { pfad: 'f.md', head: 'A', index: 'B', arbeitsbaum: 'C' },
+        status: 'staged',
+        auchUngestagt: true,
+        geloescht: false,
+      },
+      {
+        name: 'E: ungemerkte Löschung',
+        datei: { pfad: 'f.md', head: 'A', index: 'A', arbeitsbaum: undefined },
+        status: 'modified',
+        auchUngestagt: true,
+        geloescht: true,
+      },
+      {
+        name: 'F: vorgemerkte Löschung',
+        datei: { pfad: 'f.md', head: 'A', index: undefined, arbeitsbaum: undefined },
+        status: 'staged',
+        auchUngestagt: false,
+        geloescht: true,
+      },
+      {
+        name: 'G: vorgemerkte Löschung, Datei im Arbeitsbaum wieder angelegt',
+        datei: { pfad: 'f.md', head: 'A', index: undefined, arbeitsbaum: 'neu' },
+        status: 'staged',
+        auchUngestagt: false,
+        geloescht: true,
+      },
+    ];
+
+    for (const fall of faelle) {
+      const eintrag = dateiStatus(fall.datei);
+      expect(eintrag.status, fall.name).toBe(fall.status);
+      expect(eintrag.auchUngestagt, fall.name).toBe(fall.auchUngestagt);
+      expect(eintrag.geloescht, fall.name).toBe(fall.geloescht);
+    }
+  });
+
+  it('führt eine vorgemerkte Löschung NUR unter den vorgemerkten Änderungen', () => {
+    // Vorher stand sie unter beiden Überschriften — genau die Verwirrung
+    // "ich habe doch git add gemacht", nur diesmal vom Simulator erfunden.
+    const zustand: GitArbeitsbaumZustand = {
+      dateien: [{ pfad: 'f.md', head: 'A' }],
+      commits: [],
+    };
+    const eintraege = status(zustand);
+
+    expect(eintraege).toHaveLength(1);
+    expect(eintraege[0]?.status).toBe('staged');
+    expect(eintraege[0]?.auchUngestagt).toBe(false);
+    expect(eintraege[0]?.geloescht).toBe(true);
+  });
+
+  it('lässt dateiStatus und status bei Fall G dasselbe sagen', () => {
+    // Die zusätzliche Zeile entsteht in status(); die Bewertung der Datei
+    // selbst gehört in dateiStatus. Wären beide getrennt gepflegt, liefen
+    // sie auseinander — sie taten es bereits
+    // (Code-Review vor dem Merge von PR #30).
+    const datei: GitDatei = { pfad: 'f.md', head: 'A', arbeitsbaum: 'neu' };
+    const einzeln = dateiStatus(datei);
+    const gestagteZeile = status({ dateien: [datei], commits: [] }).find(
+      (e) => e.status === 'staged',
+    );
+
+    expect(gestagteZeile).toEqual(einzeln);
+  });
+
+  it('zeigt eine wieder angelegte Datei daneben als unversioniert (Fall G)', () => {
+    // Echtes Git antwortet hier mit ZWEI Zeilen: `D  f.md` und `?? f.md`.
+    // Weil der Index den Pfad nicht kennt, ist die neue Datei unversioniert.
+    const zustand: GitArbeitsbaumZustand = {
+      dateien: [{ pfad: 'f.md', head: 'A', arbeitsbaum: 'neu' }],
+      commits: [],
+    };
+    const eintraege = status(zustand);
+
+    expect(eintraege).toHaveLength(2);
+    expect(eintraege.map((e) => e.status).sort()).toEqual(['staged', 'untracked']);
+    expect(eintraege.find((e) => e.status === 'staged')?.geloescht).toBe(true);
+    expect(eintraege.find((e) => e.status === 'staged')?.auchUngestagt).toBe(false);
+  });
+});
+
+describe('Vorgemerkte Löschung: diff, restore und commit', () => {
+  function mitVorgemerkterLoeschung(): GitArbeitsbaumZustand {
+    return { dateien: [{ pfad: 'f.md', head: 'A' }], commits: [] };
+  }
+
+  it('zeigt sie in git diff --staged, aber nicht in git diff', () => {
+    const zustand = mitVorgemerkterLoeschung();
+
+    expect(fuehreGitBefehlAus(zustand, 'git diff').ausgabe).toContain('Keine ungemerkten');
+    const gestagt = fuehreGitBefehlAus(zustand, 'git diff --staged').ausgabe;
+    expect(gestagt).toContain('f.md');
+    expect(gestagt).toContain('-A');
+  });
+
+  it('lässt git restore die Datei NICHT aus HEAD wiederauferstehen', () => {
+    // Echtes Git: "pathspec did not match" — der Pfad liegt nicht im Index,
+    // aus dem git restore liest. Vorher holte der Simulator ihn aus HEAD
+    // zurück und verwarf damit stillschweigend die vorgemerkte Löschung.
+    const zustand = mitVorgemerkterLoeschung();
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git restore f.md');
+
+    expect(ergebnis.ausgabe).toContain('did not match');
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand.dateien[0]?.arbeitsbaum).toBeUndefined();
+  });
+
+  it('nimmt sie mit git restore --staged zurück', () => {
+    const ergebnis = fuehreGitBefehlAus(mitVorgemerkterLoeschung(), 'git restore --staged f.md');
+    const datei = ergebnis.zustand.dateien[0];
+
+    expect(ergebnis.veraendert).toBe(true);
+    // Index wieder wie HEAD, Arbeitsbaum bleibt gelöscht: ungemerkte Löschung.
+    expect(datei?.index).toBe('A');
+    expect(datei?.arbeitsbaum).toBeUndefined();
+    const eintrag = status(ergebnis.zustand)[0];
+    expect(eintrag?.status).toBe('modified');
+    expect(eintrag?.geloescht).toBe(true);
+  });
+
+  it('überspringt sie bei git restore . und setzt die übrigen zurück', () => {
+    // Echtes Git meldet hier keinen Fehler, sondern lässt die vorgemerkte
+    // Löschung in Ruhe.
+    const zustand: GitArbeitsbaumZustand = {
+      dateien: [
+        { pfad: 'f.md', head: 'A' },
+        { pfad: 'g.md', head: 'X', index: 'X', arbeitsbaum: 'Y' },
+      ],
+      commits: [],
+    };
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git restore .');
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'g.md')?.arbeitsbaum).toBe('X');
+    expect(ergebnis.zustand.dateien.find((d) => d.pfad === 'f.md')?.arbeitsbaum).toBeUndefined();
+  });
+
+  it('zeigt Fall G in git diff nicht — die neue Datei ist unversioniert', () => {
+    // Der Pfad fehlt im Index, aus dem der ungemerkte Vergleich liest.
+    // Echtes Git zeigt hier nichts; die wieder angelegte Datei taucht als
+    // unversioniert im Status auf, nicht als Hinzufügung im Diff.
+    const zustand: GitArbeitsbaumZustand = {
+      dateien: [{ pfad: 'f.md', head: 'A', arbeitsbaum: 'neu' }],
+      commits: [],
+    };
+
+    expect(fuehreGitBefehlAus(zustand, 'git diff').ausgabe).toContain('Keine ungemerkten');
+    expect(fuehreGitBefehlAus(zustand, 'git diff --staged').ausgabe).toContain('-A');
+  });
+
+  it('zeigt eine unversionierte Datei weiterhin nicht in git diff', () => {
+    const zustand: GitArbeitsbaumZustand = {
+      dateien: [{ pfad: 'n.txt', arbeitsbaum: 'x' }],
+      commits: [],
+    };
+    expect(fuehreGitBefehlAus(zustand, 'git diff').ausgabe).toContain('Keine ungemerkten');
+  });
+
+  it('committet sie: die Datei fehlt danach im Stand des Commits', () => {
+    const ergebnis = fuehreGitBefehlAus(mitVorgemerkterLoeschung(), 'git commit -m "f entfernt"');
+    const commit = ergebnis.zustand.commits[ergebnis.zustand.commits.length - 1];
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(commit?.stand['f.md']).toBeUndefined();
+    expect(ergebnis.zustand.dateien[0]?.head).toBeUndefined();
+  });
+
+  it('lässt den gewöhnlichen Ablauf unberührt', () => {
+    const zustand: GitArbeitsbaumZustand = {
+      dateien: [{ pfad: 'f.md', head: 'A', index: 'B', arbeitsbaum: 'C' }],
+      commits: [],
+    };
+    // Vorgemerkt und danach weiter geändert: restore holt den INDEX-Stand.
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git restore f.md');
+    expect(ergebnis.zustand.dateien[0]?.arbeitsbaum).toBe('B');
   });
 });

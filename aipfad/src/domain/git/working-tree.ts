@@ -80,7 +80,16 @@ function istBekannt(datei: GitDatei): boolean {
 /** Berechnet den Status einer Datei aus dem Vergleich ihrer drei Fassungen. */
 export function dateiStatus(datei: GitDatei): StatusEintrag {
   const imIndexGeaendert = datei.index !== datei.head;
-  const imArbeitsbaumGeaendert = datei.arbeitsbaum !== (datei.index ?? datei.head);
+  // Ungemerkte Änderungen sind der Unterschied zwischen ARBEITSBAUM und
+  // INDEX — nicht zwischen Arbeitsbaum und "Index oder ersatzweise HEAD".
+  //
+  // `index === undefined` ist eine Aussage: Der Pfad liegt NICHT in der
+  // Staging Area. Bei einer vorgemerkten Löschung ist das gewollt, und
+  // Arbeitsbaum und Index stimmen dann überein (beide: nicht da). Das alte
+  // `index ?? head` verglich stattdessen gegen HEAD und meldete zusätzlich
+  // eine ungemerkte Änderung — die Datei stand in `git status` unter
+  // BEIDEN Überschriften (Code-Review vor dem Merge von PR #30).
+  const imArbeitsbaumGeaendert = datei.arbeitsbaum !== datei.index;
 
   if (!istBekannt(datei)) {
     return {
@@ -89,6 +98,17 @@ export function dateiStatus(datei: GitDatei): StatusEintrag {
       auchUngestagt: false,
       geloescht: false,
     };
+  }
+
+  // Der Pfad liegt nicht in der Staging Area, HEAD kennt ihn aber noch:
+  // die Löschung ist vorgemerkt. Was danach im Arbeitsverzeichnis liegt,
+  // ist unversioniert — der Index kennt den Pfad ja nicht — und deshalb
+  // KEINE zusätzliche ungemerkte Änderung. `status()` hängt dafür eine
+  // eigene Zeile an, so wie echtes Git `D  f.md` und `?? f.md` nebeneinander
+  // zeigt.
+  const vorgemerktGeloescht = datei.index === undefined && datei.head !== undefined;
+  if (vorgemerktGeloescht) {
+    return { pfad: datei.pfad, status: 'staged', auchUngestagt: false, geloescht: true };
   }
 
   const geloescht = datei.arbeitsbaum === undefined;
@@ -110,7 +130,30 @@ export function dateiStatus(datei: GitDatei): StatusEintrag {
 }
 
 export function status(zustand: GitArbeitsbaumZustand): StatusEintrag[] {
-  return zustand.dateien.map(dateiStatus).sort((a, b) => a.pfad.localeCompare(b.pfad, 'de'));
+  const eintraege = zustand.dateien.flatMap((datei) => {
+    const eintrag = dateiStatus(datei);
+
+    // Ein Sonderfall, den echtes Git mit ZWEI Zeilen beantwortet: Die
+    // Löschung ist vorgemerkt (der Pfad fehlt im Index), und im
+    // Arbeitsverzeichnis liegt wieder eine Datei dieses Namens. Weil der
+    // Index den Pfad nicht kennt, ist diese Datei unversioniert — `git
+    // status` zeigt `D  f.md` und `?? f.md` nebeneinander.
+    const vorgemerktGeloescht = datei.index === undefined && datei.head !== undefined;
+    if (vorgemerktGeloescht && datei.arbeitsbaum !== undefined) {
+      return [
+        eintrag,
+        {
+          pfad: datei.pfad,
+          status: 'untracked' as const,
+          auchUngestagt: false,
+          geloescht: false,
+        },
+      ];
+    }
+    return [eintrag];
+  });
+
+  return eintraege.sort((a, b) => a.pfad.localeCompare(b.pfad, 'de'));
 }
 
 export interface GitErgebnis {
@@ -323,10 +366,20 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       const gestagt = schalter.gesetzt.has('staged');
       const bloecke: string[] = [];
       for (const datei of dateien) {
-        const vorher = gestagt ? datei.head : (datei.index ?? datei.head);
+        // `git diff` vergleicht INDEX -> ARBEITSBAUM, `git diff --staged`
+        // vergleicht HEAD -> INDEX. Das ersatzweise HEAD verglich eine
+        // vorgemerkte Löschung gegen HEAD und zeigte sie als ungemerkte
+        // Änderung, obwohl Index und Arbeitsbaum übereinstimmen.
+        const vorher = gestagt ? datei.head : datei.index;
         const nachher = gestagt ? datei.index : datei.arbeitsbaum;
         if (vorher === nachher) continue;
-        if (!gestagt && !istBekannt(datei)) continue;
+        // Für den ungemerkten Vergleich heißt "versioniert": IM INDEX.
+        // `istBekannt` lässt auch HEAD gelten — damit rutschte eine
+        // vorgemerkte Löschung, deren Datei im Arbeitsbaum wieder angelegt
+        // wurde, als Hinzufügung in `git diff`, obwohl echtes Git dort
+        // nichts zeigt: Der Pfad fehlt im Index, die neue Datei ist
+        // unversioniert (Code-Review vor dem Merge von PR #30).
+        if (!gestagt && datei.index === undefined) continue;
         const zeilen = zeilenDiff(vorher, nachher);
         if (zeilen.length === 0) continue;
         bloecke.push([`--- a/${datei.pfad}`, `+++ b/${datei.pfad}`, ...zeilen].join('\n'));
@@ -389,7 +442,17 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       // während sie Erfolg meldete.
       for (const pfad of ausdrueckliche) {
         const datei = dateien.find((d) => d.pfad === pfad);
-        if (datei === undefined || !istBekannt(datei)) {
+        // Ohne `--staged` liest git restore aus dem INDEX. Ein Pfad, der
+        // dort nicht liegt, passt auf nichts — auch dann nicht, wenn HEAD
+        // ihn noch kennt. Genau so verhält sich echtes Git bei einer
+        // vorgemerkten Löschung: `git restore f.md` bricht mit
+        // "pathspec did not match" ab, statt die Datei aus HEAD
+        // wiederauferstehen zu lassen und die vorgemerkte Löschung
+        // stillschweigend zu verwerfen (Code-Review vor dem Merge von
+        // PR #30).
+        const imIndex = datei !== undefined && datei.index !== undefined;
+        const nutzbar = ausIndex ? datei !== undefined && istBekannt(datei) : imIndex;
+        if (!nutzbar) {
           return KEINE_AENDERUNG(
             zustand,
             `error: pathspec '${pfad}' did not match any file(s) known to git`,
@@ -399,13 +462,29 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
 
       // Bei `.` sind das alle VERSIONIERTEN Dateien — unversionierte rührt
       // git restore auch dann nicht an, sonst wäre `.` ein Löschbefehl.
+      // Bei `.` übergeht echtes Git eine vorgemerkte Löschung und setzt die
+      // übrigen Dateien zurück — aber nur, solange überhaupt etwas im Index
+      // passt. Passt gar nichts, meldet es einen Fehler. Beides gegen
+      // Git 2.52 nachgestellt.
       const betroffen = allePfade
-        ? dateien.filter(istBekannt)
+        ? dateien.filter((d) => (ausIndex ? istBekannt(d) : d.index !== undefined))
         : dateien.filter((d) => ausdrueckliche.includes(d.pfad));
 
+      if (allePfade && betroffen.length === 0) {
+        return KEINE_AENDERUNG(
+          zustand,
+          `error: pathspec '.' did not match any file(s) known to git`,
+        );
+      }
+
       for (const datei of betroffen) {
+        // `--staged` nimmt die Vormerkung zurück: der Index bekommt wieder
+        // den Stand aus HEAD. Fehlt der Pfad in HEAD, war er neu — dann
+        // verschwindet er aus dem Index, statt Inhalt zu erfinden.
         if (ausIndex) datei.index = datei.head;
-        else datei.arbeitsbaum = datei.index ?? datei.head;
+        // Ohne `--staged` kommt der Arbeitsbaum aus dem INDEX. Dass der
+        // Pfad dort liegt, ist oben geprüft.
+        else datei.arbeitsbaum = datei.index;
       }
       return {
         zustand: { ...zustand, dateien },

@@ -68,3 +68,29 @@ describe('eigenerEintrag', () => {
     expect(eigenerEintrag(zustand, 'gibt-es-nicht')).toBeUndefined();
   });
 });
+
+/**
+ * Die Merge-Vorschau des Branch-Labs schlug den aktuellen Branch
+ * unmittelbar nach. Die `BRANCH`-Lab-Konfiguration ist nicht typisiert, ein
+ * `aktuellerBranch: 'toString'` fand also die geerbte Funktion, kam an der
+ * Prüfung auf `undefined` vorbei und erzeugte eine erfundene Vorschau —
+ * während der Simulator selbst richtig "Kein aktueller Branch" antwortete
+ * (Code-Review vor dem Merge von PR #30).
+ */
+describe('Aktueller Branch der Merge-Vorschau', () => {
+  it('löst einen geerbten Namen ohne eigenen Eintrag nicht auf', () => {
+    const branches: Record<string, string> = { main: 'c02' };
+    for (const name of ['toString', 'constructor', 'hasOwnProperty']) {
+      expect(eigenerEintrag(branches, name), name).toBeUndefined();
+    }
+  });
+
+  it('löst denselben Namen als echten eigenen Branch normal auf', () => {
+    const branches: Record<string, string> = { ...{}, toString: 'c02' };
+    expect(eigenerEintrag(branches, 'toString')).toBe('c02');
+  });
+
+  it('lässt den gewöhnlichen Branch unverändert', () => {
+    expect(eigenerEintrag({ main: 'c02' }, 'main')).toBe('c02');
+  });
+});

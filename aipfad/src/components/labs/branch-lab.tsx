@@ -6,6 +6,7 @@ import { Button, Callout } from '@/components/ui/primitives';
 import { LabCompleteButton } from './lab-complete-button';
 import { BefehlsKonsole } from './befehls-konsole';
 import { CommitGraph } from '@/components/git/git-views';
+import { eigenerEintrag } from '@/domain/eintraege';
 import {
   fuehreBranchBefehlAus,
   mergeArt,
@@ -59,7 +60,13 @@ export function BranchLab({
   // Was würde ein Merge des jeweils anderen Branches gerade bewirken? Diese
   // Vorschau macht den Unterschied zwischen Fast-Forward und Merge-Commit
   // sichtbar, BEVOR man ihn ausführt.
-  const kopf = zustand.branches[zustand.aktuellerBranch];
+  // Über die eigenen Einträge, nicht über die geerbten: Bei
+  // `aktuellerBranch: 'toString'` lieferte der unmittelbare Zugriff die
+  // geerbte Funktion, kam an der Prüfung auf `undefined` vorbei und
+  // erzeugte eine erfundene Merge-Vorschau — während der Simulator selbst
+  // längst richtig "Kein aktueller Branch" antwortete
+  // (Code-Review vor dem Merge von PR #30).
+  const kopf = eigenerEintrag(zustand.branches, zustand.aktuellerBranch);
   const andere = Object.entries(zustand.branches).filter(
     ([name]) => name !== zustand.aktuellerBranch,
   );
