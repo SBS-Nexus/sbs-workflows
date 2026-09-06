@@ -6,6 +6,7 @@ import {
   fuehreKonfliktBefehlAus,
   loeseKonflikt,
   mitKonfliktMarkern,
+  merkeKonfliktdateiVor,
   offeneKonflikte,
   starteMergeErneut,
   type Abschnitt,
@@ -457,5 +458,113 @@ describe('Branchnamen mit Anführungszeichen überstehen den Neustart', () => {
 
     expect(ergebnis.veraendert).toBe(false);
     expect(ergebnis.zustand).toBe(laufend);
+  });
+});
+
+/**
+ * Derselbe Umweg wie beim Neustart steckte auch im Vormerk-Knopf. Ein
+ * Dateiname darf ein Leerzeichen tragen; als Befehlszeile zerfiel
+ * `preise 2026.md` in zwei Operanden, und das Lab ließ sich über seinen
+ * eigenen Knopf nicht mehr abschließen (Codex-Review auf PR #30).
+ */
+describe('Dateipfade überstehen das Vormerken', () => {
+  const HEIKEL = ['preise 2026.md', 'preise"final".md', "preise'final'.md"];
+
+  function geloest(pfad: string): KonfliktZustand {
+    const konfig = mergeConflictConfigSchema.parse({
+      pfad,
+      unserBranch: 'main',
+      ihrBranch: 'feature/preise',
+      hintergrund: 'Beide Seiten haben dieselbe Datei berührt.',
+      abschnitte: [{ art: 'konflikt', id: 'k1', unsere: ['Basis: 9'], ihre: ['Basis: 12'] }],
+    });
+    const zustand: KonfliktZustand = {
+      datei: { pfad: konfig.pfad, abschnitte: konfig.abschnitte as Abschnitt[] },
+      aufloesungen: {},
+      vorgemerkt: false,
+      status: 'laeuft',
+      ihrBranch: konfig.ihrBranch,
+    };
+    return loeseKonflikt(zustand, 'k1', { art: 'ihre' });
+  }
+
+  it('merkt einen gewöhnlichen Pfad über den getypten Übergang vor', () => {
+    const ergebnis = merkeKonfliktdateiVor(geloest('preise.md'));
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.vorgemerkt).toBe(true);
+    expect(ergebnis.zustand.datei.pfad).toBe('preise.md');
+  });
+
+  it('behält heikle Pfade dabei Zeichen für Zeichen', () => {
+    for (const pfad of HEIKEL) {
+      const ergebnis = merkeKonfliktdateiVor(geloest(pfad));
+
+      expect(ergebnis.veraendert, pfad).toBe(true);
+      expect(ergebnis.zustand.vorgemerkt, pfad).toBe(true);
+      expect(ergebnis.zustand.datei.pfad, pfad).toBe(pfad);
+      expect(ergebnis.ausgabe, pfad).toContain(pfad);
+    }
+  });
+
+  it('hängt dabei an keiner Befehlszerlegung', () => {
+    // Der Beleg: Genau die Zeile, die der Knopf früher baute, verliert den
+    // Pfad — der getypte Übergang daneben nicht.
+    for (const pfad of HEIKEL) {
+      const zustand = geloest(pfad);
+      const alteRundreise = fuehreKonfliktBefehlAus(zustand, `git add ${pfad}`);
+
+      expect(alteRundreise.zustand.vorgemerkt, pfad).toBe(false);
+      expect(merkeKonfliktdateiVor(zustand).zustand.vorgemerkt, pfad).toBe(true);
+    }
+  });
+
+  it('lässt den Lernbefehl in der Form gelingen, die der Zerleger trägt', () => {
+    const zustand = geloest('preise 2026.md');
+    const ergebnis = fuehreKonfliktBefehlAus(zustand, `git add 'preise 2026.md'`);
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.vorgemerkt).toBe(true);
+    expect(ergebnis.zustand.datei.pfad).toBe('preise 2026.md');
+  });
+
+  it('weist einen fremden und einen fehlenden Pfad weiter zurück', () => {
+    const zustand = geloest('preise.md');
+    for (const befehl of ['git add tippfehler.md', 'git add']) {
+      const ergebnis = fuehreKonfliktBefehlAus(zustand, befehl);
+      expect(ergebnis.veraendert, befehl).toBe(false);
+      expect(ergebnis.zustand.vorgemerkt, befehl).toBe(false);
+    }
+  });
+
+  it('merkt nicht vor, solange Konflikte offen sind', () => {
+    const offen: KonfliktZustand = {
+      datei: {
+        pfad: 'preise.md',
+        abschnitte: [
+          { art: 'konflikt', id: 'k1', unsere: ['a'], ihre: ['b'] },
+          { art: 'konflikt', id: 'k2', unsere: ['c'], ihre: ['d'] },
+        ],
+      },
+      aufloesungen: {},
+      vorgemerkt: false,
+      status: 'laeuft',
+      ihrBranch: 'feature/preise',
+    };
+    const teilweise = loeseKonflikt(offen, 'k1', { art: 'ihre' });
+    const ergebnis = merkeKonfliktdateiVor(teilweise);
+
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand.vorgemerkt).toBe(false);
+    expect(ergebnis.ausgabe).toContain('noch Konfliktstellen offen');
+  });
+
+  it('merkt nicht vor, wenn kein Merge läuft', () => {
+    const zustand = geloest('preise.md');
+    const abgebrochen = fuehreKonfliktBefehlAus(zustand, 'git merge --abort').zustand;
+    const ergebnis = merkeKonfliktdateiVor(abgebrochen);
+
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand).toBe(abgebrochen);
   });
 });

@@ -208,6 +208,49 @@ export function loeseKonflikt(
 }
 
 /**
+ * Merkt die aufgelöste Konfliktdatei vor — als getypter Übergang.
+ *
+ * Denselben Umweg wie beim Neustart nahm auch der Vormerk-Knopf: Aus dem
+ * bereits getypten `pfad` wurde `git add <pfad>` gebaut und sofort wieder
+ * zerlegt. Bei `preise 2026.md` wurden daraus zwei Operanden, bei
+ * `preise"final".md` verschwanden die Anführungszeichen — beide Male passte
+ * der Pfad danach nicht mehr zu dem konfigurierten, und das Lab ließ sich
+ * über seinen eigenen Knopf nicht mehr abschließen
+ * (Codex-Review auf PR #30).
+ *
+ * Dateinamen dürfen Leerzeichen und Anführungszeichen enthalten; das zu
+ * verbieten hieße, das Dateimodell nach den Bequemlichkeiten eines Knopfes
+ * zu schneiden. Der Umweg entfällt stattdessen.
+ *
+ * Zwei Aufrufer, ein Übergang: der geparste Lernbefehl und der Knopf.
+ */
+export function merkeKonfliktdateiVor(zustand: KonfliktZustand): KonfliktErgebnis {
+  if (zustand.status !== 'laeuft') {
+    return { zustand, ausgabe: 'Kein Merge im Gange.', veraendert: false };
+  }
+  if (!alleKonflikteGeloest(zustand)) {
+    return {
+      zustand,
+      ausgabe: 'Es sind noch Konfliktstellen offen. Löse sie erst auf.',
+      veraendert: false,
+    };
+  }
+  if (enthaeltMarker(aufgeloesterInhalt(zustand))) {
+    return {
+      zustand,
+      ausgabe:
+        'Im Text stehen noch Konfliktmarker. Git würde sie mitcommitten — entferne sie zuerst.',
+      veraendert: false,
+    };
+  }
+  return {
+    zustand: { ...zustand, vorgemerkt: true },
+    ausgabe: `${zustand.datei.pfad} als aufgelöst vorgemerkt.`,
+    veraendert: true,
+  };
+}
+
+/**
  * Beginnt den abgebrochenen Merge erneut — als getypter Übergang.
  *
  * Der Neustartknopf hatte zuvor den Umweg über eine Zeichenkette genommen:
@@ -324,29 +367,9 @@ export function fuehreKonfliktBefehlAus(
       if (schalter.operanden.length === 0) {
         return unveraendert(`git add: Bitte gib die Datei an: git add ${zustand.datei.pfad}`);
       }
-      if (zustand.status !== 'laeuft') {
-        return { zustand, ausgabe: 'Kein Merge im Gange.', veraendert: false };
-      }
-      if (!alleKonflikteGeloest(zustand)) {
-        return {
-          zustand,
-          ausgabe: 'Es sind noch Konfliktstellen offen. Löse sie erst auf.',
-          veraendert: false,
-        };
-      }
-      if (enthaeltMarker(aufgeloesterInhalt(zustand))) {
-        return {
-          zustand,
-          ausgabe:
-            'Im Text stehen noch Konfliktmarker. Git würde sie mitcommitten — entferne sie zuerst.',
-          veraendert: false,
-        };
-      }
-      return {
-        zustand: { ...zustand, vorgemerkt: true },
-        ausgabe: `${zustand.datei.pfad} als aufgelöst vorgemerkt.`,
-        veraendert: true,
-      };
+      // Ab hier ist der Befehl verstanden — die Zustandsänderung selbst
+      // liegt an genau einer Stelle, die auch der Knopf benutzt.
+      return merkeKonfliktdateiVor(zustand);
     }
 
     case 'commit': {

@@ -16,6 +16,7 @@ import {
   KONFLIKT_TRENNER,
   loeseKonflikt,
   mitKonfliktMarkern,
+  merkeKonfliktdateiVor,
   offeneKonflikte,
   starteMergeErneut,
   type Abschnitt,
@@ -84,6 +85,20 @@ export function MergeConflictLab({
     setVerlauf((prev) => [
       ...prev,
       { befehl: `Merge erneut beginnen: ${ihrBranch}`, ausgabe: ergebnis.ausgabe, art: 'aktion' },
+    ]);
+  }
+
+  /**
+   * Auch das Vormerken geht nicht über eine erzeugte Befehlszeile: `pfad`
+   * liegt getypt vor, und `preise 2026.md` zerfiel als Text in zwei
+   * Operanden (Codex-Review auf PR #30).
+   */
+  function merkeVor(): void {
+    const ergebnis = merkeKonfliktdateiVor(zustand);
+    setZustand(ergebnis.zustand);
+    setVerlauf((prev) => [
+      ...prev,
+      { befehl: `Auflösung vormerken: ${pfad}`, ausgabe: ergebnis.ausgabe, art: 'aktion' },
     ]);
   }
 
@@ -239,12 +254,7 @@ export function MergeConflictLab({
           <Button size="sm" variant="secondary" onClick={() => befehl('git status')}>
             git status
           </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => befehl(`git add ${pfad}`)}
-            disabled={!laeuft}
-          >
+          <Button size="sm" variant="secondary" onClick={merkeVor} disabled={!laeuft}>
             git add {pfad}
           </Button>
           <Button size="sm" onClick={() => befehl('git commit')} disabled={!laeuft}>
