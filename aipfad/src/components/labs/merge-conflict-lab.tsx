@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Badge, Button, Callout, cx } from '@/components/ui/primitives';
 import { LabCompleteButton } from './lab-complete-button';
-import { BefehlsKonsole } from './befehls-konsole';
+import { BefehlsKonsole, type KonsolenEintrag } from './befehls-konsole';
 import { eigenerEintrag } from '@/domain/eintraege';
 import { mergeConflictConfigSchema } from '@/domain/labs/merge-conflict-config';
 import {
@@ -17,6 +17,7 @@ import {
   loeseKonflikt,
   mitKonfliktMarkern,
   offeneKonflikte,
+  starteMergeErneut,
   type Abschnitt,
   type KonfliktZustand,
 } from '@/domain/git/merge-conflict';
@@ -50,7 +51,7 @@ export function MergeConflictLab({
     status: 'laeuft',
     ihrBranch,
   });
-  const [verlauf, setVerlauf] = useState<{ befehl: string; ausgabe: string }[]>([]);
+  const [verlauf, setVerlauf] = useState<KonsolenEintrag[]>([]);
   const [eigeneTexte, setEigeneTexte] = useState<Record<string, string>>({});
 
   const beschriftung = { unser: unserBranch, ihr: ihrBranch };
@@ -66,6 +67,24 @@ export function MergeConflictLab({
     const ergebnis = fuehreKonfliktBefehlAus(zustand, text);
     setZustand(ergebnis.zustand);
     setVerlauf((prev) => [...prev, { befehl: text, ausgabe: ergebnis.ausgabe }]);
+  }
+
+  /**
+   * Der Neustart geht NICHT über eine erzeugte Befehlszeile.
+   *
+   * `ihrBranch` liegt hier bereits getypt und geprüft vor; daraus Text zu
+   * bauen, der gleich wieder zerlegt wird, verlor bei einem Namen wie
+   * `feature"prices"` genau die Anführungszeichen, die zum Namen gehören
+   * (Codex-Review auf PR #30). Der Verlaufseintrag ist reine Anzeige und
+   * wird nirgends wieder gelesen.
+   */
+  function starteNeu(): void {
+    const ergebnis = starteMergeErneut(zustand);
+    setZustand(ergebnis.zustand);
+    setVerlauf((prev) => [
+      ...prev,
+      { befehl: `Merge erneut beginnen: ${ihrBranch}`, ausgabe: ergebnis.ausgabe, art: 'aktion' },
+    ]);
   }
 
   function waehle(konfliktId: string, wahl: Wahl): void {
@@ -240,7 +259,7 @@ export function MergeConflictLab({
             git merge --abort
           </Button>
           {zustand.status === 'abgebrochen' ? (
-            <Button size="sm" onClick={() => befehl(`git merge ${ihrBranch}`)}>
+            <Button size="sm" onClick={starteNeu}>
               Merge erneut beginnen
             </Button>
           ) : null}

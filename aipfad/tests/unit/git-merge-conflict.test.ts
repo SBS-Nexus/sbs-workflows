@@ -7,6 +7,7 @@ import {
   loeseKonflikt,
   mitKonfliktMarkern,
   offeneKonflikte,
+  starteMergeErneut,
   type Abschnitt,
   type KonfliktZustand,
 } from '@/domain/git/merge-conflict';
@@ -342,5 +343,119 @@ describe('Der Befehl des Neustartknopfes ist ausführbar', () => {
     expect(
       mergeConflictConfigSchema.safeParse({ ...KONFIG, ihrBranch: 'feature prices' }).success,
     ).toBe(false);
+  });
+});
+
+/**
+ * Ein Branch darf in echtem Git `feature"prices"` heißen — nachgestellt
+ * gegen Git 2.52, das `refs/heads/feature"prices"` wirklich anlegt.
+ *
+ * Der Neustartknopf baute daraus früher eine Befehlszeile, die sofort wieder
+ * zerlegt wurde; die Anführungszeichen galten dabei als Befehlssyntax und
+ * übrig blieb `featureprices`. Der Umweg ist weg: Was getypt vorliegt, wird
+ * nicht zu Text und zurück gelesen (Codex-Review auf PR #30).
+ */
+describe('Branchnamen mit Anführungszeichen überstehen den Neustart', () => {
+  const MIT_ANFUEHRUNG = 'feature"prices"';
+
+  function konfiguriert(ihrBranch: string) {
+    return mergeConflictConfigSchema.parse({
+      pfad: 'preise.md',
+      unserBranch: 'main',
+      ihrBranch,
+      hintergrund: 'Beide Seiten haben dieselbe Datei berührt.',
+      abschnitte: [{ art: 'konflikt', id: 'k1', unsere: ['Basis: 9'], ihre: ['Basis: 12'] }],
+    });
+  }
+
+  function abgebrochenMit(ihrBranch: string): KonfliktZustand {
+    const konfig = konfiguriert(ihrBranch);
+    const zustand: KonfliktZustand = {
+      datei: { pfad: konfig.pfad, abschnitte: konfig.abschnitte as Abschnitt[] },
+      aufloesungen: {},
+      vorgemerkt: false,
+      status: 'laeuft',
+      ihrBranch: konfig.ihrBranch,
+    };
+    const abgebrochen = fuehreKonfliktBefehlAus(zustand, 'git merge --abort').zustand;
+    expect(abgebrochen.status).toBe('abgebrochen');
+    return abgebrochen;
+  }
+
+  it('nimmt den Namen in der Konfiguration an — echtes Git tut das auch', () => {
+    for (const name of [MIT_ANFUEHRUNG, "feature'prices", 'a$b', 'a`b']) {
+      expect(() => konfiguriert(name), name).not.toThrow();
+    }
+  });
+
+  it('startet über den getypten Übergang neu und behält den Namen unverändert', () => {
+    const vorher = abgebrochenMit(MIT_ANFUEHRUNG);
+    const ergebnis = starteMergeErneut(vorher);
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.status).toBe('laeuft');
+    // Zeichen für Zeichen derselbe Name.
+    expect(ergebnis.zustand.ihrBranch).toBe(MIT_ANFUEHRUNG);
+    expect(ergebnis.zustand.aufloesungen).toEqual({});
+    expect(ergebnis.zustand.vorgemerkt).toBe(false);
+  });
+
+  it('hängt dabei an keiner Befehlszerlegung', () => {
+    // Der Beleg: Genau die Zeile, die der Knopf früher baute, verliert den
+    // Namen — der getypte Übergang daneben nicht.
+    const vorher = abgebrochenMit(MIT_ANFUEHRUNG);
+    const alteRundreise = fuehreKonfliktBefehlAus(vorher, `git merge ${MIT_ANFUEHRUNG}`);
+
+    expect(alteRundreise.veraendert).toBe(false);
+    expect(starteMergeErneut(vorher).zustand.status).toBe('laeuft');
+  });
+
+  it('lässt den Lernbefehl in der Form gelingen, die der Zerleger trägt', () => {
+    // Einfache Anführungszeichen maskieren in einer Shell nichts weiter —
+    // genau so kommt der Name vollständig durch.
+    const vorher = abgebrochenMit(MIT_ANFUEHRUNG);
+    const ergebnis = fuehreKonfliktBefehlAus(vorher, `git merge 'feature"prices"'`);
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.status).toBe('laeuft');
+    expect(ergebnis.zustand.ihrBranch).toBe(MIT_ANFUEHRUNG);
+  });
+
+  it('weist falsche, fehlende und überzählige Angaben weiter zurück', () => {
+    const vorher = abgebrochenMit(MIT_ANFUEHRUNG);
+    for (const befehl of [
+      'git merge',
+      'git merge featureprices',
+      'git merge main',
+      `git merge 'feature"prices"' extra`,
+    ]) {
+      const ergebnis = fuehreKonfliktBefehlAus(vorher, befehl);
+      expect(ergebnis.veraendert, befehl).toBe(false);
+      expect(ergebnis.zustand, befehl).toBe(vorher);
+    }
+  });
+
+  it('ändert am gewöhnlichen Branchnamen nichts', () => {
+    const vorher = abgebrochenMit('feature/preise');
+
+    expect(fuehreKonfliktBefehlAus(vorher, 'git merge feature/preise').zustand.status).toBe(
+      'laeuft',
+    );
+    expect(starteMergeErneut(vorher).zustand.status).toBe('laeuft');
+  });
+
+  it('lehnt den Übergang ab, wenn kein Merge abgebrochen ist', () => {
+    const konfig = konfiguriert('feature/preise');
+    const laufend: KonfliktZustand = {
+      datei: { pfad: konfig.pfad, abschnitte: konfig.abschnitte as Abschnitt[] },
+      aufloesungen: {},
+      vorgemerkt: false,
+      status: 'laeuft',
+      ihrBranch: konfig.ihrBranch,
+    };
+    const ergebnis = starteMergeErneut(laufend);
+
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand).toBe(laufend);
   });
 });

@@ -16,6 +16,18 @@ import { useState } from 'react';
 export interface KonsolenEintrag {
   befehl: string;
   ausgabe: string;
+  /**
+   * Ob der Eintrag ein eingegebener Befehl war oder eine Handlung über einen
+   * Knopf.
+   *
+   * Nicht jede Handlung im Lab lässt sich ehrlich als Befehlszeile
+   * hinschreiben: Ein Branch darf in Git `feature"prices"` heißen, und diesen
+   * Namen als Shell-Zeile darzustellen verlangte ein Maskieren, das es hier
+   * bewusst nicht gibt. Eine Handlung bekommt deshalb kein
+   * `$`-Eingabezeichen — sie steht als das da, was sie ist, statt eine
+   * ausführbare Zeile vorzutäuschen (Codex-Review auf PR #30).
+   */
+  art?: 'befehl' | 'aktion';
 }
 
 export function BefehlsKonsole({
@@ -56,7 +68,10 @@ export function BefehlsKonsole({
       {eintraege.map((eintrag, index) => (
         <div key={index} className="mb-1.5">
           <p>
-            <span className="text-signal-300">$</span> {eintrag.befehl}
+            <span className={eintrag.art === 'aktion' ? 'text-ink-400' : 'text-signal-300'}>
+              {eintrag.art === 'aktion' ? '›' : '$'}
+            </span>{' '}
+            {eintrag.befehl}
           </p>
           {eintrag.ausgabe ? (
             <p className="whitespace-pre-wrap text-ink-200">{eintrag.ausgabe}</p>

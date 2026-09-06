@@ -208,6 +208,38 @@ export function loeseKonflikt(
 }
 
 /**
+ * Beginnt den abgebrochenen Merge erneut — als getypter Übergang.
+ *
+ * Der Neustartknopf hatte zuvor den Umweg über eine Zeichenkette genommen:
+ * Aus dem bereits getypten `ihrBranch` wurde `git merge <name>` gebaut, das
+ * dann wieder zerlegt wurde. Bei einem Branch wie `feature"prices"` — in
+ * echtem Git ein völlig gewöhnlicher Name — las der Zerleger die
+ * Anführungszeichen als Befehlssyntax, und übrig blieb `featureprices`. Das
+ * Lab wies daraufhin den Befehl seiner eigenen Maske zurück und blieb in
+ * "abgebrochen" stehen (Codex-Review auf PR #30).
+ *
+ * Die Antwort ist nicht, den Namen zu maskieren oder gültige Namen zu
+ * verbieten, sondern den Umweg zu lassen: Was die Anwendung getypt in der
+ * Hand hat, wird nicht erst zu Text und dann wieder zurück gelesen.
+ *
+ * Zwei Aufrufer, ein Übergang: der geparste Lernbefehl und der Knopf.
+ */
+export function starteMergeErneut(zustand: KonfliktZustand): KonfliktErgebnis {
+  if (zustand.status !== 'abgebrochen') {
+    return {
+      zustand,
+      ausgabe: 'Kein abgebrochener Merge, der neu beginnen könnte.',
+      veraendert: false,
+    };
+  }
+  return {
+    zustand: { ...zustand, aufloesungen: {}, vorgemerkt: false, status: 'laeuft' },
+    ausgabe: 'Automatischer Merge fehlgeschlagen; behebe die Konflikte und committe das Ergebnis.',
+    veraendert: true,
+  };
+}
+
+/**
  * Der Abschluss eines Merges in der Reihenfolge, die Git verlangt:
  * auflösen → `git add` → `git commit`. Der mittlere Schritt ist der, den
  * viele überspringen; ohne ihn bleibt der Merge unfertig.
@@ -420,12 +452,9 @@ export function fuehreKonfliktBefehlAus(
           `merge: ${hereinzuholen} - not something we can merge. In diesem Lab gibt es nur ${zustand.ihrBranch}.`,
         );
       }
-      return {
-        zustand: { ...zustand, aufloesungen: {}, vorgemerkt: false, status: 'laeuft' },
-        ausgabe:
-          'Automatischer Merge fehlgeschlagen; behebe die Konflikte und committe das Ergebnis.',
-        veraendert: true,
-      };
+      // Ab hier ist der Befehl verstanden — die Zustandsänderung selbst
+      // liegt an genau einer Stelle, die auch der Knopf benutzt.
+      return starteMergeErneut(zustand);
     }
 
     default:
