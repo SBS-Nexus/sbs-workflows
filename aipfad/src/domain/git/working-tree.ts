@@ -227,33 +227,72 @@ function fassung(inhalt: string | undefined): DateiFassung {
   return inhalt === undefined ? { vorhanden: false } : { vorhanden: true, inhalt };
 }
 
+/** Eine Zeile und ob sie mit einem Zeilenumbruch abgeschlossen ist. */
+interface Zeile {
+  text: string;
+  abgeschlossen: boolean;
+}
+
+/**
+ * Zerlegt eine Fassung in Zeilen.
+ *
+ * Ein abschließender Zeilenumbruch ist ein ABSCHLUSS, keine weitere leere
+ * Zeile. Ihn als Zeile zu zählen erfand bei jeder Datei, die auf `\n` endet,
+ * eine leere Zeile im Diff — `a\n` -> `b\n` bekam eine leere Kontextzeile
+ * angehängt, die echtes Git dort nicht zeigt (Codex-Review auf PR #30).
+ *
+ * Eine LEERE Datei hat null Zeilen. Sonst entstünde beim Löschen ein `-`
+ * ohne Inhalt — eine erfundene Zeile; echtes Git meldet dort nur
+ * `deleted file mode`.
+ */
+function inZeilen(fassung: DateiFassung): Zeile[] {
+  if (!fassung.vorhanden || fassung.inhalt === '') return [];
+  const teile = fassung.inhalt.split('\n');
+  const endetMitUmbruch = teile[teile.length - 1] === '';
+  if (endetMitUmbruch) teile.pop();
+  return teile.map((text, i) => ({
+    text,
+    abgeschlossen: i < teile.length - 1 ? true : endetMitUmbruch,
+  }));
+}
+
+/** Wie echtes Git es schreibt, nur auf Deutsch. */
+const OHNE_ABSCHLUSS = '\\ Kein Zeilenumbruch am Dateiende';
+
+function gleich(a: Zeile | undefined, b: Zeile | undefined): boolean {
+  if (a === undefined || b === undefined) return a === b;
+  // Der fehlende Abschluss gehört zur Zeile: `a\n` und `a` sind nicht
+  // dasselbe, auch wenn der Text gleich ist. Genau so hält es Git, das die
+  // Zeile dann als `-`/`+` samt Markierung zeigt.
+  return a.text === b.text && a.abgeschlossen === b.abgeschlossen;
+}
+
 /**
  * Zeilenweiser Vergleich zweier Fassungen.
  *
- * Leere Zeilen werden NICHT übersprungen: Eine entfernte Leerzeile ist eine
- * Änderung, und `a\n` -> `a` unterscheidet sich genau in ihr. Das frühere
- * Auslassen ließ solche Änderungen unsichtbar verschwinden und zeigte einen
- * Diff-Block ohne ein einziges `+` oder `-`.
+ * Leere Zeilen MITTEN im Text werden nicht übersprungen: Eine eingefügte
+ * Leerzeile ist eine Änderung. Das frühere Auslassen ließ sie unsichtbar
+ * verschwinden.
  */
 function zeilenDiff(vorher: DateiFassung, nachher: DateiFassung): string[] {
-  // Eine LEERE Datei hat null Zeilen, nicht eine leere. Sonst entstünde beim
-  // Löschen ein `-` ohne Inhalt — eine erfundene Zeile, die echtes Git dort
-  // nicht zeigt (es meldet nur `deleted file mode`).
-  const inZeilen = (f: DateiFassung): string[] =>
-    f.vorhanden && f.inhalt !== '' ? f.inhalt.split('\n') : [];
   const alt = inZeilen(vorher);
   const neu = inZeilen(nachher);
   const zeilen: string[] = [];
+  const schreibe = (praefix: string, zeile: Zeile): void => {
+    zeilen.push(`${praefix}${zeile.text}`);
+    if (!zeile.abgeschlossen) zeilen.push(OHNE_ABSCHLUSS);
+  };
+
   const laenge = Math.max(alt.length, neu.length);
   for (let i = 0; i < laenge; i += 1) {
     const a = alt[i];
     const n = neu[i];
-    if (a === n) {
-      if (a !== undefined) zeilen.push(` ${a}`);
+    if (gleich(a, n)) {
+      if (a !== undefined) schreibe(' ', a);
       continue;
     }
-    if (a !== undefined) zeilen.push(`-${a}`);
-    if (n !== undefined) zeilen.push(`+${n}`);
+    if (a !== undefined) schreibe('-', a);
+    if (n !== undefined) schreibe('+', n);
   }
   return zeilen;
 }

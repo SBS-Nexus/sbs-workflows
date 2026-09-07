@@ -522,22 +522,44 @@ describe('Diff unterscheidet abwesend von leer', () => {
     );
   });
 
-  it('zeigt eine entfernte abschließende Leerzeile', () => {
-    // `a\n` -> `a`: Der Unterschied ist genau die abschließende Leerzeile.
-    // Sie zu überspringen ließ die Änderung unsichtbar verschwinden.
+  it('zeigt einen entfernten abschließenden Zeilenumbruch', () => {
+    // `a\n` -> `a`: Der Unterschied ist genau der Abschluss. Echtes Git
+    // zeigt die Zeile dafür als `-a`/`+a` mit Markierung — der Umbruch ist
+    // ein Abschluss, keine leere Zeile.
     const ausgabe = diff({ pfad: 'f.md', head: 'a\n', index: 'a\n', arbeitsbaum: 'a' });
-    expect(ausgabe).toContain('-');
-    expect(ausgabe.split('\n').some((z) => z === '-')).toBe(true);
+
+    expect(inhaltszeilen(ausgabe)).toEqual(['-a', '+a']);
+    expect(ausgabe).toContain('Kein Zeilenumbruch am Dateiende');
   });
 
-  it('zeigt eine hinzugefügte abschließende Leerzeile', () => {
+  it('zeigt einen hinzugefügten abschließenden Zeilenumbruch', () => {
     const ausgabe = diff({ pfad: 'f.md', head: 'a', index: 'a', arbeitsbaum: 'a\n' });
-    expect(ausgabe.split('\n').some((z) => z === '+')).toBe(true);
+
+    expect(inhaltszeilen(ausgabe)).toEqual(['-a', '+a']);
+    expect(ausgabe).toContain('Kein Zeilenumbruch am Dateiende');
+  });
+
+  it('erfindet bei abgeschlossenen Zeilen keine leere Kontextzeile', () => {
+    // `a\n` -> `b\n`: Echtes Git zeigt nur `-a` und `+b`. Den Abschluss als
+    // leere Zeile zu zählen hängte hier eine leere Kontextzeile an
+    // (Codex-Review auf PR #30).
+    const ausgabe = diff({ pfad: 'f.md', head: 'a\n', index: 'a\n', arbeitsbaum: 'b\n' });
+
+    expect(inhaltszeilen(ausgabe)).toEqual(['-a', '+b']);
+    expect(ausgabe).not.toContain('Kein Zeilenumbruch');
+    expect(ausgabe.split('\n').some((z) => z === ' ')).toBe(false);
   });
 
   it('zeigt eine eingefügte Leerzeile mitten im Text', () => {
-    const ausgabe = diff({ pfad: 'f.md', head: 'a\nb', index: 'a\nb', arbeitsbaum: 'a\n\nb' });
-    expect(ausgabe.split('\n').some((z) => z === '+')).toBe(true);
+    const ausgabe = diff({
+      pfad: 'f.md',
+      head: 'a\nb\n',
+      index: 'a\nb\n',
+      arbeitsbaum: 'a\n\nb\n',
+    });
+    // Die eingefügte Leerzeile ist sichtbar — sie zu überspringen ließ die
+    // Änderung spurlos verschwinden.
+    expect(inhaltszeilen(ausgabe)).toContain('+');
   });
 
   it('lässt gewöhnliche Inhaltsänderungen unverändert', () => {
