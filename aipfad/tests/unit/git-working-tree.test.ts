@@ -719,6 +719,23 @@ describe('Statusmatrix über die drei Orte', () => {
     expect(ausgabe).not.toMatch(/geändert:\s+notizen\.txt/);
   });
 
+  it('lehnt git add für eine Datei ab, die es nirgends mehr gibt', () => {
+    // Stiller Erfolg ist genau das, was dieser Simulator nirgends tun soll:
+    // Der Eintrag stand nach dem Commit in keinem der drei Orte mehr, galt
+    // aber weiter als bekannt (Codex-Review auf PR #30).
+    let zustand: GitArbeitsbaumZustand = {
+      dateien: [{ pfad: 'f.md', head: 'A', index: 'A', arbeitsbaum: undefined }],
+      commits: [],
+    };
+    zustand = fuehreGitBefehlAus(zustand, 'git add f.md').zustand;
+    zustand = fuehreGitBefehlAus(zustand, 'git commit -m "f.md entfernt"').zustand;
+
+    const ergebnis = fuehreGitBefehlAus(zustand, 'git add f.md');
+
+    expect(ergebnis.ausgabe).toContain('did not match any files');
+    expect(ergebnis.veraendert).toBe(false);
+  });
+
   it('lässt nach einer committeten Löschung nichts zurück', () => {
     let zustand: GitArbeitsbaumZustand = {
       dateien: [{ pfad: 'f.md', head: 'A', index: 'A', arbeitsbaum: undefined }],

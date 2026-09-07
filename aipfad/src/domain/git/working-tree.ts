@@ -463,7 +463,19 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       // wird — auch neben einem `.` oder `-A`. Zuvor genügte ein Treffer, und
       // `git add . fehlt.txt` verschwieg den Tippfehler. Echtes Git bricht ab
       // und merkt nichts vor (Codex-Review auf PR #30).
-      const bekannt = new Set(dateien.map((d) => d.pfad));
+      // Ein Eintrag, der in keinem der drei Orte mehr steht — etwa nach einer
+      // committeten Löschung — beschreibt keine Datei mehr. Ihn als bekannt
+      // zu führen ließ `git add f.md` danach wortlos gelingen, mit
+      // `veraendert: true`, obwohl es nichts gab. Echtes Git bricht mit
+      // "pathspec did not match" ab. Stiller Erfolg ist genau das, was
+      // dieser Simulator nirgends tun soll (Codex-Review auf PR #30).
+      const bekannt = new Set(
+        dateien
+          .filter(
+            (d) => d.arbeitsbaum !== undefined || d.index !== undefined || d.head !== undefined,
+          )
+          .map((d) => d.pfad),
+      );
       const fehlend = schalter.operanden.filter((pf) => pf !== '.' && !bekannt.has(pf));
       if (fehlend.length > 0) {
         return KEINE_AENDERUNG(zustand, `fatal: pathspec '${fehlend[0]}' did not match any files`);
