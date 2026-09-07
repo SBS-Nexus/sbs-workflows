@@ -463,17 +463,21 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
       // wird — auch neben einem `.` oder `-A`. Zuvor genügte ein Treffer, und
       // `git add . fehlt.txt` verschwieg den Tippfehler. Echtes Git bricht ab
       // und merkt nichts vor (Codex-Review auf PR #30).
-      // Ein Eintrag, der in keinem der drei Orte mehr steht — etwa nach einer
-      // committeten Löschung — beschreibt keine Datei mehr. Ihn als bekannt
-      // zu führen ließ `git add f.md` danach wortlos gelingen, mit
-      // `veraendert: true`, obwohl es nichts gab. Echtes Git bricht mit
-      // "pathspec did not match" ab. Stiller Erfolg ist genau das, was
-      // dieser Simulator nirgends tun soll (Codex-Review auf PR #30).
+      // `git add` schiebt vom ARBEITSBAUM in den INDEX — die Pfadangabe wird
+      // also an genau diesen beiden gemessen. HEAD zählt nicht mit: Eine
+      // bereits vorgemerkte Löschung steht nur noch dort, und echtes Git
+      // antwortet auf ein erneutes `git add f.md` mit "pathspec did not
+      // match". Umgekehrt genügt der Index allein — eine neu vorgemerkte,
+      // dann im Arbeitsbaum gelöschte Datei nimmt Git an.
+      //
+      // Zuvor zählte jeder Eintrag der Liste, auch einer ohne jede Fassung:
+      // Nach einer committeten Löschung gelang `git add f.md` wortlos, mit
+      // `veraendert: true`, obwohl es nichts gab. Stiller Erfolg ist genau
+      // das, was dieser Simulator nirgends tun soll
+      // (Codex-Review und Abschlussprüfungen auf PR #30).
       const bekannt = new Set(
         dateien
-          .filter(
-            (d) => d.arbeitsbaum !== undefined || d.index !== undefined || d.head !== undefined,
-          )
+          .filter((d) => d.arbeitsbaum !== undefined || d.index !== undefined)
           .map((d) => d.pfad),
       );
       const fehlend = schalter.operanden.filter((pf) => pf !== '.' && !bekannt.has(pf));

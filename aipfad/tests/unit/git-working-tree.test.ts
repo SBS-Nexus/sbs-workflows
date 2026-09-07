@@ -719,6 +719,41 @@ describe('Statusmatrix über die drei Orte', () => {
     expect(ausgabe).not.toMatch(/geändert:\s+notizen\.txt/);
   });
 
+  it('misst die Pfadangabe von git add an Arbeitsbaum und Index, nicht an HEAD', () => {
+    // `git add` schiebt vom Arbeitsbaum in den Index — HEAD zählt nicht mit.
+    // Eine bereits vorgemerkte Löschung steht nur noch dort; echtes Git
+    // antwortet auf ein erneutes `git add` mit "pathspec did not match".
+    const nurHead = fuehreGitBefehlAus(
+      { dateien: [{ pfad: 'f.md', head: 'A' }], commits: [] },
+      'git add f.md',
+    );
+    expect(nurHead.ausgabe).toContain('did not match any files');
+    expect(nurHead.veraendert).toBe(false);
+
+    // Umgekehrt genügt der Index allein: neu vorgemerkt, dann im Arbeitsbaum
+    // gelöscht — das nimmt echtes Git an.
+    const nurIndex = fuehreGitBefehlAus(
+      { dateien: [{ pfad: 'f.md', index: 'A' }], commits: [] },
+      'git add f.md',
+    );
+    expect(nurIndex.veraendert).toBe(true);
+  });
+
+  it('erreicht diesen Zustand über die Befehle selbst', () => {
+    // Eine im Arbeitsbaum gelöschte Datei vormerken lässt nur HEAD übrig.
+    // Ein zweites `git add` darauf muss scheitern.
+    const zustand: GitArbeitsbaumZustand = {
+      dateien: [{ pfad: 'f.md', head: 'A', index: 'A', arbeitsbaum: undefined }],
+      commits: [],
+    };
+    const nachAdd = fuehreGitBefehlAus(zustand, 'git add f.md').zustand;
+    expect(nachAdd.dateien[0]).toEqual({ pfad: 'f.md', head: 'A', index: undefined });
+
+    const nochmal = fuehreGitBefehlAus(nachAdd, 'git add f.md');
+    expect(nochmal.ausgabe).toContain('did not match any files');
+    expect(nochmal.veraendert).toBe(false);
+  });
+
   it('lehnt git add für eine Datei ab, die es nirgends mehr gibt', () => {
     // Stiller Erfolg ist genau das, was dieser Simulator nirgends tun soll:
     // Der Eintrag stand nach dem Commit in keinem der drei Orte mehr, galt
