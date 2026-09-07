@@ -1,32 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { z } from 'zod';
 import { Button, Callout } from '@/components/ui/primitives';
 import { LabCompleteButton } from './lab-complete-button';
 import { BefehlsKonsole } from './befehls-konsole';
 import { CommitGraph } from '@/components/git/git-views';
 import { eigenerEintrag } from '@/domain/eintraege';
+import { branchConfigSchema } from '@/domain/labs/branch-config';
 import {
   fuehreBranchBefehlAus,
   mergeArt,
   UMGESETZTE_BRANCH_BEFEHLE,
   type BranchZustand,
 } from '@/domain/git/branches';
-
-const configSchema = z.object({
-  commits: z.array(
-    z.object({
-      id: z.string(),
-      nachricht: z.string(),
-      eltern: z.array(z.string()).default([]),
-    }),
-  ),
-  branches: z.record(z.string(), z.string()),
-  aktuellerBranch: z.string(),
-  /** Vorschläge, damit man ohne Tippen loslegen kann. */
-  vorschlaege: z.array(z.string()).default([]),
-});
 
 /**
  * Das Branch-Lab.
@@ -43,7 +29,7 @@ export function BranchLab({
   config: unknown;
   onCompleteAction: () => Promise<boolean>;
 }): React.ReactElement {
-  const start = configSchema.parse(config);
+  const start = branchConfigSchema.parse(config);
   const [zustand, setZustand] = useState<BranchZustand>({
     commits: start.commits,
     branches: start.branches,

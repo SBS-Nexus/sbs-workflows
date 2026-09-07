@@ -14,6 +14,7 @@ import { labs as labDrafts } from '@/content/labs';
 import { SETUP_SECTIONS } from '@/content/setup-commands';
 import { exercisePayloadSchema } from '@/domain/content/exercise-payload';
 import { mergeConflictConfigSchema } from '@/domain/labs/merge-conflict-config';
+import { branchConfigSchema } from '@/domain/labs/branch-config';
 import { toPublicPayload } from '@/domain/grading/grade';
 import { UMGESETZTE_BEFEHLE } from '@/domain/labs/terminal';
 import { z } from 'zod';
@@ -755,6 +756,130 @@ describe('Branchnamen im Merge-Lab folgen dem Git-Vertrag', () => {
     expect(
       ergebnis.issues.some(
         (i) => i.severity === 'error' && i.message.includes('not a valid branch name'),
+      ),
+    ).toBe(true);
+  });
+});
+
+/**
+ * Die Konfiguration des Branch-Labs stand nur in der Maske und akzeptierte
+ * jeden Text. `aktuellerBranch: 'toString'` ohne eigenen Branch dieses
+ * Namens ließ die Oberfläche "Du bist auf toString" schreiben, während
+ * jeder Befehl daneben "Kein aktueller Branch." antwortete
+ * (Codex-Review auf PR #30).
+ */
+describe('Konfiguration des Branch-Labs', () => {
+  const basis = {
+    commits: [
+      { id: 'c01', nachricht: 'Erster', eltern: [] },
+      { id: 'c02', nachricht: 'Zweiter', eltern: ['c01'] },
+    ],
+    branches: { main: 'c02' },
+    aktuellerBranch: 'main',
+    vorschlaege: [],
+  };
+
+  it('nimmt eine gewöhnliche Konfiguration an', () => {
+    expect(branchConfigSchema.safeParse(basis).success).toBe(true);
+  });
+
+  it('lehnt einen aktuellen Branch ab, den es nicht gibt', () => {
+    const ergebnis = branchConfigSchema.safeParse({ ...basis, aktuellerBranch: 'feature' });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('steht nicht in branches');
+  });
+
+  it('lässt sich von einer geerbten Eigenschaft nicht täuschen', () => {
+    const ergebnis = branchConfigSchema.safeParse({ ...basis, aktuellerBranch: 'toString' });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('steht nicht in branches');
+  });
+
+  it('nimmt einen wirklich angelegten Branch namens toString an', () => {
+    const ergebnis = branchConfigSchema.safeParse({
+      ...basis,
+      branches: { toString: 'c02' },
+      aktuellerBranch: 'toString',
+    });
+
+    expect(ergebnis.success).toBe(true);
+  });
+
+  it('lehnt einen Branchzeiger auf einen unbekannten Commit ab', () => {
+    const ergebnis = branchConfigSchema.safeParse({
+      ...basis,
+      branches: { main: 'gibt-es-nicht' },
+    });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('kein Commit dieser Ansicht');
+  });
+
+  it('lehnt einen zyklischen Commit-Graphen ab', () => {
+    const ergebnis = branchConfigSchema.safeParse({
+      ...basis,
+      commits: [
+        { id: 'c01', nachricht: 'Erster', eltern: ['c02'] },
+        { id: 'c02', nachricht: 'Zweiter', eltern: ['c01'] },
+      ],
+    });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Zyklische Vorgeschichte');
+  });
+
+  it('lehnt doppelte Commit-Kennungen ab', () => {
+    const ergebnis = branchConfigSchema.safeParse({
+      ...basis,
+      commits: [
+        { id: 'c01', nachricht: 'Erster', eltern: [] },
+        { id: 'c01', nachricht: 'Nochmal', eltern: [] },
+      ],
+      branches: { main: 'c01' },
+    });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Doppelte Commit-Kennung');
+  });
+
+  it('lehnt einen ungültigen Branchnamen ab', () => {
+    const ergebnis = branchConfigSchema.safeParse({
+      ...basis,
+      branches: { HEAD: 'c02' },
+      aktuellerBranch: 'HEAD',
+    });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('not a valid branch name');
+  });
+
+  it('gilt für die echte Konfiguration des Labs', () => {
+    const lab = labDrafts.map((l) => labSchema.parse(l)).find((l) => l.kind === 'BRANCH');
+    expect(lab).toBeDefined();
+    expect(branchConfigSchema.safeParse(lab?.config).success).toBe(true);
+  });
+
+  it('wird von validateCourseGraph mitgeprüft', () => {
+    const labs = labDrafts.map((l) => labSchema.parse(l));
+    const kaputt = labs.map((l) =>
+      l.kind === 'BRANCH'
+        ? {
+            ...l,
+            config: { ...(l.config as Record<string, unknown>), aktuellerBranch: 'toString' },
+          }
+        : l,
+    );
+    const ergebnis = validateCourseGraph({
+      course: courseSchema.parse(course),
+      concepts: conceptDrafts.map((c) => conceptSchema.parse(c)),
+      labs: kaputt,
+    });
+
+    expect(
+      ergebnis.issues.some(
+        (i) => i.severity === 'error' && i.message.includes('steht nicht in branches'),
       ),
     ).toBe(true);
   });

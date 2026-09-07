@@ -466,3 +466,118 @@ describe('Vorgemerkte Löschung: diff, restore und commit', () => {
     expect(ergebnis.zustand.dateien[0]?.arbeitsbaum).toBe('B');
   });
 });
+
+/**
+ * Abwesend und leer sind zwei Zustände, nicht einer. Das frühere
+ * `(inhalt ?? '')` warf sie zusammen: Beim Löschen einer LEEREN Datei kam
+ * gar keine Zeile zustande, und `git diff` meldete "keine Änderungen",
+ * während `git status` die Löschung anzeigte.
+ *
+ * Alle Erwartungen gegen echtes Git 2.52 nachgestellt: Es schreibt dort
+ * `deleted file mode` bzw. `new file mode` — die Kopfzeile trägt die
+ * Aussage, wenn es keine Inhaltszeile gibt (Codex-Review auf PR #30).
+ */
+describe('Diff unterscheidet abwesend von leer', () => {
+  const diff = (datei: GitDatei, befehl = 'git diff'): string =>
+    fuehreGitBefehlAus({ dateien: [datei], commits: [] }, befehl).ausgabe;
+
+  /** Nur die Inhaltszeilen — die Kopfzeilen `---`/`+++` gehören nicht dazu. */
+  const inhaltszeilen = (ausgabe: string): string[] =>
+    ausgabe
+      .split('\n')
+      .filter((z) => /^[-+]/.test(z) && !z.startsWith('---') && !z.startsWith('+++'));
+
+  it('zeigt das Löschen einer Datei mit Inhalt', () => {
+    const ausgabe = diff({ pfad: 'f.md', head: 'text', index: 'text' });
+    expect(ausgabe).toContain('gelöschte Datei');
+    expect(ausgabe).toContain('-text');
+  });
+
+  it('zeigt das Löschen einer LEEREN Datei — ohne erfundene Inhaltszeile', () => {
+    const ausgabe = diff({ pfad: 'f.md', head: '', index: '' });
+
+    expect(ausgabe).toContain('gelöschte Datei');
+    expect(ausgabe).toContain('/dev/null');
+    // Echtes Git zeigt hier keine Inhaltszeile; eine erfundene `-` wäre
+    // schlechter als keine.
+    expect(inhaltszeilen(ausgabe)).toEqual([]);
+  });
+
+  it('zeigt das Anlegen einer LEEREN Datei', () => {
+    const ausgabe = diff({ pfad: 'f.md', index: '', arbeitsbaum: '' }, 'git diff --staged');
+
+    expect(ausgabe).toContain('neue Datei');
+    expect(inhaltszeilen(ausgabe)).toEqual([]);
+  });
+
+  it('zeigt das Anlegen einer Datei mit Inhalt', () => {
+    const ausgabe = diff({ pfad: 'f.md', index: 'text', arbeitsbaum: 'text' }, 'git diff --staged');
+    expect(ausgabe).toContain('neue Datei');
+    expect(ausgabe).toContain('+text');
+  });
+
+  it('meldet bei leer -> leer nichts', () => {
+    expect(diff({ pfad: 'f.md', head: '', index: '', arbeitsbaum: '' })).toContain(
+      'Keine ungemerkten',
+    );
+  });
+
+  it('zeigt eine entfernte abschließende Leerzeile', () => {
+    // `a\n` -> `a`: Der Unterschied ist genau die abschließende Leerzeile.
+    // Sie zu überspringen ließ die Änderung unsichtbar verschwinden.
+    const ausgabe = diff({ pfad: 'f.md', head: 'a\n', index: 'a\n', arbeitsbaum: 'a' });
+    expect(ausgabe).toContain('-');
+    expect(ausgabe.split('\n').some((z) => z === '-')).toBe(true);
+  });
+
+  it('zeigt eine hinzugefügte abschließende Leerzeile', () => {
+    const ausgabe = diff({ pfad: 'f.md', head: 'a', index: 'a', arbeitsbaum: 'a\n' });
+    expect(ausgabe.split('\n').some((z) => z === '+')).toBe(true);
+  });
+
+  it('zeigt eine eingefügte Leerzeile mitten im Text', () => {
+    const ausgabe = diff({ pfad: 'f.md', head: 'a\nb', index: 'a\nb', arbeitsbaum: 'a\n\nb' });
+    expect(ausgabe.split('\n').some((z) => z === '+')).toBe(true);
+  });
+
+  it('lässt gewöhnliche Inhaltsänderungen unverändert', () => {
+    const ausgabe = diff({ pfad: 'f.md', head: 'a', index: 'a', arbeitsbaum: 'b' });
+    expect(ausgabe).toContain('-a');
+    expect(ausgabe).toContain('+b');
+    expect(ausgabe).not.toContain('gelöschte Datei');
+  });
+});
+
+describe('Lebenslauf einer gelöschten leeren Datei', () => {
+  it('führt von ungemerkt über vorgemerkt bis in den Commit', () => {
+    let zustand: GitArbeitsbaumZustand = {
+      dateien: [{ pfad: 'leer.md', head: '', index: '', arbeitsbaum: undefined }],
+      commits: [],
+    };
+
+    // 1. ungemerkte Löschung: im ungemerkten Diff sichtbar
+    expect(fuehreGitBefehlAus(zustand, 'git diff').ausgabe).toContain('gelöschte Datei');
+    expect(fuehreGitBefehlAus(zustand, 'git diff --staged').ausgabe).toContain(
+      'Keine vorgemerkten',
+    );
+
+    // 2. vormerken
+    zustand = fuehreGitBefehlAus(zustand, 'git add leer.md').zustand;
+    expect(zustand.dateien[0]?.index).toBeUndefined();
+
+    // 3. jetzt umgekehrt: gestagt sichtbar, ungemerkt nichts mehr
+    expect(fuehreGitBefehlAus(zustand, 'git diff').ausgabe).toContain('Keine ungemerkten');
+    expect(fuehreGitBefehlAus(zustand, 'git diff --staged').ausgabe).toContain('gelöschte Datei');
+
+    // 4. committen: die Datei fehlt im Stand, danach ist nichts mehr offen
+    const nachCommit = fuehreGitBefehlAus(zustand, 'git commit -m "leer.md entfernt"');
+    const commit = nachCommit.zustand.commits[nachCommit.zustand.commits.length - 1];
+    expect(commit?.stand['leer.md']).toBeUndefined();
+    expect(fuehreGitBefehlAus(nachCommit.zustand, 'git diff').ausgabe).toContain(
+      'Keine ungemerkten',
+    );
+    expect(fuehreGitBefehlAus(nachCommit.zustand, 'git diff --staged').ausgabe).toContain(
+      'Keine vorgemerkten',
+    );
+  });
+});

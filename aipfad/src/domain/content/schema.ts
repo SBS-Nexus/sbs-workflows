@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { exercisePayloadSchema, hintSchema } from './exercise-payload';
 import { mergeConflictConfigSchema } from '../labs/merge-conflict-config';
+import { branchConfigSchema } from '../labs/branch-config';
 
 /**
  * Zod-Schemata für redaktionelle Inhalte. Muster aus PythonPfad/SQLPfad
@@ -369,8 +370,14 @@ export function validateCourseGraph(input: {
     // aber einen getypten Vertrag gibt, wird er hier auch angewandt; sonst
     // fiele ein Fehler darin erst auf, wenn jemand das Lab im Browser
     // öffnet (Codex-Review auf PR #30).
-    if (lab.kind === 'MERGE_CONFLICT') {
-      const geprueft = mergeConflictConfigSchema.safeParse(lab.config);
+    const configVertrag =
+      lab.kind === 'MERGE_CONFLICT'
+        ? mergeConflictConfigSchema
+        : lab.kind === 'BRANCH'
+          ? branchConfigSchema
+          : null;
+    if (configVertrag) {
+      const geprueft = configVertrag.safeParse(lab.config);
       if (!geprueft.success) {
         for (const fehler of geprueft.error.issues) {
           const pfad = fehler.path.map(String).join('.');

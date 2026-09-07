@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eigenerEintrag } from '@/domain/eintraege';
+import { pruefeCommitGraph } from '@/domain/git/graph-invarianten';
 
 /**
  * Aufgaben-Nutzlasten.
@@ -173,71 +173,12 @@ const branchGraphAnsichtSchema = z
     aktuellerBranch: z.string().min(1),
   })
   .superRefine((ansicht, ctx) => {
-    // Ein Commit, der sich selbst als Vorfahr nennt, ließ die Tiefenberechnung
-    // in `baueGraph()` endlos laufen und riss die Seite mit einem
-    // Stapelüberlauf ab. Ein Zyklus ist ohnehin kein Commit-Graph: Vorher
-    // heißt vorher (Codex-Review auf PR #30).
-    const bekannt = new Set(ansicht.commits.map((commit) => commit.id));
-    for (const [i, commit] of ansicht.commits.entries()) {
-      for (const elternteil of commit.eltern) {
-        if (!bekannt.has(elternteil)) {
-          ctx.addIssue({
-            code: 'custom',
-            path: ['commits', i, 'eltern'],
-            message: `Elternteil "${elternteil}" ist kein Commit dieser Ansicht.`,
-          });
-        }
-      }
-    }
-
-    const eltern = new Map(ansicht.commits.map((commit) => [commit.id, commit.eltern]));
-    const besucht = new Map<string, 'laeuft' | 'fertig'>();
-    const findeZyklus = (id: string): string | null => {
-      if (besucht.get(id) === 'laeuft') return id;
-      if (besucht.get(id) === 'fertig') return null;
-      besucht.set(id, 'laeuft');
-      for (const elternteil of eltern.get(id) ?? []) {
-        const treffer = findeZyklus(elternteil);
-        if (treffer) return treffer;
-      }
-      besucht.set(id, 'fertig');
-      return null;
-    };
-    for (const commit of ansicht.commits) {
-      const treffer = findeZyklus(commit.id);
-      if (treffer) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['commits'],
-          message: `Zyklische Vorgeschichte bei Commit "${treffer}".`,
-        });
-        break;
-      }
-    }
-
-    // Ein Branch, der auf keinen Commit dieser Ansicht zeigt, ließ sich im
-    // Graphen an nichts anheften: Die Darstellung zeigte dann stillschweigend
-    // eine Vorgeschichte ohne den Branch, um den es in der Aufgabe geht
+    // Die Beziehungsregeln stehen in `domain/git/graph-invarianten.ts` —
+    // dieselben, die auch die Konfiguration des Branch-Labs prüft. Zwei
+    // Fassungen desselben Modells liefen sonst auseinander
     // (Codex-Review auf PR #30).
-    for (const [branch, id] of Object.entries(ansicht.branches)) {
-      if (!bekannt.has(id)) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['branches', branch],
-          message: `Branch "${branch}" zeigt auf "${id}" — das ist kein Commit dieser Ansicht.`,
-        });
-      }
-    }
-
-    // Und HEAD muss auf einem Branch stehen, den es hier wirklich gibt.
-    // Gefragt wird nach einem EIGENEN Schlüssel: `aktuellerBranch: 'toString'`
-    // fand sonst die geerbte Eigenschaft und galt als vorhanden.
-    if (eigenerEintrag(ansicht.branches, ansicht.aktuellerBranch) === undefined) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['aktuellerBranch'],
-        message: `Aktueller Branch "${ansicht.aktuellerBranch}" steht nicht in branches.`,
-      });
+    for (const befund of pruefeCommitGraph(ansicht)) {
+      ctx.addIssue({ code: 'custom', path: befund.pfad, message: befund.meldung });
     }
   });
 

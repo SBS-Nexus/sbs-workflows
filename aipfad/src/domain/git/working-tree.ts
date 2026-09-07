@@ -211,9 +211,38 @@ function formatiereStatus(eintraege: StatusEintrag[]): string {
   return teile.join('\n\n');
 }
 
-function zeilenDiff(vorher: string | undefined, nachher: string | undefined): string[] {
-  const alt = (vorher ?? '').split('\n');
-  const neu = (nachher ?? '').split('\n');
+/**
+ * Eine Fassung einer Datei — vorhanden mit Inhalt, oder eben nicht da.
+ *
+ * `undefined` als "kein Inhalt" zu lesen warf zwei verschiedene Zustände
+ * zusammen: die LEERE Datei und die NICHT VORHANDENE. Beim Löschen einer
+ * leeren Datei kam so gar keine Zeile zustande, und `git diff` meldete
+ * "keine Änderungen", während `git status` die Löschung anzeigte
+ * (Codex-Review auf PR #30). Dieselbe Verwechslung wie beim Index: Abwesend
+ * ist ein Zustand, kein fehlender Wert.
+ */
+type DateiFassung = { vorhanden: false } | { vorhanden: true; inhalt: string };
+
+function fassung(inhalt: string | undefined): DateiFassung {
+  return inhalt === undefined ? { vorhanden: false } : { vorhanden: true, inhalt };
+}
+
+/**
+ * Zeilenweiser Vergleich zweier Fassungen.
+ *
+ * Leere Zeilen werden NICHT übersprungen: Eine entfernte Leerzeile ist eine
+ * Änderung, und `a\n` -> `a` unterscheidet sich genau in ihr. Das frühere
+ * Auslassen ließ solche Änderungen unsichtbar verschwinden und zeigte einen
+ * Diff-Block ohne ein einziges `+` oder `-`.
+ */
+function zeilenDiff(vorher: DateiFassung, nachher: DateiFassung): string[] {
+  // Eine LEERE Datei hat null Zeilen, nicht eine leere. Sonst entstünde beim
+  // Löschen ein `-` ohne Inhalt — eine erfundene Zeile, die echtes Git dort
+  // nicht zeigt (es meldet nur `deleted file mode`).
+  const inZeilen = (f: DateiFassung): string[] =>
+    f.vorhanden && f.inhalt !== '' ? f.inhalt.split('\n') : [];
+  const alt = inZeilen(vorher);
+  const neu = inZeilen(nachher);
   const zeilen: string[] = [];
   const laenge = Math.max(alt.length, neu.length);
   for (let i = 0; i < laenge; i += 1) {
@@ -223,10 +252,35 @@ function zeilenDiff(vorher: string | undefined, nachher: string | undefined): st
       if (a !== undefined) zeilen.push(` ${a}`);
       continue;
     }
-    if (a !== undefined && a !== '') zeilen.push(`-${a}`);
-    if (n !== undefined && n !== '') zeilen.push(`+${n}`);
+    if (a !== undefined) zeilen.push(`-${a}`);
+    if (n !== undefined) zeilen.push(`+${n}`);
   }
   return zeilen;
+}
+
+/**
+ * Der Diff-Block einer Datei, oder `null`, wenn sich nichts geändert hat.
+ *
+ * Angelehnt an echtes Git: Beim Anlegen und Löschen steht die Art der
+ * Änderung als eigene Zeile da. Das ist nicht nur Zierrat — bei einer LEEREN
+ * Datei gibt es keine Inhaltszeile, und ohne diese Kopfzeile wäre die
+ * Löschung schlicht unsichtbar. Echtes Git schreibt dort
+ * `deleted file mode 100644` und sonst nichts.
+ */
+function diffBlock(pfad: string, vorher: DateiFassung, nachher: DateiFassung): string | null {
+  if (!vorher.vorhanden && !nachher.vorhanden) return null;
+  if (vorher.vorhanden && nachher.vorhanden && vorher.inhalt === nachher.inhalt) return null;
+
+  const kopf: string[] = [];
+  if (!nachher.vorhanden) {
+    kopf.push(`--- a/${pfad}`, '+++ /dev/null', 'gelöschte Datei');
+  } else if (!vorher.vorhanden) {
+    kopf.push('--- /dev/null', `+++ b/${pfad}`, 'neue Datei');
+  } else {
+    kopf.push(`--- a/${pfad}`, `+++ b/${pfad}`);
+  }
+
+  return [...kopf, ...zeilenDiff(vorher, nachher)].join('\n');
 }
 
 /**
@@ -380,9 +434,9 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
         // nichts zeigt: Der Pfad fehlt im Index, die neue Datei ist
         // unversioniert (Code-Review vor dem Merge von PR #30).
         if (!gestagt && datei.index === undefined) continue;
-        const zeilen = zeilenDiff(vorher, nachher);
-        if (zeilen.length === 0) continue;
-        bloecke.push([`--- a/${datei.pfad}`, `+++ b/${datei.pfad}`, ...zeilen].join('\n'));
+        const block = diffBlock(datei.pfad, fassung(vorher), fassung(nachher));
+        if (block === null) continue;
+        bloecke.push(block);
       }
       return KEINE_AENDERUNG(
         zustand,
