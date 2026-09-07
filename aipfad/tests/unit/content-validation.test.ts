@@ -4,13 +4,17 @@ import {
   conceptSchema,
   labSchema,
   validateCourseGraph,
+  validateCommandReference,
   type ConceptContent,
   type ConceptDraft,
 } from '@/domain/content/schema';
 import { course } from '@/content/course';
 import { concepts as conceptDrafts } from '@/content/concepts';
 import { labs as labDrafts } from '@/content/labs';
+import { SETUP_SECTIONS } from '@/content/setup-commands';
 import { exercisePayloadSchema } from '@/domain/content/exercise-payload';
+import { mergeConflictConfigSchema } from '@/domain/labs/merge-conflict-config';
+import { branchConfigSchema } from '@/domain/labs/branch-config';
 import { toPublicPayload } from '@/domain/grading/grade';
 import { UMGESETZTE_BEFEHLE } from '@/domain/labs/terminal';
 import { z } from 'zod';
@@ -99,11 +103,18 @@ describe('AIPfad content (Stage 0/1/4/5)', () => {
     }
   });
 
-  it('has a real, non-placeholder concept graph with all four modules represented', () => {
+  it('has a real, non-placeholder concept graph with every module represented', () => {
     const { parsedCourse } = parseAll();
-    expect(parsedCourse.modules).toHaveLength(4);
+    // Bewusst eine Untergrenze statt einer festen Zahl: Der Kurs wächst je
+    // Ausbaustufe, und ein Test, der bei jedem neuen Modul rot wird, prüft
+    // nur noch sich selbst.
+    expect(parsedCourse.modules.length).toBeGreaterThanOrEqual(4);
     const totalLessons = parsedCourse.modules.reduce((sum, m) => sum + m.lessons.length, 0);
     expect(totalLessons).toBeGreaterThanOrEqual(10);
+    // Jedes Modul trägt mindestens eine Lektion.
+    for (const modul of parsedCourse.modules) {
+      expect(modul.lessons.length).toBeGreaterThan(0);
+    }
   });
 
   it('placement-relevant concept slugs referenced in content actually exist', () => {
@@ -186,4 +197,690 @@ describe('Terminal-Labs bewerben nur umgesetzte Befehle', () => {
       expect(fehlend).toEqual([]);
     },
   );
+});
+
+/**
+ * Erweiterte Inhaltsprüfungen der Ausbaustufe 2.
+ *
+ * Die Befehlsreferenz ist Lernmaterial wie jedes andere: Ein Befehl, der
+ * Arbeit vernichten kann, muss auch sagen, welche. Und ein Befehl, der im
+ * Lernstoff genannt wird, muss nachschlagbar sein.
+ */
+describe('Befehlsreferenz', () => {
+  const alleBefehle = SETUP_SECTIONS.flatMap((s) => s.commands);
+
+  it('ist in sich stimmig', () => {
+    const result = validateCommandReference(alleBefehle);
+    expect(result.issues.filter((i) => i.severity === 'error')).toEqual([]);
+  });
+
+  it('erklärt bei jedem destruktiven Befehl, was verloren gehen kann', () => {
+    const destruktiv = alleBefehle.filter((b) => b.safety.gefahr === 'destruktiv');
+    expect(destruktiv.length).toBeGreaterThan(0);
+    for (const befehl of destruktiv) {
+      expect(befehl.whatHappens.length).toBeGreaterThanOrEqual(60);
+    }
+  });
+
+  it('meldet einen destruktiven Befehl ohne Erklärung', () => {
+    const result = validateCommandReference([
+      {
+        command: 'git reset --hard',
+        whatHappens: 'Setzt zurück.',
+        safety: { gefahr: 'destruktiv', reversibel: false, wirkung: ['verlauf'] },
+      },
+    ]);
+    expect(result.ok).toBe(false);
+    expect(result.issues[0]?.message).toContain('ohne ausreichende Erklärung');
+  });
+
+  it('meldet einen widersprüchlichen Wirkbereich', () => {
+    const result = validateCommandReference([
+      {
+        command: 'git status',
+        whatHappens: 'Liest nur.',
+        safety: { gefahr: 'harmlos', reversibel: true, wirkung: ['nur-lesend', 'verlauf'] },
+      },
+    ]);
+    expect(result.ok).toBe(false);
+    expect(result.issues[0]?.message).toContain('widerspricht sich');
+  });
+
+  it('deckt die Git- und GitHub-Befehle des Lernstoffs ab', () => {
+    const namen = new Set(alleBefehle.map((b) => b.command.split(/\s+/).slice(0, 2).join(' ')));
+    for (const erwartet of [
+      'git init',
+      'git status',
+      'git add',
+      'git commit',
+      'git diff',
+      'git log',
+      'git branch',
+      'git switch',
+      'git merge',
+      'git remote',
+      'git fetch',
+      'git pull',
+      'git push',
+      'git restore',
+      'git revert',
+      'git reset',
+      'git reflog',
+      'gh auth',
+      'gh pr',
+      'gh issue',
+      'gh run',
+    ]) {
+      expect(namen).toContain(erwartet);
+    }
+  });
+});
+
+describe('Lernstoff nennt nur nachschlagbare Befehle', () => {
+  it('meldet keinen Git-Befehl ohne Referenzeintrag', () => {
+    const result = validateCourseGraph({
+      course: courseSchema.parse(course),
+      concepts: conceptDrafts.map((c) => conceptSchema.parse(c)),
+      labs: labDrafts.map((l) => labSchema.parse(l)),
+      referenzBefehle: SETUP_SECTIONS.flatMap((s) => s.commands).map((b) => b.command),
+    });
+    const fehlend = result.issues.filter((i) => i.message.includes('Befehlsreferenz'));
+    expect(fehlend).toEqual([]);
+  });
+
+  it('erkennt einen im Text genannten, nicht nachschlagbaren Befehl', () => {
+    const parsed = courseSchema.parse(course);
+    const ersteLektion = parsed.modules[0]?.lessons[0];
+    expect(ersteLektion).toBeDefined();
+    const manipuliert = {
+      ...parsed,
+      modules: [
+        {
+          ...parsed.modules[0]!,
+          lessons: [
+            { ...ersteLektion!, mentalModel: `${ersteLektion!.mentalModel} Nutze git flurfunk.` },
+            ...parsed.modules[0]!.lessons.slice(1),
+          ],
+        },
+        ...parsed.modules.slice(1),
+      ],
+    };
+    const result = validateCourseGraph({
+      course: manipuliert,
+      concepts: conceptDrafts.map((c) => conceptSchema.parse(c)),
+      labs: labDrafts.map((l) => labSchema.parse(l)),
+      referenzBefehle: SETUP_SECTIONS.flatMap((s) => s.commands).map((b) => b.command),
+    });
+    expect(result.issues.some((i) => i.message.includes('git flurfunk'))).toBe(true);
+  });
+});
+
+describe('Labs sind im Wissensgraphen verankert', () => {
+  it('verknüpft jedes Lab mit mindestens einem Konzept', () => {
+    for (const lab of labDrafts.map((l) => labSchema.parse(l))) {
+      expect(lab.relatedConceptSlugs.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+/**
+ * Keine Aufgabe im gesamten Kurs liefert Lösungsdaten an den Browser.
+ *
+ * Bewusst über den ECHTEN Inhalt statt über Beispiele, und bewusst über alle
+ * Interaktionsformen statt je eine Stichprobe: `PublicExercise.payload` ist
+ * `unknown` und wird im Browser wieder gecastet — der Übersetzer prüft auf
+ * diesem Weg nichts. Diese Prüfung ist die einzige Stelle, an der ein
+ * vergessenes Feld auffällt, bevor es ausgeliefert wird.
+ */
+describe('Keine Lösungsdaten in der öffentlichen Fassung — gesamter Kurs', () => {
+  const alleAufgaben = courseSchema
+    .parse(course)
+    .modules.flatMap((m) => m.lessons)
+    .flatMap((l) => l.exercises);
+
+  /** Feldnamen, die ausschließlich der Bewertung dienen. */
+  const VERRAETERISCHE_FELDER = [
+    'correctOptionId',
+    'correctOptionIds',
+    'correctOrder',
+    'correctCategoryId',
+    'korrekt',
+    'accepted',
+    'wrongHint',
+    'quality',
+    'expectedCommands',
+    'feedback',
+    'solutionNotes',
+  ];
+
+  it('prüft eine aussagekräftige Zahl an Aufgaben', () => {
+    expect(alleAufgaben.length).toBeGreaterThanOrEqual(40);
+  });
+
+  it.each(alleAufgaben.map((a) => [a.slug, a] as const))(
+    '%s: öffentliche Fassung enthält kein Bewertungsfeld',
+    (_slug, aufgabe) => {
+      const oeffentlich = JSON.stringify(toPublicPayload(aufgabe.payload));
+      for (const feld of VERRAETERISCHE_FELDER) {
+        expect(oeffentlich).not.toContain(feld);
+      }
+    },
+  );
+
+  it('deckt jede eingesetzte Interaktionsform ab', () => {
+    const formen = new Set(alleAufgaben.map((a) => a.payload.kind));
+    // Die drei neuen Formen dieser Ausbaustufe sind tatsächlich im Einsatz.
+    expect(formen).toContain('interpretation');
+    expect(formen).toContain('classification');
+    expect(formen).toContain('conflictResolution');
+    // Und jede Form kommt durch toPublicPayload, ohne zu werfen.
+    for (const aufgabe of alleAufgaben) {
+      expect(toPublicPayload(aufgabe.payload)).toBeDefined();
+    }
+  });
+});
+
+/**
+ * Beziehungen INNERHALB eines Payloads: Eine Kennung, die auf nichts zeigt,
+ * macht die Aufgabe unlösbar — und im Fall des Konflikts sogar automatisch
+ * bestanden. Die Prüfung sitzt im kanonischen Payload-Schema, damit sie für
+ * jeden Weg gilt, der Inhalte einliest (Codex-Review auf PR #30).
+ */
+describe('Kennungen im Payload zeigen auf etwas', () => {
+  const interpretation = (correctOptionId: string) => ({
+    kind: 'interpretation' as const,
+    ansicht: {
+      art: 'gitStatus' as const,
+      eintraege: [{ pfad: 'preise.md', status: 'staged' as const }],
+    },
+    frage: 'Was sagt dieser Status über die Datei aus?',
+    options: [
+      { id: 'a', text: 'Vorgemerkt', feedback: 'Richtig — sie steht im Index.' },
+      { id: 'b', text: 'Nur geändert', feedback: 'Dann stünde sie nicht im Index.' },
+    ],
+    correctOptionId,
+  });
+
+  it('nimmt eine interpretation mit gültiger Kennung an', () => {
+    expect(exercisePayloadSchema.safeParse(interpretation('a')).success).toBe(true);
+  });
+
+  it('lehnt eine interpretation mit unbekannter correctOptionId ab', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(interpretation('gibt-es-nicht'));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('zeigt auf keine Option');
+  });
+
+  const classification = (correctCategoryId: string) => ({
+    kind: 'classification' as const,
+    instruction: 'Ordne jede Datei ihrem Zustand zu.',
+    categories: [
+      { id: 'k1', label: 'Vorgemerkt' },
+      { id: 'k2', label: 'Unversioniert' },
+    ],
+    items: [
+      { id: 'i1', text: 'preise.md', correctCategoryId: 'k1', feedback: 'Steht im Index.' },
+      { id: 'i2', text: 'notiz.txt', correctCategoryId, feedback: 'Git kennt sie nicht.' },
+    ],
+  });
+
+  it('nimmt eine classification mit gültiger Kennung an', () => {
+    expect(exercisePayloadSchema.safeParse(classification('k2')).success).toBe(true);
+  });
+
+  it('lehnt eine classification mit unbekannter correctCategoryId ab', () => {
+    // Dieselbe übersehene Beziehung wie bei interpretation, eine Ebene tiefer.
+    const ergebnis = exercisePayloadSchema.safeParse(classification('gibt-es-nicht'));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('zeigt auf keine Kategorie');
+  });
+});
+
+describe('Konfliktaufgaben enthalten einen Konflikt', () => {
+  const gemeinsam = (zeile: string) => ({ art: 'gemeinsam' as const, zeilen: [zeile] });
+  const konflikt = (id: string) => ({
+    art: 'konflikt' as const,
+    id,
+    unsere: ['Preis: 10'],
+    ihre: ['Preis: 12'],
+    korrekt: 'ihre' as const,
+    feedback: 'Der neuere Preis gilt.',
+  });
+  const payload = (abschnitte: unknown[]) => ({
+    kind: 'conflictResolution' as const,
+    pfad: 'preise.md',
+    unserLabel: 'HEAD',
+    ihrLabel: 'feature/preise',
+    abschnitte,
+  });
+
+  it('nimmt eine Aufgabe mit echter Konfliktstelle an', () => {
+    expect(
+      exercisePayloadSchema.safeParse(payload([gemeinsam('Titel'), konflikt('k1')])).success,
+    ).toBe(true);
+  });
+
+  it('lehnt eine Aufgabe ohne jede Konfliktstelle ab', () => {
+    // Ohne diese Regel gab die Maske die Abgabe sofort frei und die Bewertung
+    // zählte null von null als vollständig richtig: bestanden, volle Punkte.
+    const ergebnis = exercisePayloadSchema.safeParse(
+      payload([gemeinsam('Titel'), gemeinsam('Fuß')]),
+    );
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Kein Abschnitt mit art');
+  });
+
+  it('lehnt doppelte Konflikt-Kennungen ab', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(payload([konflikt('k1'), konflikt('k1')]));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Doppelte Konflikt-Kennung');
+  });
+});
+
+/**
+ * Kennungen, die Masken und Bewertung als Schlüssel benutzen, müssen
+ * eindeutig sein — sonst teilen sich zwei Elemente eine Auswahl und die
+ * Aufgabe ist nicht zu bestehen (Codex-Review auf PR #30).
+ */
+describe('Eindeutige Kennungen im Payload', () => {
+  const mitElementIds = (idA: string, idB: string) => ({
+    kind: 'classification' as const,
+    instruction: 'Ordne jede Datei ihrem Zustand zu.',
+    categories: [
+      { id: 'k1', label: 'Vorgemerkt' },
+      { id: 'k2', label: 'Unversioniert' },
+    ],
+    items: [
+      { id: idA, text: 'preise.md', correctCategoryId: 'k1', feedback: 'Steht im Index.' },
+      { id: idB, text: 'notiz.txt', correctCategoryId: 'k2', feedback: 'Git kennt sie nicht.' },
+    ],
+  });
+
+  it('nimmt unterschiedliche Element-Kennungen an', () => {
+    expect(exercisePayloadSchema.safeParse(mitElementIds('i1', 'i2')).success).toBe(true);
+  });
+
+  it('lehnt doppelte Element-Kennungen ab', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(mitElementIds('i1', 'i1'));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Doppelte Element-Kennung');
+  });
+
+  it('lehnt doppelte Kategorie-Kennungen ab', () => {
+    const ergebnis = exercisePayloadSchema.safeParse({
+      ...mitElementIds('i1', 'i2'),
+      categories: [
+        { id: 'k1', label: 'Vorgemerkt' },
+        { id: 'k1', label: 'Unversioniert' },
+      ],
+    });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Doppelte Kategorie-Kennung');
+  });
+});
+
+describe('Commit-Graph einer Aufgabe ist kreisfrei', () => {
+  const mitEltern = (elternA: string[], elternB: string[]) => ({
+    kind: 'interpretation' as const,
+    ansicht: {
+      art: 'branchGraph' as const,
+      commits: [
+        { id: 'c01', nachricht: 'Erster', eltern: elternA },
+        { id: 'c02', nachricht: 'Zweiter', eltern: elternB },
+      ],
+      branches: { main: 'c02' },
+      aktuellerBranch: 'main',
+    },
+    frage: 'Welcher Commit ist der jüngere in dieser Vorgeschichte?',
+    options: [
+      { id: 'a', text: 'c02', feedback: 'Richtig — er hat c01 als Elternteil.' },
+      { id: 'b', text: 'c01', feedback: 'c01 ist der ältere.' },
+    ],
+    correctOptionId: 'a',
+  });
+
+  it('nimmt eine gesunde Vorgeschichte an', () => {
+    expect(exercisePayloadSchema.safeParse(mitEltern([], ['c01'])).success).toBe(true);
+  });
+
+  it('lehnt einen selbst-elterlichen Commit ab', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(mitEltern(['c01'], ['c01']));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Zyklische Vorgeschichte');
+  });
+
+  it('lehnt zwei einander bedingende Commits ab', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(mitEltern(['c02'], ['c01']));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Zyklische Vorgeschichte');
+  });
+
+  it('lehnt einen Elternteil ab, den es nicht gibt', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(mitEltern([], ['gibt-es-nicht']));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('ist kein Commit dieser Ansicht');
+  });
+});
+
+describe('Branchzeiger im Commit-Graphen zeigen auf etwas', () => {
+  const graph = (branches: Record<string, string>, aktuellerBranch: string) => ({
+    kind: 'interpretation' as const,
+    ansicht: {
+      art: 'branchGraph' as const,
+      commits: [
+        { id: 'c01', nachricht: 'Erster', eltern: [] },
+        { id: 'c02', nachricht: 'Zweiter', eltern: ['c01'] },
+      ],
+      branches,
+      aktuellerBranch,
+    },
+    frage: 'Welcher Commit ist der jüngere in dieser Vorgeschichte?',
+    options: [
+      { id: 'a', text: 'c02', feedback: 'Richtig — er hat c01 als Elternteil.' },
+      { id: 'b', text: 'c01', feedback: 'c01 ist der ältere.' },
+    ],
+    correctOptionId: 'a',
+  });
+
+  it('nimmt einen stimmigen Graphen an', () => {
+    expect(exercisePayloadSchema.safeParse(graph({ main: 'c02' }, 'main')).success).toBe(true);
+  });
+
+  it('lehnt einen Branch ab, der auf keinen Commit zeigt', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(graph({ main: 'missing' }, 'main'));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('kein Commit dieser Ansicht');
+  });
+
+  it('lehnt einen aktuellen Branch ab, den es nicht gibt', () => {
+    const ergebnis = exercisePayloadSchema.safeParse(graph({ main: 'c02' }, 'feature'));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('steht nicht in branches');
+  });
+
+  it('lässt sich dabei nicht von einer geerbten Eigenschaft täuschen', () => {
+    // `aktuellerBranch: 'toString'` fand zuvor die geerbte Funktion und galt
+    // damit als vorhanden.
+    const ohne = exercisePayloadSchema.safeParse(graph({ main: 'c02' }, 'toString'));
+    expect(ohne.success).toBe(false);
+    expect(JSON.stringify(ohne.error?.issues)).toContain('steht nicht in branches');
+
+    // Als echter eigener Schlüssel ist derselbe Name in Ordnung.
+    const mit = exercisePayloadSchema.safeParse(graph({ toString: 'c02' }, 'toString'));
+    expect(mit.success).toBe(true);
+  });
+});
+
+describe('Konfiguration des Merge-Konflikt-Labs', () => {
+  const config = (abschnitte: unknown[]) => ({
+    pfad: 'preise.md',
+    unserBranch: 'main',
+    ihrBranch: 'feature/preise',
+    hintergrund: 'Beide Seiten haben dieselbe Datei berührt.',
+    abschnitte,
+  });
+  const konflikt = (id: string) => ({
+    art: 'konflikt' as const,
+    id,
+    unsere: ['Basis: 9 Euro'],
+    ihre: ['Basis: 12 Euro'],
+  });
+
+  it('nimmt zwei unterschiedliche Konfliktstellen an', () => {
+    const ergebnis = mergeConflictConfigSchema.safeParse(
+      config([{ art: 'gemeinsam', zeilen: ['# Preise'] }, konflikt('k1'), konflikt('k2')]),
+    );
+    expect(ergebnis.success).toBe(true);
+  });
+
+  it('lehnt doppelte Konflikt-Kennungen ab', () => {
+    // Eine Entscheidung räumte sonst beide Stellen ab: `git add` und
+    // `git commit` wurden frei, obwohl die zweite nie bedacht wurde.
+    const ergebnis = mergeConflictConfigSchema.safeParse(config([konflikt('k1'), konflikt('k1')]));
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Doppelte Konflikt-Kennung');
+  });
+
+  it('lehnt eine Konfiguration ohne jede Konfliktstelle ab', () => {
+    const ergebnis = mergeConflictConfigSchema.safeParse(
+      config([{ art: 'gemeinsam', zeilen: ['# Preise'] }]),
+    );
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Kein Abschnitt mit art');
+  });
+
+  it('gilt für die echte Konfiguration des Labs', () => {
+    const lab = labDrafts.map((l) => labSchema.parse(l)).find((l) => l.kind === 'MERGE_CONFLICT');
+    expect(lab).toBeDefined();
+    expect(mergeConflictConfigSchema.safeParse(lab?.config).success).toBe(true);
+  });
+
+  it('wird von validateCourseGraph mitgeprüft, nicht nur von der Maske', () => {
+    const labs = labDrafts.map((l) => labSchema.parse(l));
+    const kaputt = labs.map((l) =>
+      l.kind === 'MERGE_CONFLICT'
+        ? {
+            ...l,
+            config: config([konflikt('k1'), konflikt('k1')]) as unknown as typeof l.config,
+          }
+        : l,
+    );
+    const ergebnis = validateCourseGraph({
+      course: courseSchema.parse(course),
+      concepts: conceptDrafts.map((c) => conceptSchema.parse(c)),
+      labs: kaputt,
+    });
+
+    expect(
+      ergebnis.issues.some(
+        (i) => i.severity === 'error' && i.message.includes('Doppelte Konflikt-Kennung'),
+      ),
+    ).toBe(true);
+  });
+});
+
+/**
+ * Ein Branchname in einer Lab-Konfiguration ist derselbe Begriff wie im
+ * Simulator. Vorher war er hier nur "irgendein Text", und
+ * `ihrBranch: 'feature prices'` erzeugte im Neustartknopf zwei Merge-Köpfe
+ * — das Lab wies den Befehl seiner eigenen Maske zurück
+ * (Codex-Review auf PR #30).
+ */
+describe('Branchnamen im Merge-Lab folgen dem Git-Vertrag', () => {
+  const mitBranch = (feld: 'ihrBranch' | 'unserBranch', name: string) =>
+    mergeConflictConfigSchema.safeParse({
+      pfad: 'preise.md',
+      unserBranch: 'main',
+      ihrBranch: 'feature/preise',
+      hintergrund: 'Beide Seiten haben dieselbe Datei berührt.',
+      abschnitte: [{ art: 'konflikt', id: 'k1', unsere: ['a'], ihre: ['b'] }],
+      [feld]: name,
+    });
+
+  const UNGUELTIG = ['feature prices', 'HEAD', '-topic', 'feature/.preise', 'a..b', 'stern*'];
+  const GUELTIG = ['feature/-topic', '@', 'head', 'Head', 'HEADS', 'feature/HEAD', 'HEAD/x'];
+
+  it('lehnt ungültige Namen bei ihrBranch ab', () => {
+    for (const name of UNGUELTIG) {
+      const ergebnis = mitBranch('ihrBranch', name);
+      expect(ergebnis.success, name).toBe(false);
+      expect(JSON.stringify(ergebnis.error?.issues), name).toContain('not a valid branch name');
+    }
+  });
+
+  it('lehnt ungültige Namen auch bei unserBranch ab', () => {
+    // Derselbe Begriff, dieselbe Prüfung — beide Felder benennen Branches.
+    for (const name of UNGUELTIG) {
+      expect(mitBranch('unserBranch', name).success, name).toBe(false);
+    }
+  });
+
+  it('nimmt die gültigen Sonderfälle weiterhin an', () => {
+    // Genau die Fälle, die gegen echtes Git 2.52 nachgestellt wurden. Der
+    // Vertrag darf hier nicht enger werden als im Simulator.
+    for (const name of GUELTIG) {
+      expect(mitBranch('ihrBranch', name).success, name).toBe(true);
+      expect(mitBranch('unserBranch', name).success, name).toBe(true);
+    }
+  });
+
+  it('meldet einen ungültigen Branchnamen über validateCourseGraph', () => {
+    const labs = labDrafts.map((l) => labSchema.parse(l));
+    const kaputt = labs.map((l) =>
+      l.kind === 'MERGE_CONFLICT'
+        ? {
+            ...l,
+            config: { ...(l.config as Record<string, unknown>), ihrBranch: 'feature prices' },
+          }
+        : l,
+    );
+    const ergebnis = validateCourseGraph({
+      course: courseSchema.parse(course),
+      concepts: conceptDrafts.map((c) => conceptSchema.parse(c)),
+      labs: kaputt,
+    });
+
+    expect(
+      ergebnis.issues.some(
+        (i) => i.severity === 'error' && i.message.includes('not a valid branch name'),
+      ),
+    ).toBe(true);
+  });
+});
+
+/**
+ * Die Konfiguration des Branch-Labs stand nur in der Maske und akzeptierte
+ * jeden Text. `aktuellerBranch: 'toString'` ohne eigenen Branch dieses
+ * Namens ließ die Oberfläche "Du bist auf toString" schreiben, während
+ * jeder Befehl daneben "Kein aktueller Branch." antwortete
+ * (Codex-Review auf PR #30).
+ */
+describe('Konfiguration des Branch-Labs', () => {
+  const basis = {
+    commits: [
+      { id: 'c01', nachricht: 'Erster', eltern: [] },
+      { id: 'c02', nachricht: 'Zweiter', eltern: ['c01'] },
+    ],
+    branches: { main: 'c02' },
+    aktuellerBranch: 'main',
+    vorschlaege: [],
+  };
+
+  it('nimmt eine gewöhnliche Konfiguration an', () => {
+    expect(branchConfigSchema.safeParse(basis).success).toBe(true);
+  });
+
+  it('lehnt einen aktuellen Branch ab, den es nicht gibt', () => {
+    const ergebnis = branchConfigSchema.safeParse({ ...basis, aktuellerBranch: 'feature' });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('steht nicht in branches');
+  });
+
+  it('lässt sich von einer geerbten Eigenschaft nicht täuschen', () => {
+    const ergebnis = branchConfigSchema.safeParse({ ...basis, aktuellerBranch: 'toString' });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('steht nicht in branches');
+  });
+
+  it('nimmt einen wirklich angelegten Branch namens toString an', () => {
+    const ergebnis = branchConfigSchema.safeParse({
+      ...basis,
+      branches: { toString: 'c02' },
+      aktuellerBranch: 'toString',
+    });
+
+    expect(ergebnis.success).toBe(true);
+  });
+
+  it('lehnt einen Branchzeiger auf einen unbekannten Commit ab', () => {
+    const ergebnis = branchConfigSchema.safeParse({
+      ...basis,
+      branches: { main: 'gibt-es-nicht' },
+    });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('kein Commit dieser Ansicht');
+  });
+
+  it('lehnt einen zyklischen Commit-Graphen ab', () => {
+    const ergebnis = branchConfigSchema.safeParse({
+      ...basis,
+      commits: [
+        { id: 'c01', nachricht: 'Erster', eltern: ['c02'] },
+        { id: 'c02', nachricht: 'Zweiter', eltern: ['c01'] },
+      ],
+    });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Zyklische Vorgeschichte');
+  });
+
+  it('lehnt doppelte Commit-Kennungen ab', () => {
+    const ergebnis = branchConfigSchema.safeParse({
+      ...basis,
+      commits: [
+        { id: 'c01', nachricht: 'Erster', eltern: [] },
+        { id: 'c01', nachricht: 'Nochmal', eltern: [] },
+      ],
+      branches: { main: 'c01' },
+    });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Doppelte Commit-Kennung');
+  });
+
+  it('lehnt einen ungültigen Branchnamen ab', () => {
+    const ergebnis = branchConfigSchema.safeParse({
+      ...basis,
+      branches: { HEAD: 'c02' },
+      aktuellerBranch: 'HEAD',
+    });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('not a valid branch name');
+  });
+
+  it('gilt für die echte Konfiguration des Labs', () => {
+    const lab = labDrafts.map((l) => labSchema.parse(l)).find((l) => l.kind === 'BRANCH');
+    expect(lab).toBeDefined();
+    expect(branchConfigSchema.safeParse(lab?.config).success).toBe(true);
+  });
+
+  it('wird von validateCourseGraph mitgeprüft', () => {
+    const labs = labDrafts.map((l) => labSchema.parse(l));
+    const kaputt = labs.map((l) =>
+      l.kind === 'BRANCH'
+        ? {
+            ...l,
+            config: { ...(l.config as Record<string, unknown>), aktuellerBranch: 'toString' },
+          }
+        : l,
+    );
+    const ergebnis = validateCourseGraph({
+      course: courseSchema.parse(course),
+      concepts: conceptDrafts.map((c) => conceptSchema.parse(c)),
+      labs: kaputt,
+    });
+
+    expect(
+      ergebnis.issues.some(
+        (i) => i.severity === 'error' && i.message.includes('steht nicht in branches'),
+      ),
+    ).toBe(true);
+  });
 });
