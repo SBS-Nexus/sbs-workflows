@@ -249,24 +249,48 @@ export function operandenNichtUmgesetzt(befehl: string, operanden: readonly stri
  * Zeichen durchzugehen.
  */
 export function passtAufMuster(name: string, muster: string): boolean {
-  // Aufeinanderfolgende Sterne zuerst zusammenfassen. Jeder Stern wurde zu
-  // einem eigenen `[^]*`, und mehrere davon nebeneinander lassen einen
-  // regulären Ausdruck bei einem Fehlschlag exponentiell zurücksetzen:
-  // `git branch -l **********x` beschäftigte den Browser bei einem längeren
-  // Branchnamen fast zehn Sekunden, mit ein paar Sternen mehr unbegrenzt —
-  // die Konsole des Branch-Labs rechnet im Vordergrund, der Reiter war nicht
-  // mehr zu bedienen. `**` bedeutet ohnehin dasselbe wie `*`
-  // (Code-Review vor dem Merge von PR #30).
-  const regex = muster
-    .replace(/\*+/g, '*')
-    .split('')
-    .map((zeichen) => {
-      if (zeichen === '*') return '[^]*';
-      if (zeichen === '?') return '[^]';
-      return zeichen.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    })
-    .join('');
-  return new RegExp(`^${regex}$`).test(name);
+  // Ohne regulären Ausdruck, und das ist der Punkt.
+  //
+  // Zuvor wurde jeder Stern zu einem eigenen `[^]*`. Mehrere unbegrenzte
+  // Quantoren in einem Ausdruck lassen die Suche bei einem Fehlschlag
+  // exponentiell zurücksetzen: `*?*?*?…x` beschäftigte den Browser bei einem
+  // längeren Branchnamen mit zehn Paaren viereinhalb Sekunden, mit ein paar
+  // mehr beliebig lange. Die Konsole des Branch-Labs rechnet im Vordergrund
+  // — der Reiter war nach einem Vertipper nicht mehr zu bedienen.
+  //
+  // Aufeinanderfolgende Sterne zusammenzufassen behob nur den engsten Fall;
+  // die Ursache sind die vielen Quantoren selbst. Dieses Verfahren geht
+  // stattdessen einmal durch beide Zeichenketten und merkt sich die letzte
+  // Sternstelle, um dort fortzusetzen — im schlimmsten Fall Name mal Muster,
+  // nie mehr (Code-Review vor dem Merge von PR #30).
+  let iName = 0;
+  let iMuster = 0;
+  let letzterStern = -1;
+  let standBeimStern = 0;
+
+  while (iName < name.length) {
+    const zeichen = muster[iMuster];
+    if (iMuster < muster.length && (zeichen === '?' || zeichen === name[iName])) {
+      iName += 1;
+      iMuster += 1;
+    } else if (iMuster < muster.length && zeichen === '*') {
+      // Den Stern zunächst leer lassen und die Stelle merken.
+      letzterStern = iMuster;
+      standBeimStern = iName;
+      iMuster += 1;
+    } else if (letzterStern !== -1) {
+      // Nicht aufgegangen: Der letzte Stern verschluckt ein Zeichen mehr.
+      iMuster = letzterStern + 1;
+      standBeimStern += 1;
+      iName = standBeimStern;
+    } else {
+      return false;
+    }
+  }
+
+  // Übrig dürfen nur noch Sterne sein — sie stehen für nichts.
+  while (iMuster < muster.length && muster[iMuster] === '*') iMuster += 1;
+  return iMuster === muster.length;
 }
 
 /** Ob ein Muster Bestandteile enthält, die dieser Simulator nicht kennt. */

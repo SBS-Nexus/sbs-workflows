@@ -1027,8 +1027,17 @@ describe('Branchmuster bleiben berechenbar', () => {
     // Die Konsole des Branch-Labs rechnet im Vordergrund — der Reiter war
     // bei einem Vertipper nicht mehr zu bedienen
     // (Code-Review vor dem Merge von PR #30).
+    const name = 'feature/anmeldung-mit-langem-namen';
     const beginn = Date.now();
-    expect(passtAufMuster('feature/anmeldung-mit-langem-namen', '*'.repeat(20) + 'x')).toBe(false);
+
+    // Reine Sterne — der Fall, den das Zusammenfassen allein schon abfing.
+    expect(passtAufMuster(name, '*'.repeat(20) + 'x')).toBe(false);
+    // Und der Fall, den es NICHT abfing: abwechselnd Stern und Fragezeichen.
+    // Hier half kein Zusammenfassen, weil die Sterne nicht nebeneinander
+    // stehen — die Ursache waren die vielen Quantoren selbst.
+    expect(passtAufMuster(name, '*?'.repeat(40) + 'x')).toBe(false);
+    expect(passtAufMuster(name, '***?'.repeat(20) + 'x')).toBe(false);
+
     expect(Date.now() - beginn).toBeLessThan(1000);
   });
 
@@ -1038,6 +1047,13 @@ describe('Branchmuster bleiben berechenbar', () => {
     expect(passtAufMuster('feature', '*ture')).toBe(true);
     expect(passtAufMuster('feature', 'fea*')).toBe(true);
     expect(passtAufMuster('feature', 'xyz*')).toBe(false);
+    expect(passtAufMuster('feature', '*eat*')).toBe(true);
+    expect(passtAufMuster('feature', '*a*u*e')).toBe(true);
+    expect(passtAufMuster('feature', '*u*a*')).toBe(false);
+    expect(passtAufMuster('feature', 'featur?')).toBe(true);
+    expect(passtAufMuster('feature', 'feature?')).toBe(false);
+    expect(passtAufMuster('', '*')).toBe(true);
+    expect(passtAufMuster('feature/x', 'feature/*')).toBe(true);
   });
 });
 
