@@ -557,9 +557,31 @@ describe('Diff unterscheidet abwesend von leer', () => {
       index: 'a\nb\n',
       arbeitsbaum: 'a\n\nb\n',
     });
-    // Die eingefügte Leerzeile ist sichtbar — sie zu überspringen ließ die
-    // Änderung spurlos verschwinden.
-    expect(inhaltszeilen(ausgabe)).toContain('+');
+
+    // Genau das, was echtes Git zeigt: `b` bleibt Kontext, nur die Leerzeile
+    // kommt hinzu. Ein stellenweiser Vergleich meldete `b` als entfernt UND
+    // hinzugefügt (Codex-Review auf PR #30).
+    expect(ausgabe.split('\n').slice(2)).toEqual([' a', '+', ' b']);
+  });
+
+  it('behält unveränderte Zeilen nach einer Einfügung als Kontext', () => {
+    const ausgabe = diff({
+      pfad: 'f.md',
+      head: 'a\nc\n',
+      index: 'a\nc\n',
+      arbeitsbaum: 'a\nb\nc\n',
+    });
+    expect(ausgabe.split('\n').slice(2)).toEqual([' a', '+b', ' c']);
+  });
+
+  it('behält unveränderte Zeilen nach einer Löschung als Kontext', () => {
+    const ausgabe = diff({
+      pfad: 'f.md',
+      head: 'a\nb\nc\n',
+      index: 'a\nb\nc\n',
+      arbeitsbaum: 'a\nc\n',
+    });
+    expect(ausgabe.split('\n').slice(2)).toEqual([' a', '-b', ' c']);
   });
 
   it('lässt gewöhnliche Inhaltsänderungen unverändert', () => {

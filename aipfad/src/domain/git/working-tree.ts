@@ -268,31 +268,65 @@ function gleich(a: Zeile | undefined, b: Zeile | undefined): boolean {
 }
 
 /**
- * Zeilenweiser Vergleich zweier Fassungen.
+ * Zeilenweiser Vergleich zweier Fassungen über die längste gemeinsame
+ * Teilfolge.
  *
- * Leere Zeilen MITTEN im Text werden nicht übersprungen: Eine eingefügte
- * Leerzeile ist eine Änderung. Das frühere Auslassen ließ sie unsichtbar
- * verschwinden.
+ * Ein stellenweiser Vergleich (Zeile 1 gegen Zeile 1, Zeile 2 gegen Zeile 2)
+ * ist kein Diff: Wird irgendwo eine Zeile eingefügt, gilt ab da ALLES als
+ * geändert. `a\nb` -> `a\n\nb` erschien so als "b entfernt, Leerzeile und b
+ * hinzugefügt", während echtes Git die eingefügte Leerzeile zeigt und `b`
+ * als Kontext stehen lässt (Codex-Review auf PR #30).
+ *
+ * Die Tabelle ist quadratisch in der Zeilenzahl. Für Lerninhalte — ein paar
+ * Dutzend Zeilen — ist das ohne Belang.
  */
 function zeilenDiff(vorher: DateiFassung, nachher: DateiFassung): string[] {
   const alt = inZeilen(vorher);
   const neu = inZeilen(nachher);
+  const n = alt.length;
+  const m = neu.length;
+
+  // laenge[i][j] = Länge der längsten gemeinsamen Teilfolge ab alt[i]/neu[j].
+  const laenge: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i -= 1) {
+    for (let j = m - 1; j >= 0; j -= 1) {
+      const naechste = gleich(alt[i], neu[j])
+        ? (laenge[i + 1]?.[j + 1] ?? 0) + 1
+        : Math.max(laenge[i + 1]?.[j] ?? 0, laenge[i]?.[j + 1] ?? 0);
+      const zeile = laenge[i];
+      if (zeile) zeile[j] = naechste;
+    }
+  }
+
   const zeilen: string[] = [];
-  const schreibe = (praefix: string, zeile: Zeile): void => {
+  const schreibe = (praefix: string, zeile: Zeile | undefined): void => {
+    if (!zeile) return;
     zeilen.push(`${praefix}${zeile.text}`);
     if (!zeile.abgeschlossen) zeilen.push(OHNE_ABSCHLUSS);
   };
 
-  const laenge = Math.max(alt.length, neu.length);
-  for (let i = 0; i < laenge; i += 1) {
-    const a = alt[i];
-    const n = neu[i];
-    if (gleich(a, n)) {
-      if (a !== undefined) schreibe(' ', a);
-      continue;
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (gleich(alt[i], neu[j])) {
+      schreibe(' ', alt[i]);
+      i += 1;
+      j += 1;
+    } else if ((laenge[i + 1]?.[j] ?? 0) >= (laenge[i]?.[j + 1] ?? 0)) {
+      schreibe('-', alt[i]);
+      i += 1;
+    } else {
+      schreibe('+', neu[j]);
+      j += 1;
     }
-    if (a !== undefined) schreibe('-', a);
-    if (n !== undefined) schreibe('+', n);
+  }
+  while (i < n) {
+    schreibe('-', alt[i]);
+    i += 1;
+  }
+  while (j < m) {
+    schreibe('+', neu[j]);
+    j += 1;
   }
   return zeilen;
 }
