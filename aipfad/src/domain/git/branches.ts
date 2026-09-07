@@ -99,9 +99,18 @@ export function mergeArt(zustand: BranchZustand, ziel: string, quelle: string): 
   return 'merge-commit';
 }
 
-function naechsteId(commits: Commit[]): string {
-  const nummer = commits.length + 1;
-  return `c${String(nummer).padStart(2, '0')}`;
+function naechsteId(commits: { id: string }[]): string {
+  // Aus den VORHANDENEN Kennungen ableiten, nicht aus der Anzahl. Eine
+  // Konfiguration mit Lücken (c01, c03) ergab sonst beim nächsten Commit
+  // erneut `c03` — mit sich selbst als Elternteil. Der Graph war damit
+  // doppelt vergeben und zyklisch, obwohl die Konfiguration beide Regeln
+  // erfüllte: Geprüft wird der Anfangszustand, erzeugt wird hier
+  // (Code-Review vor dem Merge von PR #30).
+  const zahlen = commits
+    .map((commit) => /^c(\d+)$/.exec(commit.id))
+    .map((treffer) => (treffer ? Number(treffer[1]) : 0));
+  const hoechste = zahlen.length > 0 ? Math.max(...zahlen) : 0;
+  return `c${String(hoechste + 1).padStart(2, '0')}`;
 }
 
 export function fuehreBranchBefehlAus(zustand: BranchZustand, eingabe: string): BranchErgebnis {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { leseSchalter, zerlegeBefehl } from '@/domain/git/schalter';
+import { leseSchalter, passtAufMuster, zerlegeBefehl } from '@/domain/git/schalter';
 import { fuehreGitBefehlAus, status, type GitArbeitsbaumZustand } from '@/domain/git/working-tree';
 import { baueGraph, fuehreBranchBefehlAus, type BranchZustand } from '@/domain/git/branches';
 import { eigenerEintrag } from '@/domain/eintraege';
@@ -1017,5 +1017,47 @@ describe('Zyklischer Commit-Graph reißt die Seite nicht ab', () => {
     const knoten = baueGraph(zustand);
 
     expect(knoten.map((k) => k.spalte)).toEqual([0, 1, 2]);
+  });
+});
+
+describe('Branchmuster bleiben berechenbar', () => {
+  it('beantwortet auch viele Sterne sofort', () => {
+    // Jeder Stern wurde zu einem eigenen `[^]*`; nebeneinander ließen sie
+    // den regulären Ausdruck bei einem Fehlschlag exponentiell zurücksetzen.
+    // Die Konsole des Branch-Labs rechnet im Vordergrund — der Reiter war
+    // bei einem Vertipper nicht mehr zu bedienen
+    // (Code-Review vor dem Merge von PR #30).
+    const beginn = Date.now();
+    expect(passtAufMuster('feature/anmeldung-mit-langem-namen', '*'.repeat(20) + 'x')).toBe(false);
+    expect(Date.now() - beginn).toBeLessThan(1000);
+  });
+
+  it('ändert dabei die Bedeutung nicht', () => {
+    expect(passtAufMuster('feature', '**')).toBe(true);
+    expect(passtAufMuster('feature', 'fea**re')).toBe(true);
+    expect(passtAufMuster('feature', '*ture')).toBe(true);
+    expect(passtAufMuster('feature', 'fea*')).toBe(true);
+    expect(passtAufMuster('feature', 'xyz*')).toBe(false);
+  });
+});
+
+describe('Neue Commit-Kennungen bleiben eindeutig', () => {
+  it('leitet sie aus den vorhandenen ab, nicht aus der Anzahl', () => {
+    // Eine Konfiguration mit Lücke (c01, c03) ergab sonst wieder `c03` —
+    // mit sich selbst als Elternteil.
+    const zustand: BranchZustand = {
+      commits: [
+        { id: 'c01', nachricht: 'Erster', eltern: [] },
+        { id: 'c03', nachricht: 'Zweiter', eltern: ['c01'] },
+      ],
+      branches: { main: 'c03' },
+      aktuellerBranch: 'main',
+    };
+    const ergebnis = fuehreBranchBefehlAus(zustand, 'git commit -m "neu"');
+    const ids = ergebnis.zustand.commits.map((c) => c.id);
+
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids[ids.length - 1]).toBe('c04');
+    expect(ergebnis.zustand.commits.some((c) => c.eltern.includes(c.id))).toBe(false);
   });
 });

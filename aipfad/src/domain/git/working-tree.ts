@@ -69,69 +69,123 @@ export interface StatusEintrag {
    * BEIDEN Abschnitten auf.
    */
   auchUngestagt: boolean;
-  /** Im Arbeitsbaum gelöscht. */
+  /** Im Arbeitsbaum gelöscht — gehört zum Vergleich INDEX -> ARBEITSBAUM. */
   geloescht: boolean;
+  /**
+   * Die Art der vorgemerkten Änderung (HEAD -> INDEX), oder `null`, wenn
+   * nichts vorgemerkt ist. Bewusst getrennt von `geloescht`: Das eine
+   * beschreibt HEAD -> INDEX, das andere INDEX -> ARBEITSBAUM.
+   */
+  vorgemerkt: GestagteArt | null;
 }
 
 function istBekannt(datei: GitDatei): boolean {
   return datei.index !== undefined || datei.head !== undefined;
 }
 
-/** Berechnet den Status einer Datei aus dem Vergleich ihrer drei Fassungen. */
-export function dateiStatus(datei: GitDatei): StatusEintrag {
-  const imIndexGeaendert = datei.index !== datei.head;
+/**
+ * Die Art einer vorgemerkten Änderung — abgeleitet AUSSCHLIESSLICH aus
+ * HEAD -> INDEX.
+ *
+ * Zuvor stand dort ein einziges `geloescht`, das aus der Abwesenheit im
+ * ARBEITSBAUM stammte und trotzdem in der Überschrift für die vorgemerkten
+ * Änderungen benutzt wurde — zwei verschiedene Baumpaare in einem Feld.
+ * Deshalb meldete das Git-State-Lab beim ersten `git add notizen.txt`
+ * "geändert" statt "neue Datei", ausgerechnet in der Lektion, die das Lesen
+ * von `git status` beibringt (Code-Review vor dem Merge von PR #30).
+ */
+export type GestagteArt = 'neu' | 'geaendert' | 'geloescht';
+
+function gestagteArt(datei: GitDatei): GestagteArt | null {
+  if (datei.index === datei.head) return null;
+  if (datei.head === undefined) return 'neu';
+  if (datei.index === undefined) return 'geloescht';
+  return 'geaendert';
+}
+
+/**
+ * Berechnet den Status einer Datei aus dem Vergleich ihrer drei Fassungen.
+ *
+ * Jede Aussage gehört zu genau einem Baumpaar:
+ *
+ *   vorgemerkt    HEAD      -> INDEX
+ *   ungemerkt     INDEX     -> ARBEITSBAUM
+ *   unversioniert weder in HEAD noch im INDEX, aber im ARBEITSBAUM
+ *
+ * `null` heißt: Diese Datei hat in `git status` gar keine Zeile.
+ */
+export function dateiStatus(datei: GitDatei): StatusEintrag | null {
+  const vorgemerkt = gestagteArt(datei);
   // Ungemerkte Änderungen sind der Unterschied zwischen ARBEITSBAUM und
   // INDEX — nicht zwischen Arbeitsbaum und "Index oder ersatzweise HEAD".
-  //
   // `index === undefined` ist eine Aussage: Der Pfad liegt NICHT in der
-  // Staging Area. Bei einer vorgemerkten Löschung ist das gewollt, und
-  // Arbeitsbaum und Index stimmen dann überein (beide: nicht da). Das alte
-  // `index ?? head` verglich stattdessen gegen HEAD und meldete zusätzlich
-  // eine ungemerkte Änderung — die Datei stand in `git status` unter
-  // BEIDEN Überschriften (Code-Review vor dem Merge von PR #30).
+  // Staging Area.
   const imArbeitsbaumGeaendert = datei.arbeitsbaum !== datei.index;
+  const geloescht = datei.arbeitsbaum === undefined;
 
   if (!istBekannt(datei)) {
+    // Unversioniert heißt: im Arbeitsbaum vorhanden, aber weder in HEAD noch
+    // im Index. Fehlt die Datei auch dort, existiert sie nirgends — nach
+    // einer committeten Löschung etwa. Echtes Git meldet dann "nichts zu
+    // committen", nicht eine unversionierte Datei, die es nicht gibt.
+    if (datei.arbeitsbaum === undefined) return null;
     return {
       pfad: datei.pfad,
       status: 'untracked',
       auchUngestagt: false,
       geloescht: false,
+      vorgemerkt: null,
     };
   }
 
-  // Der Pfad liegt nicht in der Staging Area, HEAD kennt ihn aber noch:
-  // die Löschung ist vorgemerkt. Was danach im Arbeitsverzeichnis liegt,
-  // ist unversioniert — der Index kennt den Pfad ja nicht — und deshalb
-  // KEINE zusätzliche ungemerkte Änderung. `status()` hängt dafür eine
-  // eigene Zeile an, so wie echtes Git `D  f.md` und `?? f.md` nebeneinander
-  // zeigt.
-  const vorgemerktGeloescht = datei.index === undefined && datei.head !== undefined;
-  if (vorgemerktGeloescht) {
-    return { pfad: datei.pfad, status: 'staged', auchUngestagt: false, geloescht: true };
+  // Der Pfad liegt nicht in der Staging Area, HEAD kennt ihn aber noch: die
+  // Löschung ist vorgemerkt. Was danach im Arbeitsverzeichnis liegt, ist
+  // unversioniert — der Index kennt den Pfad ja nicht — und deshalb KEINE
+  // zusätzliche ungemerkte Änderung. `status()` hängt dafür eine eigene
+  // Zeile an, so wie echtes Git `D  f.md` und `?? f.md` nebeneinander zeigt.
+  if (datei.index === undefined) {
+    return {
+      pfad: datei.pfad,
+      status: 'staged',
+      auchUngestagt: false,
+      geloescht: true,
+      vorgemerkt,
+    };
   }
 
-  const geloescht = datei.arbeitsbaum === undefined;
-
-  if (imIndexGeaendert) {
+  if (vorgemerkt) {
     return {
       pfad: datei.pfad,
       status: 'staged',
       auchUngestagt: imArbeitsbaumGeaendert,
       geloescht,
+      vorgemerkt,
     };
   }
 
   if (imArbeitsbaumGeaendert) {
-    return { pfad: datei.pfad, status: 'modified', auchUngestagt: true, geloescht };
+    return {
+      pfad: datei.pfad,
+      status: 'modified',
+      auchUngestagt: true,
+      geloescht,
+      vorgemerkt: null,
+    };
   }
 
-  return { pfad: datei.pfad, status: 'committed', auchUngestagt: false, geloescht };
+  return {
+    pfad: datei.pfad,
+    status: 'committed',
+    auchUngestagt: false,
+    geloescht,
+    vorgemerkt: null,
+  };
 }
 
 export function status(zustand: GitArbeitsbaumZustand): StatusEintrag[] {
   const eintraege = zustand.dateien.flatMap((datei) => {
     const eintrag = dateiStatus(datei);
+    if (eintrag === null) return [];
 
     // Ein Sonderfall, den echtes Git mit ZWEI Zeilen beantwortet: Die
     // Löschung ist vorgemerkt (der Pfad fehlt im Index), und im
@@ -147,6 +201,7 @@ export function status(zustand: GitArbeitsbaumZustand): StatusEintrag[] {
           status: 'untracked' as const,
           auchUngestagt: false,
           geloescht: false,
+          vorgemerkt: null,
         },
       ];
     }
@@ -179,6 +234,12 @@ export const UMGESETZTE_GIT_BEFEHLE = [
   'git restore',
 ] as const;
 
+const VORGEMERKT_VERB: Record<GestagteArt, string> = {
+  neu: 'neue Datei',
+  geaendert: 'geändert',
+  geloescht: 'gelöscht',
+};
+
 function formatiereStatus(eintraege: StatusEintrag[]): string {
   const gestagt = eintraege.filter((e) => e.status === 'staged');
   const geaendert = eintraege.filter((e) => e.status === 'modified' || e.auchUngestagt);
@@ -193,7 +254,8 @@ function formatiereStatus(eintraege: StatusEintrag[]): string {
     teile.push(
       [
         'Zum Commit vorgemerkt:',
-        ...gestagt.map((e) => `  ${e.geloescht ? 'gelöscht' : 'geändert'}:   ${e.pfad}`),
+        // Die Überschrift beschreibt HEAD -> INDEX, also auch das Verb.
+        ...gestagt.map((e) => `  ${VORGEMERKT_VERB[e.vorgemerkt ?? 'geaendert']}:   ${e.pfad}`),
       ].join('\n'),
     );
   }
@@ -630,11 +692,18 @@ export function fuehreGitBefehlAus(zustand: GitArbeitsbaumZustand, eingabe: stri
   }
 }
 
-function naechsteCommitId(commits: GitCommit[]): string {
-  // Kurze, stabile Kennungen statt echter Hashes: Sie sollen wiedererkennbar
-  // sein, nicht echt aussehen.
-  const nummer = commits.length + 1;
-  return `c${String(nummer).padStart(2, '0')}`;
+function naechsteCommitId(commits: { id: string }[]): string {
+  // Aus den VORHANDENEN Kennungen ableiten, nicht aus der Anzahl. Eine
+  // Konfiguration mit Lücken (c01, c03) ergab sonst beim nächsten Commit
+  // erneut `c03` — mit sich selbst als Elternteil. Der Graph war damit
+  // doppelt vergeben und zyklisch, obwohl die Konfiguration beide Regeln
+  // erfüllte: Geprüft wird der Anfangszustand, erzeugt wird hier
+  // (Code-Review vor dem Merge von PR #30).
+  const zahlen = commits
+    .map((commit) => /^c(\d+)$/.exec(commit.id))
+    .map((treffer) => (treffer ? Number(treffer[1]) : 0));
+  const hoechste = zahlen.length > 0 ? Math.max(...zahlen) : 0;
+  return `c${String(hoechste + 1).padStart(2, '0')}`;
 }
 
 /** Bearbeitet eine Datei im Arbeitsverzeichnis (die Rolle des Editors). */

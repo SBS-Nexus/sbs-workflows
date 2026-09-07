@@ -39,23 +39,23 @@ function laufe(befehle: string[], zustand: GitArbeitsbaumZustand = start()) {
 
 describe('Dateizustand', () => {
   it('erkennt eine unversionierte Datei', () => {
-    expect(dateiStatus({ pfad: 'neu.txt', arbeitsbaum: 'x' }).status).toBe('untracked');
+    expect(dateiStatus({ pfad: 'neu.txt', arbeitsbaum: 'x' })?.status).toBe('untracked');
   });
 
   it('erkennt eine unveränderte Datei als committed', () => {
-    expect(dateiStatus({ pfad: 'a', arbeitsbaum: 'x', index: 'x', head: 'x' }).status).toBe(
+    expect(dateiStatus({ pfad: 'a', arbeitsbaum: 'x', index: 'x', head: 'x' })?.status).toBe(
       'committed',
     );
   });
 
   it('erkennt eine geänderte, nicht vorgemerkte Datei', () => {
-    expect(dateiStatus({ pfad: 'a', arbeitsbaum: 'neu', index: 'alt', head: 'alt' }).status).toBe(
+    expect(dateiStatus({ pfad: 'a', arbeitsbaum: 'neu', index: 'alt', head: 'alt' })?.status).toBe(
       'modified',
     );
   });
 
   it('erkennt eine vorgemerkte Änderung', () => {
-    expect(dateiStatus({ pfad: 'a', arbeitsbaum: 'neu', index: 'neu', head: 'alt' }).status).toBe(
+    expect(dateiStatus({ pfad: 'a', arbeitsbaum: 'neu', index: 'neu', head: 'alt' })?.status).toBe(
       'staged',
     );
   });
@@ -63,8 +63,8 @@ describe('Dateizustand', () => {
   it('meldet eine erneut geänderte, bereits vorgemerkte Datei in BEIDEN Abschnitten', () => {
     // Der häufigste Stolperstein: nach dem git add weitergearbeitet.
     const eintrag = dateiStatus({ pfad: 'a', arbeitsbaum: 'ganz neu', index: 'neu', head: 'alt' });
-    expect(eintrag.status).toBe('staged');
-    expect(eintrag.auchUngestagt).toBe(true);
+    expect(eintrag?.status).toBe('staged');
+    expect(eintrag?.auchUngestagt).toBe(true);
   });
 });
 
@@ -319,9 +319,9 @@ describe('Drei Orte: HEAD, INDEX, Arbeitsbaum', () => {
 
     for (const fall of faelle) {
       const eintrag = dateiStatus(fall.datei);
-      expect(eintrag.status, fall.name).toBe(fall.status);
-      expect(eintrag.auchUngestagt, fall.name).toBe(fall.auchUngestagt);
-      expect(eintrag.geloescht, fall.name).toBe(fall.geloescht);
+      expect(eintrag?.status, fall.name).toBe(fall.status);
+      expect(eintrag?.auchUngestagt, fall.name).toBe(fall.auchUngestagt);
+      expect(eintrag?.geloescht, fall.name).toBe(fall.geloescht);
     }
   });
 
@@ -623,5 +623,121 @@ describe('Lebenslauf einer gelöschten leeren Datei', () => {
     expect(fuehreGitBefehlAus(nachCommit.zustand, 'git diff --staged').ausgabe).toContain(
       'Keine vorgemerkten',
     );
+  });
+});
+
+/**
+ * Die vollständige Zustandsmatrix, gegen echtes Git 2.52 nachgestellt.
+ *
+ * Jede Aussage gehört zu genau einem Baumpaar — vorgemerkt HEAD -> INDEX,
+ * ungemerkt INDEX -> ARBEITSBAUM, unversioniert nur bei einer Datei im
+ * Arbeitsbaum, die weder HEAD noch Index kennen. Ein Feld, das die Paare
+ * vermischte, meldete beim ersten `git add` des Labs "geändert" statt
+ * "neue Datei" (Code-Review vor dem Merge von PR #30).
+ */
+describe('Statusmatrix über die drei Orte', () => {
+  const zeilen = (datei: GitDatei): string[] =>
+    status({ dateien: [datei], commits: [] }).map(
+      (e) =>
+        `${e.status}${e.vorgemerkt ? `(${e.vorgemerkt})` : ''}${e.auchUngestagt ? '+ungemerkt' : ''}`,
+    );
+
+  it('bildet jeden der elf Fälle ab', () => {
+    const faelle: [string, GitDatei, string[]][] = [
+      ['1  A/A/A  sauber', { pfad: 'f', head: 'A', index: 'A', arbeitsbaum: 'A' }, ['committed']],
+      [
+        '2  A/A/B  ungemerkt',
+        { pfad: 'f', head: 'A', index: 'A', arbeitsbaum: 'B' },
+        ['modified+ungemerkt'],
+      ],
+      [
+        '3  A/B/B  vorgemerkt',
+        { pfad: 'f', head: 'A', index: 'B', arbeitsbaum: 'B' },
+        ['staged(geaendert)'],
+      ],
+      [
+        '4  A/B/C  beides',
+        { pfad: 'f', head: 'A', index: 'B', arbeitsbaum: 'C' },
+        ['staged(geaendert)+ungemerkt'],
+      ],
+      ['5  -/-/A  unversioniert', { pfad: 'f', arbeitsbaum: 'A' }, ['untracked']],
+      ['6  -/A/A  neu vorgemerkt', { pfad: 'f', index: 'A', arbeitsbaum: 'A' }, ['staged(neu)']],
+      [
+        '7  -/A/B  neu + ungemerkt',
+        { pfad: 'f', index: 'A', arbeitsbaum: 'B' },
+        ['staged(neu)+ungemerkt'],
+      ],
+      [
+        '8  A/A/-  ungemerkte Löschung',
+        { pfad: 'f', head: 'A', index: 'A' },
+        ['modified+ungemerkt'],
+      ],
+      ['9  A/-/-  vorgemerkte Löschung', { pfad: 'f', head: 'A' }, ['staged(geloescht)']],
+      [
+        '10 A/-/neu Löschung + unversioniert',
+        { pfad: 'f', head: 'A', arbeitsbaum: 'neu' },
+        ['staged(geloescht)', 'untracked'],
+      ],
+      ['11 -/-/-  keine Zeile', { pfad: 'f' }, []],
+    ];
+
+    for (const [name, datei, erwartet] of faelle) {
+      expect(zeilen(datei), name).toEqual(erwartet);
+    }
+  });
+
+  it('leitet die vorgemerkte Art allein aus HEAD -> INDEX ab', () => {
+    // Der Arbeitsbaum darf daran nichts ändern: Eine vorgemerkt NEUE Datei
+    // bleibt neu, auch wenn sie danach im Arbeitsbaum gelöscht wird
+    // (echtes Git: `AD`).
+    expect(dateiStatus({ pfad: 'f', index: 'A', arbeitsbaum: 'A' })?.vorgemerkt).toBe('neu');
+    expect(dateiStatus({ pfad: 'f', index: 'A' })?.vorgemerkt).toBe('neu');
+    expect(dateiStatus({ pfad: 'f', head: 'A', index: 'B', arbeitsbaum: 'B' })?.vorgemerkt).toBe(
+      'geaendert',
+    );
+    expect(dateiStatus({ pfad: 'f', head: 'A' })?.vorgemerkt).toBe('geloescht');
+    expect(
+      dateiStatus({ pfad: 'f', head: 'A', index: 'A', arbeitsbaum: 'B' })?.vorgemerkt,
+    ).toBeNull();
+  });
+
+  it('nennt eine vorgemerkte neue Datei im Lab beim Namen', () => {
+    // Der zentrale Handgriff des Git-State-Labs, mit dessen ausgelieferter
+    // Konfiguration: `notizen.txt` ist unversioniert.
+    const zustand: GitArbeitsbaumZustand = {
+      dateien: [
+        { pfad: 'liesmich.md', arbeitsbaum: '# Projekt', index: '# Projekt', head: '# Projekt' },
+        { pfad: 'notizen.txt', arbeitsbaum: 'Erste Idee' },
+      ],
+      commits: [],
+    };
+    const nachAdd = fuehreGitBefehlAus(zustand, 'git add notizen.txt').zustand;
+    const ausgabe = fuehreGitBefehlAus(nachAdd, 'git status').ausgabe;
+
+    expect(ausgabe).toContain('neue Datei');
+    expect(ausgabe).toContain('notizen.txt');
+    expect(ausgabe).not.toMatch(/geändert:\s+notizen\.txt/);
+  });
+
+  it('lässt nach einer committeten Löschung nichts zurück', () => {
+    let zustand: GitArbeitsbaumZustand = {
+      dateien: [{ pfad: 'f.md', head: 'A', index: 'A', arbeitsbaum: undefined }],
+      commits: [],
+    };
+    zustand = fuehreGitBefehlAus(zustand, 'git add f.md').zustand;
+    expect(fuehreGitBefehlAus(zustand, 'git status').ausgabe).toContain('gelöscht');
+
+    zustand = fuehreGitBefehlAus(zustand, 'git commit -m "f.md entfernt"').zustand;
+
+    // Kein Geisterbild: Die Datei gibt es nirgends mehr.
+    expect(fuehreGitBefehlAus(zustand, 'git status').ausgabe).toBe(
+      'Nichts zu committen, Arbeitsverzeichnis unverändert.',
+    );
+    expect(fuehreGitBefehlAus(zustand, 'git diff').ausgabe).toContain('Keine ungemerkten');
+    expect(fuehreGitBefehlAus(zustand, 'git diff --staged').ausgabe).toContain(
+      'Keine vorgemerkten',
+    );
+    const commit = zustand.commits[zustand.commits.length - 1];
+    expect(commit?.stand['f.md']).toBeUndefined();
   });
 });

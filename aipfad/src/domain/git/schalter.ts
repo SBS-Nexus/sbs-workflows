@@ -249,7 +249,16 @@ export function operandenNichtUmgesetzt(befehl: string, operanden: readonly stri
  * Zeichen durchzugehen.
  */
 export function passtAufMuster(name: string, muster: string): boolean {
+  // Aufeinanderfolgende Sterne zuerst zusammenfassen. Jeder Stern wurde zu
+  // einem eigenen `[^]*`, und mehrere davon nebeneinander lassen einen
+  // regulären Ausdruck bei einem Fehlschlag exponentiell zurücksetzen:
+  // `git branch -l **********x` beschäftigte den Browser bei einem längeren
+  // Branchnamen fast zehn Sekunden, mit ein paar Sternen mehr unbegrenzt —
+  // die Konsole des Branch-Labs rechnet im Vordergrund, der Reiter war nicht
+  // mehr zu bedienen. `**` bedeutet ohnehin dasselbe wie `*`
+  // (Code-Review vor dem Merge von PR #30).
   const regex = muster
+    .replace(/\*+/g, '*')
     .split('')
     .map((zeichen) => {
       if (zeichen === '*') return '[^]*';
