@@ -15,6 +15,7 @@ import { SETUP_SECTIONS } from '@/content/setup-commands';
 import { exercisePayloadSchema } from '@/domain/content/exercise-payload';
 import { mergeConflictConfigSchema } from '@/domain/labs/merge-conflict-config';
 import { branchConfigSchema } from '@/domain/labs/branch-config';
+import { gitStateConfigSchema } from '@/domain/labs/git-state-config';
 import { toPublicPayload } from '@/domain/grading/grade';
 import { UMGESETZTE_BEFEHLE } from '@/domain/labs/terminal';
 import { z } from 'zod';
@@ -881,6 +882,54 @@ describe('Konfiguration des Branch-Labs', () => {
       ergebnis.issues.some(
         (i) => i.severity === 'error' && i.message.includes('steht nicht in branches'),
       ),
+    ).toBe(true);
+  });
+});
+
+/**
+ * Das dritte Lab hatte als einziges keinen Vertrag in der Domäne. Eine
+ * fehlerhafte Konfiguration kam damit durch `content:validate` und warf
+ * erst beim Öffnen der Seite (Codex-Review auf PR #30).
+ */
+describe('Konfiguration des Git-State-Labs', () => {
+  const gueltig = {
+    dateien: [
+      { pfad: 'liesmich.md', arbeitsbaum: '# Projekt', index: '# Projekt', head: '# Projekt' },
+      { pfad: 'notizen.txt', arbeitsbaum: 'Erste Idee' },
+    ],
+    commits: [],
+    bearbeitungen: [],
+  };
+
+  it('nimmt eine stimmige Konfiguration an', () => {
+    expect(gitStateConfigSchema.safeParse(gueltig).success).toBe(true);
+  });
+
+  it('lehnt eine Konfiguration ohne Dateien ab', () => {
+    expect(gitStateConfigSchema.safeParse({ commits: [] }).success).toBe(false);
+    expect(gitStateConfigSchema.safeParse({ ...gueltig, dateien: [] }).success).toBe(false);
+  });
+
+  it('gilt für die echte Konfiguration des Labs', () => {
+    const lab = labDrafts.map((l) => labSchema.parse(l)).find((l) => l.kind === 'GIT_STATE');
+    expect(lab).toBeDefined();
+    expect(gitStateConfigSchema.safeParse(lab?.config).success).toBe(true);
+  });
+
+  it('wird von validateCourseGraph mitgeprüft', () => {
+    const labs = labDrafts.map((l) => labSchema.parse(l));
+    const kaputt = labs.map((l) =>
+      l.kind === 'GIT_STATE' ? { ...l, config: { commits: [] } as unknown as typeof l.config } : l,
+    );
+    const ergebnis = validateCourseGraph({
+      course: courseSchema.parse(course),
+      concepts: conceptDrafts.map((c) => conceptSchema.parse(c)),
+      labs: kaputt,
+    });
+
+    expect(ergebnis.ok).toBe(false);
+    expect(
+      ergebnis.issues.some((i) => i.severity === 'error' && i.where.includes('config.dateien')),
     ).toBe(true);
   });
 });

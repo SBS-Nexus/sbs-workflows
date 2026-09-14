@@ -1066,6 +1066,25 @@ describe('Branchmuster bleiben berechenbar', () => {
     expect(passtAufMuster('feature-ä', 'feature-?')).toBe(false);
   });
 
+  it('lässt den Rückstrich das nächste Byte maskieren, wie Git es tut', () => {
+    // Gegen Git 2.52 nachgestellt: `git branch --list 'fo\\o'` findet `foo`
+    // — der Rückstrich nimmt dem nächsten Byte seine Sonderbedeutung
+    // (Codex-Review auf PR #30).
+    expect(passtAufMuster('foobar', 'foo\\bar')).toBe(true);
+    expect(passtAufMuster('foo', 'fo\\o')).toBe(true);
+    expect(passtAufMuster('foobar', 'f?o\\bar')).toBe(true);
+
+    // Maskiert verliert der Stern seine Bedeutung: gesucht wird dann ein
+    // Stern IM Namen, den es in Branchnamen nicht geben darf.
+    expect(passtAufMuster('foo', '\\*')).toBe(false);
+
+    // Ein maskierter Rückstrich sucht einen echten Rückstrich.
+    expect(passtAufMuster('foobar', 'foo\\\\bar')).toBe(false);
+
+    // Am Ende maskiert er nichts mehr — echtes Git findet damit auch nichts.
+    expect(passtAufMuster('foo', 'foo\\')).toBe(false);
+  });
+
   it('lässt den Stern über ganze Zeichen hinweggehen', () => {
     // Der Stern verschluckt Bytes, was für mehrbytige Zeichen dasselbe
     // Ergebnis liefert wie zeichenweise.

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { exercisePayloadSchema, hintSchema } from './exercise-payload';
 import { mergeConflictConfigSchema } from '../labs/merge-conflict-config';
 import { branchConfigSchema } from '../labs/branch-config';
+import { gitStateConfigSchema } from '../labs/git-state-config';
 
 /**
  * Zod-Schemata für redaktionelle Inhalte. Muster aus PythonPfad/SQLPfad
@@ -375,7 +376,9 @@ export function validateCourseGraph(input: {
         ? mergeConflictConfigSchema
         : lab.kind === 'BRANCH'
           ? branchConfigSchema
-          : null;
+          : lab.kind === 'GIT_STATE'
+            ? gitStateConfigSchema
+            : null;
     if (configVertrag) {
       const geprueft = configVertrag.safeParse(lab.config);
       if (!geprueft.success) {

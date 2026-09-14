@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { z } from 'zod';
 import { Badge, Button, Callout, cx } from '@/components/ui/primitives';
 import { LabCompleteButton } from './lab-complete-button';
 import { BefehlsKonsole } from './befehls-konsole';
@@ -12,30 +11,7 @@ import {
   UMGESETZTE_GIT_BEFEHLE,
   type GitArbeitsbaumZustand,
 } from '@/domain/git/working-tree';
-
-const configSchema = z.object({
-  dateien: z.array(
-    z.object({
-      pfad: z.string(),
-      arbeitsbaum: z.string().optional(),
-      index: z.string().optional(),
-      head: z.string().optional(),
-    }),
-  ),
-  commits: z
-    .array(
-      z.object({
-        id: z.string(),
-        nachricht: z.string(),
-        stand: z.record(z.string(), z.string()),
-      }),
-    )
-    .default([]),
-  /** Vorgeschlagene Bearbeitungen, damit man ohne Editor etwas ändern kann. */
-  bearbeitungen: z
-    .array(z.object({ pfad: z.string(), inhalt: z.string(), beschriftung: z.string() }))
-    .default([]),
-});
+import { gitStateConfigSchema } from '@/domain/labs/git-state-config';
 
 /**
  * Das Git-State-Lab.
@@ -52,7 +28,7 @@ export function GitStateLab({
   config: unknown;
   onCompleteAction: () => Promise<boolean>;
 }): React.ReactElement {
-  const { dateien, commits, bearbeitungen } = configSchema.parse(config);
+  const { dateien, commits, bearbeitungen } = gitStateConfigSchema.parse(config);
   const start: GitArbeitsbaumZustand = { dateien, commits };
 
   const [zustand, setZustand] = useState<GitArbeitsbaumZustand>(start);

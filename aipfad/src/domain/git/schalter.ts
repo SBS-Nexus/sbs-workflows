@@ -250,6 +250,7 @@ export function operandenNichtUmgesetzt(befehl: string, operanden: readonly stri
  */
 const STERN = 0x2a; // '*'
 const FRAGEZEICHEN = 0x3f; // '?'
+const RUECKSTRICH = 0x5c; // '\\'
 
 /** Einmal angelegt statt bei jedem Vergleich — rein für die Laufzeit. */
 const ZU_BYTES = new TextEncoder();
@@ -282,13 +283,22 @@ export function passtAufMuster(name: string, muster: string): boolean {
 
   while (iName < namensBytes.length) {
     const zeichen = musterBytes[iMuster];
-    if (
-      iMuster < musterBytes.length &&
-      (zeichen === FRAGEZEICHEN || zeichen === namensBytes[iName])
-    ) {
+    const imMuster = iMuster < musterBytes.length;
+
+    // Ein Rückstrich nimmt dem NÄCHSTEN Byte seine Sonderbedeutung —
+    // `git branch -l 'fo\o'` findet `foo`, und `\*` sucht einen Stern im
+    // Namen statt beliebiger Zeichen. Ein Rückstrich am Ende maskiert
+    // nichts mehr; echtes Git findet mit `foo\` dann auch nichts
+    // (Codex-Review auf PR #30).
+    const maskiert = imMuster && zeichen === RUECKSTRICH && iMuster + 1 < musterBytes.length;
+    const passt = maskiert
+      ? musterBytes[iMuster + 1] === namensBytes[iName]
+      : imMuster && (zeichen === FRAGEZEICHEN || zeichen === namensBytes[iName]);
+
+    if (passt) {
       iName += 1;
-      iMuster += 1;
-    } else if (iMuster < musterBytes.length && zeichen === STERN) {
+      iMuster += maskiert ? 2 : 1;
+    } else if (imMuster && zeichen === STERN) {
       // Den Stern zunächst leer lassen und die Stelle merken.
       letzterStern = iMuster;
       standBeimStern = iName;
