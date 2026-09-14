@@ -910,6 +910,21 @@ describe('Konfiguration des Git-State-Labs', () => {
     expect(gitStateConfigSchema.safeParse({ ...gueltig, dateien: [] }).success).toBe(false);
   });
 
+  it('lehnt zwei Einträge mit demselben Pfad ab', () => {
+    // Der Pfad IST die Kennung. Zweimal derselbe, und der Commit behält am
+    // Ende stillschweigend nur einen der Inhalte (Codex-Review auf PR #30).
+    const ergebnis = gitStateConfigSchema.safeParse({
+      ...gueltig,
+      dateien: [
+        { pfad: 'a.md', arbeitsbaum: 'eins' },
+        { pfad: 'a.md', arbeitsbaum: 'zwei' },
+      ],
+    });
+
+    expect(ergebnis.success).toBe(false);
+    expect(JSON.stringify(ergebnis.error?.issues)).toContain('Doppelter Pfad');
+  });
+
   it('gilt für die echte Konfiguration des Labs', () => {
     const lab = labDrafts.map((l) => labSchema.parse(l)).find((l) => l.kind === 'GIT_STATE');
     expect(lab).toBeDefined();
@@ -931,5 +946,42 @@ describe('Konfiguration des Git-State-Labs', () => {
     expect(
       ergebnis.issues.some((i) => i.severity === 'error' && i.where.includes('config.dateien')),
     ).toBe(true);
+  });
+});
+
+/**
+ * Die Karten der Befehlsreferenz tragen ein Beispiel, das der Knopf
+ * "Kopieren" übernimmt. Es muss deshalb zu DIESER Karte passen — sonst
+ * bekommt man beim Kopieren etwas anderes, als die Karte erklärt
+ * (Codex-Review auf PR #30).
+ */
+describe('Beispiele der Befehlsreferenz passen zu ihrer Karte', () => {
+  const alleBefehle = SETUP_SECTIONS.flatMap((s) => s.commands);
+
+  it('ruft im Beispiel dasselbe Programm auf wie die Karte', () => {
+    // Bewusst nur das Programm: Operanden wie `zielordner` oder `<nummer>`
+    // ersetzt ein Beispiel gerade durch einen echten Wert, das ist sein
+    // Zweck.
+    for (const befehl of alleBefehle) {
+      if (!befehl.example) continue;
+      expect(befehl.example.split(/\s+/)[0], befehl.command).toBe(befehl.command.split(/\s+/)[0]);
+    }
+  });
+
+  it('widerspricht mit keinem Beispiel der eigenen Beschreibung', () => {
+    // `git diff` erklärt den ungemerkten Vergleich und nennt `--staged`
+    // ausdrücklich als das ANDERE. Ein Beispiel `git diff --staged` kopierte
+    // damit das Gegenteil der Karte.
+    for (const befehl of alleBefehle) {
+      if (!befehl.example) continue;
+      const zusatz = befehl.example.slice(befehl.command.length).trim();
+      const erstesFlag = zusatz.split(/\s+/).find((teil) => teil.startsWith('--'));
+      if (!erstesFlag) continue;
+      const abgrenzung = `dafür gibt es ${befehl.command} ${erstesFlag}`;
+      expect(
+        `${befehl.description} ${befehl.whatHappens}`.includes(abgrenzung),
+        `${befehl.command}: Beispiel nutzt ${erstesFlag}, das der Text abgrenzt`,
+      ).toBe(false);
+    }
   });
 });

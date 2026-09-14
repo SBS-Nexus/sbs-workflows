@@ -248,7 +248,11 @@ export const SETUP_SECTIONS: SetupSection[] = [
         description: 'Zeigt Änderungen, die noch NICHT vorgemerkt sind.',
         whatHappens:
           'Vergleicht Arbeitsverzeichnis mit der Staging Area. Nach einem git add zeigt der Befehl für diese Datei nichts mehr — dafür gibt es git diff --staged.',
-        example: 'git diff --staged',
+        // Das Beispiel wird beim Kopieren übernommen und muss deshalb zu
+        // DIESER Karte passen: `--staged` ist hier ausdrücklich das andere,
+        // wer es kopiert bekäme das Gegenteil der Beschreibung
+        // (Codex-Review auf PR #30).
+        example: 'git diff preise.md',
         safety: nurLesend(),
       },
     ],
