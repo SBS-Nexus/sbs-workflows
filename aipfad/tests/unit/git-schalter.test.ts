@@ -1041,6 +1041,39 @@ describe('Branchmuster bleiben berechenbar', () => {
     expect(Date.now() - beginn).toBeLessThan(1000);
   });
 
+  it('misst Fragezeichen an den UTF-8-Bytes, wie Git es tut', () => {
+    // Gegen Git 2.52 nachgestellt: Ein Fragezeichen steht für ein BYTE,
+    // nicht für ein Zeichen. `git branch --list '?'` findet `a`, aber nicht
+    // `ä`; dafür findet `??` beide Bytes von `ä`. Über die Zeichen einer
+    // JavaScript-Zeichenkette zu laufen veränderte damit das Ergebnis eines
+    // ausdrücklich unterstützten Befehls (Codex-Review auf PR #30).
+    expect(passtAufMuster('a', '?')).toBe(true);
+    expect(passtAufMuster('a', '??')).toBe(false);
+
+    expect(passtAufMuster('ä', '?')).toBe(false);
+    expect(passtAufMuster('ä', '??')).toBe(true);
+    expect(passtAufMuster('é', '??')).toBe(true);
+
+    // Vier Bytes, also vier Fragezeichen.
+    expect(passtAufMuster('🙂', '????')).toBe(true);
+    expect(passtAufMuster('🙂', '???')).toBe(false);
+
+    // Ein literales Muster wird in dieselben Bytes übersetzt und passt
+    // deshalb weiterhin auf sich selbst.
+    expect(passtAufMuster('ä', 'ä')).toBe(true);
+
+    expect(passtAufMuster('feature-ä', 'feature-??')).toBe(true);
+    expect(passtAufMuster('feature-ä', 'feature-?')).toBe(false);
+  });
+
+  it('lässt den Stern über ganze Zeichen hinweggehen', () => {
+    // Der Stern verschluckt Bytes, was für mehrbytige Zeichen dasselbe
+    // Ergebnis liefert wie zeichenweise.
+    expect(passtAufMuster('feature-ä', 'feature-*')).toBe(true);
+    expect(passtAufMuster('ä', '*')).toBe(true);
+    expect(passtAufMuster('äöü', '*ü')).toBe(true);
+  });
+
   it('ändert dabei die Bedeutung nicht', () => {
     expect(passtAufMuster('feature', '**')).toBe(true);
     expect(passtAufMuster('feature', 'fea**re')).toBe(true);
@@ -1054,6 +1087,25 @@ describe('Branchmuster bleiben berechenbar', () => {
     expect(passtAufMuster('feature', 'feature?')).toBe(false);
     expect(passtAufMuster('', '*')).toBe(true);
     expect(passtAufMuster('feature/x', 'feature/*')).toBe(true);
+  });
+});
+
+describe('git branch --list über einen Unicode-Branch', () => {
+  function mitUmlaut(): BranchZustand {
+    const zustand = branches();
+    return fuehreBranchBefehlAus(zustand, 'git branch ä').zustand;
+  }
+
+  it('findet ihn mit zwei Fragezeichen, nicht mit einem', () => {
+    const zustand = mitUmlaut();
+    expect(zustand.branches['ä']).toBeDefined();
+
+    expect(fuehreBranchBefehlAus(zustand, 'git branch -l ?').ausgabe).not.toContain('ä');
+    expect(fuehreBranchBefehlAus(zustand, 'git branch -l ??').ausgabe).toContain('ä');
+  });
+
+  it('findet ihn über sein literales Muster', () => {
+    expect(fuehreBranchBefehlAus(mitUmlaut(), 'git branch -l ä').ausgabe).toContain('ä');
   });
 });
 

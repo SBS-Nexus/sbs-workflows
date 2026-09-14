@@ -248,38 +248,53 @@ export function operandenNichtUmgesetzt(befehl: string, operanden: readonly stri
  * dieser Simulator nicht; sie werden abgelehnt, statt als gewöhnliche
  * Zeichen durchzugehen.
  */
+const STERN = 0x2a; // '*'
+const FRAGEZEICHEN = 0x3f; // '?'
+
+/** Einmal angelegt statt bei jedem Vergleich — rein für die Laufzeit. */
+const ZU_BYTES = new TextEncoder();
+
 export function passtAufMuster(name: string, muster: string): boolean {
-  // Ohne regulären Ausdruck, und das ist der Punkt.
+  // Verglichen wird byteweise, nicht zeichenweise.
   //
-  // Zuvor wurde jeder Stern zu einem eigenen `[^]*`. Mehrere unbegrenzte
+  // Git misst Branch-Muster an den UTF-8-Bytes eines Namens. Gegen Git 2.52
+  // nachgestellt: Der Branch `a` passt auf `?`, `ä` und `é` passen auf `??`,
+  // `🙂` auf `????` — eben ein Fragezeichen je Byte. Über die Zeichen einer
+  // JavaScript-Zeichenkette zu laufen hätte `ä` auf `?` passen lassen und
+  // damit das Ergebnis eines ausdrücklich unterstützten Befehls verändert,
+  // nicht bloß seine Darstellung (Codex-Review auf PR #30).
+  //
+  // Ein literales Muster wird in dieselben Bytes übersetzt und passt
+  // deshalb weiterhin auf sich selbst: `git branch --list 'ä'` findet `ä`.
+  //
+  // Ohne regulären Ausdruck, und das bleibt der Punkt: Mehrere unbegrenzte
   // Quantoren in einem Ausdruck lassen die Suche bei einem Fehlschlag
-  // exponentiell zurücksetzen: `*?*?*?…x` beschäftigte den Browser bei einem
-  // längeren Branchnamen mit zehn Paaren viereinhalb Sekunden, mit ein paar
-  // mehr beliebig lange. Die Konsole des Branch-Labs rechnet im Vordergrund
-  // — der Reiter war nach einem Vertipper nicht mehr zu bedienen.
-  //
-  // Aufeinanderfolgende Sterne zusammenzufassen behob nur den engsten Fall;
-  // die Ursache sind die vielen Quantoren selbst. Dieses Verfahren geht
-  // stattdessen einmal durch beide Zeichenketten und merkt sich die letzte
-  // Sternstelle, um dort fortzusetzen — im schlimmsten Fall Name mal Muster,
-  // nie mehr (Code-Review vor dem Merge von PR #30).
+  // exponentiell zurücksetzen. Dieses Verfahren geht einmal durch beide
+  // Folgen und merkt sich die letzte Sternstelle, um dort fortzusetzen —
+  // im schlimmsten Fall Namensbytes mal Musterbytes, nie mehr.
+  const namensBytes = ZU_BYTES.encode(name);
+  const musterBytes = ZU_BYTES.encode(muster);
+
   let iName = 0;
   let iMuster = 0;
   let letzterStern = -1;
   let standBeimStern = 0;
 
-  while (iName < name.length) {
-    const zeichen = muster[iMuster];
-    if (iMuster < muster.length && (zeichen === '?' || zeichen === name[iName])) {
+  while (iName < namensBytes.length) {
+    const zeichen = musterBytes[iMuster];
+    if (
+      iMuster < musterBytes.length &&
+      (zeichen === FRAGEZEICHEN || zeichen === namensBytes[iName])
+    ) {
       iName += 1;
       iMuster += 1;
-    } else if (iMuster < muster.length && zeichen === '*') {
+    } else if (iMuster < musterBytes.length && zeichen === STERN) {
       // Den Stern zunächst leer lassen und die Stelle merken.
       letzterStern = iMuster;
       standBeimStern = iName;
       iMuster += 1;
     } else if (letzterStern !== -1) {
-      // Nicht aufgegangen: Der letzte Stern verschluckt ein Zeichen mehr.
+      // Nicht aufgegangen: Der letzte Stern verschluckt ein Byte mehr.
       iMuster = letzterStern + 1;
       standBeimStern += 1;
       iName = standBeimStern;
@@ -289,8 +304,8 @@ export function passtAufMuster(name: string, muster: string): boolean {
   }
 
   // Übrig dürfen nur noch Sterne sein — sie stehen für nichts.
-  while (iMuster < muster.length && muster[iMuster] === '*') iMuster += 1;
-  return iMuster === muster.length;
+  while (iMuster < musterBytes.length && musterBytes[iMuster] === STERN) iMuster += 1;
+  return iMuster === musterBytes.length;
 }
 
 /** Ob ein Muster Bestandteile enthält, die dieser Simulator nicht kennt. */
