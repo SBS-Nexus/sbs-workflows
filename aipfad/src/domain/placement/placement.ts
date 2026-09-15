@@ -62,6 +62,17 @@ export interface PlacementResult {
   version: string;
 }
 
+/**
+ * Das Band zu einer Punktzahl.
+ *
+ * An einer Stelle: Die Ergebnisseite rechnet frisch, eine gespeicherte
+ * Punktzahl wird später wieder eingeordnet — zwei Fassungen derselben
+ * Grenzen liefen unweigerlich auseinander.
+ */
+export function bandZuPunktzahl(score: number): PlacementBand {
+  return score < 35 ? 'beginner' : score < 70 ? 'advanced-beginner' : 'refresher';
+}
+
 export function evaluatePlacement(
   questions: readonly PlacementQuestion[],
   answers: readonly PlacementAnswer[],
@@ -96,8 +107,7 @@ export function evaluatePlacement(
   }
 
   const score = possible === 0 ? 0 : Math.round((achieved / possible) * 100);
-  const band: PlacementBand =
-    score < 35 ? 'beginner' : score < 70 ? 'advanced-beginner' : 'refresher';
+  const band = bandZuPunktzahl(score);
 
   return {
     score,
@@ -141,3 +151,175 @@ const MESSAGES: Record<PlacementBand, string> = {
   refresher:
     'Du bringst schon einiges mit. Der Pfad kürzt Bekanntes ab, überspringt es aber nicht ganz – so bleibt sicher, dass keine Lücke offenbleibt, auf der später aufgebaut wird.',
 };
+
+// ---------------------------------------------------------------------------
+// Was der Browser sehen darf
+// ---------------------------------------------------------------------------
+
+/** Eine Frage, wie sie im Browser erscheint — ohne Lösung und Erklärung. */
+export interface OeffentlicheFrage {
+  id: string;
+  area: PlacementQuestion['area'];
+  question: string;
+  context?: string;
+  options: { id: string; text: string }[];
+}
+
+/** Die zusätzliche Antwort, die in JEDER Frage angeboten wird. */
+const DONT_KNOW_TEXT = 'Weiß ich nicht';
+
+/**
+ * Bereitet die Fragen für den Browser auf.
+ *
+ * `correctOptionId` und `explanation` bleiben hier: Die Erklärung gehört auf
+ * die Ergebnisseite, die Lösung nirgendwo in den Browser. Bewertet wird
+ * ausschließlich auf dem Server — der Browser schickt Antworten, keine
+ * Punktzahl.
+ *
+ * "Weiß ich nicht" wird hier angehängt, nicht im Inhalt gepflegt: Die Option
+ * gilt laut Lernmodell für jede Frage, und eine Liste, die man je Frage
+ * vergessen kann, wäre genau die Stelle, an der sie irgendwann fehlt.
+ */
+export function oeffentlicheFragen(questions: readonly PlacementQuestion[]): OeffentlicheFrage[] {
+  return questions.map((frage) => ({
+    id: frage.id,
+    area: frage.area,
+    question: frage.question,
+    ...(frage.context === undefined ? {} : { context: frage.context }),
+    options: [
+      ...frage.options.map((option) => ({ id: option.id, text: option.text })),
+      { id: DONT_KNOW_OPTION_ID, text: DONT_KNOW_TEXT },
+    ],
+  }));
+}
+
+/**
+ * Prüft eine eingegangene Antwort gegen die maßgeblichen Fragen.
+ *
+ * Der Browser darf Kennungen schicken, sonst nichts. Eine unbekannte Frage
+ * oder eine Option, die es zu dieser Frage nicht gibt, wird abgelehnt,
+ * statt stillschweigend als falsch gewertet zu werden — sonst sähe ein
+ * Tippfehler in der Maske aus wie eine falsche Antwort.
+ */
+export function antwortFehler(
+  questions: readonly PlacementQuestion[],
+  antwort: PlacementAnswer,
+): string | null {
+  const frage = questions.find((q) => q.id === antwort.questionId);
+  if (!frage) return `Unbekannte Frage "${antwort.questionId}".`;
+
+  const gueltig =
+    antwort.optionId === DONT_KNOW_OPTION_ID ||
+    frage.options.some((option) => option.id === antwort.optionId);
+  if (!gueltig) {
+    return `Antwort "${antwort.optionId}" gehört nicht zur Frage "${antwort.questionId}".`;
+  }
+  return null;
+}
+
+/**
+ * Begründungstext für den Lernpfad, abgeleitet aus dem Band.
+ *
+ * Der Pfad selbst bleibt vollständig — es wird nie eine Lektion
+ * übersprungen (siehe docs/LERNMODELL.md). Die Einstufung ändert also
+ * nicht, WAS im Pfad steht, sondern wie er eingeordnet wird. Ohne
+ * Einstufung steht die neutrale Begründung.
+ */
+export function pfadBegruendung(band: PlacementBand | null): string {
+  const grundregel =
+    'Dieser Pfad enthält alle Lektionen dieser Ausbaustufe in der vorgesehenen Reihenfolge. ' +
+    'Es wird nie eine Lektion übersprungen — spätere Inhalte bauen darauf auf.';
+  if (band === null) return grundregel;
+  return `${grundregel} ${MESSAGES[band]}`;
+}
+
+// ---------------------------------------------------------------------------
+// Inhaltsprüfung
+// ---------------------------------------------------------------------------
+
+/**
+ * Befund der Inhaltsprüfung. Absichtlich dieselbe Form wie in
+ * `domain/content/schema.ts`, damit der Inhalts-Validator beide Quellen
+ * gleich behandeln kann.
+ */
+export interface PlacementBefund {
+  severity: 'error' | 'warning';
+  where: string;
+  message: string;
+}
+
+/**
+ * Prüft die Fragen der Einstufung auf sich selbst.
+ *
+ * Das Schema prüft jede Frage für sich; hier geht es um das, was erst im
+ * Zusammenspiel auffällt: doppelte Kennungen, eine richtige Antwort, die es
+ * gar nicht gibt, und die Kollision mit "Weiß ich nicht" — diese Kennung
+ * hängt die Maske an jede Frage an, und eine gleichnamige Option im Inhalt
+ * wäre nicht mehr auseinanderzuhalten.
+ */
+export function validatePlacementQuestions(
+  questions: readonly PlacementQuestion[],
+): PlacementBefund[] {
+  const befunde: PlacementBefund[] = [];
+  const gesehen = new Set<string>();
+
+  if (questions.length === 0) {
+    befunde.push({
+      severity: 'error',
+      where: 'placement',
+      message: 'Keine Einstufungsfragen vorhanden.',
+    });
+  }
+
+  for (const frage of questions) {
+    const where = `placement:${frage.id}`;
+
+    if (gesehen.has(frage.id)) {
+      befunde.push({ severity: 'error', where, message: 'Doppelte Fragekennung.' });
+    }
+    gesehen.add(frage.id);
+
+    const optionen = new Set<string>();
+    for (const option of frage.options) {
+      if (optionen.has(option.id)) {
+        befunde.push({
+          severity: 'error',
+          where,
+          message: `Doppelte Optionskennung "${option.id}".`,
+        });
+      }
+      optionen.add(option.id);
+
+      if (option.id === DONT_KNOW_OPTION_ID) {
+        befunde.push({
+          severity: 'error',
+          where,
+          message: `Die Kennung "${DONT_KNOW_OPTION_ID}" ist für "Weiß ich nicht" reserviert und wird jeder Frage angehängt.`,
+        });
+      }
+    }
+
+    if (!optionen.has(frage.correctOptionId)) {
+      befunde.push({
+        severity: 'error',
+        where,
+        message: `correctOptionId "${frage.correctOptionId}" zeigt auf keine Option.`,
+      });
+    }
+  }
+
+  // Ohne Frage in einem Bereich bleibt das Ergebnis dort leer — die Anzeige
+  // je Bereich zeigt dann eine Null, die nichts bedeutet.
+  const bereiche = new Set(questions.map((frage) => frage.area));
+  for (const bereich of ['logic', 'technical-basics', 'ai-exposure', 'ai-concepts'] as const) {
+    if (!bereiche.has(bereich)) {
+      befunde.push({
+        severity: 'warning',
+        where: 'placement',
+        message: `Kein Fragenbereich "${bereich}" — die Auswertung je Bereich bleibt dort leer.`,
+      });
+    }
+  }
+
+  return befunde;
+}

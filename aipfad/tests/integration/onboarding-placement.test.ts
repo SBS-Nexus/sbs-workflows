@@ -1,0 +1,180 @@
+import { describe, expect, it, beforeEach } from 'vitest';
+import './setup';
+import { prisma } from '@/server/db/prisma';
+import { hashPassword } from '@/server/auth/password';
+import {
+  finalisiereOnboarding,
+  placementFragenFuerBrowser,
+  PlatzierungUngueltig,
+  gespeichertesBand,
+  type OnboardingInput,
+} from '@/server/services/onboarding-service';
+import { placementQuestions } from '@/content/placement';
+import { placementQuestionSchema, DONT_KNOW_OPTION_ID } from '@/domain/placement/placement';
+
+/**
+ * Die Einstufung hängt jetzt im Onboarding. Geprüft wird hier, was nur mit
+ * einer echten Datenbank zu prüfen ist: dass der Abschluss vollständig oder
+ * gar nicht passiert, dass ein zweiter Versuch nichts kaputtmacht, und dass
+ * niemand das Konto eines anderen verändert.
+ */
+
+const FRAGEN = placementQuestions.map((f) => placementQuestionSchema.parse(f));
+
+const EINSTELLUNGEN: OnboardingInput = {
+  learningGoal: 'GENERAL',
+  experience: 'NONE',
+  dailyTimeBudget: 20,
+  pace: 'STEADY',
+};
+
+async function neuerNutzer(email: string): Promise<string> {
+  await prisma.user.deleteMany({ where: { email } });
+  const user = await prisma.user.create({
+    data: { email, name: 'Einstufungstest', passwordHash: await hashPassword('Testpasswort-123') },
+  });
+  return user.id;
+}
+
+describe('Onboarding mit Einstufung', () => {
+  let userId: string;
+
+  beforeEach(async () => {
+    userId = await neuerNutzer('placement@integrationtest.local');
+  });
+
+  it('speichert Punktzahl, Einstellungen und Pfad in einem Schritt', async () => {
+    const alleRichtig = FRAGEN.map((f) => ({ questionId: f.id, optionId: f.correctOptionId }));
+    const ergebnis = await finalisiereOnboarding(userId, EINSTELLUNGEN, {
+      art: 'beantwortet',
+      antworten: alleRichtig,
+    });
+
+    expect(ergebnis.platzierung?.score).toBe(100);
+    expect(ergebnis.platzierung?.band).toBe('refresher');
+
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    expect(user.onboardingCompleted).toBe(true);
+    expect(user.placementCompleted).toBe(true);
+    expect(user.placementScore).toBe(100);
+    expect(user.currentPathId).not.toBeNull();
+    expect(user.dailyTimeBudget).toBe(20);
+
+    // Der Pfad enthält alle Lektionen — die Einstufung kürzt nichts.
+    const pfad = await prisma.learningPath.findFirstOrThrow({ where: { userId } });
+    const veroeffentlicht = await prisma.lesson.count({ where: { status: 'PUBLISHED' } });
+    expect(pfad.lessonSlugs.length).toBe(veroeffentlicht);
+    expect(pfad.rationale).toContain('nie eine Lektion übersprungen');
+  });
+
+  it('lässt kein Zwischenergebnis zurück: entweder alles oder nichts', async () => {
+    // Eine erfundene Antwort bricht ab, BEVOR etwas geschrieben wird.
+    await expect(
+      finalisiereOnboarding(userId, EINSTELLUNGEN, {
+        art: 'beantwortet',
+        antworten: [{ questionId: 'gibt-es-nicht', optionId: 'a' }],
+      }),
+    ).rejects.toBeInstanceOf(PlatzierungUngueltig);
+
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    expect(user.onboardingCompleted).toBe(false);
+    expect(user.placementCompleted).toBe(false);
+    expect(user.placementScore).toBeNull();
+    expect(await prisma.learningPath.count({ where: { userId } })).toBe(0);
+  });
+
+  it('setzt niemals placementCompleted ohne Punktzahl', async () => {
+    await finalisiereOnboarding(userId, EINSTELLUNGEN, {
+      art: 'beantwortet',
+      antworten: FRAGEN.map((f) => ({ questionId: f.id, optionId: DONT_KNOW_OPTION_ID })),
+    });
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    expect(user.placementCompleted).toBe(true);
+    expect(user.placementScore).not.toBeNull();
+    expect(user.placementScore).toBe(0);
+  });
+
+  it('erlaubt das Überspringen und hält den Pfad trotzdem vollständig', async () => {
+    const ergebnis = await finalisiereOnboarding(userId, EINSTELLUNGEN, {
+      art: 'uebersprungen',
+    });
+
+    expect(ergebnis.platzierung).toBeNull();
+    expect(ergebnis.erklaerungen).toEqual([]);
+
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    expect(user.onboardingCompleted).toBe(true);
+    expect(user.placementCompleted).toBe(true);
+    expect(user.placementScore).toBeNull();
+    expect(gespeichertesBand(user.placementScore)).toBeNull();
+
+    const pfad = await prisma.learningPath.findFirstOrThrow({ where: { userId } });
+    const veroeffentlicht = await prisma.lesson.count({ where: { status: 'PUBLISHED' } });
+    expect(pfad.lessonSlugs.length).toBe(veroeffentlicht);
+  });
+
+  it('ist bei einem zweiten Versuch unbedenklich', async () => {
+    const antworten = FRAGEN.map((f) => ({ questionId: f.id, optionId: f.correctOptionId }));
+    await finalisiereOnboarding(userId, EINSTELLUNGEN, { art: 'beantwortet', antworten });
+    const nachErstem = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    await finalisiereOnboarding(userId, EINSTELLUNGEN, { art: 'beantwortet', antworten });
+    const nachZweitem = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    expect(nachZweitem.placementScore).toBe(nachErstem.placementScore);
+    expect(nachZweitem.currentPathId).toBe(nachErstem.currentPathId);
+    // Kein zweiter Pfad.
+    expect(await prisma.learningPath.count({ where: { userId } })).toBe(1);
+  });
+
+  it('lehnt eine Option ab, die nicht zu ihrer Frage gehört', async () => {
+    await expect(
+      finalisiereOnboarding(userId, EINSTELLUNGEN, {
+        art: 'beantwortet',
+        antworten: [{ questionId: FRAGEN[0]!.id, optionId: 'zzz' }],
+      }),
+    ).rejects.toBeInstanceOf(PlatzierungUngueltig);
+  });
+
+  it('lehnt zwei Antworten zur selben Frage ab', async () => {
+    const frage = FRAGEN[0]!;
+    await expect(
+      finalisiereOnboarding(userId, EINSTELLUNGEN, {
+        art: 'beantwortet',
+        antworten: [
+          { questionId: frage.id, optionId: frage.options[0]!.id },
+          { questionId: frage.id, optionId: frage.options[1]!.id },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(PlatzierungUngueltig);
+  });
+
+  it('rührt das Konto eines anderen nicht an', async () => {
+    const fremdId = await neuerNutzer('fremd@integrationtest.local');
+    await finalisiereOnboarding(userId, EINSTELLUNGEN, { art: 'uebersprungen' });
+
+    const fremd = await prisma.user.findUniqueOrThrow({ where: { id: fremdId } });
+    expect(fremd.onboardingCompleted).toBe(false);
+    expect(fremd.placementCompleted).toBe(false);
+    expect(await prisma.learningPath.count({ where: { userId: fremdId } })).toBe(0);
+  });
+
+  it('gibt dem Browser keine Lösung mit', () => {
+    const serialisiert = JSON.stringify(placementFragenFuerBrowser());
+    for (const frage of FRAGEN) {
+      expect(serialisiert).not.toContain(frage.explanation);
+    }
+    expect(serialisiert).not.toContain('correctOptionId');
+  });
+
+  it('ordnet eine gespeicherte Punktzahl wieder demselben Band zu', async () => {
+    const antworten = FRAGEN.map((f) => ({ questionId: f.id, optionId: f.correctOptionId }));
+    const ergebnis = await finalisiereOnboarding(userId, EINSTELLUNGEN, {
+      art: 'beantwortet',
+      antworten,
+    });
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    expect(gespeichertesBand(user.placementScore)).toBe(ergebnis.platzierung?.band);
+  });
+});

@@ -145,3 +145,29 @@ test('Ausbaustufe 2: keine serious/critical Verstöße auf den neuen Seiten', as
     await expectNoSeriousViolations(page);
   });
 });
+
+test('Onboarding und Einstufung: keine serious/critical Verstöße', async ({ page }) => {
+  const email = `a11y-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.local`;
+  await page.goto('/registrieren');
+  await page.getByLabel('Name').fill('Barrierefreiheitstest');
+  await page.getByLabel('E-Mail').fill(email);
+  await page
+    .getByLabel(/Passwort/)
+    .first()
+    .fill('Testpasswort-123');
+  await page.getByRole('button', { name: /Konto anlegen|Registrieren/ }).click();
+  await page.waitForURL(/\/onboarding/);
+
+  // Erster Schritt: eine Einstellung.
+  await expectNoSeriousViolations(page);
+
+  // Die Einstufungsfrage ist ein eigener Bildschirm mit eigener Struktur.
+  for (let i = 0; i < 4; i += 1) {
+    await page.getByRole('radio').first().check();
+    await page.getByRole('button', { name: 'Weiter' }).click();
+  }
+  await expectNoSeriousViolations(page);
+
+  await page.getByRole('button', { name: 'Einschätzung machen' }).click();
+  await expectNoSeriousViolations(page);
+});
