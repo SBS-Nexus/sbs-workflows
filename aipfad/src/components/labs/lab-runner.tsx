@@ -5,6 +5,9 @@ import { recordLabCompletionAction } from '@/server/actions/lab-actions';
 import { TokenizerLab } from './tokenizer-lab';
 import { ContextWindowLab } from './context-window-lab';
 import { TerminalLab } from './terminal-lab';
+import { GitStateLab } from './git-state-lab';
+import { BranchLab } from './branch-lab';
+import { MergeConflictLab } from './merge-conflict-lab';
 
 export function LabRunner({
   slug,
@@ -12,7 +15,7 @@ export function LabRunner({
   config,
 }: {
   slug: string;
-  kind: 'TERMINAL' | 'TOKENIZER' | 'CONTEXT_WINDOW';
+  kind: 'TERMINAL' | 'TOKENIZER' | 'CONTEXT_WINDOW' | 'GIT_STATE' | 'BRANCH' | 'MERGE_CONFLICT';
   config: unknown;
 }): React.ReactElement {
   const [saved, setSaved] = useState(false);
@@ -40,5 +43,11 @@ export function LabRunner({
       return <ContextWindowLab config={config} onCompleteAction={complete} />;
     case 'TERMINAL':
       return <TerminalLab config={config} onCompleteAction={complete} />;
+    case 'GIT_STATE':
+      return <GitStateLab config={config} onCompleteAction={complete} />;
+    case 'BRANCH':
+      return <BranchLab config={config} onCompleteAction={complete} />;
+    case 'MERGE_CONFLICT':
+      return <MergeConflictLab config={config} onCompleteAction={complete} />;
   }
 }

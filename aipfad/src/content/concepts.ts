@@ -152,4 +152,150 @@ export const concepts: ConceptDraft[] = [
     difficulty: 2,
     prerequisiteSlugs: ['prompt-constraints-und-beispiele'],
   },
+
+  // --- Modul 5/6: Git & GitHub (Ausbaustufe 2) ------------------------------
+  {
+    slug: 'versionsverwaltung',
+    name: 'Versionsverwaltung',
+    description:
+      'Ein System, das jeden Bearbeitungsstand festhält und jederzeit wieder abrufbar macht. Es beantwortet drei Fragen, die Dateikopien mit Namen wie "final_v3_wirklich_final" nie zuverlässig beantworten: Was hat sich geändert, wann, und warum. Erst dadurch wird gemeinsames Arbeiten am selben Stand möglich.',
+    difficulty: 1,
+    prerequisiteSlugs: ['terminal-grundbegriffe'],
+  },
+  {
+    slug: 'git-repository',
+    name: 'Repository',
+    description:
+      'Ein Ordner, in dem Git den vollständigen Verlauf mitführt — technisch im versteckten Unterordner .git. Erst dadurch wird ein gewöhnlicher Ordner zu einem Projekt mit Gedächtnis. Jede Kopie eines Repositories enthält den ganzen Verlauf, nicht nur den aktuellen Stand.',
+    difficulty: 1,
+    prerequisiteSlugs: ['versionsverwaltung', 'pfad-und-pfadtrennzeichen'],
+  },
+  {
+    slug: 'arbeitsverzeichnis',
+    name: 'Arbeitsverzeichnis',
+    description:
+      'Die Dateien, die du gerade siehst und bearbeitest. Was hier steht, ist zunächst nur auf deiner Festplatte — Git weiß erst davon, wenn du es ausdrücklich weitergibst. Änderungen hier sind nicht durch Git gesichert.',
+    difficulty: 1,
+    prerequisiteSlugs: ['git-repository'],
+  },
+  {
+    slug: 'staging-area',
+    name: 'Staging Area',
+    description:
+      'Der Zwischenbereich zwischen Arbeitsverzeichnis und Repository. Hier stellst du zusammen, was in den nächsten Commit soll — und nur das kommt mit. Die Staging Area ist der Grund, warum sich aus vielen gemischten Änderungen mehrere saubere Commits bauen lassen.',
+    difficulty: 2,
+    prerequisiteSlugs: ['arbeitsverzeichnis'],
+  },
+  {
+    slug: 'commit',
+    name: 'Commit',
+    description:
+      'Ein festgehaltener Stand mit Zeitpunkt, Urheberin und Begründung. Ein Commit ist keine Datei-Version, sondern eine Momentaufnahme des gesamten vorgemerkten Standes. Er ist unveränderlich: Spätere Korrekturen entstehen als neue Commits.',
+    difficulty: 2,
+    prerequisiteSlugs: ['staging-area'],
+  },
+  {
+    slug: 'commit-verlauf',
+    name: 'Commit-Verlauf',
+    description:
+      'Die Kette der Commits, jeder mit Verweis auf seinen Vorgänger. Aus dieser Kette ergibt sich, wie ein Stand entstanden ist. Weil jeder Commit auf seine Eltern zeigt, ist der Verlauf ein Graph — keine bloße Liste.',
+    difficulty: 2,
+    prerequisiteSlugs: ['commit'],
+  },
+  {
+    slug: 'diff',
+    name: 'Diff',
+    description:
+      'Die zeilenweise Gegenüberstellung zweier Stände: Was kam hinzu, was fiel weg. Ein Diff beantwortet die Frage "was genau ändert sich hier" — die zentrale Frage jeder Durchsicht. Welche zwei Stände verglichen werden, hängt vom Befehl ab.',
+    difficulty: 2,
+    prerequisiteSlugs: ['commit-verlauf'],
+  },
+  {
+    slug: 'branch',
+    name: 'Branch',
+    description:
+      'Ein beweglicher Zeiger auf einen Commit — keine Kopie und kein Ordner. Deshalb kostet das Anlegen praktisch nichts. Ein neuer Commit verschiebt den Zeiger des aktuellen Branches; alle anderen bleiben, wo sie sind.',
+    difficulty: 3,
+    prerequisiteSlugs: ['commit-verlauf'],
+  },
+  {
+    slug: 'merge',
+    name: 'Merge',
+    description:
+      'Das Zusammenführen zweier Entwicklungslinien. Liegt der eigene Stand vollständig in der Vorgeschichte des anderen, wandert nur der Zeiger weiter. Sind beide Linien auseinandergelaufen, entsteht ein Commit mit zwei Eltern, der beide Wege zusammenhält.',
+    difficulty: 3,
+    prerequisiteSlugs: ['branch'],
+  },
+  {
+    slug: 'merge-konflikt',
+    name: 'Merge-Konflikt',
+    description:
+      'Entsteht, wenn beide Seiten dieselbe Stelle unterschiedlich geändert haben. Kein Fehler und kein Schaden: Git markiert die Stelle und überlässt die Entscheidung dem Menschen, weil nur er weiß, was gemeint war. Die Marker müssen vor dem Abschluss entfernt werden.',
+    difficulty: 3,
+    prerequisiteSlugs: ['merge'],
+  },
+  {
+    slug: 'remote-repository',
+    name: 'Remote-Repository',
+    description:
+      'Ein Repository, das woanders liegt — meist auf einem Server, damit mehrere darauf zugreifen können. "origin" ist dabei nur der übliche Name für das Remote, aus dem geklont wurde, kein feststehender Begriff. Dein lokales Repository bleibt vollständig eigenständig.',
+    difficulty: 3,
+    prerequisiteSlugs: ['git-repository'],
+  },
+  {
+    slug: 'fetch-und-pull',
+    name: 'Fetch und Pull',
+    description:
+      'Fetch holt den entfernten Stand herunter und lässt deine Arbeit unangetastet — du kannst danach in Ruhe ansehen, was sich getan hat. Pull holt UND baut sofort in deinen aktuellen Branch ein. Der Unterschied entscheidet, ob du überrascht wirst oder nicht.',
+    difficulty: 3,
+    prerequisiteSlugs: ['remote-repository', 'merge'],
+  },
+  {
+    slug: 'github-plattform',
+    name: 'GitHub als Plattform',
+    description:
+      'GitHub ist nicht Git. Git ist das Versionsverwaltungssystem auf deinem Rechner; GitHub ist ein Dienst, der Repositories hostet und darum herum Zusammenarbeit organisiert: Issues, Pull Requests, Durchsichten, automatische Prüfungen, Rechte. Git funktioniert vollständig ohne GitHub.',
+    difficulty: 2,
+    prerequisiteSlugs: ['remote-repository'],
+  },
+  {
+    slug: 'pull-request',
+    name: 'Pull Request',
+    description:
+      'Der Vorschlag, einen Branch in einen anderen zu übernehmen — samt Ort für Diskussion, Durchsicht und automatische Prüfungen. Ein Pull Request ist ein Konzept der Plattform, nicht von Git selbst. Er macht aus einem Merge eine nachvollziehbare, gemeinsame Entscheidung.',
+    difficulty: 3,
+    prerequisiteSlugs: ['github-plattform', 'branch'],
+  },
+  {
+    slug: 'code-review',
+    name: 'Code Review',
+    description:
+      'Die Durchsicht vorgeschlagener Änderungen durch andere, bevor sie übernommen werden. Ziel ist nicht Kontrolle, sondern geteiltes Wissen und frühes Entdecken von Problemen. Anmerkungen beziehen sich auf konkrete Zeilen des Diffs.',
+    difficulty: 3,
+    prerequisiteSlugs: ['pull-request', 'diff'],
+  },
+  {
+    slug: 'continuous-integration',
+    name: 'Automatische Prüfungen (CI)',
+    description:
+      'Prüfläufe, die bei jeder vorgeschlagenen Änderung automatisch starten: übersetzen, testen, Regeln prüfen. Sie beantworten die Frage "funktioniert das überhaupt", bevor ein Mensch Zeit investiert. Eine rote Prüfung ist eine Information, kein Urteil.',
+    difficulty: 3,
+    prerequisiteSlugs: ['pull-request'],
+  },
+  {
+    slug: 'aenderungen-zuruecknehmen',
+    name: 'Änderungen zurücknehmen',
+    description:
+      'Drei ähnlich klingende Wege mit sehr verschiedenen Folgen: restore betrifft das Arbeitsverzeichnis, revert legt einen ausgleichenden neuen Commit an, reset verschiebt den Branch-Zeiger. Entscheidend ist, ob etwas bereits veröffentlicht wurde — dann ist revert der verträgliche Weg.',
+    difficulty: 4,
+    prerequisiteSlugs: ['commit-verlauf', 'staging-area'],
+  },
+  {
+    slug: 'reflog',
+    name: 'Reflog als Rettungsanker',
+    description:
+      'Git führt Buch über jede Bewegung von HEAD — auch über die, die im normalen Verlauf nicht mehr auftauchen. Nach einem versehentlichen Zurücksetzen steht hier die Commit-Kennung, zu der man zurückkann. Nie committete Arbeit rettet allerdings auch das Reflog nicht.',
+    difficulty: 4,
+    prerequisiteSlugs: ['aenderungen-zuruecknehmen'],
+  },
 ];

@@ -1,0 +1,570 @@
+import { describe, expect, it } from 'vitest';
+import {
+  alleKonflikteGeloest,
+  aufgeloesterInhalt,
+  enthaeltMarker,
+  fuehreKonfliktBefehlAus,
+  loeseKonflikt,
+  mitKonfliktMarkern,
+  merkeKonfliktdateiVor,
+  offeneKonflikte,
+  starteMergeErneut,
+  type Abschnitt,
+  type KonfliktZustand,
+} from '@/domain/git/merge-conflict';
+import { mergeConflictConfigSchema } from '@/domain/labs/merge-conflict-config';
+
+/**
+ * Das Konflikt-Lab soll drei Dinge tragfähig machen: die Marker lesen können,
+ * bewusst entscheiden statt raten, und die Reihenfolge auflösen → add → commit
+ * kennen. Der mittlere Schritt ist der, den viele überspringen.
+ */
+
+const BESCHRIFTUNG = { unser: 'HEAD', ihr: 'feature/preise' };
+
+function start(): KonfliktZustand {
+  return {
+    datei: {
+      pfad: 'preise.md',
+      abschnitte: [
+        { art: 'gemeinsam', zeilen: ['# Preise', ''] },
+        {
+          art: 'konflikt',
+          id: 'k1',
+          unsere: ['Basis: 9 Euro'],
+          ihre: ['Basis: 12 Euro'],
+        },
+        { art: 'gemeinsam', zeilen: ['', 'Alle Preise inklusive Steuern.'] },
+      ],
+    },
+    aufloesungen: {},
+    vorgemerkt: false,
+    status: 'laeuft',
+    ihrBranch: 'feature/preise',
+  };
+}
+
+describe('Konfliktmarker', () => {
+  it('zeigt die Datei so, wie Git sie hinterlässt', () => {
+    const zeilen = mitKonfliktMarkern(start(), BESCHRIFTUNG);
+    expect(zeilen).toEqual([
+      '# Preise',
+      '',
+      '<<<<<<< HEAD',
+      'Basis: 9 Euro',
+      '=======',
+      'Basis: 12 Euro',
+      '>>>>>>> feature/preise',
+      '',
+      'Alle Preise inklusive Steuern.',
+    ]);
+  });
+
+  it('erkennt verbliebene Marker in einem Text', () => {
+    expect(enthaeltMarker(['# Titel', '<<<<<<< HEAD'])).toBe(true);
+    expect(enthaeltMarker(['# Titel', '======='])).toBe(true);
+    expect(enthaeltMarker(['# Titel', 'alles gut'])).toBe(false);
+  });
+
+  it('zeigt nach dem Auflösen keine Marker mehr', () => {
+    const geloest = loeseKonflikt(start(), 'k1', { art: 'ihre' });
+    expect(enthaeltMarker(mitKonfliktMarkern(geloest, BESCHRIFTUNG))).toBe(false);
+  });
+});
+
+describe('Auflösen', () => {
+  it('übernimmt die eigene Fassung', () => {
+    const geloest = loeseKonflikt(start(), 'k1', { art: 'unsere' });
+    expect(aufgeloesterInhalt(geloest)).toContain('Basis: 9 Euro');
+    expect(aufgeloesterInhalt(geloest)).not.toContain('Basis: 12 Euro');
+  });
+
+  it('übernimmt die hereingeholte Fassung', () => {
+    const geloest = loeseKonflikt(start(), 'k1', { art: 'ihre' });
+    expect(aufgeloesterInhalt(geloest)).toContain('Basis: 12 Euro');
+  });
+
+  it('übernimmt beide Fassungen nacheinander', () => {
+    const geloest = loeseKonflikt(start(), 'k1', { art: 'beide' });
+    const inhalt = aufgeloesterInhalt(geloest);
+    expect(inhalt).toContain('Basis: 9 Euro');
+    expect(inhalt).toContain('Basis: 12 Euro');
+  });
+
+  it('erlaubt eine eigene Formulierung', () => {
+    const geloest = loeseKonflikt(start(), 'k1', {
+      art: 'eigene',
+      zeilen: ['Basis: 10 Euro (abgestimmt)'],
+    });
+    expect(aufgeloesterInhalt(geloest)).toContain('Basis: 10 Euro (abgestimmt)');
+  });
+
+  it('führt offene Konflikte auf, bis sie entschieden sind', () => {
+    expect(offeneKonflikte(start())).toEqual(['k1']);
+    expect(alleKonflikteGeloest(loeseKonflikt(start(), 'k1', { art: 'ihre' }))).toBe(true);
+  });
+});
+
+describe('Ablauf auflösen → add → commit', () => {
+  it('verlangt das Auflösen vor dem Vormerken', () => {
+    const ergebnis = fuehreKonfliktBefehlAus(start(), 'git add preise.md');
+    expect(ergebnis.ausgabe).toContain('noch Konfliktstellen offen');
+    expect(ergebnis.zustand.vorgemerkt).toBe(false);
+  });
+
+  it('verlangt das Vormerken vor dem Commit — der übersprungene Schritt', () => {
+    const geloest = loeseKonflikt(start(), 'k1', { art: 'ihre' });
+    const ergebnis = fuehreKonfliktBefehlAus(geloest, 'git commit');
+    expect(ergebnis.ausgabe).toContain('git add');
+    expect(ergebnis.zustand.status).toBe('laeuft');
+  });
+
+  it('schließt den Merge nach auflösen, add und commit ab', () => {
+    let zustand = loeseKonflikt(start(), 'k1', { art: 'ihre' });
+    zustand = fuehreKonfliktBefehlAus(zustand, 'git add preise.md').zustand;
+    expect(zustand.vorgemerkt).toBe(true);
+    zustand = fuehreKonfliktBefehlAus(zustand, 'git commit').zustand;
+    expect(zustand.status).toBe('abgeschlossen');
+  });
+
+  it('lehnt das Vormerken ab, wenn noch Marker im Text stehen', () => {
+    // Wer die Marker in einer eigenen Fassung stehen lässt, würde sie sonst
+    // mitcommitten — Git selbst prüft das nicht.
+    const zustand = loeseKonflikt(start(), 'k1', {
+      art: 'eigene',
+      zeilen: ['<<<<<<< HEAD', 'Basis: 9 Euro'],
+    });
+    const ergebnis = fuehreKonfliktBefehlAus(zustand, 'git add preise.md');
+    expect(ergebnis.ausgabe).toContain('Konfliktmarker');
+    expect(ergebnis.zustand.vorgemerkt).toBe(false);
+  });
+
+  it('nimmt die Vormerkung zurück, wenn danach neu aufgelöst wird', () => {
+    let zustand = loeseKonflikt(start(), 'k1', { art: 'ihre' });
+    zustand = fuehreKonfliktBefehlAus(zustand, 'git add preise.md').zustand;
+    expect(zustand.vorgemerkt).toBe(true);
+
+    zustand = loeseKonflikt(zustand, 'k1', { art: 'unsere' });
+    expect(zustand.vorgemerkt).toBe(false);
+  });
+});
+
+describe('git status im Konflikt', () => {
+  it('nennt die nicht zusammengeführte Datei und die Zahl offener Stellen', () => {
+    const ausgabe = fuehreKonfliktBefehlAus(start(), 'git status').ausgabe;
+    expect(ausgabe).toContain('beide geändert');
+    expect(ausgabe).toContain('preise.md');
+    expect(ausgabe).toContain('Offene Konfliktstellen: 1');
+  });
+
+  it('weist nach dem Auflösen auf den fehlenden add-Schritt hin', () => {
+    const geloest = loeseKonflikt(start(), 'k1', { art: 'ihre' });
+    expect(fuehreKonfliktBefehlAus(geloest, 'git status').ausgabe).toContain('git add');
+  });
+});
+
+/**
+ * Ein abgebrochener Merge ist kein zurückgesetzter Merge.
+ *
+ * Zuvor verwarf `--abort` nur die Entscheidungen und zeigte die Marker sofort
+ * wieder an; `git status` meldete weiterhin einen laufenden Merge, und der
+ * Abbruch war selbst nach dem Abschluss noch möglich. Echtes Git kann beides
+ * nicht: Nach Abbruch oder Merge-Commit gibt es keinen laufenden Merge und
+ * keine Konfliktdatei mehr (Codex-Review auf PR #30).
+ */
+describe('git merge --abort', () => {
+  it('verwirft die Entscheidungen und beendet den Merge', () => {
+    let zustand = loeseKonflikt(start(), 'k1', { art: 'ihre' });
+    zustand = fuehreKonfliktBefehlAus(zustand, 'git add preise.md').zustand;
+    const ergebnis = fuehreKonfliktBefehlAus(zustand, 'git merge --abort');
+
+    expect(ergebnis.zustand.aufloesungen).toEqual({});
+    expect(ergebnis.zustand.vorgemerkt).toBe(false);
+    expect(ergebnis.zustand.status).toBe('abgebrochen');
+  });
+
+  it('zeigt danach die eigene Fassung ohne Marker', () => {
+    const abgebrochen = fuehreKonfliktBefehlAus(start(), 'git merge --abort').zustand;
+    const zeilen = mitKonfliktMarkern(abgebrochen, BESCHRIFTUNG);
+
+    expect(enthaeltMarker(zeilen)).toBe(false);
+    expect(zeilen).toContain('Basis: 9 Euro');
+    expect(zeilen).not.toContain('Basis: 12 Euro');
+  });
+
+  it('meldet danach keinen laufenden Merge mehr', () => {
+    const abgebrochen = fuehreKonfliktBefehlAus(start(), 'git merge --abort').zustand;
+    const ausgabe = fuehreKonfliktBefehlAus(abgebrochen, 'git status').ausgabe;
+
+    expect(ausgabe).toContain('Kein Merge im Gange');
+    expect(ausgabe).not.toContain('Offene Konfliktstellen');
+  });
+
+  it('lässt sich nach dem Abschluss NICHT mehr abbrechen', () => {
+    let zustand = loeseKonflikt(start(), 'k1', { art: 'ihre' });
+    zustand = fuehreKonfliktBefehlAus(zustand, 'git add preise.md').zustand;
+    zustand = fuehreKonfliktBefehlAus(zustand, 'git commit').zustand;
+    expect(zustand.status).toBe('abgeschlossen');
+
+    const ergebnis = fuehreKonfliktBefehlAus(zustand, 'git merge --abort');
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand.status).toBe('abgeschlossen');
+    expect(ergebnis.ausgabe).toContain('Kein Merge im Gange');
+  });
+
+  it('nimmt nach dem Abbruch weder Entscheidungen noch add oder commit an', () => {
+    const abgebrochen = fuehreKonfliktBefehlAus(start(), 'git merge --abort').zustand;
+
+    expect(loeseKonflikt(abgebrochen, 'k1', { art: 'ihre' })).toBe(abgebrochen);
+    expect(fuehreKonfliktBefehlAus(abgebrochen, 'git add preise.md').zustand.vorgemerkt).toBe(
+      false,
+    );
+    expect(fuehreKonfliktBefehlAus(abgebrochen, 'git commit').zustand.status).toBe('abgebrochen');
+  });
+
+  it('lässt denselben Merge nach einem Abbruch erneut beginnen', () => {
+    const abgebrochen = fuehreKonfliktBefehlAus(start(), 'git merge --abort').zustand;
+    const erneut = fuehreKonfliktBefehlAus(abgebrochen, 'git merge feature/preise');
+
+    expect(erneut.zustand.status).toBe('laeuft');
+    expect(offeneKonflikte(erneut.zustand)).toEqual(['k1']);
+    expect(enthaeltMarker(mitKonfliktMarkern(erneut.zustand, BESCHRIFTUNG))).toBe(true);
+  });
+});
+
+/**
+ * Nach einem Abbruch startete JEDE Merge-Eingabe den Konflikt neu — auch
+ * `git merge` ohne Angabe und `git merge tippfehler`. Ein Merge sagt aber
+ * immer, WAS hereingeholt wird; genau das war im Lab nicht mehr zu sehen
+ * (Codex-Review auf PR #30).
+ */
+describe('Neustart nach Abbruch verlangt den richtigen Branch', () => {
+  function abgebrochen(): KonfliktZustand {
+    const ergebnis = fuehreKonfliktBefehlAus(start(), 'git merge --abort');
+    expect(ergebnis.zustand.status).toBe('abgebrochen');
+    return ergebnis.zustand;
+  }
+
+  it('lehnt jede falsche Form ab und lässt den Zustand unangetastet', () => {
+    const vorher = abgebrochen();
+    for (const befehl of [
+      'git merge',
+      'git merge typo',
+      'git merge anderer-branch',
+      'git merge main',
+      `git merge ${vorher.ihrBranch} extra`,
+    ]) {
+      const ergebnis = fuehreKonfliktBefehlAus(vorher, befehl);
+
+      expect(ergebnis.veraendert, befehl).toBe(false);
+      expect(ergebnis.zustand.status, befehl).toBe('abgebrochen');
+      // Nicht nur der Text: Der Zustand ist derselbe geblieben.
+      expect(ergebnis.zustand, befehl).toBe(vorher);
+    }
+  });
+
+  it('nimmt genau den eingerichteten Branch an', () => {
+    const vorher = abgebrochen();
+    const ergebnis = fuehreKonfliktBefehlAus(vorher, `git merge ${vorher.ihrBranch}`);
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.status).toBe('laeuft');
+    expect(ergebnis.zustand.vorgemerkt).toBe(false);
+    expect(ergebnis.zustand.aufloesungen).toEqual({});
+  });
+
+  it('nennt in der Ablehnung den Branch, um den es geht', () => {
+    const vorher = abgebrochen();
+
+    expect(fuehreKonfliktBefehlAus(vorher, 'git merge').ausgabe).toContain(vorher.ihrBranch);
+    expect(fuehreKonfliktBefehlAus(vorher, 'git merge typo').ausgabe).toContain('typo');
+  });
+
+  it('lehnt einen nicht umgesetzten Schalter weiterhin ab', () => {
+    const vorher = abgebrochen();
+    const ergebnis = fuehreKonfliktBefehlAus(vorher, 'git merge --no-ff feature/preise');
+
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand.status).toBe('abgebrochen');
+  });
+});
+
+/**
+ * Der Neustartknopf der Maske baut `git merge ${ihrBranch}`. Damit das je
+ * ein einziger Operand bleibt, muss der Name ein gültiger Branchname sein —
+ * dafür sorgt der gemeinsame Vertrag in der Lab-Konfiguration
+ * (Codex-Review auf PR #30).
+ */
+describe('Der Befehl des Neustartknopfes ist ausführbar', () => {
+  const KONFIG = mergeConflictConfigSchema.parse({
+    pfad: 'preise.md',
+    unserBranch: 'main',
+    ihrBranch: 'feature/preise',
+    hintergrund: 'Beide Seiten haben dieselbe Datei berührt.',
+    abschnitte: [{ art: 'konflikt', id: 'k1', unsere: ['Basis: 9'], ihre: ['Basis: 12'] }],
+  });
+
+  it('startet den Merge mit genau dem Befehl, den der Knopf schickt', () => {
+    const zustand: KonfliktZustand = {
+      datei: { pfad: KONFIG.pfad, abschnitte: KONFIG.abschnitte as Abschnitt[] },
+      aufloesungen: {},
+      vorgemerkt: false,
+      status: 'laeuft',
+      ihrBranch: KONFIG.ihrBranch,
+    };
+    const abgebrochen = fuehreKonfliktBefehlAus(zustand, 'git merge --abort').zustand;
+    expect(abgebrochen.status).toBe('abgebrochen');
+
+    // Wortgleich mit der Maske.
+    const ergebnis = fuehreKonfliktBefehlAus(abgebrochen, `git merge ${KONFIG.ihrBranch}`);
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.status).toBe('laeuft');
+  });
+
+  it('gilt auch für die gültigen Sonderfälle der Branchnamen', () => {
+    for (const name of ['feature/-topic', '@', 'HEAD/x']) {
+      const konfig = mergeConflictConfigSchema.parse({ ...KONFIG, ihrBranch: name });
+      const zustand: KonfliktZustand = {
+        datei: { pfad: konfig.pfad, abschnitte: konfig.abschnitte as Abschnitt[] },
+        aufloesungen: {},
+        vorgemerkt: false,
+        status: 'abgebrochen',
+        ihrBranch: konfig.ihrBranch,
+      };
+      const ergebnis = fuehreKonfliktBefehlAus(zustand, `git merge ${konfig.ihrBranch}`);
+
+      expect(ergebnis.zustand.status, name).toBe('laeuft');
+    }
+  });
+
+  it('lässt einen Namen mit Leerzeichen gar nicht erst in die Konfiguration', () => {
+    // Der Fund selbst: Vorher kam er durch, der Knopf baute zwei Operanden,
+    // und das Lab blieb in "abgebrochen" hängen.
+    expect(
+      mergeConflictConfigSchema.safeParse({ ...KONFIG, ihrBranch: 'feature prices' }).success,
+    ).toBe(false);
+  });
+});
+
+/**
+ * Ein Branch darf in echtem Git `feature"prices"` heißen — nachgestellt
+ * gegen Git 2.52, das `refs/heads/feature"prices"` wirklich anlegt.
+ *
+ * Der Neustartknopf baute daraus früher eine Befehlszeile, die sofort wieder
+ * zerlegt wurde; die Anführungszeichen galten dabei als Befehlssyntax und
+ * übrig blieb `featureprices`. Der Umweg ist weg: Was getypt vorliegt, wird
+ * nicht zu Text und zurück gelesen (Codex-Review auf PR #30).
+ */
+describe('Branchnamen mit Anführungszeichen überstehen den Neustart', () => {
+  const MIT_ANFUEHRUNG = 'feature"prices"';
+
+  function konfiguriert(ihrBranch: string) {
+    return mergeConflictConfigSchema.parse({
+      pfad: 'preise.md',
+      unserBranch: 'main',
+      ihrBranch,
+      hintergrund: 'Beide Seiten haben dieselbe Datei berührt.',
+      abschnitte: [{ art: 'konflikt', id: 'k1', unsere: ['Basis: 9'], ihre: ['Basis: 12'] }],
+    });
+  }
+
+  function abgebrochenMit(ihrBranch: string): KonfliktZustand {
+    const konfig = konfiguriert(ihrBranch);
+    const zustand: KonfliktZustand = {
+      datei: { pfad: konfig.pfad, abschnitte: konfig.abschnitte as Abschnitt[] },
+      aufloesungen: {},
+      vorgemerkt: false,
+      status: 'laeuft',
+      ihrBranch: konfig.ihrBranch,
+    };
+    const abgebrochen = fuehreKonfliktBefehlAus(zustand, 'git merge --abort').zustand;
+    expect(abgebrochen.status).toBe('abgebrochen');
+    return abgebrochen;
+  }
+
+  it('nimmt den Namen in der Konfiguration an — echtes Git tut das auch', () => {
+    for (const name of [MIT_ANFUEHRUNG, "feature'prices", 'a$b', 'a`b']) {
+      expect(() => konfiguriert(name), name).not.toThrow();
+    }
+  });
+
+  it('startet über den getypten Übergang neu und behält den Namen unverändert', () => {
+    const vorher = abgebrochenMit(MIT_ANFUEHRUNG);
+    const ergebnis = starteMergeErneut(vorher);
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.status).toBe('laeuft');
+    // Zeichen für Zeichen derselbe Name.
+    expect(ergebnis.zustand.ihrBranch).toBe(MIT_ANFUEHRUNG);
+    expect(ergebnis.zustand.aufloesungen).toEqual({});
+    expect(ergebnis.zustand.vorgemerkt).toBe(false);
+  });
+
+  it('hängt dabei an keiner Befehlszerlegung', () => {
+    // Der Beleg: Genau die Zeile, die der Knopf früher baute, verliert den
+    // Namen — der getypte Übergang daneben nicht.
+    const vorher = abgebrochenMit(MIT_ANFUEHRUNG);
+    const alteRundreise = fuehreKonfliktBefehlAus(vorher, `git merge ${MIT_ANFUEHRUNG}`);
+
+    expect(alteRundreise.veraendert).toBe(false);
+    expect(starteMergeErneut(vorher).zustand.status).toBe('laeuft');
+  });
+
+  it('lässt den Lernbefehl in der Form gelingen, die der Zerleger trägt', () => {
+    // Einfache Anführungszeichen maskieren in einer Shell nichts weiter —
+    // genau so kommt der Name vollständig durch.
+    const vorher = abgebrochenMit(MIT_ANFUEHRUNG);
+    const ergebnis = fuehreKonfliktBefehlAus(vorher, `git merge 'feature"prices"'`);
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.status).toBe('laeuft');
+    expect(ergebnis.zustand.ihrBranch).toBe(MIT_ANFUEHRUNG);
+  });
+
+  it('weist falsche, fehlende und überzählige Angaben weiter zurück', () => {
+    const vorher = abgebrochenMit(MIT_ANFUEHRUNG);
+    for (const befehl of [
+      'git merge',
+      'git merge featureprices',
+      'git merge main',
+      `git merge 'feature"prices"' extra`,
+    ]) {
+      const ergebnis = fuehreKonfliktBefehlAus(vorher, befehl);
+      expect(ergebnis.veraendert, befehl).toBe(false);
+      expect(ergebnis.zustand, befehl).toBe(vorher);
+    }
+  });
+
+  it('ändert am gewöhnlichen Branchnamen nichts', () => {
+    const vorher = abgebrochenMit('feature/preise');
+
+    expect(fuehreKonfliktBefehlAus(vorher, 'git merge feature/preise').zustand.status).toBe(
+      'laeuft',
+    );
+    expect(starteMergeErneut(vorher).zustand.status).toBe('laeuft');
+  });
+
+  it('lehnt den Übergang ab, wenn kein Merge abgebrochen ist', () => {
+    const konfig = konfiguriert('feature/preise');
+    const laufend: KonfliktZustand = {
+      datei: { pfad: konfig.pfad, abschnitte: konfig.abschnitte as Abschnitt[] },
+      aufloesungen: {},
+      vorgemerkt: false,
+      status: 'laeuft',
+      ihrBranch: konfig.ihrBranch,
+    };
+    const ergebnis = starteMergeErneut(laufend);
+
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand).toBe(laufend);
+  });
+});
+
+/**
+ * Derselbe Umweg wie beim Neustart steckte auch im Vormerk-Knopf. Ein
+ * Dateiname darf ein Leerzeichen tragen; als Befehlszeile zerfiel
+ * `preise 2026.md` in zwei Operanden, und das Lab ließ sich über seinen
+ * eigenen Knopf nicht mehr abschließen (Codex-Review auf PR #30).
+ */
+describe('Dateipfade überstehen das Vormerken', () => {
+  const HEIKEL = ['preise 2026.md', 'preise"final".md', "preise'final'.md"];
+
+  function geloest(pfad: string): KonfliktZustand {
+    const konfig = mergeConflictConfigSchema.parse({
+      pfad,
+      unserBranch: 'main',
+      ihrBranch: 'feature/preise',
+      hintergrund: 'Beide Seiten haben dieselbe Datei berührt.',
+      abschnitte: [{ art: 'konflikt', id: 'k1', unsere: ['Basis: 9'], ihre: ['Basis: 12'] }],
+    });
+    const zustand: KonfliktZustand = {
+      datei: { pfad: konfig.pfad, abschnitte: konfig.abschnitte as Abschnitt[] },
+      aufloesungen: {},
+      vorgemerkt: false,
+      status: 'laeuft',
+      ihrBranch: konfig.ihrBranch,
+    };
+    return loeseKonflikt(zustand, 'k1', { art: 'ihre' });
+  }
+
+  it('merkt einen gewöhnlichen Pfad über den getypten Übergang vor', () => {
+    const ergebnis = merkeKonfliktdateiVor(geloest('preise.md'));
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.vorgemerkt).toBe(true);
+    expect(ergebnis.zustand.datei.pfad).toBe('preise.md');
+  });
+
+  it('behält heikle Pfade dabei Zeichen für Zeichen', () => {
+    for (const pfad of HEIKEL) {
+      const ergebnis = merkeKonfliktdateiVor(geloest(pfad));
+
+      expect(ergebnis.veraendert, pfad).toBe(true);
+      expect(ergebnis.zustand.vorgemerkt, pfad).toBe(true);
+      expect(ergebnis.zustand.datei.pfad, pfad).toBe(pfad);
+      expect(ergebnis.ausgabe, pfad).toContain(pfad);
+    }
+  });
+
+  it('hängt dabei an keiner Befehlszerlegung', () => {
+    // Der Beleg: Genau die Zeile, die der Knopf früher baute, verliert den
+    // Pfad — der getypte Übergang daneben nicht.
+    for (const pfad of HEIKEL) {
+      const zustand = geloest(pfad);
+      const alteRundreise = fuehreKonfliktBefehlAus(zustand, `git add ${pfad}`);
+
+      expect(alteRundreise.zustand.vorgemerkt, pfad).toBe(false);
+      expect(merkeKonfliktdateiVor(zustand).zustand.vorgemerkt, pfad).toBe(true);
+    }
+  });
+
+  it('lässt den Lernbefehl in der Form gelingen, die der Zerleger trägt', () => {
+    const zustand = geloest('preise 2026.md');
+    const ergebnis = fuehreKonfliktBefehlAus(zustand, `git add 'preise 2026.md'`);
+
+    expect(ergebnis.veraendert).toBe(true);
+    expect(ergebnis.zustand.vorgemerkt).toBe(true);
+    expect(ergebnis.zustand.datei.pfad).toBe('preise 2026.md');
+  });
+
+  it('weist einen fremden und einen fehlenden Pfad weiter zurück', () => {
+    const zustand = geloest('preise.md');
+    for (const befehl of ['git add tippfehler.md', 'git add']) {
+      const ergebnis = fuehreKonfliktBefehlAus(zustand, befehl);
+      expect(ergebnis.veraendert, befehl).toBe(false);
+      expect(ergebnis.zustand.vorgemerkt, befehl).toBe(false);
+    }
+  });
+
+  it('merkt nicht vor, solange Konflikte offen sind', () => {
+    const offen: KonfliktZustand = {
+      datei: {
+        pfad: 'preise.md',
+        abschnitte: [
+          { art: 'konflikt', id: 'k1', unsere: ['a'], ihre: ['b'] },
+          { art: 'konflikt', id: 'k2', unsere: ['c'], ihre: ['d'] },
+        ],
+      },
+      aufloesungen: {},
+      vorgemerkt: false,
+      status: 'laeuft',
+      ihrBranch: 'feature/preise',
+    };
+    const teilweise = loeseKonflikt(offen, 'k1', { art: 'ihre' });
+    const ergebnis = merkeKonfliktdateiVor(teilweise);
+
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand.vorgemerkt).toBe(false);
+    expect(ergebnis.ausgabe).toContain('noch Konfliktstellen offen');
+  });
+
+  it('merkt nicht vor, wenn kein Merge läuft', () => {
+    const zustand = geloest('preise.md');
+    const abgebrochen = fuehreKonfliktBefehlAus(zustand, 'git merge --abort').zustand;
+    const ergebnis = merkeKonfliktdateiVor(abgebrochen);
+
+    expect(ergebnis.veraendert).toBe(false);
+    expect(ergebnis.zustand).toBe(abgebrochen);
+  });
+});

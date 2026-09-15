@@ -54,7 +54,17 @@ export const RATE_LIMITS = {
    * hier teilen sich alle legitimen Geräte einer Person einen Zähler.
    */
   loginPerAccount: { limit: 20, windowMs: 15 * 60 * 1000 },
-  registerPerIp: { limit: 15, windowMs: 60 * 60 * 1000 },
+  /**
+   * Registrierungen je Herkunft und Stunde.
+   *
+   * Bewusst nicht sehr eng: Hinter einer einzelnen öffentlichen IP-Adresse
+   * steckt oft ein ganzes Netz — eine Schulklasse, ein Büro, ein Café. Fünfzehn
+   * Anmeldungen pro Stunde hätten dort reguläre Nutzung blockiert, und ein
+   * fälschlich ausgesperrter Kurs ist ein größerer Schaden als ein etwas
+   * höheres Kontingent. Gegen massenhafte Kontoerstellung bleibt die Grenze
+   * wirksam.
+   */
+  registerPerIp: { limit: 60, windowMs: 60 * 60 * 1000 },
   hintReveal: { limit: 120, windowMs: 60 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitConfig>;
 
