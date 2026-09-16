@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { einstellungenBeantworten, registriere } from './helfer';
 
 /**
  * Das Onboarding führt jetzt durch die Einstufung. Geprüft wird der Weg,
@@ -6,33 +7,13 @@ import { test, expect, type Page } from '@playwright/test';
  * in denen ein Ablauf sonst still etwas verliert.
  */
 
-const PASSWORT = 'Testpasswort-123';
-
 async function neuesKonto(page: Page): Promise<string> {
-  const email = `onboarding-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.local`;
-  await page.goto('/registrieren');
-  await page.getByLabel('Name').fill('Einstufungstest');
-  await page.getByLabel('E-Mail').fill(email);
-  await page
-    .getByLabel(/Passwort/)
-    .first()
-    .fill(PASSWORT);
-  await page.getByRole('button', { name: /Konto anlegen|Registrieren/ }).click();
-  await page.waitForURL(/\/onboarding/);
-  return email;
-}
-
-/** Beantwortet die vier Einstellungen, jeweils die erste Option. */
-async function einstellungenDurchlaufen(page: Page): Promise<void> {
-  for (let i = 0; i < 4; i += 1) {
-    await page.getByRole('radio').first().check();
-    await page.getByRole('button', { name: 'Weiter' }).click();
-  }
+  return registriere(page, 'Einstufungstest');
 }
 
 test('neues Konto: Onboarding, Einstufung, Ergebnis', async ({ page }) => {
   await neuesKonto(page);
-  await einstellungenDurchlaufen(page);
+  await einstellungenBeantworten(page);
 
   await expect(page.getByRole('heading', { name: /wo du stehst/i })).toBeVisible();
   await page.getByRole('button', { name: 'Einschätzung machen' }).click();
@@ -57,7 +38,7 @@ test('neues Konto: Onboarding, Einstufung, Ergebnis', async ({ page }) => {
 
 test('neues Konto: Einstufung überspringen', async ({ page }) => {
   await neuesKonto(page);
-  await einstellungenDurchlaufen(page);
+  await einstellungenBeantworten(page);
 
   await page.getByRole('button', { name: 'Überspringen' }).click();
   await page.getByRole('button', { name: /Los geht/ }).click();
@@ -80,7 +61,7 @@ test('Zurückgehen behält bereits gegebene Antworten', async ({ page }) => {
 
 test('abgeschlossenes Onboarding fängt nicht von vorne an', async ({ page }) => {
   await neuesKonto(page);
-  await einstellungenDurchlaufen(page);
+  await einstellungenBeantworten(page);
   await page.getByRole('button', { name: 'Überspringen' }).click();
   await page.getByRole('button', { name: /Los geht/ }).click();
   await page.getByRole('link', { name: 'Zum Lernpfad' }).click();

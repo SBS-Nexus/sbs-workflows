@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { einstellungenBeantworten, onboardingAbschliessen, registriere } from './helfer';
 
 /**
  * Automatisierter Accessibility-Smoke-Test (WCAG 2.2 A/AA, automatisiert
@@ -55,8 +56,7 @@ test('Pfad (angemeldet): keine serious/critical Verstöße', async ({ page }) =>
   await page.getByLabel('Passwort').fill('ein-sehr-sicheres-testpasswort-123');
   await page.getByRole('button', { name: 'Konto anlegen' }).click();
   await expect(page).toHaveURL(/\/onboarding$/);
-  await page.getByRole('button', { name: 'Weiter' }).click();
-  await expect(page).toHaveURL(/\/pfad$/);
+  await onboardingAbschliessen(page);
 
   await expectNoSeriousViolations(page);
 });
@@ -108,10 +108,9 @@ test('Ausbaustufe 2: keine serious/critical Verstöße auf den neuen Seiten', as
   await page.getByLabel('Passwort').fill('ein-sehr-sicheres-testpasswort-123');
   await page.getByRole('button', { name: 'Konto anlegen' }).click();
   await expect(page).toHaveURL(/\/onboarding$/);
-  await page.getByRole('button', { name: 'Weiter' }).click();
   // Erst wenn das Onboarding wirklich abgeschlossen ist, weiterspringen —
   // sonst landet der Aufruf auf der Anmeldeseite.
-  await expect(page).toHaveURL(/\/pfad$/);
+  await onboardingAbschliessen(page);
 
   await test.step('Git-State-Lab', async () => {
     await page.goto('/labs/git-state-lab');
@@ -147,25 +146,13 @@ test('Ausbaustufe 2: keine serious/critical Verstöße auf den neuen Seiten', as
 });
 
 test('Onboarding und Einstufung: keine serious/critical Verstöße', async ({ page }) => {
-  const email = `a11y-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.local`;
-  await page.goto('/registrieren');
-  await page.getByLabel('Name').fill('Barrierefreiheitstest');
-  await page.getByLabel('E-Mail').fill(email);
-  await page
-    .getByLabel(/Passwort/)
-    .first()
-    .fill('Testpasswort-123');
-  await page.getByRole('button', { name: /Konto anlegen|Registrieren/ }).click();
-  await page.waitForURL(/\/onboarding/);
+  await registriere(page, 'Barrierefreiheitstest');
 
   // Erster Schritt: eine Einstellung.
   await expectNoSeriousViolations(page);
 
-  // Die Einstufungsfrage ist ein eigener Bildschirm mit eigener Struktur.
-  for (let i = 0; i < 4; i += 1) {
-    await page.getByRole('radio').first().check();
-    await page.getByRole('button', { name: 'Weiter' }).click();
-  }
+  // Die Entscheidung über die Einstufung ist ein eigener Bildschirm.
+  await einstellungenBeantworten(page);
   await expectNoSeriousViolations(page);
 
   await page.getByRole('button', { name: 'Einschätzung machen' }).click();

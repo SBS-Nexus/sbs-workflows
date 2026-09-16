@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { onboardingAbschliessen } from './helfer';
 
 /**
  * End-to-End-Abdeckung der Ausbaustufe 2.
@@ -16,8 +17,7 @@ async function registerAndOnboard(page: Page): Promise<void> {
   await page.getByLabel('Passwort').fill('ein-sehr-sicheres-testpasswort-123');
   await page.getByRole('button', { name: 'Konto anlegen' }).click();
   await expect(page).toHaveURL(/\/onboarding$/);
-  await page.getByRole('button', { name: 'Weiter' }).click();
-  await expect(page).toHaveURL(/\/pfad$/);
+  await onboardingAbschliessen(page);
 }
 
 test('Die Git-Module erscheinen in der Bibliothek', async ({ page }) => {
