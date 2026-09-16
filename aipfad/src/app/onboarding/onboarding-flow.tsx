@@ -68,8 +68,34 @@ export function OnboardingFlow({ fragen }: { fragen: OeffentlicheFrage[] }): Rea
   const [antworten, setAntworten] = useState<Record<string, string>>({});
   const [einstufungGewaehlt, setEinstufungGewaehlt] = useState(false);
 
+  // Jeder Schritt ersetzt den vorigen an Ort und Stelle. Ohne Zutun fällt der
+  // Fokus dabei auf den Seitenanfang zurück: Die nächste Tabulatortaste
+  // begänne wieder ganz oben, und für Vorlesehilfen passierte hörbar nichts.
+  // Deshalb wandert der Fokus auf den neuen Schritt, der zugleich angesagt
+  // wird.
+  //
+  // Der Hook steht VOR dem Rücksprung zum Ergebnis: Hooks müssen in jedem
+  // Durchlauf in derselben Reihenfolge aufgerufen werden, sonst ordnet React
+  // den gespeicherten Zustand beim nächsten Mal falsch zu. Was nur für den
+  // Fragenteil gilt, steht deshalb im Rumpf des Effekts, nicht in der
+  // Bedingung davor.
+  const schrittRef = useRef<HTMLDivElement>(null);
+  const ersterAufbau = useRef(true);
+  const zeigtErgebnis = zustand.ok && zustand.ergebnis !== undefined;
+  useEffect(() => {
+    // Beim ersten Aufbau gehört der Seitenanfang noch der Überschrift, und
+    // auf der Ergebnisseite gibt es keinen Schritt, auf den zu springen
+    // wäre — dort ist der Behälter gar nicht mehr im Dokument.
+    if (ersterAufbau.current) {
+      ersterAufbau.current = false;
+      return;
+    }
+    if (zeigtErgebnis) return;
+    schrittRef.current?.focus();
+  }, [schritt, zeigtErgebnis]);
+
   // Nach dem Absenden zeigt der Server das Ergebnis — der Fragenteil ist vorbei.
-  if (zustand.ok && zustand.ergebnis) {
+  if (zeigtErgebnis && zustand.ergebnis) {
     return <Ergebnis ergebnis={zustand.ergebnis} />;
   }
 
@@ -84,21 +110,6 @@ export function OnboardingFlow({ fragen }: { fragen: OeffentlicheFrage[] }): Rea
           : gesamt;
 
   const fortschrittText = `Schritt ${Math.min(erledigt + 1, gesamt)} von ${gesamt}`;
-
-  // Jeder Schritt ersetzt den vorigen an Ort und Stelle. Ohne Zutun fällt der
-  // Fokus dabei auf den Seitenanfang zurück: Die nächste Tabulatortaste
-  // begänne wieder ganz oben, und für Vorlesehilfen passierte hörbar nichts.
-  // Deshalb wandert der Fokus auf den neuen Schritt, der zugleich angesagt
-  // wird.
-  const schrittRef = useRef<HTMLDivElement>(null);
-  const ersterAufbau = useRef(true);
-  useEffect(() => {
-    if (ersterAufbau.current) {
-      ersterAufbau.current = false;
-      return;
-    }
-    schrittRef.current?.focus();
-  }, [schritt]);
 
   const platzierung = einstufungGewaehlt
     ? {
