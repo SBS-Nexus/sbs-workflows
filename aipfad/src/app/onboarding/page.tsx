@@ -15,9 +15,8 @@ export const metadata: Metadata = {
  * Entscheidung.
  *
  * Vier Einstellungen, dann die Wahl, ob die diagnostische Einstufung
- * gemacht wird. Sie ist freiwillig (docs/LERNMODELL.md §4: "Nutzer darf
- * Placement überspringen") und ändert nie den Umfang des Pfads, nur seine
- * Einordnung.
+ * gemacht wird. Sie ist freiwillig (docs/LERNMODELL.md §4) und ändert nie
+ * den Umfang des Pfads, nur seine Einordnung.
  *
  * Gespeichert wird erst am Ende, in einem Schritt: Vorher gibt es keinen
  * Zwischenstand, den ein Abbruch zurücklassen könnte.

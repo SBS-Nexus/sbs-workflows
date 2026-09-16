@@ -142,7 +142,25 @@ export function OnboardingFlow({ fragen }: { fragen: OeffentlicheFrage[] }): Rea
   }
 
   return (
-    <form action={formAction} className="space-y-6" noValidate>
+    <form
+      action={formAction}
+      className="space-y-6"
+      noValidate
+      onSubmit={(ereignis) => {
+        // Abgeschickt wird ausschließlich vom letzten Schritt aus.
+        //
+        // Auf allen anderen Schritten hat dieses Formular keinen
+        // Absende-Knopf. Nach der HTML-Spezifikation schickt die
+        // Eingabetaste es dann trotzdem ab — Auswahlfelder und versteckte
+        // Felder halten sie nicht auf. Ob ein Browser das wirklich tut, war
+        // zwischen zwei Durchsichten strittig; die Folge wäre in jedem Fall
+        // schwer: ein abgeschlossenes Onboarding mit drei von acht
+        // Antworten, das sich nicht wiederholen lässt. Diese Prüfung hängt
+        // nicht daran, WIE abgeschickt wurde, und gilt deshalb auch für
+        // Wege, an die hier niemand gedacht hat.
+        if (schritt.art !== 'absenden') ereignis.preventDefault();
+      }}
+    >
       {/* Die Eingaben reisen als verstecktes Feld mit: Der Server bekommt am
           Ende alles auf einmal, und vorher wird nichts gespeichert. */}
       {EINSTELLUNGEN.map((feld) => (
@@ -180,8 +198,6 @@ export function OnboardingFlow({ fragen }: { fragen: OeffentlicheFrage[] }): Rea
         ref={schrittRef}
         tabIndex={-1}
         role="group"
-        aria-live="polite"
-        aria-atomic="true"
         aria-label={fortschrittText}
         className="space-y-6 outline-none"
       >

@@ -9,7 +9,7 @@ import { expect, type Page } from '@playwright/test';
  * würden wieder alle zugleich brechen.
  */
 
-export const TESTPASSWORT = 'ein-sehr-sicheres-testpasswort-123';
+const TESTPASSWORT = 'ein-sehr-sicheres-testpasswort-123';
 
 /** Legt ein frisches Konto an und bleibt im Onboarding stehen. */
 export async function registriere(page: Page, name = 'E2E Testperson'): Promise<string> {
@@ -34,36 +34,15 @@ export async function einstellungenBeantworten(page: Page): Promise<void> {
 /**
  * Führt das Onboarding zu Ende und landet im Lernpfad.
  *
- * Ohne Einstufung, wenn nicht anders verlangt: Die Prüfungen, die den Pfad
- * dahinter betreffen, sollen nicht acht Fragen mitschleppen.
+ * Immer ohne Einstufung: Die Prüfungen, die den Pfad dahinter betreffen,
+ * sollen nicht acht Fragen mitschleppen. Den Weg MIT Einstufung geht
+ * `onboarding-placement.spec.ts` — dort ist er der Gegenstand der Prüfung
+ * und keine Vorbereitung.
  */
-export async function onboardingAbschliessen(
-  page: Page,
-  { mitEinstufung = false }: { mitEinstufung?: boolean } = {},
-): Promise<void> {
+export async function onboardingAbschliessen(page: Page): Promise<void> {
   await einstellungenBeantworten(page);
-
-  if (mitEinstufung) {
-    await page.getByRole('button', { name: 'Einschätzung machen' }).click();
-    // Solange noch eine Frage dasteht, beantworten.
-    for (;;) {
-      const weiter = page.getByRole('button', { name: 'Weiter' });
-      if (!(await weiter.isVisible().catch(() => false))) break;
-      await page.getByRole('radio').first().check();
-      await weiter.click();
-    }
-  } else {
-    await page.getByRole('button', { name: 'Überspringen' }).click();
-  }
-
+  await page.getByRole('button', { name: 'Überspringen' }).click();
   await page.getByRole('button', { name: /Los geht/ }).click();
   await page.getByRole('link', { name: 'Zum Lernpfad' }).click();
   await expect(page).toHaveURL(/\/pfad$/);
-}
-
-/** Registrierung und Onboarding in einem Zug. */
-export async function registriereUndStarte(page: Page, name?: string): Promise<string> {
-  const email = await registriere(page, name);
-  await onboardingAbschliessen(page);
-  return email;
 }

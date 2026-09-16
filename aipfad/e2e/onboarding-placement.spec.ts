@@ -73,6 +73,49 @@ test('abgeschlossenes Onboarding fängt nicht von vorne an', async ({ page }) =>
   await page.waitForURL(/\/pfad/);
 });
 
+test('Eingabetaste schließt das Onboarding nicht vorzeitig ab', async ({ page }) => {
+  await neuesKonto(page);
+  await einstellungenBeantworten(page);
+  await page.getByRole('button', { name: 'Einschätzung machen' }).click();
+
+  // Drei von acht Fragen beantworten, dann Eingabetaste auf dem Auswahlfeld.
+  for (let i = 0; i < 3; i += 1) {
+    await page.getByRole('radio').first().check();
+    if (i < 2) await page.getByRole('button', { name: 'Weiter' }).click();
+  }
+  await page.keyboard.press('Enter');
+
+  // Weder abgeschlossen noch weitergeleitet: Ein Onboarding mit drei von
+  // acht Antworten ließe sich nicht wiederholen.
+  await expect(page).toHaveURL(/\/onboarding$/);
+  await expect(page.getByText('Frage 3 von 8')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Deine Einschätzung' })).toBeHidden();
+});
+
+test('Zurückgehen behält eine gegebene Einstufungsantwort', async ({ page }) => {
+  await neuesKonto(page);
+  await einstellungenBeantworten(page);
+  await page.getByRole('button', { name: 'Einschätzung machen' }).click();
+
+  await page.getByRole('radio').first().check();
+  await page.getByRole('button', { name: 'Weiter' }).click();
+  await expect(page.getByText('Frage 2 von 8')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Zurück' }).click();
+  await expect(page.getByText('Frage 1 von 8')).toBeVisible();
+  await expect(page.getByRole('radio').first()).toBeChecked();
+});
+
+test('Zurück vom letzten Schritt führt zurück in den Ablauf', async ({ page }) => {
+  await neuesKonto(page);
+  await einstellungenBeantworten(page);
+  await page.getByRole('button', { name: 'Überspringen' }).click();
+  await expect(page.getByRole('heading', { name: 'Alles beisammen' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Zurück' }).click();
+  await expect(page.getByRole('heading', { name: /wo du stehst/i })).toBeVisible();
+});
+
 test('Mobilbreite: kein waagerechtes Scrollen', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 720 });
   await neuesKonto(page);

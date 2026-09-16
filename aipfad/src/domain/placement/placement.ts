@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * Diagnostische Einstufung. Muster aus PythonPfad/SQLPfad (siehe
- * docs/LERNMODELL.md §7):
+ * docs/LERNMODELL.md §4):
  *  - Beginnt mit Aufgaben, die ohne Vorwissen lösbar sind (logisches Denken).
  *  - Fachbegriffe kommen erst in späteren Fragen vor und werden dort erklärt.
  *  - Keine Zeitbegrenzung, keine Punktzahl im klassischen Sinn.
