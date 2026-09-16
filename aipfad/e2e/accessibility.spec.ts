@@ -49,26 +49,15 @@ test('Anmeldung: keine serious/critical Verstöße', async ({ page }) => {
 });
 
 test('Pfad (angemeldet): keine serious/critical Verstöße', async ({ page }) => {
-  const email = `e2e-a11y-${Date.now()}@aipfad-test.local`;
-  await page.goto('/registrieren');
-  await page.getByLabel('Name').fill('A11y Test');
-  await page.getByLabel('E-Mail-Adresse').fill(email);
-  await page.getByLabel('Passwort').fill('ein-sehr-sicheres-testpasswort-123');
-  await page.getByRole('button', { name: 'Konto anlegen' }).click();
-  await expect(page).toHaveURL(/\/onboarding$/);
+  await registriere(page, 'A11y Test');
   await onboardingAbschliessen(page);
 
   await expectNoSeriousViolations(page);
 });
 
 test('Lektionsschritt: keine serious/critical Verstöße', async ({ page }) => {
-  const email = `e2e-a11y-lesson-${Date.now()}@aipfad-test.local`;
-  await page.goto('/registrieren');
-  await page.getByLabel('Name').fill('A11y Test');
-  await page.getByLabel('E-Mail-Adresse').fill(email);
-  await page.getByLabel('Passwort').fill('ein-sehr-sicheres-testpasswort-123');
-  await page.getByRole('button', { name: 'Konto anlegen' }).click();
-  await page.getByRole('button', { name: 'Weiter' }).click();
+  await registriere(page, 'A11y Test');
+  await onboardingAbschliessen(page);
   await page.getByRole('link', { name: 'Weiterlernen' }).click();
   await expect(page).toHaveURL(/\/lektion\/.+\/1$/);
 
@@ -76,13 +65,8 @@ test('Lektionsschritt: keine serious/critical Verstöße', async ({ page }) => {
 });
 
 test('Labs-Übersicht: keine serious/critical Verstöße', async ({ page }) => {
-  const email = `e2e-a11y-labs-${Date.now()}@aipfad-test.local`;
-  await page.goto('/registrieren');
-  await page.getByLabel('Name').fill('A11y Test');
-  await page.getByLabel('E-Mail-Adresse').fill(email);
-  await page.getByLabel('Passwort').fill('ein-sehr-sicheres-testpasswort-123');
-  await page.getByRole('button', { name: 'Konto anlegen' }).click();
-  await page.getByRole('button', { name: 'Weiter' }).click();
+  await registriere(page, 'A11y Test');
+  await onboardingAbschliessen(page);
   await page.goto('/labs');
 
   await expectNoSeriousViolations(page);
