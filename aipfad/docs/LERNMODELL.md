@@ -98,10 +98,18 @@ Server nicht — der Client kennt nur Stufe, Art und Sperrbegründung.
 Fachbegriff bis zu AI-Konzepten. "Weiß ich nicht" ist immer gleichwertig zu
 einer falschen Antwort. Ergebnis: 0–100 sowie Konzepte, die _plausibel_
 schon sitzen (nur wenn **alle** zugehörigen Fragen richtig beantwortet
-wurden). **Aktueller Stand:** Die Domainlogik und die Fragen sind fertig
-und unit-getestet, aber noch nicht in `app/onboarding/` eingehängt — das
-Onboarding führt derzeit direkt zum Pfad. Nächster sinnvoller Schritt, in
-[`LEHRPLAN.md`](LEHRPLAN.md) vermerkt.
+wurden).
+
+Die Einstufung ist **freiwillig**: Wer sie überspringt, kommt denselben Weg
+zum Lernpfad. Sie ändert nie den Umfang des Pfads — es wird nie eine
+Lektion übersprungen —, sondern nur seine Begründung.
+
+**Aktueller Stand:** Im Onboarding eingehängt (`app/onboarding/`). Bewertet
+wird ausschließlich im Server; der Browser bekommt die Fragen ohne Lösung
+und schickt nur Kennungen zurück. Gespeichert werden Punktzahl und daraus
+abgeleitetes Band am Konto. Eine feinere „wahrscheinlich bekannt"-Markierung
+je Lektion bleibt der nächste Schritt, in [`LEHRPLAN.md`](LEHRPLAN.md)
+vermerkt.
 
 ## 5. Was bewusst nicht getan wird
 

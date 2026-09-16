@@ -68,9 +68,10 @@ export async function abschliessenAction(
     if (fehler instanceof PlatzierungUngueltig) {
       return { ok: false, error: 'Diese Antworten passen nicht zu den Fragen der Einstufung.' };
     }
-    return {
-      ok: false,
-      error: 'Das Speichern hat nicht geklappt. Versuch es bitte noch einmal.',
-    };
+    // Alles andere weiterreichen, wie es auch die Anmeldeaktionen halten:
+    // Ein fehlender Kurs oder eine abgerissene Datenbankverbindung ist kein
+    // Fall für "versuch es noch einmal" — das schickte Lernende in eine
+    // Schleife und verschwiege den Fehler zugleich.
+    throw fehler;
   }
 }

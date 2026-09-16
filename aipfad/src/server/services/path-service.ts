@@ -1,5 +1,6 @@
 import 'server-only';
 import { prisma } from '@/server/db/prisma';
+import { pfadBegruendung } from '@/domain/placement/placement';
 import { veroeffentlichteAufgabe, veroeffentlichteLektion } from '@/server/content/publication';
 import type { LearningPathModel } from '@/generated/prisma/models';
 
@@ -109,9 +110,9 @@ export async function getOrCreatePath(userId: string): Promise<LearningPathModel
       courseId: course.id,
       title: course.title,
       lessonSlugs,
-      rationale:
-        'Dieser Pfad enthält alle Lektionen dieser Ausbaustufe in der vorgesehenen Reihenfolge. ' +
-        'Es wird nie eine Lektion übersprungen — spätere Inhalte bauen darauf auf.',
+      // Derselbe Text wie beim Abschluss des Onboardings — zwei Fassungen
+      // desselben Satzes liefen auseinander.
+      rationale: pfadBegruendung(null),
     },
   });
 

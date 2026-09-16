@@ -4,7 +4,6 @@ import { prisma } from '@/server/db/prisma';
 import { placementQuestions } from '@/content/placement';
 import {
   antwortFehler,
-  bandZuPunktzahl,
   evaluatePlacement,
   oeffentlicheFragen,
   pfadBegruendung,
@@ -46,8 +45,8 @@ export const onboardingSchema = z.object({
 export type OnboardingInput = z.infer<typeof onboardingSchema>;
 
 /**
- * Die Einstufung ist freiwillig (docs/LERNMODELL.md §4: "Nutzer darf
- * Placement überspringen"). Beide Wege führen zum selben Abschluss.
+ * Die Einstufung ist freiwillig (docs/LERNMODELL.md §4). Beide Wege führen
+ * zum selben Abschluss.
  */
 export const platzierungSchema = z.discriminatedUnion('art', [
   z.object({ art: z.literal('uebersprungen') }),
@@ -173,8 +172,3 @@ export async function finalisiereOnboarding(
 
 /** Eine Antwort, die es so nicht geben kann. */
 export class PlatzierungUngueltig extends Error {}
-
-/** Das gespeicherte Band eines Kontos, für die Anzeige im Pfad. */
-export function gespeichertesBand(placementScore: number | null): PlacementBand | null {
-  return placementScore === null ? null : bandZuPunktzahl(placementScore);
-}

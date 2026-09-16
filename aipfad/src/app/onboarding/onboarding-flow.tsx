@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { abschliessenAction, type OnboardingFormState } from '@/server/actions/onboarding-actions';
 import type { OeffentlicheFrage } from '@/domain/placement/placement';
 import { Button, Callout, ProgressBar, SectionHeading } from '@/components/ui/primitives';
@@ -62,7 +62,7 @@ type Schritt =
   | { art: 'absenden' };
 
 export function OnboardingFlow({ fragen }: { fragen: OeffentlicheFrage[] }): React.ReactElement {
-  const [zustand, formAction] = useActionState(abschliessenAction, AUSGANGSLAGE);
+  const [zustand, formAction, laeuft] = useActionState(abschliessenAction, AUSGANGSLAGE);
   const [schritt, setSchritt] = useState<Schritt>({ art: 'einstellung', index: 0 });
   const [einstellungen, setEinstellungen] = useState<Record<string, string>>({});
   const [antworten, setAntworten] = useState<Record<string, string>>({});
@@ -82,6 +82,23 @@ export function OnboardingFlow({ fragen }: { fragen: OeffentlicheFrage[] }): Rea
         : schritt.art === 'frage'
           ? EINSTELLUNGEN.length + 1 + schritt.index
           : gesamt;
+
+  const fortschrittText = `Schritt ${Math.min(erledigt + 1, gesamt)} von ${gesamt}`;
+
+  // Jeder Schritt ersetzt den vorigen an Ort und Stelle. Ohne Zutun fällt der
+  // Fokus dabei auf den Seitenanfang zurück: Die nächste Tabulatortaste
+  // begänne wieder ganz oben, und für Vorlesehilfen passierte hörbar nichts.
+  // Deshalb wandert der Fokus auf den neuen Schritt, der zugleich angesagt
+  // wird.
+  const schrittRef = useRef<HTMLDivElement>(null);
+  const ersterAufbau = useRef(true);
+  useEffect(() => {
+    if (ersterAufbau.current) {
+      ersterAufbau.current = false;
+      return;
+    }
+    schrittRef.current?.focus();
+  }, [schritt]);
 
   const platzierung = einstufungGewaehlt
     ? {
@@ -103,6 +120,13 @@ export function OnboardingFlow({ fragen }: { fragen: OeffentlicheFrage[] }): Rea
       // nichts löschen.
       if (schritt.index === 0) setSchritt({ art: 'entscheidung' });
       else setSchritt({ art: 'frage', index: schritt.index - 1 });
+    } else if (schritt.art === 'absenden') {
+      // Der letzte Bildschirm vor dem einzigen Schreibvorgang. Ohne diesen
+      // Zweig stand dort ein Knopf, der nichts tat — wer hier merkt, dass er
+      // die Einstufung versehentlich übersprungen hat, hätte nur noch
+      // Absenden gehabt.
+      if (einstufungGewaehlt) setSchritt({ art: 'frage', index: fragen.length - 1 });
+      else setSchritt({ art: 'entscheidung' });
     }
   }
 
@@ -126,76 +150,90 @@ export function OnboardingFlow({ fragen }: { fragen: OeffentlicheFrage[] }): Rea
         </Callout>
       ) : null}
 
+      {zustand.fieldErrors && Object.keys(zustand.fieldErrors).length > 0 ? (
+        <Callout tone="alert" title="Diese Angaben fehlen noch" live>
+          <ul className="list-inside list-disc">
+            {Object.entries(zustand.fieldErrors).map(([feld, meldung]) => (
+              <li key={feld}>{meldung}</li>
+            ))}
+          </ul>
+        </Callout>
+      ) : null}
+
       <div className="space-y-2">
-        <ProgressBar
-          value={erledigt}
-          max={gesamt}
-          label={`Schritt ${erledigt + 1} von ${gesamt}`}
-        />
-        <p className="text-sm text-[var(--fg-muted)]">
-          Schritt {Math.min(erledigt + 1, gesamt)} von {gesamt}
-        </p>
+        <ProgressBar value={erledigt} max={gesamt} label={fortschrittText} />
+        <p className="text-sm text-[var(--fg-muted)]">{fortschrittText}</p>
       </div>
 
-      {schritt.art === 'einstellung' ? (
-        <EinstellungsSchritt
-          feld={EINSTELLUNGEN[schritt.index]!}
-          wert={einstellungen[EINSTELLUNGEN[schritt.index]!.name] ?? ''}
-          onWahl={(wert) => {
-            setEinstellungen((vorher) => ({
-              ...vorher,
-              [EINSTELLUNGEN[schritt.index]!.name]: wert,
-            }));
-          }}
-          onWeiter={() => {
-            if (schritt.index + 1 < EINSTELLUNGEN.length) {
-              setSchritt({ art: 'einstellung', index: schritt.index + 1 });
-            } else {
-              setSchritt({ art: 'entscheidung' });
-            }
-          }}
-          onZurueck={schritt.index > 0 ? zurueck : null}
-        />
-      ) : null}
+      <div
+        ref={schrittRef}
+        tabIndex={-1}
+        role="group"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label={fortschrittText}
+        className="space-y-6 outline-none"
+      >
+        {schritt.art === 'einstellung' ? (
+          <EinstellungsSchritt
+            feld={EINSTELLUNGEN[schritt.index]!}
+            wert={einstellungen[EINSTELLUNGEN[schritt.index]!.name] ?? ''}
+            onWahl={(wert) => {
+              setEinstellungen((vorher) => ({
+                ...vorher,
+                [EINSTELLUNGEN[schritt.index]!.name]: wert,
+              }));
+            }}
+            onWeiter={() => {
+              if (schritt.index + 1 < EINSTELLUNGEN.length) {
+                setSchritt({ art: 'einstellung', index: schritt.index + 1 });
+              } else {
+                setSchritt({ art: 'entscheidung' });
+              }
+            }}
+            onZurueck={schritt.index > 0 ? zurueck : null}
+          />
+        ) : null}
 
-      {schritt.art === 'entscheidung' ? (
-        <EntscheidungsSchritt
-          anzahl={fragen.length}
-          onEinstufung={() => {
-            setEinstufungGewaehlt(true);
-            setSchritt({ art: 'frage', index: 0 });
-          }}
-          onUeberspringen={() => {
-            setEinstufungGewaehlt(false);
-            setSchritt({ art: 'absenden' });
-          }}
-          onZurueck={zurueck}
-        />
-      ) : null}
-
-      {schritt.art === 'frage' ? (
-        <FrageSchritt
-          frage={fragen[schritt.index]!}
-          nummer={schritt.index + 1}
-          gesamt={fragen.length}
-          wert={antworten[fragen[schritt.index]!.id] ?? ''}
-          onWahl={(optionId) => {
-            setAntworten((vorher) => ({ ...vorher, [fragen[schritt.index]!.id]: optionId }));
-          }}
-          onWeiter={() => {
-            if (schritt.index + 1 < fragen.length) {
-              setSchritt({ art: 'frage', index: schritt.index + 1 });
-            } else {
+        {schritt.art === 'entscheidung' ? (
+          <EntscheidungsSchritt
+            anzahl={fragen.length}
+            onEinstufung={() => {
+              setEinstufungGewaehlt(true);
+              setSchritt({ art: 'frage', index: 0 });
+            }}
+            onUeberspringen={() => {
+              setEinstufungGewaehlt(false);
               setSchritt({ art: 'absenden' });
-            }
-          }}
-          onZurueck={zurueck}
-        />
-      ) : null}
+            }}
+            onZurueck={zurueck}
+          />
+        ) : null}
 
-      {schritt.art === 'absenden' ? (
-        <AbsendeSchritt mitEinstufung={einstufungGewaehlt} onZurueck={zurueck} />
-      ) : null}
+        {schritt.art === 'frage' ? (
+          <FrageSchritt
+            frage={fragen[schritt.index]!}
+            nummer={schritt.index + 1}
+            gesamt={fragen.length}
+            wert={antworten[fragen[schritt.index]!.id] ?? ''}
+            onWahl={(optionId) => {
+              setAntworten((vorher) => ({ ...vorher, [fragen[schritt.index]!.id]: optionId }));
+            }}
+            onWeiter={() => {
+              if (schritt.index + 1 < fragen.length) {
+                setSchritt({ art: 'frage', index: schritt.index + 1 });
+              } else {
+                setSchritt({ art: 'absenden' });
+              }
+            }}
+            onZurueck={zurueck}
+          />
+        ) : null}
+
+        {schritt.art === 'absenden' ? (
+          <AbsendeSchritt mitEinstufung={einstufungGewaehlt} laeuft={laeuft} onZurueck={zurueck} />
+        ) : null}
+      </div>
     </form>
   );
 }
@@ -333,9 +371,11 @@ function FrageSchritt({
 
 function AbsendeSchritt({
   mitEinstufung,
+  laeuft,
   onZurueck,
 }: {
   mitEinstufung: boolean;
+  laeuft: boolean;
   onZurueck: () => void;
 }): React.ReactElement {
   return (
@@ -346,10 +386,11 @@ function AbsendeSchritt({
           ? 'Deine Antworten werden jetzt ausgewertet. Die Auflösung siehst du gleich.'
           : 'Du hast die Einschätzung übersprungen. Der Pfad beginnt am Anfang — du kannst jederzeit weiterspringen.'}
       </p>
-      <Absenden />
+      <Absenden laeuft={laeuft} />
       <button
         type="button"
         onClick={onZurueck}
+        disabled={laeuft}
         className="text-sm underline underline-offset-4 hover:text-signal-600"
       >
         Zurück
@@ -358,10 +399,14 @@ function AbsendeSchritt({
   );
 }
 
-function Absenden(): React.ReactElement {
+function Absenden({ laeuft }: { laeuft: boolean }): React.ReactElement {
+  // Ohne diese Sperre führte ein Doppelklick dazu, dass der zweite Aufruf
+  // das bereits abgeschlossene Onboarding erkennt und auf den Pfad
+  // weiterleitet — die Auflösung zu allen acht Fragen wäre damit weg, ohne
+  // dass sie noch einmal erreichbar wäre.
   return (
-    <Button type="submit" className="w-full sm:w-auto">
-      Los geht&apos;s
+    <Button type="submit" className="w-full sm:w-auto" disabled={laeuft}>
+      {laeuft ? 'Wird gespeichert …' : "Los geht's"}
     </Button>
   );
 }

@@ -6,11 +6,14 @@ import {
   finalisiereOnboarding,
   placementFragenFuerBrowser,
   PlatzierungUngueltig,
-  gespeichertesBand,
   type OnboardingInput,
 } from '@/server/services/onboarding-service';
 import { placementQuestions } from '@/content/placement';
-import { placementQuestionSchema, DONT_KNOW_OPTION_ID } from '@/domain/placement/placement';
+import {
+  bandZuPunktzahl,
+  placementQuestionSchema,
+  DONT_KNOW_OPTION_ID,
+} from '@/domain/placement/placement';
 
 /**
  * Die Einstufung hängt jetzt im Onboarding. Geprüft wird hier, was nur mit
@@ -62,8 +65,16 @@ describe('Onboarding mit Einstufung', () => {
 
     // Der Pfad enthält alle Lektionen — die Einstufung kürzt nichts.
     const pfad = await prisma.learningPath.findFirstOrThrow({ where: { userId } });
-    const veroeffentlicht = await prisma.lesson.count({ where: { status: 'PUBLISHED' } });
-    expect(pfad.lessonSlugs.length).toBe(veroeffentlicht);
+    // Gegen die Lektionen DIESES Kurses, nicht gegen alle der Datenbank:
+    // Eine veröffentlichte Lektion unter einem Entwurfsmodul ließe den Test
+    // sonst aus dem falschen Grund scheitern.
+    const imKurs = await prisma.lesson.count({
+      where: {
+        status: 'PUBLISHED',
+        module: { is: { status: 'PUBLISHED', courseId: pfad.courseId } },
+      },
+    });
+    expect(pfad.lessonSlugs.length).toBe(imKurs);
     expect(pfad.rationale).toContain('nie eine Lektion übersprungen');
   });
 
@@ -94,6 +105,34 @@ describe('Onboarding mit Einstufung', () => {
     expect(user.placementScore).toBe(0);
   });
 
+  it('macht auch einen Fehler MITTEN in der Transaktion rückgängig', async () => {
+    // Die Prüfung der Antworten greift vor der Transaktion — das allein
+    // belegt noch kein Zurückrollen. Hier scheitert der Pfad, nachdem die
+    // Nutzerzeile bereits geschrieben wurde: Danach darf nichts davon
+    // stehen geblieben sein.
+    const kurse = await prisma.course.findMany({ where: { status: 'PUBLISHED' } });
+    await prisma.course.updateMany({
+      where: { status: 'PUBLISHED' },
+      data: { status: 'DRAFT' },
+    });
+
+    try {
+      await expect(
+        finalisiereOnboarding(userId, EINSTELLUNGEN, { art: 'uebersprungen' }),
+      ).rejects.toThrow(/Kein veröffentlichter Kurs/);
+
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      expect(user.onboardingCompleted).toBe(false);
+      expect(user.placementCompleted).toBe(false);
+      expect(user.currentPathId).toBeNull();
+      expect(await prisma.learningPath.count({ where: { userId } })).toBe(0);
+    } finally {
+      for (const kurs of kurse) {
+        await prisma.course.update({ where: { id: kurs.id }, data: { status: 'PUBLISHED' } });
+      }
+    }
+  });
+
   it('erlaubt das Überspringen und hält den Pfad trotzdem vollständig', async () => {
     const ergebnis = await finalisiereOnboarding(userId, EINSTELLUNGEN, {
       art: 'uebersprungen',
@@ -106,11 +145,16 @@ describe('Onboarding mit Einstufung', () => {
     expect(user.onboardingCompleted).toBe(true);
     expect(user.placementCompleted).toBe(true);
     expect(user.placementScore).toBeNull();
-    expect(gespeichertesBand(user.placementScore)).toBeNull();
+    expect(user.placementScore).toBeNull();
 
     const pfad = await prisma.learningPath.findFirstOrThrow({ where: { userId } });
-    const veroeffentlicht = await prisma.lesson.count({ where: { status: 'PUBLISHED' } });
-    expect(pfad.lessonSlugs.length).toBe(veroeffentlicht);
+    const imKurs = await prisma.lesson.count({
+      where: {
+        status: 'PUBLISHED',
+        module: { is: { status: 'PUBLISHED', courseId: pfad.courseId } },
+      },
+    });
+    expect(pfad.lessonSlugs.length).toBe(imKurs);
   });
 
   it('ist bei einem zweiten Versuch unbedenklich', async () => {
@@ -175,6 +219,6 @@ describe('Onboarding mit Einstufung', () => {
     });
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
 
-    expect(gespeichertesBand(user.placementScore)).toBe(ergebnis.platzierung?.band);
+    expect(bandZuPunktzahl(user.placementScore!)).toBe(ergebnis.platzierung?.band);
   });
 });
