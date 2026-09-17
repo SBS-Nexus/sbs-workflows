@@ -106,9 +106,9 @@ Lektion übersprungen —, sondern nur seine Begründung.
 
 **Aktueller Stand:** Im Onboarding eingehängt (`app/onboarding/`). Bewertet
 wird ausschließlich im Server; der Browser bekommt die Fragen ohne Lösung
-und schickt nur Kennungen zurück. Gespeichert werden Punktzahl und daraus
-abgeleitetes Band am Konto. Eine feinere „wahrscheinlich bekannt"-Markierung
-je Lektion bleibt der nächste Schritt, in [`LEHRPLAN.md`](LEHRPLAN.md)
+und schickt nur Kennungen zurück. Gespeichert wird allein die Punktzahl am
+Konto; das Band wird bei Bedarf daraus abgeleitet. Eine feinere
+„wahrscheinlich bekannt"-Markierung je Lektion bleibt der nächste Schritt, in [`LEHRPLAN.md`](LEHRPLAN.md)
 vermerkt.
 
 ## 5. Was bewusst nicht getan wird

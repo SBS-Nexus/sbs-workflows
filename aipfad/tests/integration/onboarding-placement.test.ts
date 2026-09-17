@@ -94,7 +94,11 @@ describe('Onboarding mit Einstufung', () => {
     expect(await prisma.learningPath.count({ where: { userId } })).toBe(0);
   });
 
-  it('setzt niemals placementCompleted ohne Punktzahl', async () => {
+  it('hält nach beantworteter Einstufung immer eine Punktzahl fest', async () => {
+    // Bewusst nur für den beantworteten Weg: Übersprungen heißt gerade
+    // `placementCompleted` OHNE Punktzahl, und das ist kein Widerspruch,
+    // sondern die Aussage "bewusst ausgelassen".
+
     await finalisiereOnboarding(userId, EINSTELLUNGEN, {
       art: 'beantwortet',
       antworten: FRAGEN.map((f) => ({ questionId: f.id, optionId: DONT_KNOW_OPTION_ID })),
@@ -144,7 +148,6 @@ describe('Onboarding mit Einstufung', () => {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
     expect(user.onboardingCompleted).toBe(true);
     expect(user.placementCompleted).toBe(true);
-    expect(user.placementScore).toBeNull();
     expect(user.placementScore).toBeNull();
 
     const pfad = await prisma.learningPath.findFirstOrThrow({ where: { userId } });

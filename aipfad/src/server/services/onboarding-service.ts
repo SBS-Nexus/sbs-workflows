@@ -18,9 +18,10 @@ import {
  *
  * Die Einstufung markiert Konzepte nur als "wahrscheinlich bekannt" — sie
  * werden dadurch nie übersprungen, nur als kurze Auffrischung gekennzeichnet
- * (siehe docs/LERNMODELL.md §4). Diese Ausbaustufe speichert Punktzahl und
- * Band am Konto; eine feinere Markierung je Lektion ist ein dokumentierter
- * nächster Schritt.
+ * (siehe docs/LERNMODELL.md §4). Gespeichert wird allein die Punktzahl; das
+ * Band leitet `bandZuPunktzahl()` daraus ab, damit es keine zweite Spalte
+ * gibt, die davon abweichen könnte. Eine feinere Markierung je Lektion ist
+ * ein dokumentierter nächster Schritt.
  *
  * Bewertet wird ausschließlich hier. Der Browser schickt Kennungen von
  * Fragen und Optionen, niemals eine Punktzahl — eine mitgeschickte Zahl gäbe

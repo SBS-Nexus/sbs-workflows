@@ -83,13 +83,29 @@ test('Eingabetaste schließt das Onboarding nicht vorzeitig ab', async ({ page }
     await page.getByRole('radio').first().check();
     if (i < 2) await page.getByRole('button', { name: 'Weiter' }).click();
   }
-  await page.keyboard.press('Enter');
+  // Absendeversuche mitschreiben: Eine Serveraktion schickt sich an dieselbe
+  // Adresse, ohne zu navigieren — die Adresse allein verriete also nichts.
+  const absendeversuche: string[] = [];
+  page.on('request', (anfrage) => {
+    if (anfrage.method() === 'POST') absendeversuche.push(anfrage.url());
+  });
 
-  // Weder abgeschlossen noch weitergeleitet: Ein Onboarding mit drei von
-  // acht Antworten ließe sich nicht wiederholen.
-  await expect(page).toHaveURL(/\/onboarding$/);
+  await page.keyboard.press('Enter');
   await expect(page.getByText('Frage 3 von 8')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Deine Einschätzung' })).toBeHidden();
+
+  // Kurz warten: Ohne die Sperre wäre die Anfrage längst heraus. Sofort zu
+  // prüfen hieße nur, schneller als das Netz zu sein — und das bewiese
+  // nichts.
+  await page.waitForTimeout(1000);
+
+  // Nichts wurde abgeschickt …
+  expect(absendeversuche).toEqual([]);
+
+  // … und das Onboarding ist nicht abgeschlossen: Wäre es das, leitete ein
+  // erneuter Aufruf auf den Pfad weiter. Ein Onboarding mit drei von acht
+  // Antworten ließe sich nicht wiederholen.
+  await page.goto('/onboarding');
+  await expect(page).toHaveURL(/\/onboarding$/);
 });
 
 test('Zurückgehen behält eine gegebene Einstufungsantwort', async ({ page }) => {
