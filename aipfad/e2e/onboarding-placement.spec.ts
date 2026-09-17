@@ -105,6 +105,12 @@ test('ein Absenden mitten im Ablauf wird abgewiesen, am Ende nicht', async ({ pa
 
   await absenden();
   await expect(page.getByText('Frage 3 von 8')).toBeVisible();
+
+  // Warten, bis eine Anfrage draußen wäre: Ohne die Sperre steht der Aufruf
+  // noch aus, die Seite sieht unverändert aus, und sofort zu prüfen hieße
+  // wieder nur, schneller als das Netz zu sein. Die Gegenprobe unten braucht
+  // das nicht — sie wartet auf ein sichtbares Ergebnis.
+  await page.waitForTimeout(1000);
   expect(absendeversuche).toEqual([]);
 
   // Und das Onboarding ist nicht abgeschlossen: Wäre es das, leitete ein

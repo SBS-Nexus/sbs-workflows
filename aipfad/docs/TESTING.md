@@ -26,7 +26,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 69 bestehen
+### Integrationstests — 70 bestehen
 
 `tests/integration/`: `auth.test.ts`, `content-publication.test.ts`,
 `exercise-service.test.ts`, `lesson-progress.test.ts`,
@@ -46,7 +46,7 @@ Konten und die Rückrechnung Punktzahl → Band.
 **Noch nicht abgedeckt:** `path-service` hat keine eigenen
 Integrationstests — er wird bisher nur über Onboarding und E2E mitgeprüft.
 
-### End-to-End — 34 bestehen, gegen den echten Produktionsbuild
+### End-to-End — 35 bestehen, gegen den echten Produktionsbuild
 
 `e2e/kernablauf.spec.ts` (Desktop): Registrierung → Onboarding → Pfad →
 Lektion → Aufgabe einreichen → Kompetenz-Rückmeldung sichtbar → Lektion
@@ -83,15 +83,21 @@ Aufgaben-Einreichung, Labs-Übersicht und das Tokenizer-Lab. In jedem Fall:
 
 ## Bekannte Lücken (ehrlich, nicht verschwiegen)
 
-- Kein automatisierter Accessibility-Scan (axe o. ä.) — bisher nur manuelle
-  Prüfung (semantisches HTML, sichtbarer Fokus, Formular-Labels, keine
-  Farbe als einziges Signal). Naheliegender nächster Schritt.
-- Kein Performance-Budget-Check-Skript (`perf-budget.json` +
-  Prüfskript aus PythonPfad) — diese Ausbaustufe hat kein
-  Pyodide-artiges Gewicht, das ein solches Budget dringend nötig macht,
-  aber es fehlt trotzdem für den Fall wachsender Bundle-Größe.
-- CI-Workflow-Datei für `aipfad/` selbst ist noch nicht angelegt (siehe
-  `docs/DEPLOYMENT.md`, "Nächste Schritte").
+- `path-service` hat keine eigenen Integrationstests — er wird bisher nur
+  über Onboarding und E2E mitgeprüft.
+- Die Einstufung wird nie mit einer TEILWEISE beantworteten Eingabe geprüft:
+  Das Schema lässt eine einzelne Antwort zu, die Oberfläche erzeugt das nie,
+  und die Punktzahl fiele dann irreführend niedrig aus.
+- Keine Lastprüfung. Die Sperre gegen zwei gleichzeitige Abschlüsse ist mit
+  genau zwei Vorgängen nachgestellt, nicht mit vielen.
+
+Drei Einträge standen hier, die es nicht mehr gibt: Der
+Accessibility-Scan (`e2e/accessibility.spec.ts`, 8 axe-Prüfungen), das
+Leistungsbudget (`perf-budget.json`, `scripts/pruefe-leistungsbudget.mjs`,
+`npm run perf`) und der CI-Workflow (`.github/workflows/aipfad-ci.yml`)
+sind vorhanden. Sie wurden angelegt, ohne dass diese Liste nachgezogen
+wurde — eine Lückenliste, die erfundene Lücken nennt, ist schlimmer als
+keine.
 
 ## Ausbaustufe 2 (Git & GitHub)
 

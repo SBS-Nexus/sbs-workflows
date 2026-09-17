@@ -151,7 +151,8 @@ function dedupeReliable(demonstrated: string[], questions: readonly PlacementQue
  * gekürzt, abgekürzt oder etwas werde als Auffrischung markiert: Beides
  * widerspräche dem Satz davor, und beides gibt es nicht — der Pfad enthält
  * für jedes Band dieselben Lektionen. `pfadBegruendung` prüft das in
- * tests/unit/placement.test.ts für alle Bänder.
+ * tests/unit/placement.test.ts für alle drei Bänder und für den
+ * Fall ohne Einstufung.
  */
 const MESSAGES: Record<PlacementBand, string> = {
   beginner:
@@ -159,7 +160,7 @@ const MESSAGES: Record<PlacementBand, string> = {
   'advanced-beginner':
     'Ein Teil der Grundlagen ist dir vertraut. Durch diese Lektionen kommst du vermutlich schnell hindurch — sie bleiben trotzdem im Pfad, damit keine Lücke offenbleibt.',
   refresher:
-    'Du bringst schon einiges mit. Vieles im Pfad dürfte dir bekannt vorkommen; du bestimmst selbst, wie schnell du darüber hinweggehst.',
+    'Du bringst schon einiges mit. Vieles im Pfad dürfte dir bekannt vorkommen; du bestimmst selbst, wie schnell du sie durchgehst.',
 };
 
 // ---------------------------------------------------------------------------

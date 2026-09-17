@@ -184,6 +184,34 @@ describe('Onboarding mit Einstufung', () => {
     expect(await prisma.learningPath.count({ where: { userId } })).toBe(1);
   });
 
+  it('verliert bei zwei gleichzeitigen Abschlüssen keine Punktzahl', async () => {
+    // Nacheinander abzuweisen ist das Leichte. Der Fall, der die Punktzahl
+    // wirklich kostet, ist der gleichzeitige: Zwei Tabs, zwei offene
+    // Transaktionen. Ein `SELECT` und danach ein `UPDATE` ließe beide durch —
+    // nachgestellt gegen diese Datenbank, bevor die Sperre umgebaut wurde.
+    const antworten = FRAGEN.map((f) => ({ questionId: f.id, optionId: f.correctOptionId }));
+
+    const ergebnisse = await Promise.allSettled([
+      finalisiereOnboarding(userId, EINSTELLUNGEN, { art: 'beantwortet', antworten }),
+      finalisiereOnboarding(userId, EINSTELLUNGEN, { art: 'uebersprungen' }),
+    ]);
+
+    // Genau einer kommt durch — welcher, entscheidet die Datenbank.
+    expect(ergebnisse.filter((e) => e.status === 'fulfilled')).toHaveLength(1);
+    const abgewiesen = ergebnisse.find((e) => e.status === 'rejected');
+    expect(abgewiesen?.reason).toBeInstanceOf(OnboardingBereitsAbgeschlossen);
+
+    // Und der Durchgekommene steht unverändert da: Hat der beantwortete
+    // gewonnen, ist seine Punktzahl noch da; hat der übersprungene gewonnen,
+    // gibt es keine. Was nicht passieren darf, ist eine Punktzahl, die
+    // geschrieben und gleich wieder auf null gesetzt wurde.
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    expect(user.onboardingCompleted).toBe(true);
+    const gewinnerWarBeantwortet = ergebnisse[0]!.status === 'fulfilled';
+    expect(user.placementScore).toBe(gewinnerWarBeantwortet ? 100 : null);
+    expect(await prisma.learningPath.count({ where: { userId } })).toBe(1);
+  });
+
   it('lehnt eine Option ab, die nicht zu ihrer Frage gehört', async () => {
     await expect(
       finalisiereOnboarding(userId, EINSTELLUNGEN, {

@@ -202,8 +202,14 @@ describe('Band und Pfadbegründung', () => {
     // Genau das stand hier — "kürzt Bekanntes ab" zwei Sätze nach "es wird
     // nie eine Lektion übersprungen", gespeichert und auf /pfad gezeigt.
     for (const band of [null, 'beginner', 'advanced-beginner', 'refresher'] as const) {
-      expect(pfadBegruendung(band), String(band)).not.toMatch(
-        /kürzt|abgekürzt|ausgelassen|übersprungen wird|als Auffrischung/,
+      // Wortstämme, keine ganzen Wörter: "kürzt" allein ließe "Der Pfad ist
+      // dadurch kürzer" durch, und "als Auffrischung" ließe genau den alten
+      // advanced-beginner-Satz durch, um dessentwillen diese Prüfung
+      // geschrieben wurde. Die Grundregel selbst enthält "übersprungen" —
+      // deshalb wird nur der Bandsatz geprüft, nicht der ganze Text.
+      const bandsatz = pfadBegruendung(band).replace(pfadBegruendung(null), '');
+      expect(bandsatz, String(band)).not.toMatch(
+        /kürz|abkürz|überspring|auslass|weglass|ausgeblendet|Auffrischung|spar(st|t) dir/i,
       );
     }
   });

@@ -114,16 +114,25 @@ export async function finalisiereOnboarding(
   const band: PlacementBand | null = ergebnis ? ergebnis.band : null;
 
   await prisma.$transaction(async (tx) => {
-    const vorher = await tx.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { onboardingCompleted: true },
-    });
-    if (vorher.onboardingCompleted) {
-      throw new OnboardingBereitsAbgeschlossen();
-    }
+    // Erst prüfen, ob es das Konto überhaupt gibt: Sonst wäre ein
+    // unbekanntes Konto von einem bereits abgeschlossenen nicht zu
+    // unterscheiden — beide schrieben null Zeilen.
+    await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true } });
 
-    await tx.user.update({
-      where: { id: userId },
+    // Die Sperre steckt in der Bedingung des Schreibvorgangs, nicht in einem
+    // Lesen davor. Ein `SELECT` und danach ein `UPDATE` wäre hier zu wenig:
+    // PostgreSQL arbeitet standardmäßig mit READ COMMITTED, ein einfaches
+    // Lesen sperrt keine Zeile, und der wartende Schreibvorgang prüft seine
+    // Bedingung nach dem Freiwerden erneut — `where: { id }` passt dann
+    // weiterhin. Zwei gleichzeitige Abschlüsse kämen beide durch, und der
+    // zweite setzte eine gerade gespeicherte Punktzahl wieder auf null.
+    // Nachgestellt gegen eine echte Datenbank, bevor das hier stand.
+    //
+    // Mit `onboardingCompleted: false` in der Bedingung prüft genau dieser
+    // erneute Durchlauf die Sperre mit: Der zweite Schreibvorgang trifft
+    // keine Zeile mehr und meldet 0.
+    const { count } = await tx.user.updateMany({
+      where: { id: userId, onboardingCompleted: false },
       data: {
         ...einstellungen,
         onboardingCompleted: true,
@@ -131,6 +140,9 @@ export async function finalisiereOnboarding(
         placementScore: ergebnis ? ergebnis.score : null,
       },
     });
+    if (count === 0) {
+      throw new OnboardingBereitsAbgeschlossen();
+    }
 
     // Der Pfad gehört in denselben Schritt: Sonst stünde das Onboarding auf
     // "fertig", während der Pfad noch fehlt.
@@ -192,8 +204,8 @@ export class PlatzierungUngueltig extends Error {}
 /**
  * Das Onboarding lief schon einmal durch.
  *
- * Kein Fehler des Aufrufers, sondern ein Rennen oder ein doppelter Abschicken
- * — die Aktion fängt das ab und leitet auf den Pfad weiter, statt eine
- * Fehlermeldung zu zeigen.
+ * Kein Fehler des Aufrufers, sondern ein zweiter Anlauf — nacheinander oder
+ * gleichzeitig. Die Aktion fängt das ab und leitet auf den Pfad weiter,
+ * statt eine Fehlermeldung zu zeigen.
  */
 export class OnboardingBereitsAbgeschlossen extends Error {}
