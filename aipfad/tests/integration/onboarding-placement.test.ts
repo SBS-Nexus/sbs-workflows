@@ -6,6 +6,7 @@ import {
   finalisiereOnboarding,
   placementFragenFuerBrowser,
   PlatzierungUngueltig,
+  OnboardingBereitsAbgeschlossen,
   type OnboardingInput,
 } from '@/server/services/onboarding-service';
 import { placementQuestions } from '@/content/placement';
@@ -160,14 +161,23 @@ describe('Onboarding mit Einstufung', () => {
     expect(pfad.lessonSlugs.length).toBe(imKurs);
   });
 
-  it('ist bei einem zweiten Versuch unbedenklich', async () => {
+  it('weist einen zweiten Durchlauf ab, statt die Einstufung zu überschreiben', async () => {
+    // Der frühere Test hier schickte ZWEIMAL DIESELBEN Antworten und war
+    // deshalb grün, ohne irgendetwas zu zeigen: Derselbe Endzustand entsteht
+    // auch beim blinden Überschreiben. Der gefährliche Fall ist ein zweiter
+    // Aufruf mit ANDEREM Inhalt.
     const antworten = FRAGEN.map((f) => ({ questionId: f.id, optionId: f.correctOptionId }));
     await finalisiereOnboarding(userId, EINSTELLUNGEN, { art: 'beantwortet', antworten });
     const nachErstem = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    expect(nachErstem.placementScore).toBeGreaterThan(0);
 
-    await finalisiereOnboarding(userId, EINSTELLUNGEN, { art: 'beantwortet', antworten });
+    // Ein "übersprungen" hinterher setzte die Punktzahl sonst auf null —
+    // lautlos, ohne Fehler, ohne Weg zurück.
+    await expect(
+      finalisiereOnboarding(userId, EINSTELLUNGEN, { art: 'uebersprungen' }),
+    ).rejects.toBeInstanceOf(OnboardingBereitsAbgeschlossen);
+
     const nachZweitem = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-
     expect(nachZweitem.placementScore).toBe(nachErstem.placementScore);
     expect(nachZweitem.currentPathId).toBe(nachErstem.currentPathId);
     // Kein zweiter Pfad.

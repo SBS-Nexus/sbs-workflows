@@ -16,12 +16,17 @@ import {
 /**
  * Dienst für Onboarding und Einstufung.
  *
- * Die Einstufung markiert Konzepte nur als "wahrscheinlich bekannt" — sie
- * werden dadurch nie übersprungen, nur als kurze Auffrischung gekennzeichnet
- * (siehe docs/LERNMODELL.md §4). Gespeichert wird allein die Punktzahl; das
- * Band leitet `bandZuPunktzahl()` daraus ab, damit es keine zweite Spalte
- * gibt, die davon abweichen könnte. Eine feinere Markierung je Lektion ist
- * ein dokumentierter nächster Schritt.
+ * Die Einstufung ändert nichts am Umfang des Pfads (siehe
+ * docs/LERNMODELL.md §4): Er enthält für jedes Band dieselben Lektionen,
+ * verschieden ist allein der Begründungstext. Konzepte werden derzeit
+ * NICHT je Lektion markiert — `evaluatePlacement()` berechnet zwar
+ * `demonstratedConceptSlugs`, aber niemand speichert sie; das bleibt ein
+ * nächster Schritt.
+ *
+ * Gespeichert wird allein die Punktzahl, damit es keine zweite Spalte gibt,
+ * die vom Band abweichen könnte. `bandZuPunktzahl()` kann sie jederzeit
+ * wieder einordnen — bisher tut das im laufenden Betrieb allerdings
+ * niemand: Die Punktzahl wird geschrieben und noch nirgends gelesen.
  *
  * Bewertet wird ausschließlich hier. Der Browser schickt Kennungen von
  * Fragen und Optionen, niemals eine Punktzahl — eine mitgeschickte Zahl gäbe
@@ -74,13 +79,15 @@ export interface OnboardingErgebnis {
  * EINEM Schritt.
  *
  * Bis hierher wurde nichts gespeichert. Damit gibt es keinen Zwischenstand,
- * in dem `placementCompleted` gesetzt ist, die Punktzahl aber fehlt, oder
- * `onboardingCompleted` steht, ohne dass ein Pfad existiert — die Zustände,
- * die einen Lernenden sonst zwischen zwei Seiten stranden lassen.
+ * in dem `onboardingCompleted` steht, ohne dass ein Pfad existiert — der
+ * Zustand, der einen Lernenden sonst zwischen zwei Seiten stranden ließe.
+ * (`placementCompleted` OHNE Punktzahl ist dagegen ein gültiger Endzustand:
+ * Er heißt "bewusst übersprungen".)
  *
- * Ein erneuter Aufruf ist unbedenklich: Er schreibt denselben Endzustand.
- * Wer das Onboarding bereits abgeschlossen hat, verliert seine Einstufung
- * nicht — dieser Fall wird vorher abgewiesen.
+ * Ein zweiter Aufruf wird hier abgewiesen, nicht nur in der Aktion davor.
+ * Sonst überschriebe ein späterer Aufruf mit `uebersprungen` eine vorhandene
+ * Punktzahl mit `null` — die Einstufung wäre stillschweigend weg, und der
+ * Schutz hinge daran, dass jeder künftige Aufrufer daran denkt.
  */
 export async function finalisiereOnboarding(
   userId: string,
@@ -107,6 +114,14 @@ export async function finalisiereOnboarding(
   const band: PlacementBand | null = ergebnis ? ergebnis.band : null;
 
   await prisma.$transaction(async (tx) => {
+    const vorher = await tx.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { onboardingCompleted: true },
+    });
+    if (vorher.onboardingCompleted) {
+      throw new OnboardingBereitsAbgeschlossen();
+    }
+
     await tx.user.update({
       where: { id: userId },
       data: {
@@ -173,3 +188,12 @@ export async function finalisiereOnboarding(
 
 /** Eine Antwort, die es so nicht geben kann. */
 export class PlatzierungUngueltig extends Error {}
+
+/**
+ * Das Onboarding lief schon einmal durch.
+ *
+ * Kein Fehler des Aufrufers, sondern ein Rennen oder ein doppelter Abschicken
+ * — die Aktion fängt das ab und leitet auf den Pfad weiter, statt eine
+ * Fehlermeldung zu zeigen.
+ */
+export class OnboardingBereitsAbgeschlossen extends Error {}

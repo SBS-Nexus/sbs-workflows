@@ -7,6 +7,7 @@ import {
   onboardingSchema,
   platzierungSchema,
   PlatzierungUngueltig,
+  OnboardingBereitsAbgeschlossen,
   type OnboardingErgebnis,
 } from '@/server/services/onboarding-service';
 
@@ -65,6 +66,10 @@ export async function abschliessenAction(
   } catch (fehler) {
     // Die Eingabe bleibt in der Maske stehen — wer hier scheitert, soll nicht
     // acht Fragen neu beantworten müssen.
+    // Zwischen der Prüfung oben und dem Schreiben kann ein zweiter Versuch
+    // durchgekommen sein. Dann ist das Onboarding fertig — dorthin, wohin
+    // die Prüfung oben ohnehin geschickt hätte.
+    if (fehler instanceof OnboardingBereitsAbgeschlossen) redirect('/pfad');
     if (fehler instanceof PlatzierungUngueltig) {
       return { ok: false, error: 'Diese Antworten passen nicht zu den Fragen der Einstufung.' };
     }

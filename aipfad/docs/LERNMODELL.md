@@ -108,8 +108,9 @@ Lektion übersprungen —, sondern nur seine Begründung.
 wird ausschließlich im Server; der Browser bekommt die Fragen ohne Lösung
 und schickt nur Kennungen zurück. Gespeichert wird allein die Punktzahl am
 Konto; das Band wird bei Bedarf daraus abgeleitet. Eine feinere
-„wahrscheinlich bekannt"-Markierung je Lektion bleibt der nächste Schritt, in [`LEHRPLAN.md`](LEHRPLAN.md)
-vermerkt.
+„wahrscheinlich bekannt"-Markierung je Lektion bleibt der nächste
+Schritt (in [`LEHRPLAN.md`](LEHRPLAN.md), „Nächste sinnvolle
+Ausbauschritte" Nr. 1, vermerkt).
 
 ## 5. Was bewusst nicht getan wird
 

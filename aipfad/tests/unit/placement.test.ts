@@ -196,6 +196,18 @@ describe('Band und Pfadbegründung', () => {
     }
   });
 
+  it('verspricht in keiner Begründung einen gekürzten Pfad', () => {
+    // Die Grundregel allein zu finden genügt nicht: Der Bandsatz wird
+    // dahintergehängt und kann ihr widersprechen, ohne sie zu entfernen.
+    // Genau das stand hier — "kürzt Bekanntes ab" zwei Sätze nach "es wird
+    // nie eine Lektion übersprungen", gespeichert und auf /pfad gezeigt.
+    for (const band of [null, 'beginner', 'advanced-beginner', 'refresher'] as const) {
+      expect(pfadBegruendung(band), String(band)).not.toMatch(
+        /kürzt|abgekürzt|ausgelassen|übersprungen wird|als Auffrischung/,
+      );
+    }
+  });
+
   it('ergänzt die Begründung um den Hinweis zum Band', () => {
     expect(pfadBegruendung('refresher')).not.toBe(pfadBegruendung(null));
     expect(pfadBegruendung('beginner')).not.toBe(pfadBegruendung('refresher'));

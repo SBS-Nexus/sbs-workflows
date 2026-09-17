@@ -73,16 +73,11 @@ test('abgeschlossenes Onboarding fängt nicht von vorne an', async ({ page }) =>
   await page.waitForURL(/\/pfad/);
 });
 
-test('Eingabetaste schließt das Onboarding nicht vorzeitig ab', async ({ page }) => {
+test('ein Absenden mitten im Ablauf wird abgewiesen, am Ende nicht', async ({ page }) => {
   await neuesKonto(page);
   await einstellungenBeantworten(page);
   await page.getByRole('button', { name: 'Einschätzung machen' }).click();
 
-  // Drei von acht Fragen beantworten, dann Eingabetaste auf dem Auswahlfeld.
-  for (let i = 0; i < 3; i += 1) {
-    await page.getByRole('radio').first().check();
-    if (i < 2) await page.getByRole('button', { name: 'Weiter' }).click();
-  }
   // Absendeversuche mitschreiben: Eine Serveraktion schickt sich an dieselbe
   // Adresse, ohne zu navigieren — die Adresse allein verriete also nichts.
   const absendeversuche: string[] = [];
@@ -90,22 +85,57 @@ test('Eingabetaste schließt das Onboarding nicht vorzeitig ab', async ({ page }
     if (anfrage.method() === 'POST') absendeversuche.push(anfrage.url());
   });
 
-  await page.keyboard.press('Enter');
+  // Drei von acht Fragen beantworten, dann absenden versuchen.
+  for (let i = 0; i < 3; i += 1) {
+    await page.getByRole('radio').first().check();
+    if (i < 2) await page.getByRole('button', { name: 'Weiter' }).click();
+  }
+
+  // Warum nicht die Eingabetaste? Weil sie hier gar nichts auslöst: Chromium
+  // schickt eine Form nur dann von selbst ab, wenn ein Textfeld beteiligt ist
+  // (`CanTriggerImplicitSubmission()` ist `IsTextField()`). Auf dieser Seite
+  // gibt es nur Auswahlfelder, versteckte Felder und `type="button"` —
+  // nachgemessen: Eingabetaste auf einem Radio löst null submit-Ereignisse
+  // aus, auf einem Textfeld eines. Ein Test über die Eingabetaste wäre also
+  // grün, auch wenn die Sperre fehlte, und bewiese nichts.
+  //
+  // `requestSubmit()` feuert dasselbe abbrechbare submit-Ereignis, das ein
+  // Absenden auslösen würde, und trifft damit die Sperre wirklich.
+  const absenden = () => page.evaluate(() => document.querySelector('form')!.requestSubmit());
+
+  await absenden();
   await expect(page.getByText('Frage 3 von 8')).toBeVisible();
-
-  // Kurz warten: Ohne die Sperre wäre die Anfrage längst heraus. Sofort zu
-  // prüfen hieße nur, schneller als das Netz zu sein — und das bewiese
-  // nichts.
-  await page.waitForTimeout(1000);
-
-  // Nichts wurde abgeschickt …
   expect(absendeversuche).toEqual([]);
 
-  // … und das Onboarding ist nicht abgeschlossen: Wäre es das, leitete ein
-  // erneuter Aufruf auf den Pfad weiter. Ein Onboarding mit drei von acht
-  // Antworten ließe sich nicht wiederholen.
+  // Und das Onboarding ist nicht abgeschlossen: Wäre es das, leitete ein
+  // erneuter Aufruf auf den Pfad weiter.
   await page.goto('/onboarding');
   await expect(page).toHaveURL(/\/onboarding$/);
+});
+
+test('am Ende des Ablaufs kommt das Absenden durch', async ({ page }) => {
+  // Gegenprobe zum Test davor. Ohne sie hieße "nichts abgeschickt" nur, dass
+  // dieser Aufbau überhaupt nichts mitbekommt — die leere Liste wäre wertlos.
+  await neuesKonto(page);
+  await einstellungenBeantworten(page);
+  await page.getByRole('button', { name: 'Einschätzung machen' }).click();
+
+  const absendeversuche: string[] = [];
+  page.on('request', (anfrage) => {
+    if (anfrage.method() === 'POST') absendeversuche.push(anfrage.url());
+  });
+
+  // Achtmal "Weiter" — auch nach der letzten Frage, denn erst das führt auf
+  // den Absende-Schritt. Genau dort lässt die Sperre ein Absenden durch.
+  for (let i = 0; i < 8; i += 1) {
+    await page.getByRole('radio').first().check();
+    await page.getByRole('button', { name: 'Weiter' }).click();
+  }
+  await expect(page.getByRole('button', { name: "Los geht's" })).toBeVisible();
+
+  await page.evaluate(() => document.querySelector('form')!.requestSubmit());
+  await expect(page.getByRole('heading', { name: 'Deine Einschätzung' })).toBeVisible();
+  expect(absendeversuche.length).toBeGreaterThan(0);
 });
 
 test('Zurückgehen behält eine gegebene Einstufungsantwort', async ({ page }) => {

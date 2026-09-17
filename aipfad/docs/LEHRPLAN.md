@@ -9,7 +9,7 @@ Stufen zu voller Tiefe (echte Lektionen, Aufgaben, Labs, Tests), statt alle
 
 | Stufe | Titel                              | Umfang                                                                                                                                                              |
 | ----- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0     | Orientierung                       | 3 Lektionen, Placement-Instrument (Logik fertig, noch nicht ins Onboarding eingehängt)                                                                              |
+| 0     | Orientierung                       | 3 Lektionen, Placement-Instrument (im Onboarding eingehängt)                                                                                                        |
 | 1     | Technischer Arbeitsplatz (kompakt) | 3 Lektionen, Terminal-Simulator-Übung + eigenständiges Terminal-Lab                                                                                                 |
 | 4     | LLM-Grundlagen                     | 4 Lektionen (Tokens/Tokenisierung, Embeddings/Aufmerksamkeit, Training/Inferenz/Kontextfenster, Nachrichtenrollen/Halluzination), Tokenizer-Lab, Kontextfenster-Lab |
 | 5     | Prompting-Grundlagen               | 3 Lektionen (Ziel/Kontext, Constraints/Beispiele, Zerlegung/Iteration), Prompt-Reparatur-Lab                                                                        |
@@ -52,10 +52,12 @@ Wissenslandkarte, Nachschlagen, Glossar, Setup-Center.
 
 ## Nächste sinnvolle Ausbauschritte (Reihenfolge nach Nutzen)
 
-1. **Placement ins Onboarding einhängen.** Die Logik und die 8 Fragen
-   existieren bereits (`domain/placement/placement.ts`,
-   `content/placement.ts`) und sind unit-getestet — es fehlt nur die
-   UI-Anbindung in `app/onboarding/`.
+1. ~~**Placement ins Onboarding einhängen.**~~ **Erledigt.** Der Ablauf in
+   `app/onboarding/` führt durch Einstellungen, die freiwillige Einstufung
+   und speichert beides in einem Schritt. Offen bleibt daraus die feinere
+   Markierung je Lektion: `evaluatePlacement()` berechnet
+   `demonstratedConceptSlugs`, gespeichert wird das noch nicht — dafür
+   bräuchte es eine eigene Spalte oder Tabelle.
 2. ~~**Stufe 2 (Git & GitHub).**~~ **Erledigt in Ausbaustufe 2.** Größter fachlicher Hebel: Voraussetzung für
    AI-Coding, CI/CD und einen Großteil der praktischen Übungen.
 3. **Stufen 3, 6–9** — die Infrastruktur (Content-Modell, Mastery,

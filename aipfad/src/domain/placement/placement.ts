@@ -143,13 +143,23 @@ function dedupeReliable(demonstrated: string[], questions: readonly PlacementQue
     .map(([slug]) => slug);
 }
 
+/**
+ * Einordnung je Band — reine Ermutigung, keine Aussage über den Umfang.
+ *
+ * Diese Sätze werden in `pfadBegruendung()` hinter die Grundregel gehängt und
+ * mit ihr gespeichert. Sie dürfen deshalb nie behaupten, der Pfad werde
+ * gekürzt, abgekürzt oder etwas werde als Auffrischung markiert: Beides
+ * widerspräche dem Satz davor, und beides gibt es nicht — der Pfad enthält
+ * für jedes Band dieselben Lektionen. `pfadBegruendung` prüft das in
+ * tests/unit/placement.test.ts für alle Bänder.
+ */
 const MESSAGES: Record<PlacementBand, string> = {
   beginner:
     'Du startest bei den Grundlagen. Genau dafür ist AIPfad gebaut: Jedes Konzept wird von vorne erklärt, mit einem Alltagsbeispiel und einer Visualisierung, die du selbst erkunden kannst.',
   'advanced-beginner':
-    'Ein Teil der Grundlagen ist dir vertraut. Die entsprechenden Lektionen bekommst du als kurze Auffrischung, damit du deine Zeit auf das Neue verwenden kannst.',
+    'Ein Teil der Grundlagen ist dir vertraut. Durch diese Lektionen kommst du vermutlich schnell hindurch — sie bleiben trotzdem im Pfad, damit keine Lücke offenbleibt.',
   refresher:
-    'Du bringst schon einiges mit. Der Pfad kürzt Bekanntes ab, überspringt es aber nicht ganz – so bleibt sicher, dass keine Lücke offenbleibt, auf der später aufgebaut wird.',
+    'Du bringst schon einiges mit. Vieles im Pfad dürfte dir bekannt vorkommen; du bestimmst selbst, wie schnell du darüber hinweggehst.',
 };
 
 // ---------------------------------------------------------------------------
