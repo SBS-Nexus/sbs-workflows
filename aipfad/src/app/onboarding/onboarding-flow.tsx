@@ -99,7 +99,12 @@ export function OnboardingFlow({ fragen }: { fragen: OeffentlicheFrage[] }): Rea
     return <Ergebnis ergebnis={zustand.ergebnis} />;
   }
 
-  const gesamt = EINSTELLUNGEN.length + 1 + (einstufungGewaehlt ? fragen.length : 0);
+  // Der Absende-Schritt zählt mit: Er ist ein eigener Bildschirm. Ohne ihn
+  // stand der Balken schon auf 100 %, bevor irgendetwas gespeichert war, und
+  // die letzte Frage und das Absenden hießen beide "Schritt 13 von 13" —
+  // ausgerechnet in der Beschriftung, an der sich der Sprungpunkt beim
+  // Weiterblättern ansagt.
+  const gesamt = EINSTELLUNGEN.length + 1 + (einstufungGewaehlt ? fragen.length : 0) + 1;
   const erledigt =
     schritt.art === 'einstellung'
       ? schritt.index
@@ -107,7 +112,7 @@ export function OnboardingFlow({ fragen }: { fragen: OeffentlicheFrage[] }): Rea
         ? EINSTELLUNGEN.length
         : schritt.art === 'frage'
           ? EINSTELLUNGEN.length + 1 + schritt.index
-          : gesamt;
+          : gesamt - 1;
 
   const fortschrittText = `Schritt ${Math.min(erledigt + 1, gesamt)} von ${gesamt}`;
 

@@ -201,15 +201,23 @@ describe('Band und Pfadbegründung', () => {
     // dahintergehängt und kann ihr widersprechen, ohne sie zu entfernen.
     // Genau das stand hier — "kürzt Bekanntes ab" zwei Sätze nach "es wird
     // nie eine Lektion übersprungen", gespeichert und auf /pfad gezeigt.
-    for (const band of [null, 'beginner', 'advanced-beginner', 'refresher'] as const) {
+    // Ohne `null`: Dort gibt es keinen Bandsatz, der geprüfte Rest wäre leer
+    // und die Schleife liefe ins Leere. Dass die Grundregel selbst nichts
+    // Falsches verspricht, hält die Prüfung darüber fest.
+    for (const band of ['beginner', 'advanced-beginner', 'refresher'] as const) {
       // Wortstämme, keine ganzen Wörter: "kürzt" allein ließe "Der Pfad ist
-      // dadurch kürzer" durch, und "als Auffrischung" ließe genau den alten
-      // advanced-beginner-Satz durch, um dessentwillen diese Prüfung
-      // geschrieben wurde. Die Grundregel selbst enthält "übersprungen" —
-      // deshalb wird nur der Bandsatz geprüft, nicht der ganze Text.
+      // dadurch kürzer" durch, und "Auffrischung" allein ließe
+      // "aufgefrischt" durch.
+      //
+      // "überspring" UND "übersprung" müssen beide dastehen: Der erste
+      // Stamm trifft "überspringen", nicht aber "übersprungen" — also
+      // ausgerechnet die Form, in der der Widerspruch am ehesten dastünde.
+      // Genau deshalb wird auch nur der Bandsatz geprüft und nicht der
+      // ganze Text: Die Grundregel selbst enthält "übersprungen" und
+      // träfe sich sonst selbst.
       const bandsatz = pfadBegruendung(band).replace(pfadBegruendung(null), '');
       expect(bandsatz, String(band)).not.toMatch(
-        /kürz|abkürz|überspring|auslass|weglass|ausgeblendet|Auffrischung|spar(st|t) dir/i,
+        /kürz|überspring|übersprung|auslass|weglass|ausgeblendet|frisch|spar(st|t) dir/i,
       );
     }
   });

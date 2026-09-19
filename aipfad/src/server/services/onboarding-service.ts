@@ -131,6 +131,13 @@ export async function finalisiereOnboarding(
     // Mit `onboardingCompleted: false` in der Bedingung prüft genau dieser
     // erneute Durchlauf die Sperre mit: Der zweite Schreibvorgang trifft
     // keine Zeile mehr und meldet 0.
+    //
+    // Das gilt, solange die Bedingung unmittelbar in der WHERE-Klausel des
+    // UPDATE landet. Stünde sie in einer Unterabfrage, prüfte der erneute
+    // Durchlauf sie gegen die alte Momentaufnahme und der Verlust käme
+    // zurück. Der Integrationstest zu zwei gleichzeitigen Abschlüssen hält
+    // das fest — er ist die Sicherung für den Tag, an dem Prisma sein SQL
+    // ändert.
     const { count } = await tx.user.updateMany({
       where: { id: userId, onboardingCompleted: false },
       data: {

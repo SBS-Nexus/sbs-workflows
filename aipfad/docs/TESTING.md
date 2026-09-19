@@ -9,7 +9,7 @@ Zielbild — was hier steht, wurde beim Schreiben ausgeführt und ist grün).
 npm run test:unit          # Domainlogik, keine I/O — Millisekunden
 npm run test:integration   # Server-Dienste gegen echte PostgreSQL-Testdatenbank
 npm run test:e2e           # Playwright gegen den Produktionsbuild
-npm run verify              # typecheck + lint + unit + build
+npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
 ### Unit-Tests — 455 bestehen
@@ -85,9 +85,10 @@ Aufgaben-Einreichung, Labs-Übersicht und das Tokenizer-Lab. In jedem Fall:
 
 - `path-service` hat keine eigenen Integrationstests — er wird bisher nur
   über Onboarding und E2E mitgeprüft.
-- Die Einstufung wird nie mit einer TEILWEISE beantworteten Eingabe geprüft:
-  Das Schema lässt eine einzelne Antwort zu, die Oberfläche erzeugt das nie,
-  und die Punktzahl fiele dann irreführend niedrig aus.
+- `evaluatePlacement()` wird auf der Unit-Ebene mit Teilmengen geprüft,
+  `finalisiereOnboarding()` dagegen nie: Das Schema ließe eine einzelne
+  Antwort zu, die Oberfläche erzeugt das nicht, und die dann gespeicherte
+  Punktzahl fiele irreführend niedrig aus.
 - Keine Lastprüfung. Die Sperre gegen zwei gleichzeitige Abschlüsse ist mit
   genau zwei Vorgängen nachgestellt, nicht mit vielen.
 
