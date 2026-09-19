@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { onboardingAbschliessen } from './helfer';
 
 /**
  * Regressionstests für die vier Codex-Funde auf PR #29. Jeder Test deckt
@@ -14,8 +15,7 @@ async function registerAndOnboard(page: import('@playwright/test').Page): Promis
   await page.getByLabel('Passwort').fill('ein-sehr-sicheres-testpasswort-123');
   await page.getByRole('button', { name: 'Konto anlegen' }).click();
   await expect(page).toHaveURL(/\/onboarding$/);
-  await page.getByRole('button', { name: 'Weiter' }).click();
-  await expect(page).toHaveURL(/\/pfad$/);
+  await onboardingAbschliessen(page);
 }
 
 /**

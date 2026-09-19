@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { onboardingAbschliessen } from './helfer';
 
 /**
  * Kernablauf: Registrierung → Onboarding → Pfad → Lektion → Aufgabe →
@@ -20,9 +21,8 @@ test('Registrierung bis Fortschrittsanzeige', async ({ page }) => {
   await page.getByRole('button', { name: 'Konto anlegen' }).click();
 
   await expect(page).toHaveURL(/\/onboarding$/);
-  await page.getByRole('button', { name: 'Weiter' }).click();
+  await onboardingAbschliessen(page);
 
-  await expect(page).toHaveURL(/\/pfad$/);
   await expect(page.getByRole('heading', { name: 'AIPfad Grundlagen' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Weiterlernen' }).click();
