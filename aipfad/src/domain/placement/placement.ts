@@ -218,6 +218,17 @@ export function oeffentlicheFragen(questions: readonly PlacementQuestion[]): Oef
 export interface OeffentlichesPlacementErgebnis {
   score: number;
   message: string;
+
+  // Die inneren Felder stehen hier ausdrücklich als "gibt es hier nicht".
+  // Ohne sie wäre ein vollständiges `PlacementResult` diesem Typ strukturell
+  // zuweisbar: Die Überschussprüfung von TypeScript greift nur bei frisch
+  // hingeschriebenen Objekten, nicht bei einer Variablen. `platzierung:
+  // ergebnis` wäre also durchgegangen — genau der Fehler, den dieser Typ
+  // verhindern soll. Mit `?: never` scheitert das beim Übersetzen.
+  band?: never;
+  byArea?: never;
+  demonstratedConceptSlugs?: never;
+  version?: never;
 }
 
 /**
@@ -226,7 +237,8 @@ export interface OeffentlichesPlacementErgebnis {
  * Als eigener Typ und nicht als Weglassen im React-Baum: Ein `PlacementResult`
  * mit ausgelassenen Feldern bliebe ein `PlacementResult`, und das nächste
  * Feld darin wäre wieder draußen, ohne dass jemand es merkt. So muss man den
- * Typ ändern, um etwas hinzuzufügen.
+ * Typ ändern, um etwas hinzuzufügen — und das vollständige Ergebnis
+ * stattdessen durchzureichen, scheitert beim Übersetzen.
  */
 export function oeffentlichesErgebnis(ergebnis: PlacementResult): OeffentlichesPlacementErgebnis {
   return { score: ergebnis.score, message: ergebnis.message };

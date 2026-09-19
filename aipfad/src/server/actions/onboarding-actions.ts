@@ -71,12 +71,14 @@ export async function abschliessenAction(
     const ergebnis = await finalisiereOnboarding(user.id, einstellungen.data, platzierung);
     return { ok: true, ergebnis };
   } catch (fehler) {
-    // Die Eingabe bleibt in der Maske stehen — wer hier scheitert, soll nicht
-    // acht Fragen neu beantworten müssen.
     // Zwischen der Prüfung oben und dem Schreiben kann ein zweiter Versuch
     // durchgekommen sein. Dann ist das Onboarding fertig — dorthin, wohin
     // die Prüfung oben ohnehin geschickt hätte.
     if (fehler instanceof OnboardingBereitsAbgeschlossen) redirect('/pfad');
+    // Nur hier bleibt die Eingabe in der Maske stehen: Es wird ein Zustand
+    // zurückgegeben, die Komponente bleibt stehen, die acht Antworten auch.
+    // Die beiden anderen Zweige verlassen die Seite — der eine leitet
+    // weiter, der andere fällt an die Fehlergrenze, die den Baum abräumt.
     if (fehler instanceof PlatzierungUngueltig) {
       return { ok: false, error: 'Diese Antworten passen nicht zu den Fragen der Einstufung.' };
     }

@@ -5,14 +5,14 @@ import { placementQuestions } from '@/content/placement';
 import {
   antwortFehler,
   evaluatePlacement,
-  oeffentlichesErgebnis,
   oeffentlicheFragen,
+  oeffentlichesErgebnis,
   pfadBegruendung,
   placementQuestionSchema,
   type OeffentlicheFrage,
+  type OeffentlichesPlacementErgebnis,
   type PlacementBand,
   type PlacementResult,
-  type OeffentlichesPlacementErgebnis,
 } from '@/domain/placement/placement';
 
 /**

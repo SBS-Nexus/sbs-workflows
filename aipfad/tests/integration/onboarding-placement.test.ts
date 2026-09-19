@@ -55,8 +55,9 @@ describe('Onboarding mit Einstufung', () => {
     });
 
     expect(ergebnis.platzierung?.score).toBe(100);
-    // Das Band kommt nicht mehr über die Grenze — es wird aus der
-    // gespeicherten Punktzahl abgeleitet, wo es gebraucht wird.
+    // Das Band kommt nicht mehr über die Grenze. Aus der gespeicherten
+    // Punktzahl LÄSST es sich jederzeit ableiten — im laufenden Betrieb tut
+    // das bisher niemand, die Punktzahl wird geschrieben und nicht gelesen.
     expect(bandZuPunktzahl(ergebnis.platzierung!.score)).toBe('refresher');
 
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
@@ -262,12 +263,12 @@ describe('Onboarding mit Einstufung', () => {
     });
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
 
-    // Beide Wege müssen dasselbe Band ergeben: die frisch berechnete
-    // Punktzahl aus dem Ergebnis und die, die am Konto steht.
+    // Die Punktzahl übersteht den Weg durch die Datenbank …
     expect(user.placementScore).toBe(ergebnis.platzierung!.score);
-    expect(bandZuPunktzahl(user.placementScore!)).toBe(
-      bandZuPunktzahl(ergebnis.platzierung!.score),
-    );
+    // … und ergibt dort dasselbe Band wie vorher. Gegen einen festen Wert
+    // geprüft, nicht gegen sich selbst: `bandZuPunktzahl(x)` mit demselben x
+    // auf beiden Seiten wäre nach der Zeile darüber nicht mehr zu widerlegen.
+    expect(bandZuPunktzahl(user.placementScore!)).toBe('refresher');
   });
 });
 
@@ -289,8 +290,14 @@ describe('Was das Ergebnis über die Client-Grenze trägt', () => {
    * Sammelt JEDEN Schlüssel, der irgendwo im Objekt steckt.
    *
    * Absichtlich nicht die erwarteten Felder herausgreifen und vergleichen:
-   * Das ginge auch dann durch, wenn daneben noch zehn weitere stünden. Hier
-   * muss jedes neue Feld auffallen.
+   * Das ginge auch dann durch, wenn daneben noch zehn weitere stünden.
+   *
+   * Die Liste der verbotenen Namen allein genügt aber nicht — sie fängt nur,
+   * was heute schon heißt, wie es heißt. Ein `loesung: frage.correctOptionId`
+   * in den Erklärungen wäre ein echter Verrat der Lösung unter neuem Namen
+   * und stünde auf keiner Liste. Deshalb wird unten zusätzlich die
+   * vollständige Schlüsselmenge festgenagelt: Was nicht ausdrücklich erlaubt
+   * ist, lässt die Prüfung scheitern.
    */
   function alleSchluessel(wert: unknown, gesammelt = new Set<string>()): Set<string> {
     if (Array.isArray(wert)) {
@@ -339,8 +346,24 @@ describe('Was das Ergebnis über die Client-Grenze trägt', () => {
     // … und die Punktzahl trägt genau zwei Felder, nicht das ganze Ergebnis.
     expect(Object.keys(ergebnis.platzierung!).sort()).toEqual(['message', 'score']);
 
-    // Über den ganzen Baum, so wie er über die Leitung ginge.
-    const schluessel = alleSchluessel(JSON.parse(JSON.stringify(ergebnis)));
+    // So, wie es über die Leitung ginge: Die Schlüsselmenge des ganzen Baums
+    // ist abschließend aufgezählt. Ein zusätzliches Feld — gleich unter
+    // welchem Namen und auf welcher Ebene — macht diese Zusicherung rot.
+    const uebertragen = JSON.parse(JSON.stringify(ergebnis));
+    expect([...alleSchluessel(uebertragen)].sort()).toEqual([
+      'erklaerungen',
+      'explanation',
+      'message',
+      'platzierung',
+      'question',
+      'questionId',
+      'richtig',
+      'score',
+    ]);
+
+    // Zusätzlich die Namensliste: Sie sagt beim Scheitern deutlicher, WAS
+    // hinausgerutscht ist, als eine Mengendifferenz es täte.
+    const schluessel = alleSchluessel(uebertragen);
     for (const feld of VERBOTEN) {
       expect(schluessel.has(feld), `${feld} darf nicht über die Grenze`).toBe(false);
     }

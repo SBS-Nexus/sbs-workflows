@@ -80,7 +80,8 @@ Dokument statt als SVG-Beschriftung).
 ## 6. Nächste sinnvolle Ausbauschritte
 
 Siehe [`LEHRPLAN.md`](LEHRPLAN.md) für den vollständigen Umfang. Fachlich
-naheliegend als Nächstes: Stufe 2 (Git & GitHub, in der Spec als "extrem
-wichtig" markiert), Placement-Instrument ins Onboarding einhängen
-(`content/placement.ts` ist bereits vorhanden, aber noch nicht in
-`app/onboarding/` verdrahtet), Organisationen/Kohorten, Live-AI-Gateway.
+naheliegend als Nächstes: Organisationen/Kohorten, Live-AI-Gateway. Stufe 2
+(Git & GitHub) und das Einhängen des Placement-Instruments in
+`app/onboarding/` sind erledigt; offen bleibt daraus die feinere Markierung
+je Lektion (siehe [`LEHRPLAN.md`](LEHRPLAN.md), „Nächste sinnvolle
+Ausbauschritte" Nr. 1).
