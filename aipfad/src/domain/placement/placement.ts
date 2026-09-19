@@ -181,8 +181,12 @@ const DONT_KNOW_TEXT = 'Weiß ich nicht';
 /**
  * Bereitet die Fragen für den Browser auf.
  *
- * `correctOptionId` und `explanation` bleiben hier: Die Erklärung gehört auf
- * die Ergebnisseite, die Lösung nirgendwo in den Browser. Bewertet wird
+ * `correctOptionId` und `explanation` bleiben hier. Der zeitliche Ablauf ist
+ * dabei der Punkt: VOR dem Absenden verlässt weder eine Lösung noch eine
+ * Erklärung noch eine Gewichtung den Server — sonst stünde die Antwort im
+ * Browser, bevor sie gegeben ist. NACH dem Abschluss gibt
+ * `finalisiereOnboarding()` Erklärungen bewusst heraus: Dann sind sie
+ * Rückmeldung, keine Lösungshilfe. Bewertet wird in beiden Fällen
  * ausschließlich auf dem Server — der Browser schickt Antworten, keine
  * Punktzahl.
  *
@@ -201,6 +205,31 @@ export function oeffentlicheFragen(questions: readonly PlacementQuestion[]): Oef
       { id: DONT_KNOW_OPTION_ID, text: DONT_KNOW_TEXT },
     ],
   }));
+}
+
+/**
+ * Das Einstufungsergebnis, wie es der Browser sehen darf — nach Abschluss.
+ *
+ * Zwei Felder, weil die Ergebnisanzeige genau zwei braucht. `band`,
+ * `byArea`, `demonstratedConceptSlugs` und `version` sind innere Größen der
+ * Bewertung: Sie steuern Begründungstext und künftige Ausbauten, gehören
+ * aber niemandem im Browser.
+ */
+export interface OeffentlichesPlacementErgebnis {
+  score: number;
+  message: string;
+}
+
+/**
+ * Schneidet das vollständige Ergebnis auf das zu, was hinausgehen darf.
+ *
+ * Als eigener Typ und nicht als Weglassen im React-Baum: Ein `PlacementResult`
+ * mit ausgelassenen Feldern bliebe ein `PlacementResult`, und das nächste
+ * Feld darin wäre wieder draußen, ohne dass jemand es merkt. So muss man den
+ * Typ ändern, um etwas hinzuzufügen.
+ */
+export function oeffentlichesErgebnis(ergebnis: PlacementResult): OeffentlichesPlacementErgebnis {
+  return { score: ergebnis.score, message: ergebnis.message };
 }
 
 /**

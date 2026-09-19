@@ -5,12 +5,14 @@ import { placementQuestions } from '@/content/placement';
 import {
   antwortFehler,
   evaluatePlacement,
+  oeffentlichesErgebnis,
   oeffentlicheFragen,
   pfadBegruendung,
   placementQuestionSchema,
   type OeffentlicheFrage,
   type PlacementBand,
   type PlacementResult,
+  type OeffentlichesPlacementErgebnis,
 } from '@/domain/placement/placement';
 
 /**
@@ -67,9 +69,22 @@ export const platzierungSchema = z.discriminatedUnion('art', [
 
 export type PlatzierungEingabe = z.infer<typeof platzierungSchema>;
 
+/**
+ * Was nach dem Abschluss in den Browser geht — und sonst nichts.
+ *
+ * Bewusst nicht `PlacementResult`: Das vollständige Ergebnis trägt `band`,
+ * `byArea`, `demonstratedConceptSlugs` und `version` mit sich, und über eine
+ * Serveraktion landet jedes Feld eines zurückgegebenen Objekts im Browser,
+ * auch wenn die Anzeige es nie liest. Hier steht deshalb aufgezählt, was
+ * hinausgeht; jedes weitere Feld muss jemand ausdrücklich hinzufügen.
+ *
+ * Die Erklärungen sind Absicht, kein Versehen: VOR dem Absenden verlässt
+ * keine den Server (siehe `oeffentlicheFragen()`), NACH dem Abschluss sind
+ * sie die Rückmeldung, für die Lernende die Fragen beantwortet haben.
+ */
 export interface OnboardingErgebnis {
   /** `null`, wenn die Einstufung übersprungen wurde. */
-  platzierung: PlacementResult | null;
+  platzierung: OeffentlichesPlacementErgebnis | null;
   /** Erklärungen zu den Fragen — erst nach Abschluss, nie vorher. */
   erklaerungen: { questionId: string; question: string; explanation: string; richtig: boolean }[];
 }
@@ -189,8 +204,11 @@ export async function finalisiereOnboarding(
     await tx.user.update({ where: { id: userId }, data: { currentPathId: pfad.id } });
   });
 
+  // Das vollständige Ergebnis bleibt hier: Es hat oben das Band und den
+  // Begründungstext bestimmt und die Punktzahl geliefert. Hinaus geht nur
+  // die Projektion.
   return {
-    platzierung: ergebnis,
+    platzierung: ergebnis === null ? null : oeffentlichesErgebnis(ergebnis),
     erklaerungen:
       platzierung.art === 'beantwortet'
         ? FRAGEN.map((frage) => ({

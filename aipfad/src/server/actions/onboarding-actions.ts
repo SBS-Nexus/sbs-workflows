@@ -25,6 +25,13 @@ export interface OnboardingFormState {
  * mitgeschickte `userId` wäre eine Einladung, den Zustand eines anderen
  * Kontos zu ändern. Ebenso wird keine Punktzahl entgegengenommen — der
  * Server bewertet die Antworten selbst.
+ *
+ * Was zurückkommt, geht vollständig in den Browser: Eine Serveraktion
+ * überträgt das ganze Objekt, nicht nur die Felder, die die Anzeige liest.
+ * Deshalb steht in `OnboardingErgebnis` aufgezählt, was hinaus darf —
+ * Punktzahl, Text und die Erklärungen zu den Fragen. Die inneren Größen der
+ * Bewertung (Band, Trefferquote je Gebiet, erkannte Konzepte) bleiben auf
+ * dem Server.
  */
 export async function abschliessenAction(
   _previous: OnboardingFormState,

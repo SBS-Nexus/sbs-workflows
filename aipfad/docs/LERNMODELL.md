@@ -106,7 +106,10 @@ Lektion übersprungen —, sondern nur seine Begründung.
 
 **Aktueller Stand:** Im Onboarding eingehängt (`app/onboarding/`). Bewertet
 wird ausschließlich im Server; der Browser bekommt die Fragen ohne Lösung
-und schickt nur Kennungen zurück. Gespeichert wird allein die Punktzahl am
+und schickt nur Kennungen zurück. Nach dem Abschluss gehen Punktzahl,
+Einordnungstext und die Erklärungen zu den Fragen hinaus — als Rückmeldung,
+für die die Fragen beantwortet wurden. Die inneren Größen der Bewertung
+(Band, Trefferquote je Gebiet, erkannte Konzepte) bleiben am Server. Gespeichert wird allein die Punktzahl am
 Konto; das Band wird bei Bedarf daraus abgeleitet. Eine feinere
 „wahrscheinlich bekannt"-Markierung je Lektion bleibt der nächste
 Schritt (in [`LEHRPLAN.md`](LEHRPLAN.md), „Nächste sinnvolle

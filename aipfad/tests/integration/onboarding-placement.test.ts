@@ -55,7 +55,9 @@ describe('Onboarding mit Einstufung', () => {
     });
 
     expect(ergebnis.platzierung?.score).toBe(100);
-    expect(ergebnis.platzierung?.band).toBe('refresher');
+    // Das Band kommt nicht mehr über die Grenze — es wird aus der
+    // gespeicherten Punktzahl abgeleitet, wo es gebraucht wird.
+    expect(bandZuPunktzahl(ergebnis.platzierung!.score)).toBe('refresher');
 
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
     expect(user.onboardingCompleted).toBe(true);
@@ -260,6 +262,99 @@ describe('Onboarding mit Einstufung', () => {
     });
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
 
-    expect(bandZuPunktzahl(user.placementScore!)).toBe(ergebnis.platzierung?.band);
+    // Beide Wege müssen dasselbe Band ergeben: die frisch berechnete
+    // Punktzahl aus dem Ergebnis und die, die am Konto steht.
+    expect(user.placementScore).toBe(ergebnis.platzierung!.score);
+    expect(bandZuPunktzahl(user.placementScore!)).toBe(
+      bandZuPunktzahl(ergebnis.platzierung!.score),
+    );
+  });
+});
+
+describe('Was das Ergebnis über die Client-Grenze trägt', () => {
+  // Alles, was nur die Bewertung angeht. Landete eines dieser Felder im
+  // Rückgabewert, stünde es im Browser — eine Serveraktion überträgt das
+  // ganze Objekt, nicht nur die Felder, die die Anzeige liest.
+  const VERBOTEN = [
+    'band',
+    'byArea',
+    'demonstratedConceptSlugs',
+    'version',
+    'correctOptionId',
+    'weight',
+    'demonstratesConceptSlug',
+  ];
+
+  /**
+   * Sammelt JEDEN Schlüssel, der irgendwo im Objekt steckt.
+   *
+   * Absichtlich nicht die erwarteten Felder herausgreifen und vergleichen:
+   * Das ginge auch dann durch, wenn daneben noch zehn weitere stünden. Hier
+   * muss jedes neue Feld auffallen.
+   */
+  function alleSchluessel(wert: unknown, gesammelt = new Set<string>()): Set<string> {
+    if (Array.isArray(wert)) {
+      for (const eintrag of wert) alleSchluessel(eintrag, gesammelt);
+    } else if (wert !== null && typeof wert === 'object') {
+      for (const [name, inhalt] of Object.entries(wert)) {
+        gesammelt.add(name);
+        alleSchluessel(inhalt, gesammelt);
+      }
+    }
+    return gesammelt;
+  }
+
+  let userId: string;
+  beforeEach(async () => {
+    await prisma.user.deleteMany({ where: { email: { contains: '@grenztest.local' } } });
+    const user = await prisma.user.create({
+      data: {
+        email: `grenze-${Date.now()}@grenztest.local`,
+        passwordHash: await hashPassword('Testpasswort-123'),
+        name: 'Grenze',
+      },
+    });
+    userId = user.id;
+  });
+
+  it('gibt nach beantworteter Einstufung nur Punktzahl, Text und Erklärungen heraus', async () => {
+    const antworten = FRAGEN.map((f) => ({ questionId: f.id, optionId: f.correctOptionId }));
+    const ergebnis = await finalisiereOnboarding(userId, EINSTELLUNGEN, {
+      art: 'beantwortet',
+      antworten,
+    });
+
+    // Das, was die Ergebnisanzeige braucht, ist da …
+    expect(ergebnis.platzierung?.score).toBe(100);
+    expect(typeof ergebnis.platzierung?.message).toBe('string');
+    expect(ergebnis.platzierung?.message.length).toBeGreaterThan(0);
+    expect(ergebnis.erklaerungen).toHaveLength(FRAGEN.length);
+    for (const eintrag of ergebnis.erklaerungen) {
+      expect(typeof eintrag.question).toBe('string');
+      expect(typeof eintrag.explanation).toBe('string');
+      expect(eintrag.explanation.length).toBeGreaterThan(0);
+      expect(eintrag.richtig).toBe(true);
+    }
+
+    // … und die Punktzahl trägt genau zwei Felder, nicht das ganze Ergebnis.
+    expect(Object.keys(ergebnis.platzierung!).sort()).toEqual(['message', 'score']);
+
+    // Über den ganzen Baum, so wie er über die Leitung ginge.
+    const schluessel = alleSchluessel(JSON.parse(JSON.stringify(ergebnis)));
+    for (const feld of VERBOTEN) {
+      expect(schluessel.has(feld), `${feld} darf nicht über die Grenze`).toBe(false);
+    }
+  });
+
+  it('gibt bei übersprungener Einstufung nichts heraus', async () => {
+    const ergebnis = await finalisiereOnboarding(userId, EINSTELLUNGEN, { art: 'uebersprungen' });
+
+    expect(ergebnis.platzierung).toBeNull();
+    expect(ergebnis.erklaerungen).toEqual([]);
+
+    const schluessel = alleSchluessel(JSON.parse(JSON.stringify(ergebnis)));
+    for (const feld of VERBOTEN) {
+      expect(schluessel.has(feld), `${feld} darf nicht über die Grenze`).toBe(false);
+    }
   });
 });

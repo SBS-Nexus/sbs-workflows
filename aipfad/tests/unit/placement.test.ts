@@ -5,6 +5,7 @@ import {
   DONT_KNOW_OPTION_ID,
   evaluatePlacement,
   oeffentlicheFragen,
+  oeffentlichesErgebnis,
   pfadBegruendung,
   placementQuestionSchema,
   validatePlacementQuestions,
@@ -225,6 +226,28 @@ describe('Band und Pfadbegründung', () => {
   it('ergänzt die Begründung um den Hinweis zum Band', () => {
     expect(pfadBegruendung('refresher')).not.toBe(pfadBegruendung(null));
     expect(pfadBegruendung('beginner')).not.toBe(pfadBegruendung('refresher'));
+  });
+});
+
+describe('Ergebnis für den Browser', () => {
+  it('trägt nur Punktzahl und Text, nicht die inneren Größen', () => {
+    const voll = evaluatePlacement(
+      questions,
+      questions.map((f) => ({ questionId: f.id, optionId: f.correctOptionId })),
+    );
+
+    // Das vollständige Ergebnis hat sie — das ist richtig so, der Server
+    // braucht sie.
+    expect(voll.band).toBeDefined();
+    expect(voll.byArea).toBeDefined();
+    expect(voll.demonstratedConceptSlugs).toBeDefined();
+    expect(voll.version).toBeDefined();
+
+    // Hinaus geht davon nichts.
+    const oeffentlich = oeffentlichesErgebnis(voll);
+    expect(Object.keys(oeffentlich).sort()).toEqual(['message', 'score']);
+    expect(oeffentlich.score).toBe(voll.score);
+    expect(oeffentlich.message).toBe(voll.message);
   });
 });
 
