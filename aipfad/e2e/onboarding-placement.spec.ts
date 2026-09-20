@@ -156,12 +156,30 @@ test('der Fokus springt auf das Ergebnis, nicht auf den Seitenanfang', async ({ 
     await page.getByRole('radio').first().check();
     await page.getByRole('button', { name: 'Weiter' }).click();
   }
-  await page.getByRole('button', { name: "Los geht's" }).click();
+  // Über die Tastatur absenden, nicht mit der Maus: Der Rahmen unten hängt
+  // an `:focus-visible`, und nach einem Mausklick bleibt er richtigerweise
+  // aus. Ein `.click()` hier prüfte den Rahmen also gegen seinen eigenen
+  // Sinn.
+  await page.getByRole('button', { name: "Los geht's" }).focus();
+  await page.keyboard.press('Enter');
 
   await expect(page.getByRole('heading', { name: 'Deine Einschätzung' })).toBeVisible();
   const angesprungen = page.locator(':focus');
   await expect(angesprungen).toHaveAttribute('role', 'group');
   await expect(angesprungen).toHaveAttribute('aria-label', 'Deine Einschätzung');
+
+  // Und der Rahmen ist wirklich da. Den Sprungpunkt zu prüfen genügt nicht:
+  // Ein `outline-none` an dieser Stelle machte den Sprung für alle, die mit
+  // der Tastatur arbeiten und sehen, unsichtbar, ohne eine der Zusicherungen
+  // darüber zu verletzen — genau so stand es hier einmal. Die Prüfung muss
+  // über die Tastatur laufen: Nach einem Mausklick bleibt der Rahmen
+  // richtigerweise aus (`:focus-visible`).
+  const rahmen = await angesprungen.evaluate((el) => {
+    const stil = getComputedStyle(el);
+    return { art: stil.outlineStyle, breite: stil.outlineWidth };
+  });
+  expect(rahmen.art).not.toBe('none');
+  expect(rahmen.breite).not.toBe('0px');
 });
 
 test('auch ohne Einstufung springt der Fokus auf das Ergebnis', async ({ page }) => {
@@ -174,6 +192,7 @@ test('auch ohne Einstufung springt der Fokus auf das Ergebnis', async ({ page })
 
   await expect(page.getByRole('heading', { name: 'Alles eingerichtet' })).toBeVisible();
   const angesprungen = page.locator(':focus');
+  await expect(angesprungen).toHaveAttribute('role', 'group');
   await expect(angesprungen).toHaveAttribute('aria-label', 'Alles eingerichtet');
 });
 

@@ -26,7 +26,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 73 bestehen
+### Integrationstests — 74 bestehen
 
 `tests/integration/`: `auth.test.ts`, `content-publication.test.ts`,
 `exercise-service.test.ts`, `lesson-progress.test.ts`,
@@ -66,7 +66,10 @@ vollständig beantworten, zurückgehen ohne Antwortverlust, und die Sperre
 gegen ein Absenden mitten im Ablauf (mit Gegenprobe, dass das Absenden am
 Ende durchkommt). Dazu: Nach dem Absenden springt der Fokus auf das
 Ergebnis statt auf den Seitenanfang — für beide Ausgänge, mit und ohne
-Einstufung. Die axe-Prüfung des Onboardings geht jetzt bis zum
+Einstufung. Dass dabei wirklich ein Rahmen gezeichnet wird, prüft der
+beantwortete Weg, über die Tastatur ausgelöst (nach einem Mausklick bleibt
+er richtigerweise aus). Der übersprungene Weg prüft nur Sprungpunkt und
+Beschriftung. Die axe-Prüfung des Onboardings geht jetzt bis zum
 Ergebnisbildschirm.
 
 `e2e/accessibility.spec.ts`: axe-Prüfung je Seite. `e2e/stage2-git.spec.ts`
@@ -95,6 +98,11 @@ Aufgaben-Einreichung, Labs-Übersicht und das Tokenizer-Lab. In jedem Fall:
   `finalisiereOnboarding()` dagegen nie: Das Schema ließe eine einzelne
   Antwort zu, die Oberfläche erzeugt das nicht, und die dann gespeicherte
   Punktzahl fiele irreführend niedrig aus.
+- Die Rahmenprüfung liest `outlineStyle` und `outlineWidth`, nicht
+  `outlineColor`. Ein von Hand geschriebenes `outline: 2px solid transparent`
+  käme also durch, ohne dass etwas gezeichnet wird. (Tailwinds
+  `outline-hidden` ist NICHT dieser Fall: Es setzt außerhalb von
+  `forced-colors` `outline-style: none` und wird erkannt.)
 - Keine Lastprüfung. Die Sperre gegen zwei gleichzeitige Abschlüsse ist mit
   genau zwei Vorgängen nachgestellt, nicht mit vielen.
 

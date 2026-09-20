@@ -174,12 +174,19 @@ export interface OeffentlicheFrage {
   context?: string;
   options: { id: string; text: string }[];
 
-  // Wie beim Ergebnis: ausdrücklich als „gibt es hier nicht" geführt. Ohne
-  // das half der Typ gar nichts — bei `questions.map(...)` mit gesetztem
-  // Rückgabetyp prüft TypeScript nicht auf überzählige Felder, ein
-  // `loesung: frage.correctOptionId` im Rumpf wäre glatt durchgegangen. Und
-  // das ist die Richtung, auf die es ankommt: Hier stünde die Antwort im
-  // Browser, BEVOR sie gegeben ist.
+  // Wie beim Ergebnis ausdrücklich als „gibt es hier nicht" geführt — aber
+  // die beiden Abwehrlinien sauber auseinandergehalten:
+  //
+  // Diese Felder machen `correctOptionId: frage.correctOptionId` zu einem
+  // Typfehler statt zu einem Fehler wegen eines überzähligen Feldes. Das ist
+  // der Unterschied, auf den es hier ankommt: Bei `questions.map(...)` mit
+  // gesetztem Rückgabetyp prüft TypeScript NICHT auf überzählige Felder, ein
+  // Typfehler greift aber trotzdem.
+  //
+  // Ein Feld unter NEUEM Namen (`loesung: frage.correctOptionId`) fängt das
+  // hier nicht — dafür sorgt die aufgezählte Schlüsselmenge in
+  // tests/unit/placement.test.ts. Und das ist die Richtung, auf die es
+  // ankommt: Hier stünde die Antwort im Browser, BEVOR sie gegeben ist.
   correctOptionId?: never;
   explanation?: never;
   weight?: never;

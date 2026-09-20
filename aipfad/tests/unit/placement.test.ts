@@ -130,7 +130,22 @@ describe('Fragen für den Browser', () => {
       const quelle = fragen[i]!;
       const fassung = oeffentlich[i]!;
       expect(fassung.id, quelle.id).toBe(quelle.id);
+      // `area` gehört dazu, obwohl es niemand anzeigt: Es steht in der
+      // Nutzlast, die an die Browserkomponente geht, und damit im
+      // Quelltext der Seite. Der Aufzählungstyp ist heute der einzige
+      // Schutz — einmal auf `string` verbreitert, und nichts hier hätte es
+      // gemerkt. Nachgestellt: Mit `area: `${a}|${loesung}`` (per `as`
+      // durchgereicht) standen alle acht Lösungen in der Nutzlast, während
+      // sämtliche Tore grün blieben.
+      expect(fassung.area, quelle.id).toBe(quelle.area);
       expect(fassung.question, quelle.id).toBe(quelle.question);
+      // `context` gehört ausdrücklich dazu: Es ist der zweite freie Text,
+      // der vor dem Absenden in den Browser geht, und die Schlüsselmenge
+      // erlaubt ihn ja gerade. Ein „(Tipp: a)" dahinter käme an jeder
+      // anderen Prüfung vorbei und stünde über den Optionen, bevor
+      // geantwortet ist. `toBe(undefined)` für die Fragen ohne Kontext ist
+      // dabei eine echte Zusicherung, keine leere.
+      expect(fassung.context, quelle.id).toBe(quelle.context);
       expect(
         fassung.options.filter((o) => o.id !== DONT_KNOW_OPTION_ID).map((o) => o.text),
         quelle.id,
@@ -140,9 +155,28 @@ describe('Fragen für den Browser', () => {
 
   it('hängt jeder Frage "Weiß ich nicht" an', () => {
     for (const frage of oeffentlich) {
-      expect(frage.options.at(-1)?.id, frage.id).toBe(DONT_KNOW_OPTION_ID);
+      // Die erzeugte Option ganz und gar festgenagelt — Kennung UND Text.
+      //
+      // Der Text stand als letzter GEZEICHNETER Text vor dem Absenden
+      // nirgends geprüft (`area` ging ebenfalls ungeprüft hinaus, wird aber
+      // nicht angezeigt — siehe oben):
+      // Der Vergleich der Optionstexte schließt diese Option aus
+      // (`o.id !== DONT_KNOW_OPTION_ID`), die Reihenfolgeprüfung schneidet sie
+      // mit `slice(0, -1)` ab, und hier stand nur die Kennung. Ein
+      // „Weiß ich nicht (nicht b)" wäre durch Übersetzung, Unit- und
+      // Integrationsprüfungen gekommen und hätte die Lösung unter JEDER
+      // Frage angezeigt, bevor sie beantwortet ist.
+      //
+      // Der erwartete Text steht hier ausgeschrieben. Aus `DONT_KNOW_TEXT`
+      // abzuleiten ginge heute ohnehin nicht — die Konstante ist nicht
+      // ausgeführt —, aber der Grund gilt unabhängig davon: Eine Ableitung
+      // wanderte mit dem Fehler mit und bewiese nichts.
+      expect(frage.options.at(-1), frage.id).toEqual({
+        id: DONT_KNOW_OPTION_ID,
+        text: 'Weiß ich nicht',
+      });
       expect(frage.options.length, frage.id).toBe(
-        (fragen.find((f) => f.id === frage.id)?.options.length ?? 0) + 1,
+        fragen.find((f) => f.id === frage.id)!.options.length + 1,
       );
     }
   });

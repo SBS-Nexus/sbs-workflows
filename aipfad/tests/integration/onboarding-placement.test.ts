@@ -354,9 +354,12 @@ describe('Was das Ergebnis über die Client-Grenze trägt', () => {
     expect(ergebnis.erklaerungen.some((e) => !e.richtig)).toBe(true);
 
     // Das, was die Ergebnisanzeige braucht, ist da …
-    expect(typeof ergebnis.platzierung?.score).toBe('number');
-    expect(ergebnis.platzierung!.score).toBeGreaterThan(0);
-    expect(ergebnis.platzierung!.score).toBeLessThan(100);
+    // Auf den Punkt festgenagelt, nicht nur „zwischen 0 und 100": Die drei
+    // Proben decken die drei Bänder nur ab, solange diese hier bei 39 und
+    // damit in „advanced-beginner" bleibt. Verschöbe eine Inhaltsänderung
+    // sie über 70, stünde „refresher" zweimal da und „advanced-beginner"
+    // gar nicht mehr — lautlos.
+    expect(ergebnis.platzierung!.score).toBe(39);
     expect(ergebnis.erklaerungen).toHaveLength(FRAGEN.length);
 
     // … und zwar Wort für Wort das, was in den Fragen steht. Auf den TYP zu
@@ -412,6 +415,31 @@ describe('Was das Ergebnis über die Client-Grenze trägt', () => {
     for (const feld of VERBOTEN) {
       expect(schluessel.has(feld), `${feld} darf nicht über die Grenze`).toBe(false);
     }
+  });
+
+  it('gibt auch im Anfängerband nichts weiter heraus', async () => {
+    // Das andere Ende. Die gemischte Probe liegt bei 39 Punkten
+    // („advanced-beginner"), die richtige bei 100 („refresher") — ein Feld,
+    // das nur im Band „beginner" anhinge, käme in keiner von beiden vor.
+    // Das ist das Band, in dem die meisten anfangen.
+    const ergebnis = await finalisiereOnboarding(userId, EINSTELLUNGEN, {
+      art: 'beantwortet',
+      antworten: FRAGEN.map((f) => ({ questionId: f.id, optionId: DONT_KNOW_OPTION_ID })),
+    });
+
+    expect(ergebnis.platzierung!.score).toBe(0);
+    expect(ergebnis.erklaerungen.every((e) => !e.richtig)).toBe(true);
+    expect(Object.keys(ergebnis.platzierung!).sort()).toEqual(['message', 'score']);
+    expect([...alleSchluessel(JSON.parse(JSON.stringify(ergebnis)))].sort()).toEqual([
+      'erklaerungen',
+      'explanation',
+      'message',
+      'platzierung',
+      'question',
+      'questionId',
+      'richtig',
+      'score',
+    ]);
   });
 
   it('gibt auch bei lauter richtigen Antworten nichts weiter heraus', async () => {
