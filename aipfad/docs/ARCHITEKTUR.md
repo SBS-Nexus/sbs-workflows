@@ -15,7 +15,7 @@ domain/                  Reine Fachlogik – kein Framework, keine Datenbank
 
 **Regel:** `domain/` importiert nichts aus `server/`, `app/` oder
 `components/`. Jede Funktion dort ist rein und ohne Infrastruktur testbar —
-deshalb laufen 64 Unit-Tests in unter einer Sekunde. `server/services/`
+deshalb laufen 456 Unit-Tests in unter einer Sekunde. `server/services/`
 lädt Zustand über Prisma, ruft die reinen Funktionen aus `domain/` auf und
 speichert das Ergebnis (siehe z. B. `server/services/exercise-service.ts`:
 lädt Exercise + ConceptMastery, ruft `gradeSubmission()` und

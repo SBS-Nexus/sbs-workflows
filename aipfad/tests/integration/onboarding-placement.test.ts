@@ -12,6 +12,7 @@ import {
 import { placementQuestions } from '@/content/placement';
 import {
   bandZuPunktzahl,
+  evaluatePlacement,
   placementQuestionSchema,
   DONT_KNOW_OPTION_ID,
 } from '@/domain/placement/placement';
@@ -325,25 +326,48 @@ describe('Was das Ergebnis über die Client-Grenze trägt', () => {
   });
 
   it('gibt nach beantworteter Einstufung nur Punktzahl, Text und Erklärungen heraus', async () => {
-    const antworten = FRAGEN.map((f) => ({ questionId: f.id, optionId: f.correctOptionId }));
+    // Gemischt beantworten, nicht alles richtig. Eine Probe aus lauter
+    // richtigen Antworten sieht nur einen Zweig: Ein Feld, das der Server
+    // NUR bei falscher Antwort anhängt — etwa die Lösung „zum Vergleich" —
+    // käme darin nie vor und bliebe unentdeckt, obwohl gerade Anfängerinnen
+    // die meisten Fragen falsch haben. Nachgestellt, bevor das hier stand.
+    const antworten = FRAGEN.map((frage, i) => ({
+      questionId: frage.id,
+      optionId:
+        i % 3 === 0
+          ? frage.correctOptionId
+          : i % 3 === 1
+            ? (frage.options.find((o) => o.id !== frage.correctOptionId)?.id ??
+              frage.correctOptionId)
+            : DONT_KNOW_OPTION_ID,
+    }));
     const ergebnis = await finalisiereOnboarding(userId, EINSTELLUNGEN, {
       art: 'beantwortet',
       antworten,
     });
 
-    // Das, was die Ergebnisanzeige braucht, ist da …
-    expect(ergebnis.platzierung?.score).toBe(100);
-    expect(typeof ergebnis.platzierung?.message).toBe('string');
-    expect(ergebnis.platzierung?.message.length).toBeGreaterThan(0);
-    expect(ergebnis.erklaerungen).toHaveLength(FRAGEN.length);
-    for (const eintrag of ergebnis.erklaerungen) {
-      expect(typeof eintrag.question).toBe('string');
-      expect(typeof eintrag.explanation).toBe('string');
-      expect(eintrag.explanation.length).toBeGreaterThan(0);
-      expect(eintrag.richtig).toBe(true);
-    }
+    // Beide Zweige kommen in der Probe wirklich vor.
+    expect(ergebnis.erklaerungen.some((e) => e.richtig)).toBe(true);
+    expect(ergebnis.erklaerungen.some((e) => !e.richtig)).toBe(true);
 
-    // … und die Punktzahl trägt genau zwei Felder, nicht das ganze Ergebnis.
+    // Das, was die Ergebnisanzeige braucht, ist da …
+    expect(typeof ergebnis.platzierung?.score).toBe('number');
+    expect(ergebnis.platzierung!.score).toBeGreaterThan(0);
+    expect(ergebnis.platzierung!.score).toBeLessThan(100);
+    expect(ergebnis.erklaerungen).toHaveLength(FRAGEN.length);
+
+    // … und zwar Wort für Wort das, was in den Fragen steht. Auf den TYP zu
+    // prüfen genügt nicht: In einen erlaubten Text lässt sich alles
+    // hineinschreiben, auch die Lösung. Wer den Text verändert, muss diese
+    // Zusicherung anfassen.
+    expect(ergebnis.erklaerungen.map((e) => e.questionId)).toEqual(FRAGEN.map((f) => f.id));
+    expect(ergebnis.erklaerungen.map((e) => e.question)).toEqual(FRAGEN.map((f) => f.question));
+    expect(ergebnis.erklaerungen.map((e) => e.explanation)).toEqual(
+      FRAGEN.map((f) => f.explanation),
+    );
+    expect(ergebnis.platzierung!.message).toBe(evaluatePlacement(FRAGEN, antworten).message);
+
+    // Die Punktzahl trägt genau zwei Felder, nicht das ganze Ergebnis.
     expect(Object.keys(ergebnis.platzierung!).sort()).toEqual(['message', 'score']);
 
     // So, wie es über die Leitung ginge: Die Schlüsselmenge des ganzen Baums
@@ -375,7 +399,13 @@ describe('Was das Ergebnis über die Client-Grenze trägt', () => {
     expect(ergebnis.platzierung).toBeNull();
     expect(ergebnis.erklaerungen).toEqual([]);
 
-    const schluessel = alleSchluessel(JSON.parse(JSON.stringify(ergebnis)));
+    // Auch hier die Schlüsselmenge abschließend: Sonst wäre ein Feld, das
+    // NUR im übersprungenen Fall angehängt wird, von keiner Aufzählung
+    // gedeckt — dieselbe Lücke wie bei den falschen Antworten.
+    const uebertragen = JSON.parse(JSON.stringify(ergebnis));
+    expect([...alleSchluessel(uebertragen)].sort()).toEqual(['erklaerungen', 'platzierung']);
+
+    const schluessel = alleSchluessel(uebertragen);
     for (const feld of VERBOTEN) {
       expect(schluessel.has(feld), `${feld} darf nicht über die Grenze`).toBe(false);
     }

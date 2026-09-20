@@ -80,23 +80,31 @@ export function OnboardingFlow({ fragen }: { fragen: OeffentlicheFrage[] }): Rea
   // Fragenteil gilt, steht deshalb im Rumpf des Effekts, nicht in der
   // Bedingung davor.
   const schrittRef = useRef<HTMLDivElement>(null);
+  const ergebnisRef = useRef<HTMLDivElement>(null);
   const ersterAufbau = useRef(true);
   const zeigtErgebnis = zustand.ok && zustand.ergebnis !== undefined;
   useEffect(() => {
-    // Beim ersten Aufbau gehört der Seitenanfang noch der Überschrift, und
-    // auf der Ergebnisseite gibt es keinen Schritt, auf den zu springen
-    // wäre — dort ist der Behälter gar nicht mehr im Dokument.
+    // Beim ersten Aufbau gehört der Seitenanfang noch der Überschrift.
     if (ersterAufbau.current) {
       ersterAufbau.current = false;
       return;
     }
-    if (zeigtErgebnis) return;
+    // Das Ergebnis ist der Übergang, auf den es am meisten ankommt: Der
+    // Absendeknopf verschwindet, der Fokus fiele auf <body>, und Punktzahl
+    // samt acht Erklärungen erschienen ohne jede Ansage. Hier stand vorher
+    // ein Rücksprung mit der Begründung, der Behälter des Schritts sei nicht
+    // mehr im Dokument — das erklärt nur, warum der EINE Sprungpunkt nicht
+    // mehr taugt, nicht, warum gar keiner.
+    if (zeigtErgebnis) {
+      ergebnisRef.current?.focus();
+      return;
+    }
     schrittRef.current?.focus();
   }, [schritt, zeigtErgebnis]);
 
   // Nach dem Absenden zeigt der Server das Ergebnis — der Fragenteil ist vorbei.
   if (zeigtErgebnis && zustand.ergebnis) {
-    return <Ergebnis ergebnis={zustand.ergebnis} />;
+    return <Ergebnis ergebnis={zustand.ergebnis} behaelterRef={ergebnisRef} />;
   }
 
   // Der Absende-Schritt zählt mit: Er ist ein eigener Bildschirm. Ohne ihn
@@ -472,13 +480,23 @@ function Navigation({
 
 function Ergebnis({
   ergebnis,
+  behaelterRef,
 }: {
   ergebnis: NonNullable<OnboardingFormState['ergebnis']>;
+  behaelterRef: React.RefObject<HTMLDivElement | null>;
 }): React.ReactElement {
   const { platzierung, erklaerungen } = ergebnis;
 
   return (
-    <div className="space-y-6">
+    // `tabIndex={-1}` macht den Behälter anspringbar, ohne ihn in die
+    // Tabulatorreihenfolge zu hängen — wie bei den Schritten davor.
+    <div
+      ref={behaelterRef}
+      tabIndex={-1}
+      role="group"
+      aria-label={platzierung ? 'Deine Einschätzung' : 'Alles eingerichtet'}
+      className="space-y-6 focus:outline-none"
+    >
       <SectionHeading
         eyebrow="Geschafft"
         description={

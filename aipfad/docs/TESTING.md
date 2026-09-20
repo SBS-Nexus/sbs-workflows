@@ -12,7 +12,7 @@ npm run test:e2e           # Playwright gegen den Produktionsbuild
 npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 455 bestehen
+### Unit-Tests — 456 bestehen
 
 `tests/unit/` (14 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
 `hint-ladder.test.ts`, `placement.test.ts`, `grade.test.ts`,
@@ -26,27 +26,30 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 70 bestehen
+### Integrationstests — 72 bestehen
 
 `tests/integration/`: `auth.test.ts`, `content-publication.test.ts`,
 `exercise-service.test.ts`, `lesson-progress.test.ts`,
 `onboarding-placement.test.ts`, `stage2-git.test.ts` — gegen eine echte, separate
 PostgreSQL-Testdatenbank (`TEST_DATABASE_URL`, per Docker-Compose auf
 Port 5433 wie die Entwicklungsdatenbank, eigene Datenbank `aipfad_test`
-innerhalb desselben Containers). Deckt: Passwort-Hash wird korrekt
-verifiziert, eindeutiger Index auf `email` wird durchgesetzt,
-`onDelete: Cascade` entfernt abhängige Sitzungen beim Löschen eines Kontos.
+innerhalb desselben Containers).
+
+`auth.test.ts` deckt ab: Passwort-Hash wird korrekt verifiziert, eindeutiger
+Index auf `email` wird durchgesetzt, `onDelete: Cascade` entfernt abhängige
+Sitzungen beim Löschen eines Kontos.
 
 `onboarding-placement.test.ts` deckt den Abschluss des Onboardings ab:
 Abbruch vor der Transaktion, Abbruch MITTEN in ihr (die Kurse werden dafür
 kurz auf `DRAFT` gesetzt, damit der Fehler erst nach dem Schreiben der
 Nutzerzeile auftritt), Abweisung eines zweiten Durchlaufs, Trennung der
-Konten und die Rückrechnung Punktzahl → Band.
+Konten und die Rückrechnung Punktzahl → Band. Dazu die Client-Grenze: Was
+nach dem Abschluss zurückgegeben wird, ist Wort für Wort gegen die Fragen
+geprüft und seine Schlüsselmenge abschließend aufgezählt — mit gemischt
+richtigen und falschen Antworten, damit auch ein Feld auffällt, das der
+Server nur im Fehlerfall anhängte.
 
-**Noch nicht abgedeckt:** `path-service` hat keine eigenen
-Integrationstests — er wird bisher nur über Onboarding und E2E mitgeprüft.
-
-### End-to-End — 35 bestehen, gegen den echten Produktionsbuild
+### End-to-End — 36 bestehen, gegen den echten Produktionsbuild
 
 `e2e/kernablauf.spec.ts` (Desktop): Registrierung → Onboarding → Pfad →
 Lektion → Aufgabe einreichen → Kompetenz-Rückmeldung sichtbar → Lektion
@@ -61,7 +64,8 @@ auf einem schmalen Bildschirm bedienbar.
 `e2e/onboarding-placement.spec.ts`: der Einstufungsablauf — überspringen,
 vollständig beantworten, zurückgehen ohne Antwortverlust, und die Sperre
 gegen ein Absenden mitten im Ablauf (mit Gegenprobe, dass das Absenden am
-Ende durchkommt).
+Ende durchkommt). Dazu: Nach dem Absenden springt der Fokus auf das
+Ergebnis statt auf den Seitenanfang.
 
 `e2e/accessibility.spec.ts`: axe-Prüfung je Seite. `e2e/stage2-git.spec.ts`
 und `e2e/regression-codex-pr29.spec.ts` stammen aus Ausbaustufe 2.

@@ -19,6 +19,21 @@ export interface OnboardingFormState {
 }
 
 /**
+ * Wachposten: Dies ist der Typ, der tatsächlich in den Browser geht.
+ *
+ * `OnboardingErgebnis` ist gegen zusätzliche Felder abgesichert, aber es
+ * liegt eine Ebene tiefer. Ein `debug?: PlacementResult` HIER trüge das
+ * vollständige Ergebnis hinaus, ohne dass der Typ darunter oder die Prüfung
+ * an der Dienstgrenze etwas merkten. Ein neues Feld muss deshalb zuerst hier
+ * eingetragen werden — sonst schlägt die Übersetzung fehl.
+ */
+type ErlaubtesFeld = 'ok' | 'error' | 'fieldErrors' | 'ergebnis';
+type KeineUnbekanntenFelder =
+  Exclude<keyof OnboardingFormState, ErlaubtesFeld> extends never ? true : never;
+const _nurBekannteFelder: KeineUnbekanntenFelder = true;
+void _nurBekannteFelder;
+
+/**
  * Schließt Einstellungen und Einstufung in einem Schritt ab.
  *
  * Die Kennung des Kontos kommt aus der Sitzung, nie aus der Eingabe: Eine

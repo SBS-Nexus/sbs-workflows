@@ -144,6 +144,26 @@ test('am Ende des Ablaufs kommt das Absenden durch', async ({ page }) => {
   expect(absendeversuche.length).toBeGreaterThan(0);
 });
 
+test('der Fokus springt auf das Ergebnis, nicht auf den Seitenanfang', async ({ page }) => {
+  // Der Übergang, an dem am meisten passiert: Der Absendeknopf verschwindet,
+  // Punktzahl und acht Erklärungen erscheinen. Ohne Sprungpunkt fiele der
+  // Fokus auf <body> — wer mit einer Vorlesehilfe arbeitet, bekäme davon
+  // nichts mit und müsste die Seite von vorn absuchen.
+  await neuesKonto(page);
+  await einstellungenBeantworten(page);
+  await page.getByRole('button', { name: 'Einschätzung machen' }).click();
+  for (let i = 0; i < 8; i += 1) {
+    await page.getByRole('radio').first().check();
+    await page.getByRole('button', { name: 'Weiter' }).click();
+  }
+  await page.getByRole('button', { name: "Los geht's" }).click();
+
+  await expect(page.getByRole('heading', { name: 'Deine Einschätzung' })).toBeVisible();
+  const angesprungen = page.locator(':focus');
+  await expect(angesprungen).toHaveAttribute('role', 'group');
+  await expect(angesprungen).toHaveAttribute('aria-label', 'Deine Einschätzung');
+});
+
 test('Zurückgehen behält eine gegebene Einstufungsantwort', async ({ page }) => {
   await neuesKonto(page);
   await einstellungenBeantworten(page);

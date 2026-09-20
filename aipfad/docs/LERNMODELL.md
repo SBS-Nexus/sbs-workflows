@@ -110,8 +110,8 @@ und schickt nur Kennungen zurück. Nach dem Abschluss gehen Punktzahl,
 Einordnungstext und die Erklärungen zu den Fragen hinaus — als Rückmeldung,
 für die die Fragen beantwortet wurden. Die inneren Größen der Bewertung
 (Band, Trefferquote je Gebiet, erkannte Konzepte) bleiben am Server.
-Gespeichert wird allein die Punktzahl am Konto; das Band wird bei Bedarf
-daraus abgeleitet. Eine feinere
+Gespeichert wird allein die Punktzahl am Konto; das Band lässt sich bei
+Bedarf daraus ableiten — gelesen wird die Punktzahl bisher nirgends. Eine feinere
 „wahrscheinlich bekannt"-Markierung je Lektion bleibt der nächste
 Schritt (in [`LEHRPLAN.md`](LEHRPLAN.md), „Nächste sinnvolle
 Ausbauschritte" Nr. 1, vermerkt).
