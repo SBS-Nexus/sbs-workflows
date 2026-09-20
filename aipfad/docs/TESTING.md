@@ -26,7 +26,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 72 bestehen
+### Integrationstests — 73 bestehen
 
 `tests/integration/`: `auth.test.ts`, `content-publication.test.ts`,
 `exercise-service.test.ts`, `lesson-progress.test.ts`,
@@ -49,7 +49,7 @@ geprüft und seine Schlüsselmenge abschließend aufgezählt — mit gemischt
 richtigen und falschen Antworten, damit auch ein Feld auffällt, das der
 Server nur im Fehlerfall anhängte.
 
-### End-to-End — 36 bestehen, gegen den echten Produktionsbuild
+### End-to-End — 37 bestehen, gegen den echten Produktionsbuild
 
 `e2e/kernablauf.spec.ts` (Desktop): Registrierung → Onboarding → Pfad →
 Lektion → Aufgabe einreichen → Kompetenz-Rückmeldung sichtbar → Lektion
@@ -65,7 +65,9 @@ auf einem schmalen Bildschirm bedienbar.
 vollständig beantworten, zurückgehen ohne Antwortverlust, und die Sperre
 gegen ein Absenden mitten im Ablauf (mit Gegenprobe, dass das Absenden am
 Ende durchkommt). Dazu: Nach dem Absenden springt der Fokus auf das
-Ergebnis statt auf den Seitenanfang.
+Ergebnis statt auf den Seitenanfang — für beide Ausgänge, mit und ohne
+Einstufung. Die axe-Prüfung des Onboardings geht jetzt bis zum
+Ergebnisbildschirm.
 
 `e2e/accessibility.spec.ts`: axe-Prüfung je Seite. `e2e/stage2-git.spec.ts`
 und `e2e/regression-codex-pr29.spec.ts` stammen aus Ausbaustufe 2.

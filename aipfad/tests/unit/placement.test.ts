@@ -108,12 +108,33 @@ describe('Fragen für den Browser', () => {
     for (const frage of fragen) {
       expect(serialisiert).not.toContain(frage.explanation);
     }
-    // Keine Fassung trägt ein Feld, das die richtige Antwort verriete.
+    // Die Schlüsselmenge ist abschließend aufgezählt, nicht nur gegen eine
+    // Verbotsliste gehalten. Eine Verbotsliste fängt nur, was heute schon so
+    // heißt: Ein `loesung: frage.correctOptionId` stünde auf keiner und
+    // brächte die richtige Antwort in den Browser, BEVOR sie gegeben ist.
     for (const frage of oeffentlich) {
-      expect(Object.keys(frage)).not.toContain('correctOptionId');
-      expect(Object.keys(frage)).not.toContain('explanation');
-      expect(Object.keys(frage)).not.toContain('weight');
-      expect(Object.keys(frage)).not.toContain('demonstratesConceptSlug');
+      const erlaubt =
+        frage.context === undefined
+          ? ['area', 'id', 'options', 'question']
+          : ['area', 'context', 'id', 'options', 'question'];
+      expect(Object.keys(frage).sort(), frage.id).toEqual(erlaubt);
+      for (const option of frage.options) {
+        expect(Object.keys(option).sort(), option.id).toEqual(['id', 'text']);
+      }
+    }
+
+    // Und die Texte kommen Wort für Wort aus der Frage: Auf die Schlüssel zu
+    // sehen genügt nicht, wenn sich in einen erlaubten Text alles
+    // hineinschreiben ließe — etwa die Lösung im Fragetext.
+    for (let i = 0; i < fragen.length; i += 1) {
+      const quelle = fragen[i]!;
+      const fassung = oeffentlich[i]!;
+      expect(fassung.id, quelle.id).toBe(quelle.id);
+      expect(fassung.question, quelle.id).toBe(quelle.question);
+      expect(
+        fassung.options.filter((o) => o.id !== DONT_KNOW_OPTION_ID).map((o) => o.text),
+        quelle.id,
+      ).toEqual(quelle.options.map((o) => o.text));
     }
   });
 

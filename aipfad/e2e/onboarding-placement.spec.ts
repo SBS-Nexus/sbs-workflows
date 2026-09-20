@@ -164,6 +164,19 @@ test('der Fokus springt auf das Ergebnis, nicht auf den Seitenanfang', async ({ 
   await expect(angesprungen).toHaveAttribute('aria-label', 'Deine Einschätzung');
 });
 
+test('auch ohne Einstufung springt der Fokus auf das Ergebnis', async ({ page }) => {
+  // Der übersprungene Abschluss zeigt einen anderen Bildschirm mit eigener
+  // Beschriftung. Ohne eigene Prüfung wäre nur der eine Zweig gesichert.
+  await neuesKonto(page);
+  await einstellungenBeantworten(page);
+  await page.getByRole('button', { name: 'Überspringen' }).click();
+  await page.getByRole('button', { name: "Los geht's" }).click();
+
+  await expect(page.getByRole('heading', { name: 'Alles eingerichtet' })).toBeVisible();
+  const angesprungen = page.locator(':focus');
+  await expect(angesprungen).toHaveAttribute('aria-label', 'Alles eingerichtet');
+});
+
 test('Zurückgehen behält eine gegebene Einstufungsantwort', async ({ page }) => {
   await neuesKonto(page);
   await einstellungenBeantworten(page);

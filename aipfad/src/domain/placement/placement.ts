@@ -173,6 +173,17 @@ export interface OeffentlicheFrage {
   question: string;
   context?: string;
   options: { id: string; text: string }[];
+
+  // Wie beim Ergebnis: ausdrücklich als „gibt es hier nicht" geführt. Ohne
+  // das half der Typ gar nichts — bei `questions.map(...)` mit gesetztem
+  // Rückgabetyp prüft TypeScript nicht auf überzählige Felder, ein
+  // `loesung: frage.correctOptionId` im Rumpf wäre glatt durchgegangen. Und
+  // das ist die Richtung, auf die es ankommt: Hier stünde die Antwort im
+  // Browser, BEVOR sie gegeben ist.
+  correctOptionId?: never;
+  explanation?: never;
+  weight?: never;
+  demonstratesConceptSlug?: never;
 }
 
 /** Die zusätzliche Antwort, die in JEDER Frage angeboten wird. */

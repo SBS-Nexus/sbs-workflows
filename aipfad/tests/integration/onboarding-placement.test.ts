@@ -337,8 +337,11 @@ describe('Was das Ergebnis über die Client-Grenze trägt', () => {
         i % 3 === 0
           ? frage.correctOptionId
           : i % 3 === 1
-            ? (frage.options.find((o) => o.id !== frage.correctOptionId)?.id ??
-              frage.correctOptionId)
+            ? // `!` statt eines Rückfalls auf die richtige Antwort: Gäbe es je
+              // eine Frage mit nur einer Option, entmischte ein Rückfall die
+              // Probe lautlos — `some(!richtig)` bliebe grün, weil das
+              // Drittel „Weiß ich nicht" ebenfalls falsch zählt.
+              frage.options.find((o) => o.id !== frage.correctOptionId)!.id
             : DONT_KNOW_OPTION_ID,
     }));
     const ergebnis = await finalisiereOnboarding(userId, EINSTELLUNGEN, {
@@ -365,7 +368,21 @@ describe('Was das Ergebnis über die Client-Grenze trägt', () => {
     expect(ergebnis.erklaerungen.map((e) => e.explanation)).toEqual(
       FRAGEN.map((f) => f.explanation),
     );
-    expect(ergebnis.platzierung!.message).toBe(evaluatePlacement(FRAGEN, antworten).message);
+    // Die Nachricht nicht NUR gegen `evaluatePlacement()` halten: Das wäre
+    // dieselbe Funktion auf beiden Seiten, und ein dort eingebautes Leck
+    // bewegte beide zugleich. Deshalb zusätzlich gegen das, was auf keinen
+    // Fall darin stehen darf.
+    const nachricht = ergebnis.platzierung!.message;
+    expect(nachricht).toBe(evaluatePlacement(FRAGEN, antworten).message);
+    for (const band of ['beginner', 'advanced-beginner', 'refresher']) {
+      expect(nachricht, band).not.toContain(band);
+    }
+    for (const frage of FRAGEN) {
+      expect(nachricht, frage.id).not.toContain(frage.explanation);
+      // Die Kennung der richtigen Antwort steht hier bewusst NICHT: Sie ist
+      // ein einzelner Buchstabe ("b"), und der kommt in jedem deutschen Satz
+      // vor — die Prüfung wäre nicht zu bestehen und sagte nichts aus.
+    }
 
     // Die Punktzahl trägt genau zwei Felder, nicht das ganze Ergebnis.
     expect(Object.keys(ergebnis.platzierung!).sort()).toEqual(['message', 'score']);
@@ -373,6 +390,10 @@ describe('Was das Ergebnis über die Client-Grenze trägt', () => {
     // So, wie es über die Leitung ginge: Die Schlüsselmenge des ganzen Baums
     // ist abschließend aufgezählt. Ein zusätzliches Feld — gleich unter
     // welchem Namen und auf welcher Ebene — macht diese Zusicherung rot.
+    // Der JSON-Umweg bildet ab, was über die Leitung ginge — solange dort
+    // schlichte Objekte, Felder und Zeichenketten stehen. Eine `Map` oder
+    // ein `Date` fiele hier flach und die Aufzählung sähe deren Inhalt
+    // nicht; die Schlüsselmenge darunter schließt beides für heute aus.
     const uebertragen = JSON.parse(JSON.stringify(ergebnis));
     expect([...alleSchluessel(uebertragen)].sort()).toEqual([
       'erklaerungen',
@@ -391,6 +412,31 @@ describe('Was das Ergebnis über die Client-Grenze trägt', () => {
     for (const feld of VERBOTEN) {
       expect(schluessel.has(feld), `${feld} darf nicht über die Grenze`).toBe(false);
     }
+  });
+
+  it('gibt auch bei lauter richtigen Antworten nichts weiter heraus', async () => {
+    // Die gemischte Probe landet bei 39 Punkten, Band „advanced-beginner".
+    // Ein Feld, das der Server nur bei voller Punktzahl oder nur im Band
+    // „refresher" anhängte, käme darin nicht vor — dieselbe Lücke wie zuvor
+    // bei den falschen Antworten, nur am anderen Ende.
+    const ergebnis = await finalisiereOnboarding(userId, EINSTELLUNGEN, {
+      art: 'beantwortet',
+      antworten: FRAGEN.map((f) => ({ questionId: f.id, optionId: f.correctOptionId })),
+    });
+
+    expect(ergebnis.platzierung!.score).toBe(100);
+    expect(ergebnis.erklaerungen.every((e) => e.richtig)).toBe(true);
+    expect(Object.keys(ergebnis.platzierung!).sort()).toEqual(['message', 'score']);
+    expect([...alleSchluessel(JSON.parse(JSON.stringify(ergebnis)))].sort()).toEqual([
+      'erklaerungen',
+      'explanation',
+      'message',
+      'platzierung',
+      'question',
+      'questionId',
+      'richtig',
+      'score',
+    ]);
   });
 
   it('gibt bei übersprungener Einstufung nichts heraus', async () => {

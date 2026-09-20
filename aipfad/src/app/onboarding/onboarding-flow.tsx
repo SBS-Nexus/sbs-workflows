@@ -85,6 +85,9 @@ export function OnboardingFlow({ fragen }: { fragen: OeffentlicheFrage[] }): Rea
   const zeigtErgebnis = zustand.ok && zustand.ergebnis !== undefined;
   useEffect(() => {
     // Beim ersten Aufbau gehört der Seitenanfang noch der Überschrift.
+    // (Im Entwicklungsmodus ruft React Effekte doppelt auf; dort greift
+    // diese Sperre beim zweiten Durchlauf nicht mehr. Der gebaute Stand,
+    // gegen den die E2E-Prüfungen laufen, ist davon nicht betroffen.)
     if (ersterAufbau.current) {
       ersterAufbau.current = false;
       return;
@@ -212,7 +215,7 @@ export function OnboardingFlow({ fragen }: { fragen: OeffentlicheFrage[] }): Rea
         tabIndex={-1}
         role="group"
         aria-label={fortschrittText}
-        className="space-y-6 outline-none"
+        className="space-y-6"
       >
         {schritt.art === 'einstellung' ? (
           <EinstellungsSchritt
@@ -490,12 +493,18 @@ function Ergebnis({
   return (
     // `tabIndex={-1}` macht den Behälter anspringbar, ohne ihn in die
     // Tabulatorreihenfolge zu hängen — wie bei den Schritten davor.
+    //
+    // Kein `outline-none`: Die globale Regel in globals.css zeichnet den
+    // Rahmen bei `:focus-visible`, und DESIGN.md sagt, er werde nie
+    // entfernt. Hier stand er trotzdem abgeschaltet — damit war der Sprung
+    // für Vorlesehilfen hörbar und für alle, die mit der Tastatur arbeiten
+    // und sehen, unsichtbar.
     <div
       ref={behaelterRef}
       tabIndex={-1}
       role="group"
       aria-label={platzierung ? 'Deine Einschätzung' : 'Alles eingerichtet'}
-      className="space-y-6 focus:outline-none"
+      className="space-y-6"
     >
       <SectionHeading
         eyebrow="Geschafft"

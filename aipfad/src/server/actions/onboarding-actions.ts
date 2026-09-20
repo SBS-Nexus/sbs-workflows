@@ -33,6 +33,19 @@ type KeineUnbekanntenFelder =
 const _nurBekannteFelder: KeineUnbekanntenFelder = true;
 void _nurBekannteFelder;
 
+// Namen allein genügen nicht: `ergebnis?: OnboardingErgebnis & { debug?: … }`
+// ließe die Namensmenge unverändert und trüge doch das vollständige Ergebnis
+// hinaus. Deshalb zusätzlich auf Gleichheit statt auf Zuweisbarkeit prüfen —
+// die beiden Funktionstypen sind nur dann gegenseitig zuweisbar, wenn die
+// Typen wirklich derselbe sind.
+type Gleich<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : never;
+const _ergebnisUnveraendert: Gleich<
+  NonNullable<OnboardingFormState['ergebnis']>,
+  OnboardingErgebnis
+> = true;
+void _ergebnisUnveraendert;
+
 /**
  * Schließt Einstellungen und Einstufung in einem Schritt ab.
  *

@@ -141,4 +141,15 @@ test('Onboarding und Einstufung: keine serious/critical Verstöße', async ({ pa
 
   await page.getByRole('button', { name: 'Einschätzung machen' }).click();
   await expectNoSeriousViolations(page);
+
+  // Und der Bildschirm am Ende: Er trägt seit der Einstufungs-Anbindung
+  // einen eigenen Sprungpunkt und die Liste der Erklärungen — bis hierher
+  // hat ihn keine axe-Prüfung je gesehen.
+  for (let i = 0; i < 8; i += 1) {
+    await page.getByRole('radio').first().check();
+    await page.getByRole('button', { name: 'Weiter' }).click();
+  }
+  await page.getByRole('button', { name: /Los geht/ }).click();
+  await expect(page.getByRole('heading', { name: 'Deine Einschätzung' })).toBeVisible();
+  await expectNoSeriousViolations(page);
 });
