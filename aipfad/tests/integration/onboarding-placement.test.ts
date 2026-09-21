@@ -13,6 +13,7 @@ import { placementQuestions } from '@/content/placement';
 import {
   bandZuPunktzahl,
   evaluatePlacement,
+  pfadBegruendung,
   placementQuestionSchema,
   DONT_KNOW_OPTION_ID,
 } from '@/domain/placement/placement';
@@ -80,7 +81,14 @@ describe('Onboarding mit Einstufung', () => {
       },
     });
     expect(pfad.lessonSlugs.length).toBe(imKurs);
-    expect(pfad.rationale).toContain('nie eine Lektion übersprungen');
+    // Auf den ganzen Text festgelegt, nicht nur auf ein Vorkommen darin.
+    // `toContain` bliebe grün, wenn hinter der Grundregel noch
+    // „Bekanntes kürzen wir dir ab." stünde — genau der Widerspruch, der in
+    // dieser Änderung schon einmal gespeichert und auf /pfad gezeigt wurde.
+    // Der Ausdruck in tests/unit/placement.test.ts bewacht die FUNKTION;
+    // diese Spalte bewachte niemand. Nachgestellt: angehängt blieben alle
+    // Tore grün.
+    expect(pfad.rationale).toBe(pfadBegruendung(bandZuPunktzahl(user.placementScore!)));
   });
 
   it('lässt kein Zwischenergebnis zurück: entweder alles oder nichts', async () => {
@@ -163,6 +171,8 @@ describe('Onboarding mit Einstufung', () => {
       },
     });
     expect(pfad.lessonSlugs.length).toBe(imKurs);
+    // Ohne Einstufung steht die neutrale Begründung — bisher ungeprüft.
+    expect(pfad.rationale).toBe(pfadBegruendung(null));
   });
 
   it('weist einen zweiten Durchlauf ab, statt die Einstufung zu überschreiben', async () => {
@@ -354,12 +364,18 @@ describe('Was das Ergebnis über die Client-Grenze trägt', () => {
     expect(ergebnis.erklaerungen.some((e) => !e.richtig)).toBe(true);
 
     // Das, was die Ergebnisanzeige braucht, ist da …
-    // Auf den Punkt festgenagelt, nicht nur „zwischen 0 und 100": Die drei
-    // Proben decken die drei Bänder nur ab, solange diese hier bei 39 und
-    // damit in „advanced-beginner" bleibt. Verschöbe eine Inhaltsänderung
-    // sie über 70, stünde „refresher" zweimal da und „advanced-beginner"
-    // gar nicht mehr — lautlos.
+    // Das Band ist die Zusicherung, auf die es ankommt: Die drei Proben
+    // decken die drei Bänder nur ab, solange diese hier in
+    // „advanced-beginner" liegt. Deshalb steht es hier ausdrücklich und
+    // nicht nur als Zahl — wer sonst eine verschobene Punktzahl sieht,
+    // schreibt die neue Zahl hin und verliert das Band, ohne es zu merken.
+    //
+    // Die Ränder sind ungleich: 39 liegt nur 4 Punkte über der Grenze zu
+    // „beginner" (35) und 31 unter der zu „refresher" (70). Eine neunte
+    // Frage — die naheliegendste Änderung am Inhalt — drückt die Probe auf
+    // 34 und damit ins falsche Band.
     expect(ergebnis.platzierung!.score).toBe(39);
+    expect(bandZuPunktzahl(ergebnis.platzierung!.score)).toBe('advanced-beginner');
     expect(ergebnis.erklaerungen).toHaveLength(FRAGEN.length);
 
     // … und zwar Wort für Wort das, was in den Fragen steht. Auf den TYP zu

@@ -169,7 +169,7 @@ describe('Fragen für den Browser', () => {
       //
       // Der erwartete Text steht hier ausgeschrieben. Aus `DONT_KNOW_TEXT`
       // abzuleiten ginge heute ohnehin nicht — die Konstante ist nicht
-      // ausgeführt —, aber der Grund gilt unabhängig davon: Eine Ableitung
+      // exportiert —, aber der Grund gilt unabhängig davon: Eine Ableitung
       // wanderte mit dem Fehler mit und bewiese nichts.
       expect(frage.options.at(-1), frage.id).toEqual({
         id: DONT_KNOW_OPTION_ID,
