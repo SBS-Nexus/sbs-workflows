@@ -70,9 +70,7 @@ es gibt keine Mehrfachzählung.
 Vier Zeilen bündeln zwei Befunde derselben Domäne (`ENT-B08`, `ENT-B09`,
 `ENT-B12`, `ENT-B13`). Das ist Absicht und die Konvention lautet: **eine Zeile je
 abgrenzbarem Befund**. Die Änderungen sind teils feiner geschnitten
-(`ENT-B08` auf E05C/D/E), teils gröber (`ENT-B11` und `ENT-B12` beide auf E10). Die Änderungen
-sind feiner geschnitten als die Blocker — `ENT-B08` bis `B10` verteilen sich
-auf E05A bis E05E.
+(`ENT-B08` auf E05C/D/E), teils gröber (`ENT-B11` und `ENT-B12` beide auf E10). `ENT-B08` bis `B10` verteilen sich auf E05A bis E05E.
 
 **FUNDAMENT_BLOCKER = 15**
 
@@ -98,11 +96,11 @@ eigener Blocker gezählt. Es ist jetzt `ENT-B06` und DATEN steht auf 4.
 
 | ID      | Titel                                             | Hauptdomäne       | Änderung |
 | ------- | ------------------------------------------------- | ----------------- | -------- |
-| ENT-G01 | Kohorten und Kohortenmitgliedschaft               | MANDANTEN         | E11      |
-| ENT-G02 | Kurszuweisung                                     | MANDANTEN         | E11      |
-| ENT-G03 | Führungskraft-Sicht mit Sichtbarkeitsgrenze       | AUTORISIERUNG     | E11      |
+| ENT-G01 | Kohorten und Kohortenmitgliedschaft               | MANDANTEN         | E11A     |
+| ENT-G02 | Kurszuweisung                                     | MANDANTEN         | E11B     |
+| ENT-G03 | Führungskraft-Sicht mit Sichtbarkeitsgrenze       | AUTORISIERUNG     | E11C     |
 | ENT-G04 | OIDC-Anmeldung                                    | AUTHENTIFIZIERUNG | E12      |
-| ENT-G05 | Organisationslebenszyklus samt Löschung           | MANDANTEN         | E13      |
+| ENT-G05 | Organisationslebenszyklus samt Löschung           | MANDANTEN         | E13A–B   |
 | ENT-G06 | Kaufmännische Betriebsbereitschaft (SLO, Support) | BETRIEB           | E14      |
 
 **GA_ZUSATZBLOCKER = 6**

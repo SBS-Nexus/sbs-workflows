@@ -104,8 +104,7 @@ gedeckt** — sie haben heute nur ein Schema in der Maske, das erst beim
 Anzeigen greift. „Ungeprüft" wäre falsch; die Bestandsaufnahme sagt das
 unter L bereits richtig.
 **UMFANG** Verträge für `TERMINAL`, `TOKENIZER`, `CONTEXT_WINDOW`,
-`PROMPT_REPAIR`; Einbindung in `validateCourseGraph()`;
-`CommandReference`-Beispielvertrag.
+`PROMPT_REPAIR`; Einbindung in `validateCourseGraph()`.
 **VERHALTEN** **Dies ändert Verhalten.** Inhalte, die bisher durch die
 Prüfung kamen, fallen künftig durch. Das ist der Zweck, und es ist der
 Grund, warum diese Änderung von E01A getrennt ist.
@@ -337,8 +336,15 @@ enthalten.
 
 ### E08 — Organisationen · `ENT-B01`
 
-**UMFANG** `Organization`, `OrganizationMembership`. Bestandsnutzende bleiben
-**ohne** Organisation gültig.
+**UMFANG** `Organization`, `OrganizationMembership` samt der **eigenen**
+Aufzählung `OrganizationRole` (zunächst nur `ORG_ADMIN`). Bestandsnutzende
+bleiben **ohne** Organisation gültig.
+
+Die Mitgliedsrolle ist bewusst eine andere Aufzählung als `Role` am `User`:
+Die eine sagt, was jemand auf der Plattform ist, die andere, was jemand in
+einer bestimmten Organisation ist. Sie hier anzulegen hält E08B unabhängig
+von der Rollenwanderung in E09B — sonst müsste E08B eine Rolle setzen, die
+es zu seinem Zeitpunkt noch nicht gibt.
 **NICHT-UMFANG** kein `tenantId` an Lerntabellen.
 **MIGRATION** rein additiv, keine Rückfüllung.
 **TESTS** Migration auf einer Kopie mit Bestandsdaten; niemand verliert
@@ -361,8 +367,10 @@ wirklichen Aufrufer der Prüfstelle aus E09A.
 **NICHT-UMFANG** Kohorten, Zuweisung, Berichte — alles GA (E11A–C).
 **SICHERHEIT** Jede Ansicht ist organisationsbezogen; die Zugehörigkeit
 kommt aus der Mitgliedschaft, nie aus der Eingabe.
-**ABHÄNGIGKEIT** Nach E08 (Modell) und E09A (Prüfstelle); steht deshalb im
-Ablauf hinter beiden, obwohl die Nummer es anders nahelegt.
+**ABHÄNGIGKEIT** Nach E08 (Modell samt `OrganizationRole`) und E09A
+(Prüfstelle); steht deshalb im Ablauf hinter beiden, obwohl die Nummer es
+anders nahelegt. **Nicht** nach E09B: Die Rollenwanderung betrifft `Role` am
+`User`, nicht die Mitgliedsrolle.
 **RÜCKNAHME** vollständig; es entstehen nur Zeilen in den beiden neuen
 Tabellen.
 **TESTS** E2E je Rolle; Isolationssuite, die aus einer Organisation heraus
@@ -378,15 +386,16 @@ jede Ressource einer fremden zu lesen versucht.
 
 ### E09B — Rollen erweitern und Daten wandern · `ENT-B02` (Teil 2)
 
-**UMFANG** Aufzählung um `PLATFORM_ADMIN` und `ORG_ADMIN` erweitern;
-vorhandene `ADMIN`-Zeilen auf `PLATFORM_ADMIN` wandern. `ADMIN`
+**UMFANG** `Role` um `PLATFORM_ADMIN` erweitern; vorhandene `ADMIN`-Zeilen
+darauf wandern. `ORG_ADMIN` gehört nicht hierher — es steht an der
+Mitgliedschaft und kommt mit E08. `ADMIN`
 **bleibt** bestehen.
 
-| Heute     | Künftig          | Behandlung                       |
-| --------- | ---------------- | -------------------------------- |
-| `LEARNER` | `LEARNER`        | unverändert                      |
-| `ADMIN`   | `PLATFORM_ADMIN` | Datenwanderung in diesem Schritt |
-| —         | `ORG_ADMIN`      | neu, nur über die Mitgliedschaft |
+| Heute     | Künftig          | Behandlung                           |
+| --------- | ---------------- | ------------------------------------ |
+| `LEARNER` | `LEARNER`        | unverändert                          |
+| `ADMIN`   | `PLATFORM_ADMIN` | Datenwanderung in diesem Schritt     |
+| —         | `ORG_ADMIN`      | nicht hier — `OrganizationRole`, E08 |
 
 `ORG_MANAGER` kommt bewusst **nicht** hier, sondern mit E11C: Die Rolle
 steuert allein Berichte, und die sind GA. Sie im Fundament einzuführen hieße,
@@ -468,9 +477,11 @@ Führungskraft-Sicht auftaucht.
 
 Anbieterabstraktion, dann OIDC. SAML und SCIM bleiben `NACH_GA`.
 
-### E13A — Organisation anlegen und stilllegen · `ENT-G05` (Teil 1)
+### E13A — Organisation stilllegen und wiederaufnehmen · `ENT-G05` (Teil 1)
 
-**UMFANG** Anlegen, Stilllegen, Wiederaufnehmen. Eine stillgelegte
+**UMFANG** Stilllegen, Wiederaufnehmen. Das **Anlegen** liefert bereits E08B
+im Fundament; es hier zu wiederholen verstöße gegen „kein Punkt steht in
+beiden Spalten“. Eine stillgelegte
 Organisation verliert den Zugang, behält die Daten.
 **RÜCKNAHME** vollständig — das ist der Zweck der Stilllegung.
 
@@ -486,8 +497,9 @@ Organisation überdauert.
 **nutzereigen**; die Organisation sieht über die Mitgliedschaft, sie besitzt
 nicht. Gelöscht werden deshalb `Organization`, `OrganizationMembership`,
 `Cohort`, `CohortMembership` und `CourseAssignment`. **Nicht** gelöscht werden
-`Attempt`, `ConceptMastery`, `LessonProgress`, `LearningPath` und
-`ReviewQueueItem` der Mitglieder: Sie gehören den Personen, die nach dem Ende
+`Attempt`, `ConceptMastery`, `LessonProgress`, `LearningPath`,
+`ReviewQueueItem`, `LabAttempt`, `HintReveal` und `MilestoneAward` der
+Mitglieder — also jede Tabelle mit Fremdschlüssel auf `User`: Sie gehören den Personen, die nach dem Ende
 der Organisation weiterlernen können. Wer sein Konto löschen will, nimmt
 E04C. Ohne diese Festlegung bliebe offen, was das Löschen einer Organisation
 löscht, die nichts besitzt.
@@ -550,8 +562,8 @@ OrganizationMembership(id, organizationId, userId, role, createdAt)
 Cohort(id, organizationId, name, createdAt)
 CohortMembership(id, cohortId, userId)  @@unique([cohortId, userId])
 CourseAssignment(id, organizationId, cohortId?, courseId, dueAt?)
-AuditEvent(id, organizationId?, actorUserId?, actorLabel, action,
-           targetType, targetId?, metadata Json, occurredAt)
+AuditEvent(id, organizationId?, organizationLabel, actorUserId?, actorLabel,
+           action, targetType, targetId?, metadata Json, occurredAt)
 ```
 
 `actorUserId` **und** `organizationId` stehen bewusst **ohne** Kaskade;
