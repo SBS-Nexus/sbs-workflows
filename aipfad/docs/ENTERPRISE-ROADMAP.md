@@ -200,17 +200,38 @@ berühren.
 
 **UMFANG** Selbstexport für die angemeldete Person; vollständiges
 Verzeichnis der personenbezogenen Daten; festes Ausgabeschema.
+**PERSONENBEZUG IST EINE ZWEITE ACHSE.** Der Lebenszyklus sagt, wann etwas
+verschwindet; er sagt **nicht**, ob Personenbezug darin steckt. Beides sind
+verschiedene Fragen, und der Export hängt an der zweiten:
+
+| Klassifizierung                  | Bedeutung                                   | Heute darin                                                                           |
+| -------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `PERSONENBEZOGEN`                | gehört in den Selbstexport                  | die nutzereigenen Modelle; `AuditEvent`, soweit ein Akteursabdruck die Person benennt |
+| `ANONYM`                         | kein Bezug herstellbar, gehört nicht hinein | `AnalyticsEvent`                                                                      |
+| `BETRIEBLICH_OHNE_PERSONENBEZUG` | Technik, kein Bezug                         | Inhalte, betrieblicher Zustand                                                        |
+
+`AuditEvent` zeigt, warum eine Achse nicht reicht: Es ist **plattformeigen**
+(überdauert Konto und Organisation) und zugleich **personenbezogen**, sobald
+der Abdruck eine Person benennt. Ein Export, der nur den Fremdschlüsseln auf
+`User` folgt, übersieht es — genau dort hat `AuditEvent` keinen.
+
+**UMFANG (Ergänzung)** Der Export enthält deshalb auch die `AuditEvent`-Zeilen,
+deren Akteursabdruck die anfragende Person benennt.
+
 **NICHT-UMFANG** **Keine** `AnalyticsEvent`-Zeilen. Sie sind ohne
-Personenbezug erhoben; sie einer Person zuzuordnen wäre genau die
-Verknüpfung, die das Modell vermeidet.
+Personenbezug erhoben; sie einer Person zuzuordnen — etwa über zeitliche
+Nähe — wäre genau die Verknüpfung, die das Modell vermeidet.
 **SICHERHEIT** Nur die eigene Sitzung, niemals eine Kennung aus der Eingabe.
 **AUDIT** Ein gelungener Export schreibt `PERSONAL_DATA_EXPORTED` (Modell aus
 E07). Wer die Daten einer Person herausgibt, hinterlässt eine Spur — das ist
 der Sinn des Verzeichnisses.
 **RÜCKNAHME** Die Fähigkeit ja, die geschriebenen Auditzeilen nicht.
-**TESTS** Export enthält jede Tabelle mit Personenbezug; Gegenprüfung gegen
-das Schema, damit eine neue Tabelle nicht stillschweigend fehlt; der Vorgang
-schreibt sein Ereignis.
+**TESTS** Der Export enthält jedes als `PERSONENBEZOGEN` geführte Modell,
+`AuditEvent` eingeschlossen. Die Gegenprüfung läuft gegen das
+**Klassifizierungsverzeichnis**, nicht gegen die Fremdschlüssel: Ein neues
+dauerhaftes Modell muss entweder erklären, wie es im Selbstexport vorkommt,
+oder warum es nicht hineingehört — sonst schlägt die Vollständigkeitsprüfung
+fehl. Der Vorgang schreibt sein Ereignis.
 
 ### E04C — Kontolöschung · `ENT-B05`
 
@@ -223,8 +244,26 @@ Akteursbezug ohne Kaskade.
 zurücknehmen lässt sich nur der Zugang zur Funktion, nicht ihre Wirkung.
 Wiederherstellung ist ausschließlich über eine Sicherung möglich — was E10
 zur Voraussetzung für den produktiven Einsatz dieser Funktion macht.
-**TESTS** Nach der Löschung ist in keiner Tabelle eine Zeile der Person
-übrig; der Auditeintrag überlebt sie.
+**WAS GELÖSCHT WIRD — UND WAS NICHT.** Die vorige Fassung sagte in einem
+Satz, es bleibe „in keiner Tabelle eine Zeile der Person" und „der
+Auditeintrag überlebt sie". Beides zugleich geht nicht: Der Eintrag trägt eine
+Akteurskennung, ist also eine Zeile über die Person.
+
+Gelöscht werden das Konto und jedes **nutzereigene** Modell.
+**Organisationseigene** Zeilen richten sich nach ihrer eigenen Beziehung —
+eine Mitgliedschaft endet mit dem Konto, die Organisation selbst nicht.
+**Plattformeigene** Zeilen bleiben: `AuditEvent` behält den minimalen
+Akteursabdruck, den die Prüfregel verlangt, und verfällt allein über seine
+eigene Frist aus E07.
+
+Deshalb steht hier **nicht** „alle personenbezogenen Daten sind gelöscht".
+Das wäre eine stärkere Aussage, als der Ablauf einlöst, und dieses Dokument
+trifft keine rechtliche Einordnung — es beschreibt das technische Verhalten.
+
+**TESTS** Die Nutzerzeile ist fort; jedes nutzereigene Modell hat keine Zeile
+dieser Person mehr; organisationseigene Zeilen sind nach ihrer eigenen
+Beziehung behandelt; die Auditzeilen, die überdauern sollen, sind da; ihre
+Felder entsprechen der Sparsamkeitsregel aus E07.
 
 ### E05A — Sitzungslebenszyklus · `ENT-B09`
 
@@ -626,11 +665,14 @@ Dass `OrganizationMembership` und `CohortMembership` auf `User` verweisen,
 ändert daran nichts — sie beschreiben eine Zugehörigkeit zur Organisation und
 enden mit ihr.
 
-Nicht gelöscht werden die **nutzereigenen** Modelle: `AuthSession`,
-`LearningPath`, `Attempt`, `ConceptMastery`, `LessonProgress`,
-`LearningSession`, `ReviewQueueItem`, `MilestoneAward`, `LabAttempt`,
-`HintReveal` — und das Konto selbst. Sie gehören den Personen, die nach dem
-Ende der Organisation weiterlernen.
+Nicht gelöscht werden die **nutzereigenen** Modelle und das Konto selbst —
+sie gehören den Personen, die nach dem Ende der Organisation weiterlernen.
+
+Ebenfalls nicht gelöscht werden die **plattformeigenen** Modelle. Sie folgen
+weder dem Konto noch der Organisation, sondern je eigener Regel: `AuditEvent`
+seiner Aufbewahrungsfrist aus E07 — gerade der Eintrag über diese Löschung
+soll sie ja überdauern —, `AnalyticsEvent` seiner eigenen, die Inhalte gar
+keiner.
 
 **Warum nicht am Fremdschlüssel entlang.** Die vorige Fassung wollte die
 Prüfung künftigssicher machen und schrieb: Sie liest die nutzerbezogenen
@@ -646,14 +688,14 @@ Wer sein Konto löschen will, nimmt E04C; dort fällt die nutzereigene Menge
 **RÜCKNAHME** **Keine**, mit denselben Auflagen wie E04C: E10 ist
 betriebliche Voraussetzung, Wiederherstellung geht allein über eine Sicherung.
 **TESTS** Trockenlauf listet genau die organisationseigenen Modelle. Nach der
-Löschung stehen Konto und jedes nutzereigene Modell unverändert.
+Löschung stehen Konto, jedes nutzereigene und jedes plattformeigene Modell
+unverändert — letztere, sofern nicht ihre eigene Regel etwas anderes sagt.
 
 Die Prüfung stützt sich dabei **nicht** auf eine von Hand gepflegte Liste,
-sondern auf das **Eigentumsverzeichnis**: eine ausdrückliche Zuordnung jedes
-Modells zu `NUTZEREIGEN` oder `ORGANISATIONSEIGEN`. Die Prüfung liest dieses
-Verzeichnis und verlangt, dass jedes Modell **mit einer** Klasse geführt ist —
-ein neues Modell ohne Zuordnung lässt sie scheitern, statt es stillschweigend
-der einen oder anderen Seite zuzuschlagen.
+sondern auf das **Lebenszyklusverzeichnis**: die ausdrückliche Zuordnung jedes
+Modells zu `NUTZEREIGEN`, `ORGANISATIONSEIGEN` oder `PLATTFORMEIGEN`. Die
+Prüfung liest das Verzeichnis und verlangt, dass jedes dauerhafte Modell
+**genau eine** Klasse trägt — ein neues ohne Zuordnung lässt sie scheitern.
 
 Das schließt beide Fehler aus: Lerndaten verschwinden nicht nebenbei, und eine
 Mitgliedschaft überlebt nicht bloß deshalb, weil sie auf `User` verweist.
@@ -718,6 +760,16 @@ AuditEvent(id, organizationId?, organizationLabel, actorUserId?, actorLabel,
            action, targetType, targetId?, metadata Json, occurredAt)
 ```
 
+**Sparsamkeit des Abdrucks — von der Umsetzung festzulegen.** Weil diese
+Zeilen Konto- und Organisationslöschung überdauern, legt E07 bei der Umsetzung
+fest: welche Akteurskennung bleibt, ob ein lesbarer Name überhaupt nötig ist,
+dass eine E-Mail-Adresse ohne ausdrückliche Begründung **nicht** hineingehört,
+welche Organisationsfelder bleiben, dass weder Lernendenantworten noch
+Geheimnisse hineinkommen, und welche Frist gilt. Die unten genannten Felder
+sind **Entwurfsbegriffe**; die Umsetzung wählt die kleinste Menge, die die
+Prüfregel trägt. Dieses Dokument trifft dazu keine rechtliche Einordnung und
+behauptet keine Anonymisierung, die es nicht gibt.
+
 `actorUserId` **und** `organizationId` stehen bewusst **ohne** Kaskade;
 `actorLabel` und `organizationLabel` halten den Bezug fest, wenn Konto oder
 Organisation später gelöscht werden. Jede andere Beziehung auf `User` im
@@ -725,21 +777,30 @@ heutigen Schema kaskadiert — ohne diesen ausdrücklichen Satz entstünde die
 Spur nach dem Hausmuster und verschwände mit dem, was sie belegen soll.
 E13B verlangt genau das in seiner Prüfung.
 
-**Eigentum — zwei Klassen, ausdrücklich geführt.**
+**Lebenszyklus — drei Klassen, ausdrücklich geführt.**
 
-`NUTZEREIGEN` (überlebt jede Organisationslöschung, fällt nur mit dem Konto):
-`AuthSession`, `LearningPath`, `Attempt`, `ConceptMastery`, `LessonProgress`,
-`LearningSession`, `ReviewQueueItem`, `MilestoneAward`, `LabAttempt`,
-`HintReveal`.
+Zwei Klassen genügten nicht. `AuditEvent` soll Konto- **und**
+Organisationslöschung überdauern; es kann also weder das eine noch das andere
+sein. Dasselbe gilt für die Inhalte (`Course`, `Lesson`, `Exercise`,
+`Concept`, `Lab` …), für `AnalyticsEvent` und für betrieblichen Zustand wie
+die Zählertabelle aus E03.
 
-`ORGANISATIONSEIGEN` (fällt mit der Organisation): `Organization`,
-`OrganizationMembership`, `Cohort`, `CohortMembership`, `CourseAssignment`.
+| Klasse               | Lebenszyklus                                  | Heute darin                                                                                                                                                      |
+| -------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NUTZEREIGEN`        | folgt dem Konto                               | `AuthSession`, `LearningPath`, `Attempt`, `ConceptMastery`, `LessonProgress`, `LearningSession`, `ReviewQueueItem`, `MilestoneAward`, `LabAttempt`, `HintReveal` |
+| `ORGANISATIONSEIGEN` | folgt der Organisation                        | `Organization`, `OrganizationMembership`, `Cohort`, `CohortMembership`, `CourseAssignment`                                                                       |
+| `PLATTFORMEIGEN`     | unabhängig von beiden, eigene Regel je Modell | `AuditEvent` (eigene Aufbewahrungsfrist), `AnalyticsEvent`, Inhalte, betrieblicher Zustand                                                                       |
 
-Die Klasse wird **erklärt**, nicht abgeleitet. `OrganizationMembership` und
-`CohortMembership` verweisen auf `User` und sind trotzdem
-organisationseigen — am Fremdschlüssel ist die Klasse nicht zu erkennen. Jedes
-neue Modell bekommt seine Klasse bei der Anlage; ohne sie schlägt die Prüfung
-aus E13B fehl. Die Organisation
+Die Klasse wird **erklärt**, nicht abgeleitet — weder aus `userId` noch aus
+`organizationId` noch aus irgendeinem Fremdschlüssel. `OrganizationMembership`
+verweist auf `User` und ist organisationseigen; `AuditEvent` trägt eine
+Akteurskennung und ist plattformeigen. Kein Merkmal des Schemas trennt die
+drei.
+
+**Vertrag.** Jedes dauerhafte Modell, das für Löschung oder Aufbewahrung
+zählt, trägt **genau eine** dieser Klassen. Es gibt **keinen Standardwert**.
+Ein neues Modell ohne Klasse lässt die Lebenszyklusprüfung scheitern, statt
+stillschweigend irgendwo einsortiert zu werden. Die Organisation
 sieht über die Mitgliedschaft, sie besitzt nicht. Das vermeidet `tenantId` an
 jeder Tabelle und hält die Löschung auf Betroffenenwunsch einfach.
 
