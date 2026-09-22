@@ -181,11 +181,20 @@ Schnittstelle `checkRateLimit()`/`enforceRateLimit()`.
 **WARUM** `applyRetentionPolicy()` hat keinen Aufrufer; `crons: []`.
 **UMFANG** Geschützte Route und Cron-Eintrag; **Trockenlauf zuerst**;
 Laufprotokoll; Idempotenz; festgelegtes Verhalten bei Teilfehlern.
+
+Der Lauf trägt eine **Menge von Aufbewahrungsregeln**, je Datenart mit eigener
+Frist und eigener Variable; `ATTEMPT_RETENTION_DAYS` ist die erste. Spätere
+Änderungen melden ihre Frist hier an, statt einen zweiten Lauf zu bauen — E07
+tut genau das für die Auditzeilen. Heute löscht `applyRetentionPolicy()` eine
+einzige Tabelle nach einer einzigen Variablen (`session.ts:214`); der Rahmen
+ist also neue Arbeit und gehört in diesen Umfang, nicht bloß in die
+Beschreibung von E07.
 **SICHERHEIT** Route nur mit geheimem Kopfzeilenwert.
 **RÜCKNAHME** Cron leeren. Bereits gelöschte Daten kommen nicht zurück —
 deshalb der Trockenlauf.
 **TESTS** Zu alter Datensatz verschwindet, jüngerer bleibt; zweiter Lauf
-ändert nichts.
+ändert nichts; eine zweite angemeldete Regel läuft, ohne die erste zu
+berühren.
 
 ### E04B — Datenauskunft · `ENT-B04`
 
@@ -380,8 +389,15 @@ könnte. Die vorige Fassung führte „Adminbetrieb" und „Unternehmensabläufe
 in der Bestandsaufnahme als `FEHLT`, gab ihnen aber weder Kennung noch
 Änderung; damit verlangte kein Blocker, was das Tor voraussetzt.
 
-**UMFANG** Organisation anlegen; Mitglied hinzufügen und entfernen;
-Mitgliederliste; Rolle innerhalb der Organisation setzen. Die ersten
+**UMFANG** Organisation anlegen; Organisation bearbeiten (Name,
+Einstellungen); Mitglied hinzufügen und entfernen; Mitgliederliste; Rolle
+innerhalb der Organisation setzen.
+
+Das Bearbeiten fehlte hier, während E07 und dieser Punkt bereits einen
+Erzeuger für die geänderte Organisation führten — ein Ereignis ohne Vorgang,
+das nach dem eigenen Fertigkriterium (je Vorgang gelingt der Vorgang und das
+Ereignis liegt vor) gar nicht prüfbar wäre. Der Name des Punktes sagt
+verwalten; Bearbeiten gehört dazu. Die ersten
 wirklichen Aufrufer der Prüfstelle aus E09A.
 **NICHT-UMFANG** Kohorten, Zuweisung, Berichte — alles GA (E11A–C).
 **SICHERHEIT** Jede Ansicht ist organisationsbezogen; die Zugehörigkeit
@@ -437,8 +453,11 @@ Bestandsaufnahme an `ADMIN` bemängelt.
 `PLATFORM_ADMIN` steht am `User`, `ORG_ADMIN` an der
 `OrganizationMembership` — eine Person kann in einer Organisation leiten und
 in einer anderen lernen.
-**RÜCKNAHME** vollständig, solange `ADMIN` noch existiert. Genau dafür bleibt
-der Wert stehen.
+**AUDIT** Bringt seinen Erzeuger mit (Modell aus E07): Rollenwanderung je
+Datensatz.
+**RÜCKNAHME** Die Fähigkeit vollständig, solange `ADMIN` noch existiert —
+genau dafür bleibt der Wert stehen. Die **Geschichte nicht**: Geschriebene
+Auditzeilen bleiben stehen und verfallen allein über die Frist aus E07.
 **TESTS** Migration gegen eine **befüllte** Kopie; jede bisherige
 `ADMIN`-Zeile ist danach `PLATFORM_ADMIN`.
 
@@ -494,7 +513,11 @@ Zuweisung daran hängt.
 **NICHT-UMFANG** verändert **nicht**, welche Lektionen im Pfad stehen — eine
 Zuweisung ordnet ein, sie kürzt nicht. Das ist dieselbe Regel, die für die
 Einstufung gilt.
-**TESTS** Eine Zuweisung ändert die Menge der Lektionen nachweislich nicht.
+**AUDIT** Bringt seinen Erzeuger mit (Modell aus E07): Zuweisung erteilt,
+Zuweisung entzogen.
+**RÜCKNAHME** Die Fähigkeit ja, die geschriebenen Auditzeilen nicht.
+**TESTS** Eine Zuweisung ändert die Menge der Lektionen nachweislich nicht;
+je Vorgang liegt das erwartete Ereignis vor.
 
 ### E11C — Berichte für Führungskräfte · `ENT-G03`
 
@@ -515,7 +538,11 @@ Anbieterabstraktion, dann OIDC. SAML und SCIM bleiben `NACH_GA`.
 im Fundament; es hier zu wiederholen verstöße gegen „kein Punkt steht in
 beiden Spalten“. Eine stillgelegte
 Organisation verliert den Zugang, behält die Daten.
-**RÜCKNAHME** vollständig — das ist der Zweck der Stilllegung.
+**AUDIT** Bringt seinen Erzeuger mit (Modell aus E07): Organisation
+stillgelegt, Organisation wiederaufgenommen.
+**RÜCKNAHME** Die Stilllegung ist vollständig umkehrbar — das ist ihr Zweck.
+Die Auditzeilen darüber sind es nicht; sie bleiben und verfallen allein über
+die Frist aus E07.
 
 ### E13B — Organisation löschen · `ENT-G05` (Teil 2)
 
