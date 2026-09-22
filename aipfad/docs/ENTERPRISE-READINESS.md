@@ -49,29 +49,30 @@ es gibt keine Mehrfachzählung.
 
 ### Fundament (AIPFAD_ENTERPRISE_FOUNDATION_V1)
 
-| ID      | Titel                                                       | Hauptdomäne       | Zustand                         | Änderung |
-| ------- | ----------------------------------------------------------- | ----------------- | ------------------------------- | -------- |
-| ENT-B01 | Kein `Organization`/`OrganizationMembership`                | MANDANTEN         | `FEHLT`                         | E08      |
-| ENT-B02 | Keine Organisationsautorisierung; `ADMIN` ohne Durchsetzung | AUTORISIERUNG     | `FEHLT`                         | E09      |
-| ENT-B03 | Aufbewahrungslöschung läuft nie                             | DATEN             | `DOKUMENTIERT`                  | E04A     |
-| ENT-B04 | Keine Datenauskunft (Selbstexport)                          | DATEN             | `FEHLT`                         | E04B     |
-| ENT-B05 | Keine Löschung auf Betroffenenwunsch                        | DATEN             | `FEHLT`                         | E04C     |
-| ENT-B06 | Kein Auditlog für Unternehmensvorgänge                      | DATEN             | `FEHLT`                         | E07      |
-| ENT-B07 | Ratenbegrenzung nur je Prozess                              | SICHERHEIT        | `AKZEPTIERT`                    | E03      |
-| ENT-B08 | Ungenutztes CSRF-Verfahren; `unsafe-inline` in der CSP      | SICHERHEIT        | `DOKUMENTIERT`                  | E05C     |
-| ENT-B09 | Kein Leerlauf-Ablauf; Sitzungsentzug ohne Aufrufer          | AUTHENTIFIZIERUNG | `DOKUMENTIERT`                  | E05A     |
-| ENT-B10 | Keine Passwort-Wiederherstellung                            | AUTHENTIFIZIERUNG | `FEHLT`                         | E05B     |
-| ENT-B11 | Keine belegte Wiederherstellung aus einer Sicherung         | BETRIEB           | `FEHLT`                         | E10      |
-| ENT-B12 | Keine Runbooks, keine Migrations-Rücknahmestrategie         | BETRIEB           | `FEHLT`                         | E10      |
-| ENT-B13 | Konfiguration bricht nicht früh ab; `AUTH_SECRET` ungenutzt | BETRIEB           | `IMPLEMENTIERT` (unvollständig) | E02      |
-| ENT-B14 | Logger existiert, wird in genau einer Datei benutzt         | BEOBACHTBARKEIT   | `IMPLEMENTIERT` (ungenutzt)     | E06      |
-| ENT-B15 | 4 von 7 Lab-Arten ohne kanonischen Vertrag                  | INHALTE           | `FEHLT`                         | E01B     |
+| ID      | Titel                                                                                  | Hauptdomäne       | Zustand                         | Änderung         |
+| ------- | -------------------------------------------------------------------------------------- | ----------------- | ------------------------------- | ---------------- |
+| ENT-B01 | Kein `Organization`/`OrganizationMembership`, keine Verwaltung dafür                   | MANDANTEN         | `FEHLT`                         | E08, E08B        |
+| ENT-B02 | Keine Organisationsautorisierung; `ADMIN` ohne Durchsetzung                            | AUTORISIERUNG     | `FEHLT`                         | E09A–C           |
+| ENT-B03 | Aufbewahrungslöschung läuft nie                                                        | DATEN             | `DOKUMENTIERT`                  | E04A             |
+| ENT-B04 | Keine Datenauskunft (Selbstexport)                                                     | DATEN             | `FEHLT`                         | E04B             |
+| ENT-B05 | Keine Löschung auf Betroffenenwunsch                                                   | DATEN             | `FEHLT`                         | E04C             |
+| ENT-B06 | Kein Auditlog für Unternehmensvorgänge                                                 | DATEN             | `FEHLT`                         | E07              |
+| ENT-B07 | Ratenbegrenzung nur je Prozess                                                         | SICHERHEIT        | `AKZEPTIERT`                    | E03              |
+| ENT-B08 | Ungenutztes CSRF-Verfahren (`DOKUMENTIERT`); `unsafe-inline` in der CSP (`AKZEPTIERT`) | SICHERHEIT        | gemischt                        | E05C, E05D, E05E |
+| ENT-B09 | Kein Leerlauf-Ablauf; Sitzungsentzug ohne Aufrufer                                     | AUTHENTIFIZIERUNG | `DOKUMENTIERT`                  | E05A             |
+| ENT-B10 | Keine Passwort-Wiederherstellung                                                       | AUTHENTIFIZIERUNG | `FEHLT`                         | E05B             |
+| ENT-B11 | Keine belegte Wiederherstellung aus einer Sicherung                                    | BETRIEB           | `FEHLT`                         | E10              |
+| ENT-B12 | Keine Runbooks, keine Migrations-Rücknahmestrategie                                    | BETRIEB           | `FEHLT`                         | E10              |
+| ENT-B13 | Konfiguration bricht nicht früh ab; `AUTH_SECRET` ungenutzt                            | BETRIEB           | `IMPLEMENTIERT` (unvollständig) | E02              |
+| ENT-B14 | Logger existiert, wird in genau einer Datei benutzt                                    | BEOBACHTBARKEIT   | `IMPLEMENTIERT` (ungenutzt)     | E06              |
+| ENT-B15 | 4 von 7 Lab-Arten ohne kanonischen Vertrag                                             | INHALTE           | `FEHLT`                         | E01B             |
 
 Vier Zeilen bündeln zwei Befunde derselben Domäne (`ENT-B08`, `ENT-B09`,
-`ENT-B12`, `ENT-B13`). Das ist Absicht und die Konvention lautet: **eine Zeile
-je Domäne und zuständiger Änderung**, nicht je Einzelbefund. Die Änderungen
+`ENT-B12`, `ENT-B13`). Das ist Absicht und die Konvention lautet: **eine Zeile je
+abgrenzbarem Befund**. Die Änderungen sind teils feiner geschnitten
+(`ENT-B08` auf E05C/D/E), teils gröber (`ENT-B11` und `ENT-B12` beide auf E10). Die Änderungen
 sind feiner geschnitten als die Blocker — `ENT-B08` bis `B10` verteilen sich
-auf E05A, E05B und E05C.
+auf E05A bis E05E.
 
 **FUNDAMENT_BLOCKER = 15**
 
@@ -140,21 +141,21 @@ Mandantenmodell aufsetzen kann, aber es ist nicht dasselbe.
 
 ## C — Authentifizierung
 
-| Punkt                     | Zustand         | Anmerkung                                                      |
-| ------------------------- | --------------- | -------------------------------------------------------------- |
-| Passwort-Hashing          | `VERIFIZIERT`   | scrypt, OWASP-Parameter, `timingSafeEqual`                     |
-| Sitzungstoken             | `VERIFIZIERT`   | 32 Byte opak, nur SHA-256 in der Datenbank                     |
-| Cookie-Flags              | `IMPLEMENTIERT` | `httpOnly`, `SameSite=Lax`, `Secure` bei `https`               |
-| Absolute Gültigkeit       | `IMPLEMENTIERT` | 30 Tage (`SESSION_TTL_DAYS`)                                   |
-| **Leerlauf-Gültigkeit**   | **`FEHLT`**     | `lastSeenAt` wird geführt, läuft aber nichts ab                |
-| **Sitzungsentzug (alle)** | `DOKUMENTIERT`  | `destroyAllSessions()` — **kein Aufrufer**                     |
-| Ratenbegrenzung Anmeldung | `AKZEPTIERT`    | wirksam je Instanz, siehe G                                    |
-| **Passwortrichtlinie**    | `IMPLEMENTIERT` | Mindestlänge in Zod; keine Sperrliste, kein Kompromissabgleich |
-| **Passwort zurücksetzen** | **`FEHLT`**     | kein Modell, keine Route, kein Mailversand                     |
-| **E-Mail-Bestätigung**    | **`FEHLT`**     | keine Spalte, kein Ablauf                                      |
-| **SSO / OIDC / SAML**     | **`FEHLT`**     | keine Abstraktion vorhanden                                    |
-| **SCIM**                  | **`FEHLT`**     | —                                                              |
-| **Kontolebenszyklus**     | **`FEHLT`**     | kein Sperren, kein Deaktivieren, kein Selbstlöschen            |
+| Punkt                     | Zustand         | Anmerkung                                                                                                                                                   |
+| ------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Passwort-Hashing          | `IMPLEMENTIERT` | scrypt, OWASP-Parameter, `timingSafeEqual`; gedeckt ist nur, dass nicht im Klartext gespeichert wird — Parameterwahl und Vergleichsverfahren sind ungeprüft |
+| Sitzungstoken             | `IMPLEMENTIERT` | 32 Byte opak, nur SHA-256 — keine Prüfung deckt die Speicherform: die Hash-Funktion durch die Identität zu ersetzen ließe jede Suite grün                   |
+| Cookie-Flags              | `IMPLEMENTIERT` | `httpOnly`, `SameSite=Lax`, `Secure` bei `https`                                                                                                            |
+| Absolute Gültigkeit       | `IMPLEMENTIERT` | 30 Tage (`SESSION_TTL_DAYS`)                                                                                                                                |
+| **Leerlauf-Gültigkeit**   | **`FEHLT`**     | `lastSeenAt` wird geführt, läuft aber nichts ab                                                                                                             |
+| **Sitzungsentzug (alle)** | `DOKUMENTIERT`  | `destroyAllSessions()` — **kein Aufrufer**                                                                                                                  |
+| Ratenbegrenzung Anmeldung | `AKZEPTIERT`    | wirksam je Instanz, siehe G                                                                                                                                 |
+| **Passwortrichtlinie**    | `IMPLEMENTIERT` | Mindestlänge in Zod; keine Sperrliste, kein Kompromissabgleich                                                                                              |
+| **Passwort zurücksetzen** | **`FEHLT`**     | kein Modell, keine Route, kein Mailversand                                                                                                                  |
+| **E-Mail-Bestätigung**    | **`FEHLT`**     | keine Spalte, kein Ablauf                                                                                                                                   |
+| **SSO / OIDC / SAML**     | **`FEHLT`**     | keine Abstraktion vorhanden                                                                                                                                 |
+| **SCIM**                  | **`FEHLT`**     | —                                                                                                                                                           |
+| **Kontolebenszyklus**     | **`FEHLT`**     | kein Sperren, kein Deaktivieren, kein Selbstlöschen                                                                                                         |
 
 Nachgeprüft: `AUTH_SECRET` wird in `server/env.ts` erzwungen (mind. 32
 Zeichen), aber **von keiner Zeile des Anwendungscodes verbraucht**. Sitzungen
@@ -333,8 +334,8 @@ ein eigenes, nur anfügbares Modell.
 
 Nachgeprüfte Lücke: `validateCourseGraph()` prüft Lab-Konfigurationen nur für
 `MERGE_CONFLICT`, `BRANCH` und `GIT_STATE`. Für `TERMINAL`, `TOKENIZER`,
-`CONTEXT_WINDOW` und `PROMPT_REPAIR` gibt es keinen kanonischen Vertrag —
-für `TERMINAL`, `TOKENIZER`, `CONTEXT_WINDOW` und `PROMPT_REPAIR` gibt es keinen KANONISCHEN Vertrag. Ungeprüft sind sie damit nicht: Alle vier haben ein Zod-Schema in der Maske, das beim Anzeigen greift (`terminal-lab.tsx:9`, `tokenizer-lab.tsx:8`, `context-window-lab.tsx:8`, `labs/[slug]/page.tsx:17`). Der Unterschied ist der Zeitpunkt — ein Fehler fällt erst auf, wenn jemand das Lab im Browser öffnet, nicht beim Bauen. `schema.ts:369` sagt das über sich selbst bereits genauer, als die vorige Fassung dieses Dokuments es tat.
+`CONTEXT_WINDOW` und `PROMPT_REPAIR` gibt es keinen kanonischen Vertrag.
+Ungeprüft sind sie damit nicht: Alle vier haben ein Zod-Schema in der Maske, das beim Anzeigen greift (`terminal-lab.tsx:9`, `tokenizer-lab.tsx:8`, `context-window-lab.tsx:8`, `labs/[slug]/page.tsx:17`). Der Unterschied ist der Zeitpunkt — ein Fehler fällt erst auf, wenn jemand das Lab im Browser öffnet, nicht beim Bauen. `schema.ts:369` sagt das über sich selbst bereits genauer, als die vorige Fassung dieses Dokuments es tat.
 
 ## M — Lehrplan
 
@@ -386,7 +387,6 @@ des Graphen stehen lassen.
 Richtig ist: Stufe 6 ist didaktische Voraussetzung für **7, 8, 11, 12 und 16**
 und über 11 auch für 15. Die Strecke **9 → 10 ist sofort beginnbar**, weil ihre
 Voraussetzung (Stufe 4) fertig ist.
-(Stufe 4) fertig ist.
 
 ```
 6 HTTP/APIs → 7 AI-APIs → 8 Tool Calling → 11 Agents → 12 MCP → 16 AI-Sicherheit

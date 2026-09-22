@@ -99,8 +99,10 @@ entsprechend auf „Dokument oder Kommentar" gelesen.
 ### E01B — Kanonische Inhaltsverträge · `ENT-B15`
 
 **WARUM** `validateCourseGraph()` prüft Lab-Konfigurationen nur für
-`MERGE_CONFLICT`, `BRANCH` und `GIT_STATE`. Vier von sieben Arten sind
-ungeprüft.
+`MERGE_CONFLICT`, `BRANCH` und `GIT_STATE`. Vier von sieben Arten sind **nicht durch die Inhaltsprüfung beim Bauen
+gedeckt** — sie haben heute nur ein Schema in der Maske, das erst beim
+Anzeigen greift. „Ungeprüft" wäre falsch; die Bestandsaufnahme sagt das
+unter L bereits richtig.
 **UMFANG** Verträge für `TERMINAL`, `TOKENIZER`, `CONTEXT_WINDOW`,
 `PROMPT_REPAIR`; Einbindung in `validateCourseGraph()`;
 `CommandReference`-Beispielvertrag.
@@ -119,15 +121,6 @@ verdoppelt.
 — anderer Inhaltstyp, eigener Validator (`schema.ts:408`). Er steht als E01D.
 **FERTIG** Sieben von sieben Lab-Arten unter einem kanonischen Vertrag.
 
-### E01D — CommandReference-Beispiele
-
-**WARUM** Eigener Inhaltstyp mit eigenem Validator; in E01B wäre er ein
-Fremdkörper, den dessen Fertigkriterium nicht abdeckt.
-**UMFANG** Vertrag, der Beispiele gegen die beschriebenen Befehle hält.
-**VERHALTEN** Ändert Verhalten wie E01B: Bisher durchgelassene Inhalte fallen
-künftig durch.
-**TESTS** Ein absichtlich widersprüchliches Beispiel wird rot.
-
 ### E01C — Pfaddienst absichern
 
 **WARUM** `path-service` hat keine eigenen Integrationsprüfungen;
@@ -140,6 +133,15 @@ Prüfung einen echten Fehler zeigt. Heute ist der Zweig statisch
 unerreichbar (siehe Bestandsaufnahme I).
 **FERTIG** Entweder ist die Unerreichbarkeit durch eine Prüfung belegt, oder
 ein echter Fehler ist gezeigt — und dann erst behoben.
+
+### E01D — CommandReference-Beispiele
+
+**WARUM** Eigener Inhaltstyp mit eigenem Validator; in E01B wäre er ein
+Fremdkörper, den dessen Fertigkriterium nicht abdeckt.
+**UMFANG** Vertrag, der Beispiele gegen die beschriebenen Befehle hält.
+**VERHALTEN** Ändert Verhalten wie E01B: Bisher durchgelassene Inhalte fallen
+künftig durch.
+**TESTS** Ein absichtlich widersprüchliches Beispiel wird rot.
 
 ### E02 — Konfigurationsvertrag · `ENT-B13`
 
@@ -246,13 +248,15 @@ ungenutzter Sicherheitscode täuscht Schutz vor. Die Herkunftsprüfung in
 Anfrage eine Herkunft mitschickt (siehe Bestandsaufnahme F). Kein
 zusätzliches Verfahren ohne Bedrohungsmodell-Begründung.
 
-**SCHEMA** `AuthSession.csrfSecret` ist `String NOT NULL` und wird bei jeder
-Anmeldung geschrieben; ein Entfernen ist eine **Schemaänderung**, keine
-Aufräumarbeit.
-**MIGRATION** Spalte erst nullbar machen, dann nicht mehr schreiben, dann
-entfernen — drei Schritte.
-**RÜCKNAHME** Bis zum Entfernen der Spalte vollständig. Danach nur durch
-Neuanlegen; bestehende Sitzungen tragen dann keinen Wert mehr.
+**SCHEMA** keins in diesem Schritt. `AuthSession.csrfSecret` ist
+`String NOT NULL` (`schema.prisma:217`) und wird bei jeder Anmeldung
+geschrieben; die Spalte **bleibt** hier stehen und wird nur nicht mehr
+gelesen.
+**RÜCKNAHME** vollständig.
+**NICHT-UMFANG** Das Entfernen der Spalte. Das ist eine
+expand/migrate/contract-Wanderung und damit dieselbe Form wie beim
+Rollenwert — sie steht als E05E. Sie hier mitzuführen hieße, die Regel, die
+E09A–C begründet, für dieselbe Sache zu brechen.
 **TESTS** Die getroffene Entscheidung ist belegt — bei „anbinden" durch eine
 abgewiesene Anfrage ohne gültiges Doppel-Token, bei „entfernen" dadurch, dass
 kein Pfad das Feld mehr liest.
@@ -266,6 +270,14 @@ macht die Seite weiß. Anderes Teilsystem, andere Sprengweite als E05C —
 deshalb getrennt.
 **SCHEMA** keins. **RÜCKNAHME** Kopfzeile zurücksetzen, sofort wirksam.
 **TESTS** Seite funktioniert ohne `unsafe-inline`; keine Konsolenfehler.
+
+### E05E — `csrfSecret`-Spalte entfernen · `ENT-B08` (Teil 3)
+
+**WARUM** Erst nachdem E05C in Produktion nachweislich nichts mehr liest.
+**UMFANG** Spalte nullbar machen, dann entfernen.
+**RÜCKNAHME** **Keine** ohne Datenverlust — wie E09C. Deshalb eigener
+Schritt statt Anhängsel.
+**TESTS** Kein Pfad liest das Feld mehr; Migration gegen eine befüllte Kopie.
 
 ### E06 — Beobachtbarkeit · `ENT-B14`
 
@@ -283,6 +295,14 @@ seiner Auslieferung gibt** — heute ist das genau einer: die Kontolöschung aus
 E04C. Jede spätere Änderung bringt ihre eigenen Schreibpunkte mit und ändert
 das Modell nicht (E08: Organisation angelegt/geändert; E09: Rollenwechsel;
 E11: Zuweisung; E13: Organisation gelöscht).
+
+**SCHEMA** eine Tabelle, additiv. **RÜCKNAHME** Tabelle bleibt ungenutzt
+liegen; geschriebene Zeilen gehen nicht verloren.
+
+**AUFBEWAHRUNG** Der Lauf aus E04A bekommt einen **zweiten, getrennt
+parametrierten Durchgang** für Auditzeilen — eine eigene Frist, derselbe
+Mechanismus. Ohne diesen Satz stünde hier eine Aufbewahrungsregel ohne
+Ausführenden, und das ist genau der Befund, den `ENT-B03` festhält.
 
 **REIHENFOLGE** E07 steht deshalb **vor** E04C, nicht danach. Die vorige
 Fassung verwies die Schreibpunkte auf E08/E09, die keine nannten, während
@@ -324,6 +344,30 @@ enthalten.
 **TESTS** Migration auf einer Kopie mit Bestandsdaten; niemand verliert
 Zugang.
 
+### E08B — Organisation und Mitglieder verwalten · `ENT-B01` (Teil 2)
+
+**WARUM** E08 legt zwei Tabellen an und sonst nichts. Ohne eine Stelle, an
+der eine Organisation entsteht und Mitglieder hinzukommen, ist das Modell
+unbenutzbar — und die beiden Fundamenttore PRODUKT („nutzbar", „E2E je
+Rolle") und MANDANTEN („Isolationssuite") wären nicht erfüllbar: Es gäbe
+keinen organisationsbezogenen Lesepfad, den eine Isolationsprüfung angreifen
+könnte. Die vorige Fassung führte „Adminbetrieb" und „Unternehmensabläufe"
+in der Bestandsaufnahme als `FEHLT`, gab ihnen aber weder Kennung noch
+Änderung; damit verlangte kein Blocker, was das Tor voraussetzt.
+
+**UMFANG** Organisation anlegen; Mitglied hinzufügen und entfernen;
+Mitgliederliste; Rolle innerhalb der Organisation setzen. Die ersten
+wirklichen Aufrufer der Prüfstelle aus E09A.
+**NICHT-UMFANG** Kohorten, Zuweisung, Berichte — alles GA (E11A–C).
+**SICHERHEIT** Jede Ansicht ist organisationsbezogen; die Zugehörigkeit
+kommt aus der Mitgliedschaft, nie aus der Eingabe.
+**ABHÄNGIGKEIT** Nach E08 (Modell) und E09A (Prüfstelle); steht deshalb im
+Ablauf hinter beiden, obwohl die Nummer es anders nahelegt.
+**RÜCKNAHME** vollständig; es entstehen nur Zeilen in den beiden neuen
+Tabellen.
+**TESTS** E2E je Rolle; Isolationssuite, die aus einer Organisation heraus
+jede Ressource einer fremden zu lesen versucht.
+
 ### E09A — Prüfstelle und Standardverweigerung · `ENT-B02` (Teil 1)
 
 **UMFANG** **Eine** zentrale Autorisierungsprüfung; Standard verweigert;
@@ -334,8 +378,8 @@ Zugang.
 
 ### E09B — Rollen erweitern und Daten wandern · `ENT-B02` (Teil 2)
 
-**UMFANG** Aufzählung um `PLATFORM_ADMIN`, `ORG_ADMIN`, `ORG_MANAGER`
-erweitern; vorhandene `ADMIN`-Zeilen auf `PLATFORM_ADMIN` wandern. `ADMIN`
+**UMFANG** Aufzählung um `PLATFORM_ADMIN` und `ORG_ADMIN` erweitern;
+vorhandene `ADMIN`-Zeilen auf `PLATFORM_ADMIN` wandern. `ADMIN`
 **bleibt** bestehen.
 
 | Heute     | Künftig          | Behandlung                       |
@@ -343,9 +387,13 @@ erweitern; vorhandene `ADMIN`-Zeilen auf `PLATFORM_ADMIN` wandern. `ADMIN`
 | `LEARNER` | `LEARNER`        | unverändert                      |
 | `ADMIN`   | `PLATFORM_ADMIN` | Datenwanderung in diesem Schritt |
 | —         | `ORG_ADMIN`      | neu, nur über die Mitgliedschaft |
-| —         | `ORG_MANAGER`    | neu, nur über die Mitgliedschaft |
 
-`PLATFORM_ADMIN` steht am `User`, die beiden Organisationsrollen an der
+`ORG_MANAGER` kommt bewusst **nicht** hier, sondern mit E11C: Die Rolle
+steuert allein Berichte, und die sind GA. Sie im Fundament einzuführen hieße,
+eine Rolle ohne jedes Verhalten auszuliefern — genau der Zustand, den die
+Bestandsaufnahme an `ADMIN` bemängelt.
+
+`PLATFORM_ADMIN` steht am `User`, `ORG_ADMIN` an der
 `OrganizationMembership` — eine Person kann in einer Organisation leiten und
 in einer anderen lernen.
 **RÜCKNAHME** vollständig, solange `ADMIN` noch existiert. Genau dafür bleibt
@@ -409,7 +457,8 @@ Einstufung gilt.
 
 ### E11C — Berichte für Führungskräfte · `ENT-G03`
 
-**UMFANG** Fortschrittssicht je Kohorte.
+**UMFANG** Fortschrittssicht je Kohorte; führt zugleich die Rolle
+`ORG_MANAGER` ein — hier bekommt sie ihr erstes Verhalten.
 **SICHERHEIT** Führungskräfte sehen **Fortschritt**, nicht einzelne
 Antworten. Diese Grenze gehört in eine Prüfung, nicht nur in die Oberfläche.
 **TESTS** Eine Prüfung, die rot wird, wenn eine Antwort in der
@@ -479,7 +528,7 @@ Getrennt vom Plattformstrang und nicht auf dessen kritischem Pfad.
 | C12    | 20 Enterprise AI           | C9                       |
 | C13    | 19 Advanced                | — (LEHRPLAN nennt keine) |
 
-**Sofort beginnbar: C1, C4, C6, C9, C11** — ihre Voraussetzungen sind
+**Sofort beginnbar: C1, C4, C6, C9, C11, C13** — ihre Voraussetzungen sind
 entweder gebaut oder es gibt keine. Die vorige Fassung führte C4 unter C3;
 das war falsch, siehe Bestandsaufnahme M.
 
@@ -505,8 +554,12 @@ AuditEvent(id, organizationId?, actorUserId?, actorLabel, action,
            targetType, targetId?, metadata Json, occurredAt)
 ```
 
-`actorUserId` ist bewusst **ohne** Kaskade; `actorLabel` hält den Bezug fest,
-wenn das Konto später gelöscht wird.
+`actorUserId` **und** `organizationId` stehen bewusst **ohne** Kaskade;
+`actorLabel` und `organizationLabel` halten den Bezug fest, wenn Konto oder
+Organisation später gelöscht werden. Jede andere Beziehung auf `User` im
+heutigen Schema kaskadiert — ohne diesen ausdrücklichen Satz entstünde die
+Spur nach dem Hausmuster und verschwände mit dem, was sie belegen soll.
+E13B verlangt genau das in seiner Prüfung.
 
 **Eigentum.** Lerndaten (`Attempt`, `ConceptMastery`, `LessonProgress`,
 `LearningPath`, `ReviewQueueItem`) bleiben **nutzereigen**. Die Organisation
@@ -528,23 +581,24 @@ dass ihr Entfernen eine bestimmte Prüfung rot macht.
 ## Zählwerk
 
 Aus den Überschriften und Tabellen dieses Dokuments gezählt, nicht
-fortgeschrieben. Die Zahlen sind gegenüber der vorigen Fassung gestiegen,
-weil vier Änderungen nach ihrem Zweck aufgeteilt wurden (E01, E05C, E09,
-E11, E13) und zwei Abschlusspunkte entstanden sind — nicht, weil Arbeit
-hinzugekommen wäre.
+fortgeschrieben. Die Zahlen sind gegenüber der ersten Fassung gestiegen, weil
+Änderungen nach ihrem Zweck aufgeteilt wurden (E01, E05C, E09, E11, E13) und
+weil zwei Lücken einen eigenen Punkt bekommen haben — E08B für die
+Organisationsverwaltung und E05E für die unumkehrbare Spaltenentfernung.
+Nicht, weil Arbeit hinzugekommen wäre.
 
-| Größe                      | Wert | Herkunft                                                      |
-| -------------------------- | ---- | ------------------------------------------------------------- |
-| Fundamentblocker           | 15   | `ENT-B01`–`ENT-B15`                                           |
-| GA-Zusatzblocker           | 6    | `ENT-G01`–`ENT-G06`                                           |
-| Fundamentänderungen        | 21   | E01A–D, E02, E03, E04A–C, E05A–D, E06–E08, E09A–C, E10, ERC-F |
-| GA-Änderungen              | 8    | E11A–C, E12, E13A–B, E14, ERC-GA                              |
-| Plattformänderungen gesamt | 29   | 21 + 8                                                        |
-| Lehrplangruppen            | 13   | C1–C13                                                        |
-| Programmpunkte insgesamt   | 42   | 29 + 13                                                       |
+| Größe                      | Wert | Herkunft                                                                  |
+| -------------------------- | ---- | ------------------------------------------------------------------------- |
+| Fundamentblocker           | 15   | `ENT-B01`–`ENT-B15`                                                       |
+| GA-Zusatzblocker           | 6    | `ENT-G01`–`ENT-G06`                                                       |
+| Fundamentänderungen        | 23   | E01A–D, E02, E03, E04A–C, E05A–E, E06, E07, E08, E08B, E09A–C, E10, ERC-F |
+| GA-Änderungen              | 8    | E11A–C, E12, E13A–B, E14, ERC-GA                                          |
+| Plattformänderungen gesamt | 31   | 23 + 8                                                                    |
+| Lehrplangruppen            | 13   | C1–C13                                                                    |
+| Programmpunkte insgesamt   | 44   | 31 + 13                                                                   |
 
-Einundzwanzig Fundamentänderungen decken fünfzehn Blocker: `E10` schließt
-zwei (`ENT-B11`, `ENT-B12`); `ENT-B02` und `ENT-B08` brauchen je mehrere
-Schritte (E09A–C, E05C+E05D); und `E01A`, `E01C`, `E01D` sowie `ERC-F`
-schließen keinen Blocker, sondern beseitigen Schulden, belegen eine Annahme
-oder sammeln Belege ein.
+Dreiundzwanzig Fundamentänderungen decken fünfzehn Blocker: `E10` schließt
+zwei (`ENT-B11`, `ENT-B12`); `ENT-B01`, `ENT-B02` und `ENT-B08` brauchen je
+mehrere Schritte (E08+E08B, E09A–C, E05C+E05D+E05E); und `E01A`, `E01C`,
+`E01D` sowie `ERC-F` schließen keinen Blocker, sondern beseitigen Schulden,
+belegen eine Annahme oder sammeln Belege ein.
