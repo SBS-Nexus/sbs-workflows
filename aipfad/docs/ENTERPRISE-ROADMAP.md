@@ -15,20 +15,20 @@ sechs GA-Blocker (`ENT-G01`–`ENT-G06`). Kein Punkt steht in beiden.
 
 ### Tore für das Fundament
 
-| Tor               | Kriterium                                                                                                                   | Beleg                                   | Blocker            |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ------------------ |
-| PRODUKT           | Organisation, Mitgliedschaft und Rollen nutzbar                                                                             | E2E je Rolle                            | B01, B02           |
-| SICHERHEIT        | `UNABHÄNGIGE_SICHERHEITSPRÜFUNG = BESTANDEN`; Ratenzähler nachweislich über zwei unabhängige Verbindungen geteilt           | Prüfbericht + Nebenläufigkeitsprotokoll | B07, B08           |
-| DATEN             | Aufbewahrung läuft; Auskunft und Löschung bedienbar; Auditlog nimmt jeden zu diesem Zeitpunkt vorhandenen Vorgang auf (E07) | Laufprotokoll + Integration             | B03, B04, B05, B06 |
-| MANDANTEN         | Fremde Organisationsdaten auf keinem Weg lesbar                                                                             | Isolationssuite                         | B01, B02           |
-| AUTHENTIFIZIERUNG | Leerlauf-Ablauf, Sitzungsentzug, Passwort-Wiederherstellung                                                                 | Integration + E2E                       | B09, B10           |
-| AUTORISIERUNG     | Vollständige Matrix, Standard verweigert                                                                                    | tabellengetriebene Prüfung              | B02                |
-| BETRIEB           | Wiederherstellung belegt; Runbooks; Konfiguration bricht früh ab                                                            | Wiederherstellungsprotokoll             | B11, B12, B13      |
-| BEOBACHTBARKEIT   | Anfrage-Kennung auf allen Serverpfaden                                                                                      | Prüfung                                 | B14                |
-| INHALTE           | Alle sieben Lab-Arten unter kanonischem Vertrag                                                                             | `content:validate`                      | B15                |
-| BARRIEREFREIHEIT  | axe ohne serious/critical                                                                                                   | CI                                      | —                  |
-| TESTS             | Acht Tore grün; Isolations- und Migrationssuite vorhanden                                                                   | CI                                      | —                  |
-| DOKUMENTATION     | Kein Dokument behauptet eine unwirksame Maßnahme                                                                            | Prüfliste                               | —                  |
+| Tor               | Kriterium                                                                                                                                                        | Beleg                                   | Blocker            |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ------------------ |
+| PRODUKT           | Organisation, Mitgliedschaft und Rollen nutzbar                                                                                                                  | E2E je Rolle                            | B01, B02           |
+| SICHERHEIT        | `UNABHÄNGIGE_SICHERHEITSPRÜFUNG = BESTANDEN`; Ratenzähler nachweislich über zwei unabhängige Verbindungen geteilt                                                | Prüfbericht + Nebenläufigkeitsprotokoll | B07, B08           |
+| DATEN             | Aufbewahrung läuft; Auskunft und Löschung bedienbar; jeder zu diesem Zeitpunkt als prüfpflichtig eingestufte Vorgang schreibt sein Ereignis (Verzeichnis in E07) | Laufprotokoll + Integration             | B03, B04, B05, B06 |
+| MANDANTEN         | Fremde Organisationsdaten auf keinem Weg lesbar                                                                                                                  | Isolationssuite                         | B01, B02           |
+| AUTHENTIFIZIERUNG | Leerlauf-Ablauf, Sitzungsentzug, Passwort-Wiederherstellung                                                                                                      | Integration + E2E                       | B09, B10           |
+| AUTORISIERUNG     | Vollständige Matrix, Standard verweigert                                                                                                                         | tabellengetriebene Prüfung              | B02                |
+| BETRIEB           | Wiederherstellung belegt; Runbooks; Konfiguration bricht früh ab                                                                                                 | Wiederherstellungsprotokoll             | B11, B12, B13      |
+| BEOBACHTBARKEIT   | Anfrage-Kennung auf allen Serverpfaden                                                                                                                           | Prüfung                                 | B14                |
+| INHALTE           | Alle sieben Lab-Arten unter kanonischem Vertrag                                                                                                                  | `content:validate`                      | B15                |
+| BARRIEREFREIHEIT  | axe ohne serious/critical                                                                                                                                        | CI                                      | —                  |
+| TESTS             | Acht Tore grün; Isolations- und Migrationssuite vorhanden                                                                                                        | CI                                      | —                  |
+| DOKUMENTATION     | Kein Dokument behauptet eine unwirksame Maßnahme                                                                                                                 | Prüfliste                               | —                  |
 
 **Das Produkttor verlangt bewusst keine Zuweisung und keine Kohorten.** Die
 gehören zu GA. Die vorige Fassung forderte beides im V1-Tor und stufte es
@@ -204,13 +204,21 @@ Verzeichnis der personenbezogenen Daten; festes Ausgabeschema.
 Personenbezug erhoben; sie einer Person zuzuordnen wäre genau die
 Verknüpfung, die das Modell vermeidet.
 **SICHERHEIT** Nur die eigene Sitzung, niemals eine Kennung aus der Eingabe.
+**AUDIT** Ein gelungener Export schreibt `PERSONAL_DATA_EXPORTED` (Modell aus
+E07). Wer die Daten einer Person herausgibt, hinterlässt eine Spur — das ist
+der Sinn des Verzeichnisses.
+**RÜCKNAHME** Die Fähigkeit ja, die geschriebenen Auditzeilen nicht.
 **TESTS** Export enthält jede Tabelle mit Personenbezug; Gegenprüfung gegen
-das Schema, damit eine neue Tabelle nicht stillschweigend fehlt.
+das Schema, damit eine neue Tabelle nicht stillschweigend fehlt; der Vorgang
+schreibt sein Ereignis.
 
 ### E04C — Kontolöschung · `ENT-B05`
 
 **UMFANG** Bestätigter, destruktiver Ablauf mit erneuter Anmeldung als
-Grenze; Kaskadenprüfung; Auditeintrag.
+Grenze; Kaskadenprüfung.
+**AUDIT** Schreibt `ACCOUNT_DELETED` (Modell aus E07) — der erste Erzeuger
+überhaupt. Der Eintrag überdauert das Konto ausdrücklich; dafür steht der
+Akteursbezug ohne Kaskade.
 **RÜCKNAHME** **Keine.** Diese Änderung ist im Betrieb nicht rücknehmbar;
 zurücknehmen lässt sich nur der Zugang zur Funktion, nicht ihre Wirkung.
 Wiederherstellung ist ausschließlich über eine Sicherung möglich — was E10
@@ -315,14 +323,40 @@ ihr nicht angehören. Der Ring war kleiner als der davor, aber es war einer.
 einführt, bringt dessen Ereigniserzeuger **in derselben Änderung** mit. Nicht
 E07 liefert sie nach, und keine Änderung verweist sie an eine andere:
 
-| Änderung | Erzeuger                                                                     |
-| -------- | ---------------------------------------------------------------------------- |
-| E04C     | Konto gelöscht                                                               |
-| E08B     | Organisation angelegt/geändert, Mitglied hinzugefügt/entfernt, Rolle gesetzt |
-| E09B     | Rollenwanderung                                                              |
-| E11B     | Zuweisung erteilt/entzogen                                                   |
-| E13A     | Organisation stillgelegt/wiederaufgenommen                                   |
-| E13B     | Organisation gelöscht                                                        |
+**Verzeichnis der prüfpflichtigen Vorgänge.** Diese Liste ist maßgeblich und
+sagt zugleich, was das Tor DATEN meint. Die Namen sind Planungsbezeichnungen;
+die Umsetzung darf sie schärfen, ohne die Zusage zu ändern.
+
+Fundament:
+
+| Vorgang                            | Eigentümer |
+| ---------------------------------- | ---------- |
+| `PERSONAL_DATA_EXPORTED`           | E04B       |
+| `ACCOUNT_DELETED`                  | E04C       |
+| `ORGANIZATION_CREATED`             | E08B       |
+| `ORGANIZATION_UPDATED`             | E08B       |
+| `ORGANIZATION_MEMBER_ADDED`        | E08B       |
+| `ORGANIZATION_MEMBER_REMOVED`      | E08B       |
+| `ORGANIZATION_MEMBER_ROLE_CHANGED` | E08B       |
+| `PLATFORM_ROLE_MIGRATED`           | E09B       |
+
+Bezahlter Einsatz:
+
+| Vorgang                      | Eigentümer |
+| ---------------------------- | ---------- |
+| `COHORT_CREATED`             | E11A       |
+| `COHORT_UPDATED`             | E11A       |
+| `COHORT_DELETED`             | E11A       |
+| `COURSE_ASSIGNMENT_CREATED`  | E11B       |
+| `COURSE_ASSIGNMENT_REMOVED`  | E11B       |
+| `OIDC_CONFIGURATION_CHANGED` | E12        |
+| `ORGANIZATION_SUSPENDED`     | E13A       |
+| `ORGANIZATION_REACTIVATED`   | E13A       |
+| `ORGANIZATION_DELETED`       | E13B       |
+
+Hier steht **kein** Vorgang, den kein Punkt liefert. Die vorige Fassung
+führte E04B, E11A und E12 gar nicht auf, obwohl die Bestandsaufnahme Export
+und SSO-Konfiguration ausdrücklich als prüfpflichtig nennt.
 
 **SCHEMA** eine Tabelle, additiv. **RÜCKNAHME** Tabelle bleibt ungenutzt
 liegen; geschriebene Zeilen gehen nicht verloren.
@@ -427,7 +461,26 @@ heraus jede Ressource einer fremden zu lesen versucht.
 ### E09A — Prüfstelle und Standardverweigerung · `ENT-B02` (Teil 1)
 
 **UMFANG** **Eine** zentrale Autorisierungsprüfung; Standard verweigert;
-`requireAdmin()` bekommt Aufrufer. Rollen bleiben vorerst `LEARNER`/`ADMIN`.
+`requireAdmin()` bekommt Aufrufer.
+
+**Zwei Achsen, nicht eine.** „Rollen bleiben vorerst `LEARNER`/`ADMIN`" wäre
+missverständlich und stand so in der vorigen Fassung: Gemeint ist allein
+`User.role` — der bleibt bis E09B bei `LEARNER`/`ADMIN`. Die Prüfstelle muss
+aber von Anfang an **beides** auswerten:
+
+1. die Plattformrolle am `User` (`LEARNER`/`ADMIN`, ab E09B `PLATFORM_ADMIN`),
+2. die Organisationsrolle an der `OrganizationMembership`
+   (`OrganizationRole.ORG_ADMIN`, angelegt in E08).
+
+E08 landet vor E09A; die zweite Achse existiert also bereits, wenn die
+Prüfstelle gebaut wird. Eine Prüfstelle, die nur `User.role` kennt, könnte
+E08B gar nicht tragen — dort wird eine Organisationsrolle gesetzt und
+ausgewertet.
+
+**Standard verweigert**, und die Organisation wird aus der maßgeblichen
+Mitgliedschaft beziehungsweise der Ressource aufgelöst — **nie** aus einer
+Angabe der aufrufenden Seite. `ORG_MANAGER` kommt hier nicht vor; die Rolle
+entsteht mit E11C, wo sie Verhalten bekommt.
 **SICHERHEIT** Organisationszugehörigkeit nie aus der Eingabe.
 **SCHEMA** keins. **RÜCKNAHME** vollständig.
 **TESTS** Tabellengetriebene Matrix über alle heutigen Rollen und Ressourcen.
@@ -503,9 +556,14 @@ welches Tor offen ist und warum.
 
 **UMFANG** `Cohort`, `CohortMembership`; Verwaltung innerhalb einer
 Organisation.
-**SCHEMA** zwei Tabellen, additiv. **RÜCKNAHME** vollständig, solange keine
-Zuweisung daran hängt.
-**TESTS** Eine Kohorte einer fremden Organisation ist nicht sichtbar.
+**SCHEMA** zwei Tabellen, additiv.
+**AUDIT** Jede Veränderung an einer Kohorte schreibt ihr Ereignis (Modell aus
+E07): `COHORT_CREATED`, `COHORT_UPDATED`, `COHORT_DELETED`.
+**RÜCKNAHME** Die Fähigkeit vollständig, solange keine Zuweisung daran hängt —
+die **Geschichte nicht**: Geschriebene Auditzeilen bleiben stehen und
+verfallen allein über die Frist aus E07.
+**TESTS** Eine Kohorte einer fremden Organisation ist nicht sichtbar; je
+Vorgang liegt das erwartete Ereignis vor.
 
 ### E11B — Kurszuweisung · `ENT-G02`
 
@@ -530,7 +588,12 @@ Führungskraft-Sicht auftaucht.
 
 ### E12 — OIDC · `ENT-G04`
 
-Anbieterabstraktion, dann OIDC. SAML und SCIM bleiben `NACH_GA`.
+**UMFANG** Anbieterabstraktion, dann OIDC. SAML und SCIM bleiben `NACH_GA`.
+**AUDIT** Jede Änderung an der Anmeldekonfiguration schreibt
+`OIDC_CONFIGURATION_CHANGED` (Modell aus E07). Wer bestimmt, wodurch sich
+jemand ausweist, verändert die Sicherheitsgrenze der ganzen Organisation.
+**RÜCKNAHME** Die Konfiguration lässt sich zurücknehmen; die Auditzeilen
+darüber nicht.
 
 ### E13A — Organisation stilllegen und wiederaufnehmen · `ENT-G05` (Teil 1)
 
@@ -549,34 +612,51 @@ die Frist aus E07.
 **WARUM** Der destruktivste Vorgang des Programms; er verdient mehr als einen
 Satz.
 **UMFANG** Bestätigter Ablauf mit erneuter Anmeldung als Grenze;
-**Trockenlauf zuerst**, der auflistet, was fallen würde; Auditeintrag, der die
-Organisation überdauert.
+**Trockenlauf zuerst**, der auflistet, was fallen würde.
+**AUDIT** Schreibt `ORGANIZATION_DELETED` (Modell aus E07). Der Eintrag
+überdauert die Organisation; dafür steht der Organisationsbezug ohne Kaskade,
+mit `organizationLabel` als lesbarem Rest.
 
-**Was „samt Daten" heißt — und was nicht.** Das Datenmodell hält Lerndaten
-**nutzereigen**; die Organisation sieht über die Mitgliedschaft, sie besitzt
-nicht. Gelöscht werden deshalb `Organization`, `OrganizationMembership`,
-`Cohort`, `CohortMembership` und `CourseAssignment`. **Nicht** gelöscht werden
-die Datensätze der Mitglieder. Der Bestand hat **zehn** Modelle mit
-Fremdschlüssel auf `User` — `AuthSession`, `LearningPath`, `Attempt`,
-`ConceptMastery`, `LessonProgress`, `LearningSession`, `ReviewQueueItem`,
-`MilestoneAward`, `LabAttempt`, `HintReveal` — und **keines** davon fällt mit
-der Organisation, ebenso wenig das Konto selbst. Die vorige Fassung zählte
-acht auf und nannte sie „jede Tabelle mit Fremdschlüssel auf `User`";
-`LearningSession` und `AuthSession` fehlten: Sie gehören den Personen, die nach dem Ende
-der Organisation weiterlernen können. Wer sein Konto löschen will, nimmt
-E04C. Ohne diese Festlegung bliebe offen, was das Löschen einer Organisation
-löscht, die nichts besitzt.
+**Was „samt Daten" heißt — und was nicht.** Maßgeblich ist die
+**Eigentumsklasse**, nicht das Vorhandensein eines Fremdschlüssels.
+
+Gelöscht werden die **organisationseigenen** Modelle: `Organization`,
+`OrganizationMembership`, `Cohort`, `CohortMembership`, `CourseAssignment`.
+Dass `OrganizationMembership` und `CohortMembership` auf `User` verweisen,
+ändert daran nichts — sie beschreiben eine Zugehörigkeit zur Organisation und
+enden mit ihr.
+
+Nicht gelöscht werden die **nutzereigenen** Modelle: `AuthSession`,
+`LearningPath`, `Attempt`, `ConceptMastery`, `LessonProgress`,
+`LearningSession`, `ReviewQueueItem`, `MilestoneAward`, `LabAttempt`,
+`HintReveal` — und das Konto selbst. Sie gehören den Personen, die nach dem
+Ende der Organisation weiterlernen.
+
+**Warum nicht am Fremdschlüssel entlang.** Die vorige Fassung wollte die
+Prüfung künftigssicher machen und schrieb: Sie liest die nutzerbezogenen
+Modelle aus dem Schema. Das wäre falsch geworden, sobald E08 und E11A
+`OrganizationMembership` und `CohortMembership` anlegen — beide verweisen auf
+`User` und müssten nach dieser Regel überleben, obwohl sie mit der
+Organisation fallen sollen. Ein Merkmal, das beide Klassen tragen, kann sie
+nicht trennen.
+
+Wer sein Konto löschen will, nimmt E04C; dort fällt die nutzereigene Menge
+**absichtlich**.
 
 **RÜCKNAHME** **Keine**, mit denselben Auflagen wie E04C: E10 ist
 betriebliche Voraussetzung, Wiederherstellung geht allein über eine Sicherung.
-**TESTS** Trockenlauf listet genau die fünf organisationseigenen Tabellen.
-Nach der Löschung stehen Konto und **alle zehn** nutzerbezogenen Tabellen
-unverändert.
+**TESTS** Trockenlauf listet genau die organisationseigenen Modelle. Nach der
+Löschung stehen Konto und jedes nutzereigene Modell unverändert.
 
-Die Prüfung darf sich dabei **nicht** auf eine von Hand gepflegte Liste
-stützen: Sie liest die nutzerbezogenen Modelle aus dem Schema und prüft jedes.
-Sonst wird ein künftig hinzugefügtes Modell stillschweigend zum Kollateral —
-und genau so ist diese Liste schon einmal zu kurz geraten.
+Die Prüfung stützt sich dabei **nicht** auf eine von Hand gepflegte Liste,
+sondern auf das **Eigentumsverzeichnis**: eine ausdrückliche Zuordnung jedes
+Modells zu `NUTZEREIGEN` oder `ORGANISATIONSEIGEN`. Die Prüfung liest dieses
+Verzeichnis und verlangt, dass jedes Modell **mit einer** Klasse geführt ist —
+ein neues Modell ohne Zuordnung lässt sie scheitern, statt es stillschweigend
+der einen oder anderen Seite zuzuschlagen.
+
+Das schließt beide Fehler aus: Lerndaten verschwinden nicht nebenbei, und eine
+Mitgliedschaft überlebt nicht bloß deshalb, weil sie auf `User` verweist.
 
 Nicht zu verwechseln mit E04C: Dort kaskadiert dieselbe Menge **absichtlich**
 weg, weil die Person es verlangt.
@@ -645,11 +725,21 @@ heutigen Schema kaskadiert — ohne diesen ausdrücklichen Satz entstünde die
 Spur nach dem Hausmuster und verschwände mit dem, was sie belegen soll.
 E13B verlangt genau das in seiner Prüfung.
 
-**Eigentum.** Alle zehn Modelle mit Fremdschlüssel auf `User` — `AuthSession`,
-`LearningPath`, `Attempt`, `ConceptMastery`, `LessonProgress`,
+**Eigentum — zwei Klassen, ausdrücklich geführt.**
+
+`NUTZEREIGEN` (überlebt jede Organisationslöschung, fällt nur mit dem Konto):
+`AuthSession`, `LearningPath`, `Attempt`, `ConceptMastery`, `LessonProgress`,
 `LearningSession`, `ReviewQueueItem`, `MilestoneAward`, `LabAttempt`,
-`HintReveal` — bleiben **nutzereigen**. Das ist dieselbe Aufzählung wie bei
-E13B, absichtlich wortgleich: Zwei Listen derselben Sache laufen auseinander. Die Organisation
+`HintReveal`.
+
+`ORGANISATIONSEIGEN` (fällt mit der Organisation): `Organization`,
+`OrganizationMembership`, `Cohort`, `CohortMembership`, `CourseAssignment`.
+
+Die Klasse wird **erklärt**, nicht abgeleitet. `OrganizationMembership` und
+`CohortMembership` verweisen auf `User` und sind trotzdem
+organisationseigen — am Fremdschlüssel ist die Klasse nicht zu erkennen. Jedes
+neue Modell bekommt seine Klasse bei der Anlage; ohne sie schlägt die Prüfung
+aus E13B fehl. Die Organisation
 sieht über die Mitgliedschaft, sie besitzt nicht. Das vermeidet `tenantId` an
 jeder Tabelle und hält die Löschung auf Betroffenenwunsch einfach.
 
