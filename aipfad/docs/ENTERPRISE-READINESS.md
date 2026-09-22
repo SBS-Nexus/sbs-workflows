@@ -67,6 +67,12 @@ es gibt keine Mehrfachzählung.
 | ENT-B14 | Logger existiert, wird in genau einer Datei benutzt         | BEOBACHTBARKEIT   | `IMPLEMENTIERT` (ungenutzt)     | E06      |
 | ENT-B15 | 4 von 7 Lab-Arten ohne kanonischen Vertrag                  | INHALTE           | `FEHLT`                         | E01B     |
 
+Vier Zeilen bündeln zwei Befunde derselben Domäne (`ENT-B08`, `ENT-B09`,
+`ENT-B12`, `ENT-B13`). Das ist Absicht und die Konvention lautet: **eine Zeile
+je Domäne und zuständiger Änderung**, nicht je Einzelbefund. Die Änderungen
+sind feiner geschnitten als die Blocker — `ENT-B08` bis `B10` verteilen sich
+auf E05A, E05B und E05C.
+
 **FUNDAMENT_BLOCKER = 15**
 
 | Hauptdomäne       | Zahl   |
@@ -110,7 +116,7 @@ Kunde sie vertraglich fordert.
 | Onboarding               | `VERIFIZIERT`   | `app/onboarding/`, Integrations- und E2E-Prüfungen             |
 | Einstufung               | `VERIFIZIERT`   | `domain/placement/`, Grenzprüfungen beidseitig                 |
 | Lernpfad                 | `IMPLEMENTIERT` | `services/path-service.ts` — ohne eigene Integrationsprüfungen |
-| Lektionen/Übungen        | `VERIFIZIERT`   | 7 Interaktionsformen, `toPublicPayload()` entfernt Lösungen    |
+| Lektionen/Übungen        | `VERIFIZIERT`   | 10 Interaktionsformen, `toPublicPayload()` entfernt Lösungen   |
 | Labs                     | `IMPLEMENTIERT` | 7 `LabKind`, davon 3 mit kanonischem Konfigvertrag             |
 | Wiederholung             | `IMPLEMENTIERT` | `domain/scheduling/`                                           |
 | Fortschritt/Wissenskarte | `IMPLEMENTIERT` | `app/fortschritt/`, `app/wissenslandkarte/`                    |
@@ -197,19 +203,31 @@ Bestätigt wirksam: Eingabevalidierung an jeder Grenze (Zod), Sicherheitskopf-
 zeilen, keine Kommandoausführung (Git-Simulatoren und Terminal-Lab sind reine
 Funktionen), genau ein `dangerouslySetInnerHTML` mit Konstante, kein Open
 Redirect, Lockfile integritätsgesichert, `npm audit --omit=dev` **0 Funde**
-(heute nachgemessen).
+(gemessen am 22.09.2026 gegen das Lockfile dieses Commits).
 
 Nicht wirksam oder eingeschränkt:
 
-| Punkt                              | Zustand         | Nachgeprüft                                            |
-| ---------------------------------- | --------------- | ------------------------------------------------------ |
-| Double-Submit-CSRF                 | `DOKUMENTIERT`  | `assertCsrf`/`getCsrfToken` — **0 Aufrufer**           |
-| CSRF wirksam über                  | `IMPLEMENTIERT` | Origin-Prüfung + `SameSite=Lax` + Next-Server-Actions  |
-| `script-src 'unsafe-inline'`       | `AKZEPTIERT`    | Themenflacker-Skript; Nonce vorgemerkt                 |
-| Ratenbegrenzung                    | `AKZEPTIERT`    | `new Map()` im Modul → je Prozess                      |
-| E-Mail-Enumeration (Registrierung) | `AKZEPTIERT`    | bewusst, mit Begründung                                |
-| Actions auf Haupt-Tags gepinnt     | `AKZEPTIERT`    | `@v4`, nicht Commit-Hash; Lauf trägt keine Geheimnisse |
-| Dev-Abhängigkeiten                 | `AKZEPTIERT`    | heute 4 hoch / 2 mittel, nur Werkzeugkette             |
+| Punkt                              | Zustand                         | Nachgeprüft                                                                                            |
+| ---------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Double-Submit-CSRF                 | `DOKUMENTIERT`                  | `assertCsrf`/`getCsrfToken` — **0 Aufrufer**                                                           |
+| CSRF wirksam über                  | `IMPLEMENTIERT` (eingeschränkt) | `SameSite=Lax` + Next-Server-Actions; Herkunftsprüfung greift nur bei gesetztem `Origin` (siehe unten) |
+| `script-src 'unsafe-inline'`       | `AKZEPTIERT`                    | Themenflacker-Skript; Nonce vorgemerkt                                                                 |
+| Ratenbegrenzung                    | `AKZEPTIERT`                    | `new Map()` im Modul → je Prozess                                                                      |
+| E-Mail-Enumeration (Registrierung) | `AKZEPTIERT`                    | bewusst, mit Begründung                                                                                |
+| Actions auf Haupt-Tags gepinnt     | `AKZEPTIERT`                    | `@v4`, nicht Commit-Hash; Lauf trägt keine Geheimnisse                                                 |
+| Dev-Abhängigkeiten                 | `AKZEPTIERT`                    | heute 4 hoch / 2 mittel, nur Werkzeugkette                                                             |
+
+**Zur Herkunftsprüfung, weil eine Empfehlung darauf ruht.** `src/proxy.ts:43`
+prüft `if (origin && host)`. Fehlt die Kopfzeile `Origin`, wird der Vergleich
+**übersprungen** und die Anfrage läuft weiter — die Prüfung hängt also daran,
+dass die andere Seite sie mitschickt. Das ist kein Fehler im engeren Sinn
+(Browser setzen `Origin` bei seitenfremden Schreibzugriffen), aber es ist
+schwächer als „Origin-Prüfung" nahelegt. Wichtig ist es, weil E05C empfiehlt,
+die verbliebene CSRF-Schicht zu entfernen, und diese Empfehlung sich auf die
+Stärke genau dieser Prüfung stützt. Tragend sind dort `SameSite=Lax` und die
+Server-Actions-Prüfung von Next.js; die Herkunftsprüfung kommt hinzu, wenn
+eine Herkunft da ist. Die Empfehlung bleibt vertretbar — ihre Begründung
+steht jetzt richtig da.
 
 Der dedizierte `claude-security`-Workflow ist nie gelaufen. `docs/SECURITY.md`
 sagt das ausdrücklich. Ersatzprüfungen sind kein Ersatz für einen bestandenen
@@ -293,6 +311,10 @@ keine Bereitstellungskennung in den Logs und keine Metriken.
 Datum. **Dieses Modell darf kein Auditlog werden** — genau das würde die
 Trennung aufheben, die der Datenschutzabschnitt trägt.
 
+„Nur anfügbar" heißt dabei **Anwendungsschnittstelle**, nicht
+Datenbankrecht: Wer auf der Datenbank schreiben darf, kann Zeilen ändern. Die
+genaue Abgrenzung steht in `ENTERPRISE-ROADMAP.md` unter E07.
+
 Ein Auditlog für Unternehmensvorgänge (Rollenwechsel, Organisationseinstellungen,
 Veröffentlichung, Export, Löschung, SSO-Konfiguration) **fehlt** und braucht
 ein eigenes, nur anfügbares Modell.
@@ -312,7 +334,7 @@ ein eigenes, nur anfügbares Modell.
 Nachgeprüfte Lücke: `validateCourseGraph()` prüft Lab-Konfigurationen nur für
 `MERGE_CONFLICT`, `BRANCH` und `GIT_STATE`. Für `TERMINAL`, `TOKENIZER`,
 `CONTEXT_WINDOW` und `PROMPT_REPAIR` gibt es keinen kanonischen Vertrag —
-vier der sieben Lab-Arten sind ungeprüft.
+für `TERMINAL`, `TOKENIZER`, `CONTEXT_WINDOW` und `PROMPT_REPAIR` gibt es keinen KANONISCHEN Vertrag. Ungeprüft sind sie damit nicht: Alle vier haben ein Zod-Schema in der Maske, das beim Anzeigen greift (`terminal-lab.tsx:9`, `tokenizer-lab.tsx:8`, `context-window-lab.tsx:8`, `labs/[slug]/page.tsx:17`). Der Unterschied ist der Zeitpunkt — ein Fehler fällt erst auf, wenn jemand das Lab im Browser öffnet, nicht beim Bauen. `schema.ts:369` sagt das über sich selbst bereits genauer, als die vorige Fassung dieses Dokuments es tat.
 
 ## M — Lehrplan
 
@@ -343,7 +365,7 @@ Umgesetzt: **0, 1, 2, 4, 5**. Offen: **3, 6–20** (16 Stufen).
 | 20 „baut auf Governance (17) auf"              | didaktisch |
 | 9: Grundidee steckt in Stufe 4, hier die Tiefe | didaktisch |
 
-### Zwei Korrekturen an der vorigen Fassung
+### Drei Korrekturen an der vorigen Fassung
 
 **Stufe 3 ist keine Wurzel.** LEHRPLAN sagt: „Baut auf Stufe 4 auf, nicht
 umgekehrt". Stufe 4 ist gebaut. Stufe 3 ist Vertiefung und blockiert nichts.
@@ -354,17 +376,27 @@ führt 10 auf 9 zurück und 9 auf die in Stufe 4 gelegte Grundidee — **nirgend
 auf 8**. Die Kette 8 → 9 → 10 steht so nicht im Dokument; sie war meine
 Hinzufügung.
 
-Richtig ist: Stufe 6 gattert didaktisch **7, 8, 11, 12, 16** und über 11 auch 15. Die Strecke **9 → 10 ist sofort beginnbar**, weil ihre Voraussetzung
+**Drei weitere erfundene Kanten.** Die vorige Fassung zeichnete
+`13 → 14`, `17 → 18` und `20 → 17 + 18`. LEHRPLAN führt 13 und 14 beide auf
+Stufe 2 zurück (Geschwister, keine Kette), 18 allein auf „ein funktionierendes
+AI-Gateway" — nicht auf 17 — und 20 allein auf „Governance (17)". Ich hatte
+die Sorgfalt der 8→9→10-Korrektur auf **eine** Kante angewandt und den Rest
+des Graphen stehen lassen.
+
+Richtig ist: Stufe 6 ist didaktische Voraussetzung für **7, 8, 11, 12 und 16**
+und über 11 auch für 15. Die Strecke **9 → 10 ist sofort beginnbar**, weil ihre
+Voraussetzung (Stufe 4) fertig ist.
 (Stufe 4) fertig ist.
 
 ```
 6 HTTP/APIs → 7 AI-APIs → 8 Tool Calling → 11 Agents → 12 MCP → 16 AI-Sicherheit
                                                   └→ 15 Evaluationen ←┐
 4 LLM-Grundlagen (fertig) → 9 Embeddings-Tiefe → 10 RAG ──────────────┘
-2 Git/GitHub (fertig) → 13 AI-Coding → 14 CI/CD
+2 Git/GitHub (fertig) → 13 AI-Coding
+2 Git/GitHub (fertig) → 14 CI/CD
 17 DACH-Governance   (unabhängig, primärquellenpflichtig)
 18 Production AI     → Umsetzungsabhängigkeit: Gateway + Betrieb
-20 Enterprise AI     → 17 + 18
+20 Enterprise AI     → 17
 ```
 
 ### Umsetzungsabhängigkeiten, getrennt geführt
