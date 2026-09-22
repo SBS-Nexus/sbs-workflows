@@ -289,25 +289,44 @@ protokolliert.
 
 ### E07 — Auditgrundlage · `ENT-B06`
 
-**UMFANG** `AuditEvent` samt **allen Schreibpunkten, die es zum Zeitpunkt
-seiner Auslieferung gibt** — heute ist das genau einer: die Kontolöschung aus
-E04C. Jede spätere Änderung bringt ihre eigenen Schreibpunkte mit und ändert
-das Modell nicht (E08: Organisation angelegt/geändert; E09: Rollenwechsel;
-E11: Zuweisung; E13: Organisation gelöscht).
+**UMFANG** Die Grundlage, nicht die Ereignisse: `AuditEvent` als Modell, eine
+Anwendungsschnittstelle mit ausschließlich Anlegen und Lesen, die feste
+Gestalt der Vorgangsbezeichnungen und Metadaten, die Schwärzungsregel, die
+Abbildsemantik für Akteur und Organisation, der Aufbewahrungsvertrag und die
+Prüfungen des Dienstes selbst.
+
+**KEINE ERZEUGER BEI AUSLIEFERUNG.** Zum Zeitpunkt von E07 gibt es **null**
+fachliche Ereigniserzeuger, und das ist richtig so. Die vorige Fassung sagte,
+E07 bringe „alle Schreibpunkte, die es zu seiner Auslieferung gibt — heute
+genau einer: die Kontolöschung aus E04C" und ordnete E07 zugleich **vor**
+E04C ein. Zu diesem Zeitpunkt ist die Menge leer; das genannte Mitglied kann
+ihr nicht angehören. Der Ring war kleiner als der davor, aber es war einer.
+
+**REGEL FÜR ALLE SPÄTEREN ÄNDERUNGEN.** Wer einen prüfpflichtigen Vorgang
+einführt, bringt dessen Ereigniserzeuger **in derselben Änderung** mit. Nicht
+E07 liefert sie nach, und keine Änderung verweist sie an eine andere:
+
+| Änderung | Erzeuger                                                                     |
+| -------- | ---------------------------------------------------------------------------- |
+| E04C     | Konto gelöscht                                                               |
+| E08B     | Organisation angelegt/geändert, Mitglied hinzugefügt/entfernt, Rolle gesetzt |
+| E09B     | Rollenwanderung                                                              |
+| E11B     | Zuweisung erteilt/entzogen                                                   |
+| E13A     | Organisation stillgelegt/wiederaufgenommen                                   |
+| E13B     | Organisation gelöscht                                                        |
 
 **SCHEMA** eine Tabelle, additiv. **RÜCKNAHME** Tabelle bleibt ungenutzt
 liegen; geschriebene Zeilen gehen nicht verloren.
 
-**AUFBEWAHRUNG** Der Lauf aus E04A bekommt einen **zweiten, getrennt
-parametrierten Durchgang** für Auditzeilen — eine eigene Frist, derselbe
-Mechanismus. Ohne diesen Satz stünde hier eine Aufbewahrungsregel ohne
-Ausführenden, und das ist genau der Befund, den `ENT-B03` festhält.
+**AUFBEWAHRUNG — Reihenfolge ausdrücklich.** E04A baut den geplanten Lauf als
+**Rahmen** mit je Datenart eigener Frist. E07 **meldet die Auditfrist in
+diesen Rahmen an**; vorher gibt es die Tabelle nicht, auf der ein Durchgang
+arbeiten könnte. E04A kann also nicht behaupten, Auditzeilen zu löschen,
+solange E07 nicht da ist — und E07 hat trotzdem einen Ausführenden, statt
+einer Frist ohne Lauf, wie `ENT-B03` sie festhält.
 
-**REIHENFOLGE** E07 steht deshalb **vor** E04C, nicht danach. Die vorige
-Fassung verwies die Schreibpunkte auf E08/E09, die keine nannten, während
-E04C bereits einen Auditeintrag verlangte und E07 sich zur Begründung auf
-ebendiesen Eintrag berief — ein Ring. E04C kann keine Zeile schreiben, deren
-Tabelle es noch nicht gibt.
+**REIHENFOLGE** E07 vor E04C. E04C kann keine Zeile schreiben, deren Tabelle
+es noch nicht gibt; E07 kann dafür bei seiner Auslieferung leer bleiben.
 **NICHT-UMFANG** `AnalyticsEvent` wird **nicht** umgewidmet.
 
 **Was „nur anfügbar" in V1 heißt — und was nicht:**
@@ -371,10 +390,23 @@ kommt aus der Mitgliedschaft, nie aus der Eingabe.
 (Prüfstelle); steht deshalb im Ablauf hinter beiden, obwohl die Nummer es
 anders nahelegt. **Nicht** nach E09B: Die Rollenwanderung betrifft `Role` am
 `User`, nicht die Mitgliedsrolle.
-**RÜCKNAHME** vollständig; es entstehen nur Zeilen in den beiden neuen
-Tabellen.
-**TESTS** E2E je Rolle; Isolationssuite, die aus einer Organisation heraus
-jede Ressource einer fremden zu lesen versucht.
+**AUDIT** Jeder verändernde Vorgang hier bringt seinen eigenen
+Ereigniserzeuger mit (Modell aus E07): Organisation angelegt, Organisation
+geändert, Mitglied hinzugefügt, Mitglied entfernt, Rolle gesetzt. E08 kann das
+nicht tragen — dort gibt es nur Tabellen und keine Vorgänge.
+
+**RÜCKNAHME** Die Fähigkeit lässt sich zurücknehmen; die **Geschichte nicht**.
+Es entstehen Zeilen in den beiden neuen Tabellen **und** anfügende
+Auditzeilen, und die bleiben nach der Rücknahme stehen — sie unterliegen
+allein der Aufbewahrungsfrist aus E07. Die vorige Fassung sagte „es entstehen
+nur Zeilen in den beiden neuen Tabellen"; das schloss gerade die Zeilen aus,
+die das Fundamenttor DATEN verlangt.
+
+**TESTS** Je Vorgang: Der Vorgang gelingt, das erwartete Ereignis liegt vor,
+es trägt die vorgesehenen Abbildfelder, und es enthält weder eine
+Lernendenantwort noch ein Geheimnis.
+**TESTS (Zugang)** E2E je Rolle; Isolationssuite, die aus einer Organisation
+heraus jede Ressource einer fremden zu lesen versucht.
 
 ### E09A — Prüfstelle und Standardverweigerung · `ENT-B02` (Teil 1)
 
@@ -497,17 +529,30 @@ Organisation überdauert.
 **nutzereigen**; die Organisation sieht über die Mitgliedschaft, sie besitzt
 nicht. Gelöscht werden deshalb `Organization`, `OrganizationMembership`,
 `Cohort`, `CohortMembership` und `CourseAssignment`. **Nicht** gelöscht werden
-`Attempt`, `ConceptMastery`, `LessonProgress`, `LearningPath`,
-`ReviewQueueItem`, `LabAttempt`, `HintReveal` und `MilestoneAward` der
-Mitglieder — also jede Tabelle mit Fremdschlüssel auf `User`: Sie gehören den Personen, die nach dem Ende
+die Datensätze der Mitglieder. Der Bestand hat **zehn** Modelle mit
+Fremdschlüssel auf `User` — `AuthSession`, `LearningPath`, `Attempt`,
+`ConceptMastery`, `LessonProgress`, `LearningSession`, `ReviewQueueItem`,
+`MilestoneAward`, `LabAttempt`, `HintReveal` — und **keines** davon fällt mit
+der Organisation, ebenso wenig das Konto selbst. Die vorige Fassung zählte
+acht auf und nannte sie „jede Tabelle mit Fremdschlüssel auf `User`";
+`LearningSession` und `AuthSession` fehlten: Sie gehören den Personen, die nach dem Ende
 der Organisation weiterlernen können. Wer sein Konto löschen will, nimmt
 E04C. Ohne diese Festlegung bliebe offen, was das Löschen einer Organisation
 löscht, die nichts besitzt.
 
 **RÜCKNAHME** **Keine**, mit denselben Auflagen wie E04C: E10 ist
 betriebliche Voraussetzung, Wiederherstellung geht allein über eine Sicherung.
-**TESTS** Trockenlauf listet genau die fünf Tabellen; nach der Löschung ist
-keine Lerndatenzeile eines Mitglieds verschwunden; der Auditeintrag steht noch.
+**TESTS** Trockenlauf listet genau die fünf organisationseigenen Tabellen.
+Nach der Löschung stehen Konto und **alle zehn** nutzerbezogenen Tabellen
+unverändert.
+
+Die Prüfung darf sich dabei **nicht** auf eine von Hand gepflegte Liste
+stützen: Sie liest die nutzerbezogenen Modelle aus dem Schema und prüft jedes.
+Sonst wird ein künftig hinzugefügtes Modell stillschweigend zum Kollateral —
+und genau so ist diese Liste schon einmal zu kurz geraten.
+
+Nicht zu verwechseln mit E04C: Dort kaskadiert dieselbe Menge **absichtlich**
+weg, weil die Person es verlangt.
 
 ### E14 — Kaufmännische Betriebsbereitschaft · `ENT-G06`
 
@@ -573,8 +618,11 @@ heutigen Schema kaskadiert — ohne diesen ausdrücklichen Satz entstünde die
 Spur nach dem Hausmuster und verschwände mit dem, was sie belegen soll.
 E13B verlangt genau das in seiner Prüfung.
 
-**Eigentum.** Lerndaten (`Attempt`, `ConceptMastery`, `LessonProgress`,
-`LearningPath`, `ReviewQueueItem`) bleiben **nutzereigen**. Die Organisation
+**Eigentum.** Alle zehn Modelle mit Fremdschlüssel auf `User` — `AuthSession`,
+`LearningPath`, `Attempt`, `ConceptMastery`, `LessonProgress`,
+`LearningSession`, `ReviewQueueItem`, `MilestoneAward`, `LabAttempt`,
+`HintReveal` — bleiben **nutzereigen**. Das ist dieselbe Aufzählung wie bei
+E13B, absichtlich wortgleich: Zwei Listen derselben Sache laufen auseinander. Die Organisation
 sieht über die Mitgliedschaft, sie besitzt nicht. Das vermeidet `tenantId` an
 jeder Tabelle und hält die Löschung auf Betroffenenwunsch einfach.
 

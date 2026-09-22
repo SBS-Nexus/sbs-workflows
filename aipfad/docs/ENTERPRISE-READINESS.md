@@ -139,21 +139,21 @@ Mandantenmodell aufsetzen kann, aber es ist nicht dasselbe.
 
 ## C — Authentifizierung
 
-| Punkt                     | Zustand         | Anmerkung                                                                                                                                                   |
-| ------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Passwort-Hashing          | `IMPLEMENTIERT` | scrypt, OWASP-Parameter, `timingSafeEqual`; gedeckt ist nur, dass nicht im Klartext gespeichert wird — Parameterwahl und Vergleichsverfahren sind ungeprüft |
-| Sitzungstoken             | `IMPLEMENTIERT` | 32 Byte opak, nur SHA-256 — keine Prüfung deckt die Speicherform: die Hash-Funktion durch die Identität zu ersetzen ließe jede Suite grün                   |
-| Cookie-Flags              | `IMPLEMENTIERT` | `httpOnly`, `SameSite=Lax`, `Secure` bei `https`                                                                                                            |
-| Absolute Gültigkeit       | `IMPLEMENTIERT` | 30 Tage (`SESSION_TTL_DAYS`)                                                                                                                                |
-| **Leerlauf-Gültigkeit**   | **`FEHLT`**     | `lastSeenAt` wird geführt, läuft aber nichts ab                                                                                                             |
-| **Sitzungsentzug (alle)** | `DOKUMENTIERT`  | `destroyAllSessions()` — **kein Aufrufer**                                                                                                                  |
-| Ratenbegrenzung Anmeldung | `AKZEPTIERT`    | wirksam je Instanz, siehe G                                                                                                                                 |
-| **Passwortrichtlinie**    | `IMPLEMENTIERT` | Mindestlänge in Zod; keine Sperrliste, kein Kompromissabgleich                                                                                              |
-| **Passwort zurücksetzen** | **`FEHLT`**     | kein Modell, keine Route, kein Mailversand                                                                                                                  |
-| **E-Mail-Bestätigung**    | **`FEHLT`**     | keine Spalte, kein Ablauf                                                                                                                                   |
-| **SSO / OIDC / SAML**     | **`FEHLT`**     | keine Abstraktion vorhanden                                                                                                                                 |
-| **SCIM**                  | **`FEHLT`**     | —                                                                                                                                                           |
-| **Kontolebenszyklus**     | **`FEHLT`**     | kein Sperren, kein Deaktivieren, kein Selbstlöschen                                                                                                         |
+| Punkt                     | Zustand         | Anmerkung                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Passwort-Hashing          | `IMPLEMENTIERT` | scrypt, OWASP-Parameter, `timingSafeEqual`; gedeckt ist nur, dass nicht im Klartext gespeichert wird — Parameterwahl und Vergleichsverfahren sind ungeprüft                                                                                                                                                                                                            |
+| Sitzungstoken             | `IMPLEMENTIERT` | 32 Byte opak, nur SHA-256 — keine Prüfung deckt die Speicherform: die Hash-Funktion durch die Identität zu ersetzen ließe jede Suite grün                                                                                                                                                                                                                              |
+| Cookie-Flags              | `IMPLEMENTIERT` | `httpOnly`, `SameSite=Lax`, `Secure` bei `https`                                                                                                                                                                                                                                                                                                                       |
+| Absolute Gültigkeit       | `IMPLEMENTIERT` | 30 Tage (`SESSION_TTL_DAYS`)                                                                                                                                                                                                                                                                                                                                           |
+| **Leerlauf-Gültigkeit**   | **`FEHLT`**     | `lastSeenAt` wird geführt, läuft aber nichts ab                                                                                                                                                                                                                                                                                                                        |
+| **Sitzungsentzug (alle)** | `DOKUMENTIERT`  | `destroyAllSessions()` — **kein Aufrufer**                                                                                                                                                                                                                                                                                                                             |
+| Ratenbegrenzung Anmeldung | `AKZEPTIERT`    | wirksam je Instanz, siehe G                                                                                                                                                                                                                                                                                                                                            |
+| **Passwortrichtlinie**    | `IMPLEMENTIERT` | Mindestlänge 10, Höchstlänge 200, Sperrliste häufiger Passwörter (13 Einträge), Ähnlichkeitsprüfung gegen den lokalen Teil der E-Mail-Adresse, Ablehnung eines einzelnen wiederholten Zeichens — `auth/password.ts:94`, aufgerufen bei jeder Registrierung (`auth-actions.ts:133`). Kein Abgleich gegen bekannte Leaks. **Keine Prüfung deckt eine dieser Regeln ab.** |
+| **Passwort zurücksetzen** | **`FEHLT`**     | kein Modell, keine Route, kein Mailversand                                                                                                                                                                                                                                                                                                                             |
+| **E-Mail-Bestätigung**    | **`FEHLT`**     | keine Spalte, kein Ablauf                                                                                                                                                                                                                                                                                                                                              |
+| **SSO / OIDC / SAML**     | **`FEHLT`**     | keine Abstraktion vorhanden                                                                                                                                                                                                                                                                                                                                            |
+| **SCIM**                  | **`FEHLT`**     | —                                                                                                                                                                                                                                                                                                                                                                      |
+| **Kontolebenszyklus**     | **`FEHLT`**     | kein Sperren, kein Deaktivieren, kein Selbstlöschen                                                                                                                                                                                                                                                                                                                    |
 
 Nachgeprüft: `AUTH_SECRET` wird in `server/env.ts` erzwungen (mind. 32
 Zeichen), aber **von keiner Zeile des Anwendungscodes verbraucht**. Sitzungen
@@ -481,6 +481,19 @@ Drei Wege, einer ist zu wählen:
 
 Heute trifft der dritte Fall zu. Die Entscheidung gehört getroffen, bevor
 E05B gebaut wird, weil beide dieselbe Zustellgrenze brauchen.
+
+### Prüflücke, ausdrücklich ohne eigenen Programmpunkt
+
+Drei Regelwerke sind umgesetzt, aber von keiner Prüfung gedeckt: die
+Speicherform des Sitzungstokens, die scrypt-Parameter samt
+`timingSafeEqual` und die Passwortrichtlinie. Jede ließe sich entfernen,
+ohne dass eine Suite rot würde.
+
+Das erzeugt **keinen** neuen Blocker und **keinen** neuen Programmpunkt. Kein
+Freigabetor verlangt diese Belege, und einen Punkt dafür zu erfinden hieße,
+die Zahlen ohne Notwendigkeit wachsen zu lassen. Es steht hier, damit die
+`IMPLEMENTIERT`-Einstufungen im Abschnitt C lesbar bleiben: Sie sind nicht
+Nachlässigkeit, sondern die genaue Auskunft darüber, was heute belegt ist.
 
 ## P — Sicherheitstor ohne Werkzeugbindung
 
