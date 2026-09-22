@@ -40,6 +40,69 @@ Drei in `docs/SECURITY.md` beschriebene Maßnahmen sind nachgeprüft **nicht
 wirksam**: die Aufbewahrungslöschung, das Double-Submit-CSRF-Verfahren und
 (bei mehreren Instanzen) die Ratenbegrenzung.
 
+## Blockerregister
+
+Eine Liste, eine Zählung. Jeder Blocker hat eine feste Kennung, **genau eine**
+Hauptdomäne und eine zuständige Änderung. Die Domänenzahlen sind
+Hauptdomänen-Zahlen und summieren sich deshalb exakt auf die Gesamtzahl —
+es gibt keine Mehrfachzählung.
+
+### Fundament (AIPFAD_ENTERPRISE_FOUNDATION_V1)
+
+| ID      | Titel                                                       | Hauptdomäne       | Zustand                         | Änderung |
+| ------- | ----------------------------------------------------------- | ----------------- | ------------------------------- | -------- |
+| ENT-B01 | Kein `Organization`/`OrganizationMembership`                | MANDANTEN         | `FEHLT`                         | E08      |
+| ENT-B02 | Keine Organisationsautorisierung; `ADMIN` ohne Durchsetzung | AUTORISIERUNG     | `FEHLT`                         | E09      |
+| ENT-B03 | Aufbewahrungslöschung läuft nie                             | DATEN             | `DOKUMENTIERT`                  | E04A     |
+| ENT-B04 | Keine Datenauskunft (Selbstexport)                          | DATEN             | `FEHLT`                         | E04B     |
+| ENT-B05 | Keine Löschung auf Betroffenenwunsch                        | DATEN             | `FEHLT`                         | E04C     |
+| ENT-B06 | Kein Auditlog für Unternehmensvorgänge                      | DATEN             | `FEHLT`                         | E07      |
+| ENT-B07 | Ratenbegrenzung nur je Prozess                              | SICHERHEIT        | `AKZEPTIERT`                    | E03      |
+| ENT-B08 | Ungenutztes CSRF-Verfahren; `unsafe-inline` in der CSP      | SICHERHEIT        | `DOKUMENTIERT`                  | E05C     |
+| ENT-B09 | Kein Leerlauf-Ablauf; Sitzungsentzug ohne Aufrufer          | AUTHENTIFIZIERUNG | `DOKUMENTIERT`                  | E05A     |
+| ENT-B10 | Keine Passwort-Wiederherstellung                            | AUTHENTIFIZIERUNG | `FEHLT`                         | E05B     |
+| ENT-B11 | Keine belegte Wiederherstellung aus einer Sicherung         | BETRIEB           | `FEHLT`                         | E10      |
+| ENT-B12 | Keine Runbooks, keine Migrations-Rücknahmestrategie         | BETRIEB           | `FEHLT`                         | E10      |
+| ENT-B13 | Konfiguration bricht nicht früh ab; `AUTH_SECRET` ungenutzt | BETRIEB           | `IMPLEMENTIERT` (unvollständig) | E02      |
+| ENT-B14 | Logger existiert, wird in genau einer Datei benutzt         | BEOBACHTBARKEIT   | `IMPLEMENTIERT` (ungenutzt)     | E06      |
+| ENT-B15 | 4 von 7 Lab-Arten ohne kanonischen Vertrag                  | INHALTE           | `FEHLT`                         | E01B     |
+
+**FUNDAMENT_BLOCKER = 15**
+
+| Hauptdomäne       | Zahl   |
+| ----------------- | ------ |
+| DATEN             | 4      |
+| BETRIEB           | 3      |
+| SICHERHEIT        | 2      |
+| AUTHENTIFIZIERUNG | 2      |
+| MANDANTEN         | 1      |
+| AUTORISIERUNG     | 1      |
+| BEOBACHTBARKEIT   | 1      |
+| INHALTE           | 1      |
+| LEHRPLAN          | 0      |
+| SONSTIGE          | 0      |
+| **Summe**         | **15** |
+
+Die vorige Fassung nannte 14 bei einer Domänensumme von 15. Die Ursache war
+kein Tippfehler: Das Auditlog war als Anforderung geführt, aber nicht als
+eigener Blocker gezählt. Es ist jetzt `ENT-B06` und DATEN steht auf 4.
+
+### Zusätzlich für den bezahlten Einsatz (AIPFAD_PAID_ENTERPRISE_GA)
+
+| ID      | Titel                                             | Hauptdomäne       | Änderung |
+| ------- | ------------------------------------------------- | ----------------- | -------- |
+| ENT-G01 | Kohorten und Kohortenmitgliedschaft               | MANDANTEN         | E11      |
+| ENT-G02 | Kurszuweisung                                     | MANDANTEN         | E11      |
+| ENT-G03 | Führungskraft-Sicht mit Sichtbarkeitsgrenze       | AUTORISIERUNG     | E11      |
+| ENT-G04 | OIDC-Anmeldung                                    | AUTHENTIFIZIERUNG | E12      |
+| ENT-G05 | Organisationslebenszyklus samt Löschung           | MANDANTEN         | E13      |
+| ENT-G06 | Kaufmännische Betriebsbereitschaft (SLO, Support) | BETRIEB           | E14      |
+
+**GA_ZUSATZBLOCKER = 6**
+
+SCIM und SAML sind **nicht** enthalten; sie bleiben `NACH_GA`, solange kein
+Kunde sie vertraglich fordert.
+
 ## A — Produktvollständigkeit
 
 | Bereich                  | Zustand         | Beleg                                                          |
@@ -255,30 +318,67 @@ vier der sieben Lab-Arten sind ungeprüft.
 
 Umgesetzt: **0, 1, 2, 4, 5**. Offen: **3, 6–20** (16 Stufen).
 
-**Widerspruch zur Annahme im Auftrag.** Der Auftrag führt Stufe 3 als Wurzel
-der Abhängigkeitskette. `docs/LEHRPLAN.md` sagt das Gegenteil: „3 —
-AI/ML/Deep-Learning-Grundlagen: Baut auf Stufe 4 auf, nicht umgekehrt".
-Stufe 4 ist bereits gebaut. Stufe 3 ist damit **keine Voraussetzung**,
-sondern Vertiefung — sie blockiert nichts.
+### Zwei Arten von Abhängigkeit, die nicht vermischt werden dürfen
 
-Ebenso: Stufe 9 (Embeddings) ist laut LEHRPLAN in Stufe 4 der Grundidee nach
-abgedeckt; offen ist die Tiefe, nicht die Voraussetzung.
+- **Didaktische Abhängigkeit** — Stufe Y ist ohne Stufe X nicht verständlich.
+  Nur diese steht in `docs/LEHRPLAN.md` und nur sie bestimmt die
+  Reihenfolge des Lernens.
+- **Umsetzungsabhängigkeit** — Stufe Y braucht für ihre Übungen eine
+  technische Grundlage (etwa ein Live-Gateway). Das ist eine
+  Architekturentscheidung, keine Aussage über den Lehrstoff, und sie kann
+  durch deterministische Übungen umgangen werden.
 
-Die tatsächlich bindende Kette ist:
+### Was LEHRPLAN.md wörtlich hergibt
+
+| Aussage im Dokument                            | Art        |
+| ---------------------------------------------- | ---------- |
+| 6 ist „Voraussetzung für Stufe 7"              | didaktisch |
+| 8 „baut auf Stufe 7 auf"                       | didaktisch |
+| 10 „baut auf Stufe 9 auf"                      | didaktisch |
+| 11 „baut auf Tool Calling (Stufe 8) auf"       | didaktisch |
+| 12 „baut auf Agents auf"                       | didaktisch |
+| 13 und 14 bauen auf Stufe 2 auf                | didaktisch |
+| 15 „sinnvoll erst mit Agents/RAG"              | didaktisch |
+| 16 folgt, „sobald Agents/MCP existieren"       | didaktisch |
+| 20 „baut auf Governance (17) auf"              | didaktisch |
+| 9: Grundidee steckt in Stufe 4, hier die Tiefe | didaktisch |
+
+### Zwei Korrekturen an der vorigen Fassung
+
+**Stufe 3 ist keine Wurzel.** LEHRPLAN sagt: „Baut auf Stufe 4 auf, nicht
+umgekehrt". Stufe 4 ist gebaut. Stufe 3 ist Vertiefung und blockiert nichts.
+
+**Stufe 6 gilt nicht für Stufe 10.** Die vorige Fassung schrieb, ohne Stufe 6
+hingen „7, 8, 10, 11, 12, 15 und 16". Für 10 stimmt das nicht: LEHRPLAN
+führt 10 auf 9 zurück und 9 auf die in Stufe 4 gelegte Grundidee — **nirgends
+auf 8**. Die Kette 8 → 9 → 10 steht so nicht im Dokument; sie war meine
+Hinzufügung.
+
+Richtig ist: Stufe 6 gattert didaktisch **7, 8, 11, 12, 16** und über 11 auch 15. Die Strecke **9 → 10 ist sofort beginnbar**, weil ihre Voraussetzung
+(Stufe 4) fertig ist.
 
 ```
-6 HTTP/APIs → 7 AI-APIs → 8 Structured Outputs/Tool Calling
-                                  ├→ 11 Agents → 12 MCP → 16 AI-Sicherheit
-                                  └→ (9 Embeddings-Tiefe) → 10 RAG
+6 HTTP/APIs → 7 AI-APIs → 8 Tool Calling → 11 Agents → 12 MCP → 16 AI-Sicherheit
+                                                  └→ 15 Evaluationen ←┐
+4 LLM-Grundlagen (fertig) → 9 Embeddings-Tiefe → 10 RAG ──────────────┘
 2 Git/GitHub (fertig) → 13 AI-Coding → 14 CI/CD
-10 + 11 → 15 Evaluationen
-17 DACH-Governance  (unabhängig, primärquellenpflichtig)
-18 Production AI    (setzt echtes Gateway + Betrieb voraus)
-20 Enterprise AI    (setzt 17 + 18 voraus)
+17 DACH-Governance   (unabhängig, primärquellenpflichtig)
+18 Production AI     → Umsetzungsabhängigkeit: Gateway + Betrieb
+20 Enterprise AI     → 17 + 18
 ```
 
-Stufe 6 ist der einzige echte Flaschenhals: Ohne sie hängen 7, 8, 10, 11, 12,
-15 und 16.
+### Umsetzungsabhängigkeiten, getrennt geführt
+
+| Stufe | Umsetzungsabhängigkeit                    | Vermeidbar?                                       |
+| ----- | ----------------------------------------- | ------------------------------------------------- |
+| 7, 8  | Anbieter-Beispielcode gegen Primärquellen | ja — lesende Beispiele statt Live-Aufrufe         |
+| 10    | Vektorsuche für ein praktisches Lab       | ja — deterministischer Korpus, kein Live-Anbieter |
+| 11,12 | Werkzeugausführung                        | ja — simuliert, wie die Git-Labs                  |
+| 18    | echtes Gateway und echter Betrieb         | **nein** — das ist der Gegenstand der Stufe       |
+
+Nur Stufe 18 hat eine Umsetzungsabhängigkeit, die sich nicht wegentwerfen
+lässt. Alle übrigen lassen sich deterministisch bauen, so wie es die
+Git-Simulatoren in Stufe 2 bereits vormachen.
 
 ## N — Live-KI
 
@@ -286,23 +386,87 @@ Heute bewusst keine. Die Entwurfsthemen für ein späteres Gateway sind in
 `ENTERPRISE-ROADMAP.md` gesammelt; nichts davon ist begonnen, und nichts
 davon sollte vor den Betriebsgrundlagen begonnen werden.
 
-## O — Was „unternehmenstauglich" hier heißen müsste
+## O — Zwei Meilensteine, nicht einer
 
-| Fähigkeit                               | Einstufung                       |
-| --------------------------------------- | -------------------------------- |
-| Organisationen + Mitgliedschaft         | `ERFORDERLICH_FÜR_ENTERPRISE_V1` |
-| Organisationsrollen + Autorisierung     | `ERFORDERLICH_FÜR_ENTERPRISE_V1` |
-| Auditlog                                | `ERFORDERLICH_FÜR_ENTERPRISE_V1` |
-| Aufbewahrung tatsächlich ausführen      | `ERFORDERLICH_FÜR_ENTERPRISE_V1` |
-| Gemeinsame Ratenbegrenzung              | `ERFORDERLICH_FÜR_ENTERPRISE_V1` |
-| Betriebsbeobachtbarkeit                 | `ERFORDERLICH_FÜR_ENTERPRISE_V1` |
-| Sicherung + belegte Wiederherstellung   | `ERFORDERLICH_FÜR_ENTERPRISE_V1` |
-| Auskunft/Löschung (Betroffenenrechte)   | `ERFORDERLICH_FÜR_ENTERPRISE_V1` |
-| Kohorten + Zuweisung                    | `VOR_BEZAHLTEM_ENTERPRISE`       |
-| Fortschrittsberichte für Führungskräfte | `VOR_BEZAHLTEM_ENTERPRISE`       |
-| SSO (OIDC)                              | `VOR_BEZAHLTEM_ENTERPRISE`       |
-| Mandantenlöschung                       | `VOR_BEZAHLTEM_ENTERPRISE`       |
-| SCIM                                    | `NACH_V1`                        |
-| SAML                                    | `NACH_V1`                        |
-| Eigenes Content-Studio                  | `NACH_V1`                        |
-| Rollenbasierte Tracks                   | `NICHT_NÖTIG` für V1             |
+Die vorige Fassung vermischte „Enterprise V1" mit „vor bezahltem Einsatz".
+Daraus entstand ein Widerspruch: Das Produkttor verlangte Zuweisung, die
+Einstufung führte Zuweisung zugleich als nicht-V1. Deshalb zwei getrennte
+Ziele. Eine Fähigkeit steht in genau einer Spalte.
+
+### AIPFAD_ENTERPRISE_FOUNDATION_V1
+
+Technisch tragfähige Grundlage für den Einsatz in einer Organisation — noch
+kein verkaufsfähiges Produkt.
+
+| Fähigkeit                              | Blocker          |
+| -------------------------------------- | ---------------- |
+| Organisationen + Mitgliedschaft        | ENT-B01          |
+| Organisationsautorisierung + Isolation | ENT-B02          |
+| Auditereignisse                        | ENT-B06          |
+| Aufbewahrung läuft tatsächlich         | ENT-B03          |
+| Auskunft (Export)                      | ENT-B04          |
+| Löschung auf Betroffenenwunsch         | ENT-B05          |
+| Gemeinsame Ratenbegrenzung             | ENT-B07          |
+| Sitzungslebenszyklus                   | ENT-B09          |
+| Passwort-Wiederherstellung             | ENT-B10          |
+| Betriebsbeobachtbarkeit                | ENT-B14          |
+| Belegte Wiederherstellung + Runbooks   | ENT-B11, ENT-B12 |
+| Kanonische Inhaltsverträge             | ENT-B15          |
+| Konfigurationsvertrag                  | ENT-B13          |
+| Anfragegrenze (CSRF-Entscheidung, CSP) | ENT-B08          |
+
+### AIPFAD_PAID_ENTERPRISE_GA
+
+Zusätzlich, und erst danach:
+
+| Fähigkeit                               | Blocker |
+| --------------------------------------- | ------- |
+| Kohortenverwaltung                      | ENT-G01 |
+| Kurszuweisung                           | ENT-G02 |
+| Berichte für Führungskräfte             | ENT-G03 |
+| OIDC-Anmeldung                          | ENT-G04 |
+| Organisationslebenszyklus samt Löschung | ENT-G05 |
+| Kaufmännische Betriebsbereitschaft      | ENT-G06 |
+
+### Weder noch
+
+| Fähigkeit              | Einstufung    | Grund                                       |
+| ---------------------- | ------------- | ------------------------------------------- |
+| SCIM                   | `NACH_GA`     | erst bei vertraglicher Forderung            |
+| SAML                   | `NACH_GA`     | dito; OIDC deckt den Regelfall              |
+| E-Mail-Bestätigung     | **offen**     | siehe Entscheidung unten                    |
+| Eigenes Content-Studio | `NACH_GA`     | Validator und Leseansicht genügen bis dahin |
+| Rollenbasierte Tracks  | `NICHT_NÖTIG` | setzt mehr Inhalt voraus                    |
+
+### Offene Entscheidung: E-Mail-Bestätigung
+
+Bewusst **nicht** stillschweigend in die Passwort-Wiederherstellung gebündelt.
+Drei Wege, einer ist zu wählen:
+
+- `FUNDAMENT_ERFORDERLICH` — wenn Organisationen Einladungen per E-Mail
+  verschicken sollen; dann ist die Adresse ein Vertrauensanker.
+- `GA_ERFORDERLICH` — wenn Einladungen erst mit Kohorten kommen.
+- `AUFGESCHOBEN` — solange es nur Selbstregistrierung gibt und die Adresse
+  bloß Anmeldename ist.
+
+Heute trifft der dritte Fall zu. Die Entscheidung gehört getroffen, bevor
+E05B gebaut wird, weil beide dieselbe Zustellgrenze brauchen.
+
+## P — Sicherheitstor ohne Werkzeugbindung
+
+Die vorige Fassung machte die Freigabe davon abhängig, dass der
+`claude-security`-Workflow „tatsächlich gelaufen" ist. Das bindet die
+Produktionsreife an die Verfügbarkeit eines Werkzeugs, das in früheren
+Sitzungen bereits nicht verfügbar war. Ersetzt durch ein sachliches Tor:
+
+**`UNABHÄNGIGE_SICHERHEITSPRÜFUNG = BESTANDEN`**, belegt durch:
+
+- eine Bedrohungsmodell-Durchsicht,
+- eine Prüfung von Authentifizierung und Autorisierung,
+- eine Abhängigkeits- und Laufzeitprüfung,
+- `kritisch = 0`, `hoch = 0`,
+- jeden mittleren Fund entweder behoben oder mit Verantwortlichem und
+  Begründung angenommen.
+
+`claude-security` ist das bevorzugte Mittel, wenn es läuft. Es ist nicht das
+Kriterium.
