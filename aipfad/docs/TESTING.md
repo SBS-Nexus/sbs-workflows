@@ -9,35 +9,47 @@ Zielbild — was hier steht, wurde beim Schreiben ausgeführt und ist grün).
 npm run test:unit          # Domainlogik, keine I/O — Millisekunden
 npm run test:integration   # Server-Dienste gegen echte PostgreSQL-Testdatenbank
 npm run test:e2e           # Playwright gegen den Produktionsbuild
-npm run verify              # typecheck + lint + unit + build
+npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 64 bestehen
+### Unit-Tests — 456 bestehen
 
-`tests/unit/`: `mastery.test.ts`, `spaced-repetition.test.ts`,
+`tests/unit/` (14 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
 `hint-ladder.test.ts`, `placement.test.ts`, `grade.test.ts`,
-`content-validation.test.ts`. Reine Domainlogik ohne Datenbank — deckt
+`content-validation.test.ts`, `rate-limit.test.ts`, `terminal.test.ts`,
+`eintraege.test.ts` sowie die Git-Domäne aus Ausbaustufe 2
+(`git-branches`, `git-merge-conflict`, `git-schalter`,
+`git-working-tree`, `grade-git-kinds`). Reine Domainlogik ohne Datenbank — deckt
 Kompetenzberechnung (inkl. Deckelung nach gesehener Lösung, abnehmender
 Ertrag, Gerüst-Stufen-Faktoren), Wiederholungsplanung, Hinweisleiter-Sperren,
 Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 3 bestehen
+### Integrationstests — 74 bestehen
 
-`tests/integration/auth.test.ts`, gegen eine echte, separate
+`tests/integration/`: `auth.test.ts`, `content-publication.test.ts`,
+`exercise-service.test.ts`, `lesson-progress.test.ts`,
+`onboarding-placement.test.ts`, `stage2-git.test.ts` — gegen eine echte, separate
 PostgreSQL-Testdatenbank (`TEST_DATABASE_URL`, per Docker-Compose auf
 Port 5433 wie die Entwicklungsdatenbank, eigene Datenbank `aipfad_test`
-innerhalb desselben Containers). Deckt: Passwort-Hash wird korrekt
-verifiziert, eindeutiger Index auf `email` wird durchgesetzt,
-`onDelete: Cascade` entfernt abhängige Sitzungen beim Löschen eines Kontos.
+innerhalb desselben Containers).
 
-**Noch nicht abgedeckt:** Server-Actions-Integrationstests für
-`exercise-service`/`lesson-service`/`path-service` gegen die Testdatenbank
-— bisher nur indirekt über den E2E-Test verifiziert. Naheliegender nächster
-Schritt.
+`auth.test.ts` deckt ab: Passwort-Hash wird korrekt verifiziert, eindeutiger
+Index auf `email` wird durchgesetzt, `onDelete: Cascade` entfernt abhängige
+Sitzungen beim Löschen eines Kontos.
 
-### End-to-End — 2 bestehen, gegen den echten Produktionsbuild
+`onboarding-placement.test.ts` deckt den Abschluss des Onboardings ab:
+Abbruch vor der Transaktion, Abbruch MITTEN in ihr (die Kurse werden dafür
+kurz auf `DRAFT` gesetzt, damit der Fehler erst nach dem Schreiben der
+Nutzerzeile auftritt), Abweisung eines zweiten Durchlaufs, Trennung der
+Konten und die Rückrechnung Punktzahl → Band. Dazu die Client-Grenze: Was
+nach dem Abschluss zurückgegeben wird, ist Wort für Wort gegen die Fragen
+geprüft und seine Schlüsselmenge abschließend aufgezählt — mit gemischt
+richtigen und falschen Antworten, damit auch ein Feld auffällt, das der
+Server nur im Fehlerfall anhängte.
+
+### End-to-End — 37 bestehen, gegen den echten Produktionsbuild
 
 `e2e/kernablauf.spec.ts` (Desktop): Registrierung → Onboarding → Pfad →
 Lektion → Aufgabe einreichen → Kompetenz-Rückmeldung sichtbar → Lektion
@@ -48,6 +60,20 @@ tatsächlich in der Datenbank gespeicherten `ConceptMastery`-Zeile).
 
 `e2e/mobil.spec.ts` (Pixel-7-Viewport): Startseite und Navigation bleiben
 auf einem schmalen Bildschirm bedienbar.
+
+`e2e/onboarding-placement.spec.ts`: der Einstufungsablauf — überspringen,
+vollständig beantworten, zurückgehen ohne Antwortverlust, und die Sperre
+gegen ein Absenden mitten im Ablauf (mit Gegenprobe, dass das Absenden am
+Ende durchkommt). Dazu: Nach dem Absenden springt der Fokus auf das
+Ergebnis statt auf den Seitenanfang — für beide Ausgänge, mit und ohne
+Einstufung. Dass dabei wirklich ein Rahmen gezeichnet wird, prüft der
+beantwortete Weg, über die Tastatur ausgelöst (nach einem Mausklick bleibt
+er richtigerweise aus). Der übersprungene Weg prüft nur Sprungpunkt und
+Beschriftung. Die axe-Prüfung des Onboardings geht jetzt bis zum
+Ergebnisbildschirm.
+
+`e2e/accessibility.spec.ts`: axe-Prüfung je Seite. `e2e/stage2-git.spec.ts`
+und `e2e/regression-codex-pr29.spec.ts` stammen aus Ausbaustufe 2.
 
 Läuft gegen `npm run build && npm run start` auf Port 3101 (nicht gegen den
 Entwicklungsserver) — bildet damit Server Components, Caching und die
@@ -66,15 +92,27 @@ Aufgaben-Einreichung, Labs-Übersicht und das Tokenizer-Lab. In jedem Fall:
 
 ## Bekannte Lücken (ehrlich, nicht verschwiegen)
 
-- Kein automatisierter Accessibility-Scan (axe o. ä.) — bisher nur manuelle
-  Prüfung (semantisches HTML, sichtbarer Fokus, Formular-Labels, keine
-  Farbe als einziges Signal). Naheliegender nächster Schritt.
-- Kein Performance-Budget-Check-Skript (`perf-budget.json` +
-  Prüfskript aus PythonPfad) — diese Ausbaustufe hat kein
-  Pyodide-artiges Gewicht, das ein solches Budget dringend nötig macht,
-  aber es fehlt trotzdem für den Fall wachsender Bundle-Größe.
-- CI-Workflow-Datei für `aipfad/` selbst ist noch nicht angelegt (siehe
-  `docs/DEPLOYMENT.md`, "Nächste Schritte").
+- `path-service` hat keine eigenen Integrationstests — er wird bisher nur
+  über Onboarding und E2E mitgeprüft.
+- `evaluatePlacement()` wird auf der Unit-Ebene mit Teilmengen geprüft,
+  `finalisiereOnboarding()` dagegen nie: Das Schema ließe eine einzelne
+  Antwort zu, die Oberfläche erzeugt das nicht, und die dann gespeicherte
+  Punktzahl fiele irreführend niedrig aus.
+- Die Rahmenprüfung liest `outlineStyle` und `outlineWidth`, nicht
+  `outlineColor`. Ein von Hand geschriebenes `outline: 2px solid transparent`
+  käme also durch, ohne dass etwas gezeichnet wird. (Tailwinds
+  `outline-hidden` ist NICHT dieser Fall: Es setzt außerhalb von
+  `forced-colors` `outline-style: none` und wird erkannt.)
+- Keine Lastprüfung. Die Sperre gegen zwei gleichzeitige Abschlüsse ist mit
+  genau zwei Vorgängen nachgestellt, nicht mit vielen.
+
+Drei Einträge standen hier, die es nicht mehr gibt: Der
+Accessibility-Scan (`e2e/accessibility.spec.ts`, 8 axe-Prüfungen), das
+Leistungsbudget (`perf-budget.json`, `scripts/pruefe-leistungsbudget.mjs`,
+`npm run perf`) und der CI-Workflow (`.github/workflows/aipfad-ci.yml`)
+sind vorhanden. Sie wurden angelegt, ohne dass diese Liste nachgezogen
+wurde — eine Lückenliste, die erfundene Lücken nennt, ist schlimmer als
+keine.
 
 ## Ausbaustufe 2 (Git & GitHub)
 

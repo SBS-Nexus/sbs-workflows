@@ -30,6 +30,11 @@ import { course } from '../src/content/course';
 import { concepts as conceptDrafts } from '../src/content/concepts';
 import { labs as labDrafts } from '../src/content/labs';
 import { SETUP_SECTIONS } from '../src/content/setup-commands';
+import { placementQuestions } from '../src/content/placement';
+import {
+  placementQuestionSchema,
+  validatePlacementQuestions,
+} from '../src/domain/placement/placement';
 
 /**
  * Ein Schemafehler wird zum gewöhnlichen Befund, statt das Skript zu
@@ -117,6 +122,19 @@ function main(): number {
   }
 
   issues.push(...validateCommandReference(referenzBefehle).issues);
+
+  // Die Einstufung ist Lernmaterial wie jedes andere: Eine doppelte Kennung
+  // oder eine richtige Antwort, die es nicht gibt, machen sie unbrauchbar.
+  const geprueftePlacement = placementQuestions.flatMap((frage, i) => {
+    const geprueft = pruefeSchema(
+      placementQuestionSchema,
+      frage,
+      `placement[${i}]:${(frage as { id?: string }).id ?? '?'}`,
+      issues,
+    );
+    return geprueft ? [geprueft] : [];
+  });
+  issues.push(...validatePlacementQuestions(geprueftePlacement));
 
   // --- Bericht -------------------------------------------------------------
   for (const issue of sortiere(issues)) {

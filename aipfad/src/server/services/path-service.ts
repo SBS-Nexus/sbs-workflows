@@ -1,16 +1,17 @@
 import 'server-only';
 import { prisma } from '@/server/db/prisma';
+import { pfadBegruendung } from '@/domain/placement/placement';
 import { veroeffentlichteAufgabe, veroeffentlichteLektion } from '@/server/content/publication';
 import type { LearningPathModel } from '@/generated/prisma/models';
 
 /**
  * Pfad-Dienst: verwaltet den individuellen Lernpfad (`LearningPath`, mit
- * Begründungstext — docs/LERNMODELL.md §7 "Pfadaufbau") und bestimmt den
+ * Begründungstext — pythonpfad/docs/LERNMODELL.md §7 "Pfadaufbau") und bestimmt den
  * nächsten sinnvollen Schritt. Priorität: fällige Wiederholungen → begonnene
  * Lektion → nächste offene Lektion → alles erledigt.
  *
  * Diese Ausbaustufe hat genau einen Kurs und überspringt nie eine Lektion
- * (siehe LERNMODELL.md "Grundregel") — der Pfad enthält deshalb schlicht alle
+ * (siehe pythonpfad/docs/LERNMODELL.md §7 "Grundregel") — der Pfad enthält deshalb schlicht alle
  * veröffentlichten Lektionen in Modul-/Lektionsreihenfolge, nicht personalisiert
  * gekürzt. Eine Einstufung kann das später verfeinern, ohne dass sich diese
  * Funktion ändert.
@@ -109,9 +110,9 @@ export async function getOrCreatePath(userId: string): Promise<LearningPathModel
       courseId: course.id,
       title: course.title,
       lessonSlugs,
-      rationale:
-        'Dieser Pfad enthält alle Lektionen dieser Ausbaustufe in der vorgesehenen Reihenfolge. ' +
-        'Es wird nie eine Lektion übersprungen — spätere Inhalte bauen darauf auf.',
+      // Derselbe Text wie beim Abschluss des Onboardings — zwei Fassungen
+      // desselben Satzes liefen auseinander.
+      rationale: pfadBegruendung(null),
     },
   });
 

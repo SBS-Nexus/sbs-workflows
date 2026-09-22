@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { einstellungenBeantworten, onboardingAbschliessen, registriere } from './helfer';
 
 /**
  * Automatisierter Accessibility-Smoke-Test (WCAG 2.2 A/AA, automatisiert
@@ -48,27 +49,15 @@ test('Anmeldung: keine serious/critical Verstöße', async ({ page }) => {
 });
 
 test('Pfad (angemeldet): keine serious/critical Verstöße', async ({ page }) => {
-  const email = `e2e-a11y-${Date.now()}@aipfad-test.local`;
-  await page.goto('/registrieren');
-  await page.getByLabel('Name').fill('A11y Test');
-  await page.getByLabel('E-Mail-Adresse').fill(email);
-  await page.getByLabel('Passwort').fill('ein-sehr-sicheres-testpasswort-123');
-  await page.getByRole('button', { name: 'Konto anlegen' }).click();
-  await expect(page).toHaveURL(/\/onboarding$/);
-  await page.getByRole('button', { name: 'Weiter' }).click();
-  await expect(page).toHaveURL(/\/pfad$/);
+  await registriere(page, 'A11y Test');
+  await onboardingAbschliessen(page);
 
   await expectNoSeriousViolations(page);
 });
 
 test('Lektionsschritt: keine serious/critical Verstöße', async ({ page }) => {
-  const email = `e2e-a11y-lesson-${Date.now()}@aipfad-test.local`;
-  await page.goto('/registrieren');
-  await page.getByLabel('Name').fill('A11y Test');
-  await page.getByLabel('E-Mail-Adresse').fill(email);
-  await page.getByLabel('Passwort').fill('ein-sehr-sicheres-testpasswort-123');
-  await page.getByRole('button', { name: 'Konto anlegen' }).click();
-  await page.getByRole('button', { name: 'Weiter' }).click();
+  await registriere(page, 'A11y Test');
+  await onboardingAbschliessen(page);
   await page.getByRole('link', { name: 'Weiterlernen' }).click();
   await expect(page).toHaveURL(/\/lektion\/.+\/1$/);
 
@@ -76,13 +65,8 @@ test('Lektionsschritt: keine serious/critical Verstöße', async ({ page }) => {
 });
 
 test('Labs-Übersicht: keine serious/critical Verstöße', async ({ page }) => {
-  const email = `e2e-a11y-labs-${Date.now()}@aipfad-test.local`;
-  await page.goto('/registrieren');
-  await page.getByLabel('Name').fill('A11y Test');
-  await page.getByLabel('E-Mail-Adresse').fill(email);
-  await page.getByLabel('Passwort').fill('ein-sehr-sicheres-testpasswort-123');
-  await page.getByRole('button', { name: 'Konto anlegen' }).click();
-  await page.getByRole('button', { name: 'Weiter' }).click();
+  await registriere(page, 'A11y Test');
+  await onboardingAbschliessen(page);
   await page.goto('/labs');
 
   await expectNoSeriousViolations(page);
@@ -108,10 +92,9 @@ test('Ausbaustufe 2: keine serious/critical Verstöße auf den neuen Seiten', as
   await page.getByLabel('Passwort').fill('ein-sehr-sicheres-testpasswort-123');
   await page.getByRole('button', { name: 'Konto anlegen' }).click();
   await expect(page).toHaveURL(/\/onboarding$/);
-  await page.getByRole('button', { name: 'Weiter' }).click();
   // Erst wenn das Onboarding wirklich abgeschlossen ist, weiterspringen —
   // sonst landet der Aufruf auf der Anmeldeseite.
-  await expect(page).toHaveURL(/\/pfad$/);
+  await onboardingAbschliessen(page);
 
   await test.step('Git-State-Lab', async () => {
     await page.goto('/labs/git-state-lab');
@@ -144,4 +127,29 @@ test('Ausbaustufe 2: keine serious/critical Verstöße auf den neuen Seiten', as
     await expect(page.getByText('Du führst jetzt git commit aus.')).toBeVisible();
     await expectNoSeriousViolations(page);
   });
+});
+
+test('Onboarding und Einstufung: keine serious/critical Verstöße', async ({ page }) => {
+  await registriere(page, 'Barrierefreiheitstest');
+
+  // Erster Schritt: eine Einstellung.
+  await expectNoSeriousViolations(page);
+
+  // Die Entscheidung über die Einstufung ist ein eigener Bildschirm.
+  await einstellungenBeantworten(page);
+  await expectNoSeriousViolations(page);
+
+  await page.getByRole('button', { name: 'Einschätzung machen' }).click();
+  await expectNoSeriousViolations(page);
+
+  // Und der Bildschirm am Ende: Er trägt seit der Einstufungs-Anbindung
+  // einen eigenen Sprungpunkt und die Liste der Erklärungen — bis hierher
+  // hat ihn keine axe-Prüfung je gesehen.
+  for (let i = 0; i < 8; i += 1) {
+    await page.getByRole('radio').first().check();
+    await page.getByRole('button', { name: 'Weiter' }).click();
+  }
+  await page.getByRole('button', { name: /Los geht/ }).click();
+  await expect(page.getByRole('heading', { name: 'Deine Einschätzung' })).toBeVisible();
+  await expectNoSeriousViolations(page);
 });

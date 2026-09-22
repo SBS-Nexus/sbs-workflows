@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
+  antwortFehler,
+  bandZuPunktzahl,
   DONT_KNOW_OPTION_ID,
   evaluatePlacement,
+  oeffentlicheFragen,
+  oeffentlichesErgebnis,
+  pfadBegruendung,
+  placementQuestionSchema,
+  validatePlacementQuestions,
   type PlacementQuestion,
 } from '@/domain/placement/placement';
+import { placementQuestions } from '@/content/placement';
 
 const questions: PlacementQuestion[] = [
   {
@@ -83,5 +91,268 @@ describe('evaluatePlacement', () => {
       'message',
       'version',
     ]);
+  });
+});
+
+/**
+ * Die Einstufung ist jetzt im Onboarding eingehängt. Geprüft wird das, was
+ * dabei neu hinzukommt: was der Browser sehen darf, was er schicken darf,
+ * und wie ein Ergebnis den Pfad einordnet.
+ */
+describe('Fragen für den Browser', () => {
+  const fragen = placementQuestions.map((f) => placementQuestionSchema.parse(f));
+  const oeffentlich = oeffentlicheFragen(fragen);
+
+  it('gibt weder Lösung noch Erklärung heraus', () => {
+    const serialisiert = JSON.stringify(oeffentlich);
+    for (const frage of fragen) {
+      expect(serialisiert).not.toContain(frage.explanation);
+    }
+    // Die Schlüsselmenge ist abschließend aufgezählt, nicht nur gegen eine
+    // Verbotsliste gehalten. Eine Verbotsliste fängt nur, was heute schon so
+    // heißt: Ein `loesung: frage.correctOptionId` stünde auf keiner und
+    // brächte die richtige Antwort in den Browser, BEVOR sie gegeben ist.
+    for (const frage of oeffentlich) {
+      const erlaubt =
+        frage.context === undefined
+          ? ['area', 'id', 'options', 'question']
+          : ['area', 'context', 'id', 'options', 'question'];
+      expect(Object.keys(frage).sort(), frage.id).toEqual(erlaubt);
+      for (const option of frage.options) {
+        expect(Object.keys(option).sort(), option.id).toEqual(['id', 'text']);
+      }
+    }
+
+    // Und die Texte kommen Wort für Wort aus der Frage: Auf die Schlüssel zu
+    // sehen genügt nicht, wenn sich in einen erlaubten Text alles
+    // hineinschreiben ließe — etwa die Lösung im Fragetext.
+    for (let i = 0; i < fragen.length; i += 1) {
+      const quelle = fragen[i]!;
+      const fassung = oeffentlich[i]!;
+      expect(fassung.id, quelle.id).toBe(quelle.id);
+      // `area` gehört dazu, obwohl es niemand anzeigt: Es steht in der
+      // Nutzlast, die an die Browserkomponente geht, und damit im
+      // Quelltext der Seite. Der Aufzählungstyp ist heute der einzige
+      // Schutz — einmal auf `string` verbreitert, und nichts hier hätte es
+      // gemerkt. Nachgestellt: Mit `area: `${a}|${loesung}`` (per `as`
+      // durchgereicht) standen alle acht Lösungen in der Nutzlast, während
+      // sämtliche Tore grün blieben.
+      expect(fassung.area, quelle.id).toBe(quelle.area);
+      expect(fassung.question, quelle.id).toBe(quelle.question);
+      // `context` gehört ausdrücklich dazu: Es ist der zweite freie Text,
+      // der vor dem Absenden in den Browser geht, und die Schlüsselmenge
+      // erlaubt ihn ja gerade. Ein „(Tipp: a)" dahinter käme an jeder
+      // anderen Prüfung vorbei und stünde über den Optionen, bevor
+      // geantwortet ist. `toBe(undefined)` für die Fragen ohne Kontext ist
+      // dabei eine echte Zusicherung, keine leere.
+      expect(fassung.context, quelle.id).toBe(quelle.context);
+      expect(
+        fassung.options.filter((o) => o.id !== DONT_KNOW_OPTION_ID).map((o) => o.text),
+        quelle.id,
+      ).toEqual(quelle.options.map((o) => o.text));
+    }
+  });
+
+  it('hängt jeder Frage "Weiß ich nicht" an', () => {
+    for (const frage of oeffentlich) {
+      // Die erzeugte Option ganz und gar festgenagelt — Kennung UND Text.
+      //
+      // Der Text stand als letzter GEZEICHNETER Text vor dem Absenden
+      // nirgends geprüft (`area` ging ebenfalls ungeprüft hinaus, wird aber
+      // nicht angezeigt — siehe oben):
+      // Der Vergleich der Optionstexte schließt diese Option aus
+      // (`o.id !== DONT_KNOW_OPTION_ID`), die Reihenfolgeprüfung schneidet sie
+      // mit `slice(0, -1)` ab, und hier stand nur die Kennung. Ein
+      // „Weiß ich nicht (nicht b)" wäre durch Übersetzung, Unit- und
+      // Integrationsprüfungen gekommen und hätte die Lösung unter JEDER
+      // Frage angezeigt, bevor sie beantwortet ist.
+      //
+      // Der erwartete Text steht hier ausgeschrieben. Aus `DONT_KNOW_TEXT`
+      // abzuleiten ginge heute ohnehin nicht — die Konstante ist nicht
+      // exportiert —, aber der Grund gilt unabhängig davon: Eine Ableitung
+      // wanderte mit dem Fehler mit und bewiese nichts.
+      expect(frage.options.at(-1), frage.id).toEqual({
+        id: DONT_KNOW_OPTION_ID,
+        text: 'Weiß ich nicht',
+      });
+      expect(frage.options.length, frage.id).toBe(
+        fragen.find((f) => f.id === frage.id)!.options.length + 1,
+      );
+    }
+  });
+
+  it('behält Reihenfolge und Text der eigentlichen Optionen', () => {
+    for (const [i, frage] of oeffentlich.entries()) {
+      const quelle = fragen[i]!;
+      expect(frage.id).toBe(quelle.id);
+      expect(frage.question).toBe(quelle.question);
+      expect(frage.options.slice(0, -1).map((o) => o.id)).toEqual(quelle.options.map((o) => o.id));
+    }
+  });
+});
+
+describe('Antworten aus dem Browser', () => {
+  const fragen = placementQuestions.map((f) => placementQuestionSchema.parse(f));
+
+  it('nimmt eine gültige Option an', () => {
+    const frage = fragen[0]!;
+    expect(
+      antwortFehler(fragen, { questionId: frage.id, optionId: frage.options[0]!.id }),
+    ).toBeNull();
+  });
+
+  it('nimmt "Weiß ich nicht" überall an', () => {
+    for (const frage of fragen) {
+      expect(
+        antwortFehler(fragen, { questionId: frage.id, optionId: DONT_KNOW_OPTION_ID }),
+        frage.id,
+      ).toBeNull();
+    }
+  });
+
+  it('lehnt eine unbekannte Frage ab', () => {
+    expect(antwortFehler(fragen, { questionId: 'gibt-es-nicht', optionId: 'a' })).toContain(
+      'Unbekannte Frage',
+    );
+  });
+
+  it('lehnt eine Option ab, die nicht zu dieser Frage gehört', () => {
+    // Eine erfundene Kennung ist ein Fehler, keine falsche Antwort — sonst
+    // sähe ein Tippfehler in der Maske aus wie geraten.
+    expect(antwortFehler(fragen, { questionId: fragen[0]!.id, optionId: 'zzz' })).toContain(
+      'gehört nicht zur Frage',
+    );
+  });
+
+  it('wertet "Weiß ich nicht" wie eine falsche Antwort, nicht schlechter', () => {
+    const weissNicht = fragen.map((f) => ({ questionId: f.id, optionId: DONT_KNOW_OPTION_ID }));
+    const falsch = fragen.map((f) => ({
+      questionId: f.id,
+      optionId: f.options.find((o) => o.id !== f.correctOptionId)!.id,
+    }));
+    expect(evaluatePlacement(fragen, weissNicht).score).toBe(
+      evaluatePlacement(fragen, falsch).score,
+    );
+  });
+});
+
+describe('Band und Pfadbegründung', () => {
+  it('teilt an denselben Grenzen ein wie die Auswertung', () => {
+    expect(bandZuPunktzahl(0)).toBe('beginner');
+    expect(bandZuPunktzahl(34)).toBe('beginner');
+    expect(bandZuPunktzahl(35)).toBe('advanced-beginner');
+    expect(bandZuPunktzahl(69)).toBe('advanced-beginner');
+    expect(bandZuPunktzahl(70)).toBe('refresher');
+    expect(bandZuPunktzahl(100)).toBe('refresher');
+  });
+
+  it('nennt in jeder Begründung die Grundregel, dass nichts übersprungen wird', () => {
+    for (const band of [null, 'beginner', 'advanced-beginner', 'refresher'] as const) {
+      expect(pfadBegruendung(band), String(band)).toContain('nie eine Lektion übersprungen');
+    }
+  });
+
+  it('verspricht in keiner Begründung einen gekürzten Pfad', () => {
+    // Die Grundregel allein zu finden genügt nicht: Der Bandsatz wird
+    // dahintergehängt und kann ihr widersprechen, ohne sie zu entfernen.
+    // Genau das stand hier — "kürzt Bekanntes ab" zwei Sätze nach "es wird
+    // nie eine Lektion übersprungen", gespeichert und auf /pfad gezeigt.
+    // Ohne `null`: Dort gibt es keinen Bandsatz, der geprüfte Rest wäre leer
+    // und die Schleife liefe ins Leere. Dass die Grundregel selbst nichts
+    // Falsches verspricht, hält die Prüfung darüber fest.
+    for (const band of ['beginner', 'advanced-beginner', 'refresher'] as const) {
+      // Wortstämme, keine ganzen Wörter: "kürzt" allein ließe "Der Pfad ist
+      // dadurch kürzer" durch, und "Auffrischung" allein ließe
+      // "aufgefrischt" durch.
+      //
+      // "überspring" UND "übersprung" müssen beide dastehen: Der erste
+      // Stamm trifft "überspringen", nicht aber "übersprungen" — also
+      // ausgerechnet die Form, in der der Widerspruch am ehesten dastünde.
+      // Genau deshalb wird auch nur der Bandsatz geprüft und nicht der
+      // ganze Text: Die Grundregel selbst enthält "übersprungen" und
+      // träfe sich sonst selbst.
+      const bandsatz = pfadBegruendung(band).replace(pfadBegruendung(null), '');
+      expect(bandsatz, String(band)).not.toMatch(
+        /kürz|überspring|übersprung|auslass|weglass|ausgeblendet|frisch|spar(st|t) dir/i,
+      );
+    }
+  });
+
+  it('ergänzt die Begründung um den Hinweis zum Band', () => {
+    expect(pfadBegruendung('refresher')).not.toBe(pfadBegruendung(null));
+    expect(pfadBegruendung('beginner')).not.toBe(pfadBegruendung('refresher'));
+  });
+});
+
+describe('Ergebnis für den Browser', () => {
+  it('trägt nur Punktzahl und Text, nicht die inneren Größen', () => {
+    const voll = evaluatePlacement(
+      questions,
+      questions.map((f) => ({ questionId: f.id, optionId: f.correctOptionId })),
+    );
+
+    // Das vollständige Ergebnis hat sie — das ist richtig so, der Server
+    // braucht sie.
+    expect(voll.band).toBeDefined();
+    expect(voll.byArea).toBeDefined();
+    expect(voll.demonstratedConceptSlugs).toBeDefined();
+    expect(voll.version).toBeDefined();
+
+    // Hinaus geht davon nichts.
+    const oeffentlich = oeffentlichesErgebnis(voll);
+    expect(Object.keys(oeffentlich).sort()).toEqual(['message', 'score']);
+    expect(oeffentlich.score).toBe(voll.score);
+    expect(oeffentlich.message).toBe(voll.message);
+  });
+});
+
+describe('Inhaltsprüfung der Einstufung', () => {
+  const fragen = placementQuestions.map((f) => placementQuestionSchema.parse(f));
+
+  it('nimmt die ausgelieferten Fragen an', () => {
+    expect(validatePlacementQuestions(fragen)).toEqual([]);
+  });
+
+  it('meldet eine doppelte Fragekennung', () => {
+    const befunde = validatePlacementQuestions([fragen[0]!, fragen[0]!]);
+    expect(befunde.some((b) => b.message.includes('Doppelte Fragekennung'))).toBe(true);
+  });
+
+  it('meldet eine doppelte Optionskennung', () => {
+    const kaputt = {
+      ...fragen[0]!,
+      options: [fragen[0]!.options[0]!, fragen[0]!.options[0]!],
+    };
+    expect(
+      validatePlacementQuestions([kaputt]).some((b) =>
+        b.message.includes('Doppelte Optionskennung'),
+      ),
+    ).toBe(true);
+  });
+
+  it('meldet eine richtige Antwort, die es nicht gibt', () => {
+    const kaputt = { ...fragen[0]!, correctOptionId: 'gibt-es-nicht' };
+    expect(
+      validatePlacementQuestions([kaputt]).some((b) =>
+        b.message.includes('zeigt auf keine Option'),
+      ),
+    ).toBe(true);
+  });
+
+  it('meldet eine Option, die "Weiß ich nicht" in die Quere kommt', () => {
+    const kaputt = {
+      ...fragen[0]!,
+      options: [...fragen[0]!.options, { id: DONT_KNOW_OPTION_ID, text: 'Weiß ich nicht' }],
+    };
+    expect(validatePlacementQuestions([kaputt]).some((b) => b.message.includes('reserviert'))).toBe(
+      true,
+    );
+  });
+
+  it('warnt, wenn ein Bereich gar nicht vorkommt', () => {
+    const nurLogik = fragen.filter((f) => f.area === 'logic');
+    const befunde = validatePlacementQuestions(nurLogik);
+    expect(befunde.filter((b) => b.severity === 'warning').length).toBeGreaterThan(0);
+    expect(befunde.every((b) => b.severity !== 'error')).toBe(true);
   });
 });
