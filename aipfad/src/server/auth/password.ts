@@ -10,7 +10,7 @@ const scrypt = promisify(scryptCallback) as (
 
 /**
  * Passwort-Hashing mit scrypt aus der Node-Standardbibliothek. Übernommen
- * aus PythonPfad/SQLPfad – siehe dortige Begründung in docs/ARCHITEKTUR.md
+ * aus PythonPfad/SQLPfad – siehe dortige Begründung in pythonpfad/docs/ARCHITEKTUR.md
  * §2.2 (scrypt statt argon2/bcrypt: keine native Abhängigkeit).
  *
  * Parameter nach OWASP-Empfehlung (N=2^16, r=8, p=1). Sie stehen im Hash mit

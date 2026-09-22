@@ -63,9 +63,9 @@ PythonPfad/SQLPfad): Inhalt (`Course`/`CourseModule`/`Lesson`/`Exercise`/
 `AnalyticsEvent` hat keinen Fremdschlüssel auf `User`. Jeder
 nutzerbezogene Fremdschlüssel hat `onDelete: Cascade`.
 
-**Neu gegenüber PythonPfad:** `Lab`/`LabAttempt` (spec §14/§47 — deckt
-interaktive, deterministische Visualisierungen/Simulationen ab, die kein
-Übungsformat im klassischen Sinn sind).
+**Neu gegenüber PythonPfad:** `Lab`/`LabAttempt` — interaktive,
+deterministische Visualisierungen und Simulationen, die kein Übungsformat im
+klassischen Sinn sind und deshalb ein eigenes Modell brauchen.
 
 ## 5. Wissenslandkarte / Context Graph
 

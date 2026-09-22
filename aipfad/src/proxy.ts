@@ -4,10 +4,16 @@ import { NextResponse, type NextRequest } from 'next/server';
  * Vorgelagerte Zugriffsprüfung (Next.js 16: `proxy.ts` statt `middleware.ts`).
  * Übernommen aus PythonPfad/SQLPfad. Prüft nur, ob überhaupt ein
  * Sitzungscookie vorhanden ist – die eigentliche Berechtigungsprüfung
- * erfolgt in jedem Server-Aufruf über `requireUser()`/`requireAdmin()`.
+ * erfolgt in jedem Server-Aufruf über `requireUser()`. `requireAdmin()`
+ * existiert, hat derzeit aber keinen Aufrufer: Es gibt in dieser
+ * Ausbaustufe keinen Adminbereich.
  *
  * Zusätzlich wird der Origin bei zustandsverändernden Anfragen gegen den
- * Host geprüft – eine zweite Verteidigungslinie neben dem CSRF-Token.
+ * Host geprüft, sofern die Anfrage überhaupt einen Origin mitschickt –
+ * fehlt die Kopfzeile, entfällt der Vergleich. Das ergänzt `SameSite=Lax`
+ * und die eingebaute Herkunftsprüfung von Next.js für Server Actions. Ein
+ * Double-Submit-Token wird dabei NICHT geprüft; das dafür vorbereitete
+ * Verfahren in `server/auth/session.ts` ist nicht angebunden.
  */
 
 const PROTECTED_PREFIXES = [

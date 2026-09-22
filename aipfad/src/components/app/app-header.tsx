@@ -24,8 +24,8 @@ const MORE_NAV = [
 ] as const;
 
 /**
- * Kopfzeile für angemeldete Bereiche. Fünf gleichwertige Hauptpunkte (siehe
- * DESIGN.md/plan §9 – "nicht 13 gleichwertige Hauptnavigationseinträge"),
+ * Kopfzeile für angemeldete Bereiche. Fünf gleichwertige Hauptpunkte — nicht
+ * dreizehn: Eine Navigation, die alles gleich wichtig nimmt, ordnet nichts,
  * weitere Bereiche hinter einem nativen `<details>`-Menü ohne JavaScript.
  */
 export function AppHeader({ userName }: { userName: string }): React.ReactElement {

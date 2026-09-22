@@ -27,7 +27,7 @@ sechs GA-Blocker (`ENT-G01`–`ENT-G06`). Kein Punkt steht in beiden.
 | BEOBACHTBARKEIT   | Anfrage-Kennung auf allen Serverpfaden                                                                                                                           | Prüfung                                 | B14                |
 | INHALTE           | Alle sieben Lab-Arten unter kanonischem Vertrag                                                                                                                  | `content:validate`                      | B15                |
 | BARRIEREFREIHEIT  | axe ohne serious/critical                                                                                                                                        | CI                                      | —                  |
-| TESTS             | Acht Tore grün; Isolations- und Migrationssuite vorhanden                                                                                                        | CI                                      | —                  |
+| TESTS             | Alle acht Prüfschritte aus `.github/workflows/aipfad-ci.yml` grün; Isolations- und Migrationssuite vorhanden                                                     | CI                                      | —                  |
 | DOKUMENTATION     | Kein Dokument behauptet eine unwirksame Maßnahme                                                                                                                 | Prüfliste                               | —                  |
 
 **Das Produkttor verlangt bewusst keine Zuweisung und keine Kohorten.** Die
@@ -86,7 +86,7 @@ dessen, was der Code tut:
 | `src/proxy.ts:7`                | Prüfung „über `requireUser()`/`requireAdmin()`"        | `requireAdmin()` hat keinen Aufrufer |
 | `src/proxy.ts:10`               | „zweite Verteidigungslinie neben dem CSRF-Token"       | es gibt keine Token-Prüfung          |
 | `src/server/auth/session.ts:21` | „für Formulare wird ein Double-Submit-Token verwendet" | wird es nicht                        |
-| `src/server/env.ts:5`           | „schlägt der Start fehl"                               | erst beim ersten Zugriff (siehe E02) |
+| `src/server/env.ts:6`           | „schlägt der Start fehl"                               | erst beim ersten Zugriff (siehe E02) |
 
 **NICHT-UMFANG** Kein ausführbarer Code. Kommentare sind kein Verhalten — sie
 ändern nichts, was eine Prüfung sehen könnte, und gehören deshalb hierher und
@@ -237,8 +237,7 @@ fehl. Der Vorgang schreibt sein Ereignis.
 
 **UMFANG** Bestätigter, destruktiver Ablauf mit erneuter Anmeldung als
 Grenze; Kaskadenprüfung.
-**AUDIT** Schreibt `ACCOUNT_DELETED` (Modell aus E07) — der erste Erzeuger
-überhaupt. Der Eintrag überdauert das Konto ausdrücklich; dafür steht der
+**AUDIT** Schreibt `ACCOUNT_DELETED` (Modell aus E07). Der Eintrag überdauert das Konto ausdrücklich; dafür steht der
 Akteursbezug ohne Kaskade.
 **RÜCKNAHME** **Keine.** Diese Änderung ist im Betrieb nicht rücknehmbar;
 zurücknehmen lässt sich nur der Zugang zur Funktion, nicht ihre Wirkung.
@@ -470,7 +469,7 @@ Das Bearbeiten fehlte hier, während E07 und dieser Punkt bereits einen
 Erzeuger für die geänderte Organisation führten — ein Ereignis ohne Vorgang,
 das nach dem eigenen Fertigkriterium (je Vorgang gelingt der Vorgang und das
 Ereignis liegt vor) gar nicht prüfbar wäre. Der Name des Punktes sagt
-verwalten; Bearbeiten gehört dazu. Die ersten
+verwalten; Bearbeiten gehört dazu. Hier entstehen zugleich die ersten
 wirklichen Aufrufer der Prüfstelle aus E09A.
 **NICHT-UMFANG** Kohorten, Zuweisung, Berichte — alles GA (E11A–C).
 **SICHERHEIT** Jede Ansicht ist organisationsbezogen; die Zugehörigkeit
@@ -637,7 +636,7 @@ darüber nicht.
 ### E13A — Organisation stilllegen und wiederaufnehmen · `ENT-G05` (Teil 1)
 
 **UMFANG** Stilllegen, Wiederaufnehmen. Das **Anlegen** liefert bereits E08B
-im Fundament; es hier zu wiederholen verstöße gegen „kein Punkt steht in
+im Fundament; es hier zu wiederholen verstieße gegen „kein Punkt steht in
 beiden Spalten“. Eine stillgelegte
 Organisation verliert den Zugang, behält die Daten.
 **AUDIT** Bringt seinen Erzeuger mit (Modell aus E07): Organisation
@@ -785,11 +784,11 @@ sein. Dasselbe gilt für die Inhalte (`Course`, `Lesson`, `Exercise`,
 `Concept`, `Lab` …), für `AnalyticsEvent` und für betrieblichen Zustand wie
 die Zählertabelle aus E03.
 
-| Klasse               | Lebenszyklus                                  | Heute darin                                                                                                                                                      |
-| -------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NUTZEREIGEN`        | folgt dem Konto                               | `AuthSession`, `LearningPath`, `Attempt`, `ConceptMastery`, `LessonProgress`, `LearningSession`, `ReviewQueueItem`, `MilestoneAward`, `LabAttempt`, `HintReveal` |
-| `ORGANISATIONSEIGEN` | folgt der Organisation                        | `Organization`, `OrganizationMembership`, `Cohort`, `CohortMembership`, `CourseAssignment`                                                                       |
-| `PLATTFORMEIGEN`     | unabhängig von beiden, eigene Regel je Modell | `AuditEvent` (eigene Aufbewahrungsfrist), `AnalyticsEvent`, Inhalte, betrieblicher Zustand                                                                       |
+| Klasse               | Lebenszyklus                                  | Heute darin                                                                                                                                                                     |
+| -------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NUTZEREIGEN`        | folgt dem Konto                               | `User` selbst, `AuthSession`, `LearningPath`, `Attempt`, `ConceptMastery`, `LessonProgress`, `LearningSession`, `ReviewQueueItem`, `MilestoneAward`, `LabAttempt`, `HintReveal` |
+| `ORGANISATIONSEIGEN` | folgt der Organisation                        | `Organization`, `OrganizationMembership`, `Cohort`, `CohortMembership`, `CourseAssignment`                                                                                      |
+| `PLATTFORMEIGEN`     | unabhängig von beiden, eigene Regel je Modell | `AuditEvent` (eigene Aufbewahrungsfrist), `AnalyticsEvent`, Inhalte, betrieblicher Zustand                                                                                      |
 
 Die Klasse wird **erklärt**, nicht abgeleitet — weder aus `userId` noch aus
 `organizationId` noch aus irgendeinem Fremdschlüssel. `OrganizationMembership`
@@ -820,7 +819,7 @@ dass ihr Entfernen eine bestimmte Prüfung rot macht.
 
 Aus den Überschriften und Tabellen dieses Dokuments gezählt, nicht
 fortgeschrieben. Die Zahlen sind gegenüber der ersten Fassung gestiegen, weil
-Änderungen nach ihrem Zweck aufgeteilt wurden (E01, E05C, E09, E11, E13) und
+Änderungen nach ihrem Zweck aufgeteilt wurden (E01, E05, E09, E11, E13) und
 weil zwei Lücken einen eigenen Punkt bekommen haben — E08B für die
 Organisationsverwaltung und E05E für die unumkehrbare Spaltenentfernung.
 Nicht, weil Arbeit hinzugekommen wäre.

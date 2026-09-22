@@ -14,10 +14,12 @@ Stufen zu voller Tiefe (echte Lektionen, Aufgaben, Labs, Tests), statt alle
 | 4     | LLM-Grundlagen                     | 4 Lektionen (Tokens/Tokenisierung, Embeddings/Aufmerksamkeit, Training/Inferenz/Kontextfenster, Nachrichtenrollen/Halluzination), Tokenizer-Lab, Kontextfenster-Lab |
 | 5     | Prompting-Grundlagen               | 3 Lektionen (Ziel/Kontext, Constraints/Beispiele, Zerlegung/Iteration), Prompt-Reparatur-Lab                                                                        |
 
-**Zusammen:** 13 Lektionen, 17 Aufgaben über 6 Interaktionsformen
-(SINGLE_CHOICE, MULTIPLE_CHOICE, ORDERING, FILL_IN, SCENARIO_DECISION,
-TERMINAL_SIMULATION, PROMPT_REPAIR, TRANSFER), 4 Labs, 17 Konzepte, 1
-Kurs. Vollständige Infrastruktur: Auth, Mastery/Scheduling/Hints,
+**Zusammen:** 13 Lektionen, 17 Aufgaben über 8 Aufgabentypen der Achse
+`ExerciseType` (SINGLE_CHOICE, MULTIPLE_CHOICE, ORDERING, FILL_IN,
+SCENARIO_DECISION, TERMINAL_SIMULATION, PROMPT_REPAIR, TRANSFER), 4 Labs,
+17 Konzepte, 1 Kurs. Die Zahl nannte vorher sechs und zählte acht auf; die
+Interaktionsform (`payload.kind`) ist zudem eine andere Achse als der
+didaktische Aufgabentyp. Vollständige Infrastruktur: Auth, Mastery/Scheduling/Hints,
 Content-Validator, Pfad, Bibliothek, Übungslauf, Wiederholung, Fortschritt,
 Wissenslandkarte, Nachschlagen, Glossar, Setup-Center.
 
@@ -42,7 +44,7 @@ Wissenslandkarte, Nachschlagen, Glossar, Setup-Center.
 | 18 — Production AI/LLMOps             | Baut auf einem funktionierenden AI-Gateway auf (siehe unten).                                                                                                                                                                                   |
 | 19 — Advanced                         | Ausdrücklich optional, kein Anfänger-Kern.                                                                                                                                                                                                      |
 | 20 — Enterprise AI                    | Baut auf Governance (17) auf.                                                                                                                                                                                                                   |
-| Organisationen/Kohorten               | Spec markiert dies ausdrücklich als optional/gestaffelt (§55).                                                                                                                                                                                  |
+| Organisationen/Kohorten               | Bewusst gestaffelt: ohne Unternehmenseinsatz gibt es nichts zu verwalten. Siehe `docs/ENTERPRISE-ROADMAP.md` (E08, E08B, E11A–C).                                                                                                               |
 | Live-AI-Gateway/Playground            | Bewusst kein Live-Aufruf in Runde 1 (siehe `docs/CONTENT-POLICY.md`) — vermeidet Kosten, Secrets und Datenübertragung, bis eine dedizierte Gateway-Architektur (Provider-Abstraktion, Rate-Limits, Kostenbudget, Einwilligung) ansteht.         |
 | Vollständiges Admin-Content-Studio    | Nur Lesebereich/Validator vorbereitet (`domain/content/schema.ts#validateCourseGraph`); Bearbeitungsformulare sind ein späterer Schritt.                                                                                                        |
 | Rollenbasierte Tracks                 | Setzt mehr Inhalt über mehrere Stufen voraus, um sinnvoll zu filtern.                                                                                                                                                                           |

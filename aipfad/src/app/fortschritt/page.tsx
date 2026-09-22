@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * Bänder statt Zahlen (docs/LERNMODELL.md §2.5) — der Kompetenzwert wird nie
+ * Bänder statt Zahlen (pythonpfad/docs/LERNMODELL.md §2.5) — der Kompetenzwert wird nie
  * als Prozentzahl mit Nachkommastelle angezeigt, nur als Band mit Bedeutung
  * und nächstem Schritt. Keine Rangliste, keine künstliche Dringlichkeit.
  */

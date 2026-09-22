@@ -3,7 +3,8 @@ import type { ModuleDraft } from '@/domain/content/schema';
 /**
  * Modul 1: Orientierung. Kurze, unverbindliche Lektionen — was AIPfad ist,
  * was AI kann und nicht kann, wie Fortschritt gemessen wird. Text-Budget pro
- * Lektion bewusst knapp gehalten (siehe Plan §11).
+ * Lektion bewusst knapp gehalten: Der Einstieg soll tragen, nicht
+ * erschöpfen.
  */
 export const orientierungModule: ModuleDraft = {
   slug: 'orientierung',

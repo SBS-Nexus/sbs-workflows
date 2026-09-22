@@ -48,7 +48,7 @@ export interface PublicExercise {
    * Nur die Stufennummern der vorhandenen Hinweise — genug, damit der Client
    * weiß, wie viele Stufen es gibt und ob noch weitere folgen. Die
    * eigentlichen Hinweistexte werden erst über `revealNextHint()` einzeln und
-   * geprüft ausgeliefert (siehe docs/LERNMODELL.md §4: "Nicht freigegebene
+   * geprüft ausgeliefert (siehe pythonpfad/docs/LERNMODELL.md §4: "Nicht freigegebene
    * Hinweise verlassen den Server gar nicht erst").
    */
   hintLevels: number[];

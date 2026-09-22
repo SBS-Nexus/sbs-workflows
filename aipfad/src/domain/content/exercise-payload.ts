@@ -5,7 +5,7 @@ import { pruefeCommitGraph } from '@/domain/git/graph-invarianten';
  * Aufgaben-Nutzlasten.
  *
  * Zwei Achsen werden bewusst getrennt (Muster aus PythonPfad/SQLPfad, siehe
- * docs/ARCHITEKTUR.md §2.6):
+ * pythonpfad/docs/ARCHITEKTUR.md §2.6):
  *
  *  - `ExerciseType` (Prisma-Enum) beschreibt die *didaktische Rolle* einer
  *    Aufgabe: Ist das eine Transferaufgabe? Eine verzögerte Wiederholung?

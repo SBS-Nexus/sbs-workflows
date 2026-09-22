@@ -3,8 +3,13 @@ import { z } from 'zod';
 
 /**
  * Zentrale, validierte Konfiguration. Fehlt eine notwendige Variable oder ist
- * sie unplausibel, schlägt der Start mit einer verständlichen Meldung fehl –
- * statt später mit einem schwer zuzuordnenden Laufzeitfehler.
+ * sie unplausibel, wirft `getEnv()` mit einer verständlichen Meldung – statt
+ * später mit einem schwer zuzuordnenden Laufzeitfehler.
+ *
+ * Die Prüfung läuft beim ERSTEN Aufruf, nicht beim Start des Prozesses: Ein
+ * fehlendes `AUTH_SECRET` fällt damit erst auf, wenn ein Pfad `getEnv()`
+ * berührt. Ein Abbruch schon beim Start ist als eigener Schritt vorgemerkt
+ * (siehe `docs/ENTERPRISE-ROADMAP.md`, E02).
  *
  * Diese Datei ist mit `server-only` markiert und kann dadurch nicht
  * versehentlich in ein Client-Bundle geraten. Secrets bleiben auf dem Server.

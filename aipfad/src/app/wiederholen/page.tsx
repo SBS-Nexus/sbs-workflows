@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 /**
  * Wiederholungscenter: höchstens zwölf fällige Aufgaben je Runde
- * (docs/LERNMODELL.md §3.4), überfällige zuerst. Jede Aufgabe zeigt die
+ * (pythonpfad/docs/LERNMODELL.md §3.4), überfällige zuerst. Jede Aufgabe zeigt die
  * Begründung, warum sie gerade jetzt dran ist.
  */
 export default async function WiederholenPage(): Promise<React.ReactElement> {
