@@ -21,7 +21,7 @@ den gesamten Umfang oberflächlich:
 - **Stufe 5 — Prompting-Grundlagen**: Ziel, Kontext, Constraints, Zerlegung,
   Iteration.
 
-13 Lektionen, 17 Aufgaben (6 Interaktionsformen), 4 Labs (Terminal,
+13 Lektionen, 17 Aufgaben über 8 Aufgabentypen (`ExerciseType`), 4 Labs (Terminal,
 Tokenizer, Kontextfenster, Prompt-Reparatur), 17 Konzepte im
 Voraussetzungsgraphen. Alles deterministisch — **kein Aufruf an einen
 externen AI-Anbieter** in dieser Ausbaustufe (siehe

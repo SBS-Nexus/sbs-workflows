@@ -4,7 +4,7 @@ import { getEnv } from '@/server/env';
 /**
  * Die Adresse, unter der diese Installation erreichbar ist. Kommt aus
  * `APP_URL` – der einzigen Stelle, an der die Domain steht. Übernommen aus
- * PythonPfad/SQLPfad, siehe dortige Begründung in pythonpfad/docs/ARCHITEKTUR.md.
+ * PythonPfad/SQLPfad, siehe dortige Begründung in pythonpfad/docs/VERCEL.md.
  */
 
 export function siteUrl(): string {
