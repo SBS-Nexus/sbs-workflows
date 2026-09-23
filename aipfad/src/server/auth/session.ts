@@ -20,9 +20,9 @@ import type { UserModel } from '@/generated/prisma/models';
  *    https zeigt.
  *  - Ein Double-Submit-CSRF-Verfahren ist vorbereitet (`csrfSecret`,
  *    `assertCsrf()`, `getCsrfToken()`), aber NICHT angebunden: Keine Server
- *    Action ruft es auf. Wirksam sind `SameSite=Lax`, die Herkunftsprüfung
- *    in `src/proxy.ts` und die eingebaute Prüfung von Next.js für Server
- *    Actions.
+ *    Action ruft es auf. Wirksam sind `SameSite=Lax`, die bedingte
+ *    Herkunftsprüfung in `src/proxy.ts` (bei vorhandenem `Origin`) und die
+ *    eingebaute Prüfung von Next.js für Server Actions.
  */
 
 const SESSION_COOKIE = 'aipfad_session';

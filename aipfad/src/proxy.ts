@@ -3,10 +3,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 /**
  * Vorgelagerte Zugriffsprüfung (Next.js 16: `proxy.ts` statt `middleware.ts`).
  * Übernommen aus PythonPfad/SQLPfad. Prüft nur, ob überhaupt ein
- * Sitzungscookie vorhanden ist – die eigentliche Berechtigungsprüfung
- * erfolgt in jedem Server-Aufruf über `requireUser()`. `requireAdmin()`
- * existiert, hat derzeit aber keinen Aufrufer: Es gibt in dieser
- * Ausbaustufe keinen Adminbereich.
+ * Sitzungscookie vorhanden ist – die eigentliche Berechtigungsprüfung für
+ * geschützte Fachaktionen erfolgt am Server, derzeit über `requireUser()`.
+ * `requireAdmin()` existiert, hat derzeit aber keinen Aufrufer: Es gibt in
+ * dieser Ausbaustufe keinen Adminbereich.
  *
  * Zusätzlich wird der Origin bei zustandsverändernden Anfragen gegen den
  * Host geprüft, sofern die Anfrage überhaupt einen Origin mitschickt –
