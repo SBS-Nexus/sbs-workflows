@@ -1,7 +1,7 @@
 # Security
 
-Übernommene Grundlage aus PythonPfad/SQLPfad (siehe dort `docs/SICHERHEIT.md`
-bzw. `docs/SECURITY.md`), angepasst auf die Unterschiede dieser Ausbaustufe.
+Übernommene Grundlage aus PythonPfad (siehe `pythonpfad/docs/SICHERHEIT.md`),
+ergänzt um die für AIPfad relevanten Unterschiede dieser Ausbaustufe.
 
 ## Authentifizierung und Sitzungen
 

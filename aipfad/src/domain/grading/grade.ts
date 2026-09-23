@@ -9,9 +9,8 @@ import { eigenerEintrag } from '@/domain/eintraege';
  * Antworten liegen dadurch nie im Browser vor – siehe `toPublicPayload()`
  * unten für die Funktion, die das technisch erzwingt.
  *
- * Diese Ausbaustufe führt keinen Code aus; alle Interaktionsformen sind
- * deterministisch (Auswahl, Reihenfolge, Lückentext, Szenario, Terminal,
- * Prompt-Reparatur).
+ * Diese Ausbaustufe führt keinen Code aus; alle aktuellen Interaktionsformen
+ * werden deterministisch bewertet.
  */
 
 export type GradeOutcome = 'PASSED' | 'PARTIAL' | 'FAILED';
