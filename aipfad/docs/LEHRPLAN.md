@@ -60,22 +60,11 @@ Wissenslandkarte, Nachschlagen, Glossar, Setup-Center.
    Markierung je Lektion: `evaluatePlacement()` berechnet
    `demonstratedConceptSlugs`, gespeichert wird das noch nicht — dafür
    bräuchte es eine eigene Spalte oder Tabelle.
-2. **Zwölf Quellenangaben brauchen das Präfix `pythonpfad/`.** Die
-   Kommentare wurden aus PythonPfad übernommen und behielten dessen
-   Abschnittsnummern, während der Pfad `docs/…` auf die hiesigen,
-   anders nummerierten Dokumente zeigt. Betroffen: `fortschritt/page.tsx`
-   (§2.5), `wiederholen/page.tsx` (§3.4), `auth/password.ts` und
-   `auth/session.ts` (§2.2), `exercise-service.ts` (§4),
-   `exercise-runner.tsx` (§2.6 und §4), `grade.ts` (§2.7),
-   `spaced-repetition.ts` (§3), `exercise-payload.ts` (§2.6),
-   `schema.ts` (§2.1), `hint-ladder.ts` (§4). Elf davon lösen sich mit
-   `pythonpfad/` davor auf; `exercise-runner.tsx` (§2.6) nennt gar keinen
-   Pfad und braucht `pythonpfad/docs/` — im Wurzelverzeichnis dort liegen
-   nur DESIGN.md und README.md. `icon.tsx` macht es bereits richtig. Die heimtückischen
-   sind die, deren Nummer es hier AUCH gibt — `hint-ladder.ts` schickt
-   einen Leser auf §4, wo statt der Hinweisleiter die Einstufung steht.
-   Nicht in der Einstufungs-Änderung mitgelaufen, weil es elf Dateien
-   betrifft, die damit nichts zu tun haben.
+2. ~~**Zwölf Quellenangaben brauchen das Präfix `pythonpfad/`.**~~
+   **Erledigt in E01A.** Die übernommenen Kommentare verweisen jetzt
+   ausdrücklich auf `pythonpfad/docs/…`; auch Fundstellen, deren
+   Abschnittsnummer in AIPfad zufällig existiert, zeigen damit nicht mehr auf
+   das falsche Thema.
 
 3. ~~**Stufe 2 (Git & GitHub).**~~ **Erledigt in Ausbaustufe 2.** Größter fachlicher Hebel: Voraussetzung für
    AI-Coding, CI/CD und einen Großteil der praktischen Übungen.

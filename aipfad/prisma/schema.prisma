@@ -417,7 +417,7 @@ model ExerciseConcept {
 }
 
 /// Ein Lab: eine interaktive, deterministische Visualisierung/Simulation
-/// (Terminal, Tokenizer, Context Window, Prompt Repair). Deckt spec §14/§47.
+/// (Terminal, Tokenizer, Context Window, Prompt Repair).
 model Lab {
   id               String        @id @default(cuid())
   slug             String        @unique

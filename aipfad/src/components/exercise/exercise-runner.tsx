@@ -14,8 +14,8 @@ import { eigenerEintrag } from '@/domain/eintraege';
 /**
  * Rendert eine Aufgabe anhand ihrer Interaktionsform (`payload.kind`) und
  * reicht die Antwort über die Server Action ein. Eine Komponente für alle
- * sieben Formen dieser Ausbaustufe — jede Form braucht wenig genug
- * Darstellungslogik, dass eine Aufspaltung in sieben Dateien nur Umwege
+ * Interaktionsformen dieser Ausbaustufe — jede Form braucht wenig genug
+ * Darstellungslogik, dass eine Aufspaltung nach Interaktionsform nur Umwege
  * erzeugen würde (vgl. pythonpfad/docs/ARCHITEKTUR.md §2.6: die Interaktionsform steuert nur
  * Darstellung und Bewertung, nicht die didaktische Rolle).
  */
