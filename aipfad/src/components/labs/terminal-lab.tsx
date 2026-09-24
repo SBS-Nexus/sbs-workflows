@@ -2,16 +2,9 @@
 
 import { useState } from 'react';
 import { LabCompleteButton } from './lab-complete-button';
-import { z } from 'zod';
 import { Button, Callout } from '@/components/ui/primitives';
+import { terminalConfigSchema } from '@/domain/labs/terminal-config';
 import { fuehreBefehlAus, type SimuliertesDateisystem } from '@/domain/labs/terminal';
-
-const configSchema = z.object({
-  startingDirectory: z.string(),
-  fileSystem: z.record(z.string(), z.string().nullable()),
-  allowedCommands: z.array(z.string()),
-  dangerousCommands: z.array(z.string()),
-});
 
 /** Sehr einfacher, deterministischer Terminal-Simulator zum freien Erkunden. */
 export function TerminalLab({
@@ -22,7 +15,7 @@ export function TerminalLab({
   onCompleteAction: () => Promise<boolean>;
 }): React.ReactElement {
   const { startingDirectory, fileSystem, allowedCommands, dangerousCommands } =
-    configSchema.parse(config);
+    terminalConfigSchema.parse(config);
   const [cwd, setCwd] = useState(startingDirectory);
   const [dateisystem, setDateisystem] = useState<SimuliertesDateisystem>(fileSystem);
   const [history, setHistory] = useState<{ command: string; output: string }[]>([]);

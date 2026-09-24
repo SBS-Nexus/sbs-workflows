@@ -950,6 +950,87 @@ describe('Konfiguration des Git-State-Labs', () => {
 });
 
 /**
+ * E01B: Die vier älteren Lab-Arten hatten ihren Zod-Vertrag nur in der
+ * jeweiligen Maske. Dadurch konnte `content:validate` kaputte Konfigurationen
+ * durchlassen, die erst beim Öffnen des Labs scheiterten.
+ *
+ * Jeder Test beschädigt genau eine der vier Konfigurationen so, dass auch der
+ * bisherige Laufzeitvertrag sie ablehnte. Der neue Build-Vertrag darf sie
+ * deshalb nicht mehr bis in den Browser gelangen lassen.
+ */
+describe('Kanonische Verträge der vier älteren Lab-Arten', () => {
+  function validiereMitKaputterConfig(
+    kind: 'TERMINAL' | 'TOKENIZER' | 'CONTEXT_WINDOW' | 'PROMPT_REPAIR',
+    aendern: (config: Record<string, unknown>) => Record<string, unknown>,
+  ) {
+    const { parsedCourse, parsedConcepts, parsedLabs } = parseAll();
+    const labs = parsedLabs.map((lab) =>
+      lab.kind === kind ? { ...lab, config: aendern(structuredClone(lab.config)) } : lab,
+    );
+
+    return validateCourseGraph({
+      course: parsedCourse,
+      concepts: parsedConcepts,
+      labs,
+    });
+  }
+
+  it('lehnt eine Terminal-Konfiguration ohne gültiges Startverzeichnis ab', () => {
+    const ergebnis = validiereMitKaputterConfig('TERMINAL', (config) => ({
+      ...config,
+      startingDirectory: 42,
+    }));
+
+    expect(ergebnis.ok).toBe(false);
+    expect(
+      ergebnis.issues.some(
+        (i) => i.severity === 'error' && i.where.includes('config.startingDirectory'),
+      ),
+    ).toBe(true);
+  });
+
+  it('lehnt ein Tokenizer-Lab ohne Beispiel ab', () => {
+    const ergebnis = validiereMitKaputterConfig('TOKENIZER', (config) => ({
+      ...config,
+      examples: [],
+    }));
+
+    expect(ergebnis.ok).toBe(false);
+    expect(
+      ergebnis.issues.some((i) => i.severity === 'error' && i.where.includes('config.examples')),
+    ).toBe(true);
+  });
+
+  it('lehnt eine nichtnumerische Kontextfenster-Größe ab', () => {
+    const ergebnis = validiereMitKaputterConfig('CONTEXT_WINDOW', (config) => ({
+      ...config,
+      windowSizeTokens: 'sechzig',
+    }));
+
+    expect(ergebnis.ok).toBe(false);
+    expect(
+      ergebnis.issues.some(
+        (i) => i.severity === 'error' && i.where.includes('config.windowSizeTokens'),
+      ),
+    ).toBe(true);
+  });
+
+  it('lehnt ein Prompt-Reparatur-Lab ohne verknüpfte Übung ab', () => {
+    const ergebnis = validiereMitKaputterConfig('PROMPT_REPAIR', (config) => ({
+      ...config,
+      relatedExerciseSlugs: [],
+    }));
+
+    expect(ergebnis.ok).toBe(false);
+    expect(
+      ergebnis.issues.some(
+        (i) => i.severity === 'error' && i.where.includes('config.relatedExerciseSlugs'),
+      ),
+    ).toBe(true);
+  });
+});
+
+/**
  * Die Karten der Befehlsreferenz tragen ein Beispiel, das der Knopf
  * "Kopieren" übernimmt. Es muss deshalb zu DIESER Karte passen — sonst
  * bekommt man beim Kopieren etwas anderes, als die Karte erklärt

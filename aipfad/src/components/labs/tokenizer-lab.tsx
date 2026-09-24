@@ -2,12 +2,8 @@
 
 import { useState } from 'react';
 import { LabCompleteButton } from './lab-complete-button';
-import { z } from 'zod';
 import { cx } from '@/components/ui/primitives';
-
-const configSchema = z.object({
-  examples: z.array(z.object({ text: z.string(), tokens: z.array(z.string()) })).min(1),
-});
+import { tokenizerConfigSchema } from '@/domain/labs/tokenizer-config';
 
 const TINTS = [
   'border-ink-300 bg-ink-100 text-ink-800 dark:border-ink-600 dark:bg-ink-800 dark:text-ink-100',
@@ -22,7 +18,7 @@ export function TokenizerLab({
   config: unknown;
   onCompleteAction: () => Promise<boolean>;
 }): React.ReactElement {
-  const { examples } = configSchema.parse(config);
+  const { examples } = tokenizerConfigSchema.parse(config);
   const [selected, setSelected] = useState(0);
   const example = examples[selected] ?? examples[0]!;
 

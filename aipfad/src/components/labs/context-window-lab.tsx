@@ -2,19 +2,8 @@
 
 import { useState } from 'react';
 import { LabCompleteButton } from './lab-complete-button';
-import { z } from 'zod';
 import { Button, cx } from '@/components/ui/primitives';
-
-const configSchema = z.object({
-  windowSizeTokens: z.number(),
-  messages: z.array(
-    z.object({
-      role: z.enum(['system', 'user', 'assistant']),
-      text: z.string(),
-      tokens: z.number(),
-    }),
-  ),
-});
+import { contextWindowConfigSchema } from '@/domain/labs/context-window-config';
 
 const ROLE_LABEL: Record<string, string> = {
   system: 'System',
@@ -29,7 +18,7 @@ export function ContextWindowLab({
   config: unknown;
   onCompleteAction: () => Promise<boolean>;
 }): React.ReactElement {
-  const { windowSizeTokens, messages } = configSchema.parse(config);
+  const { windowSizeTokens, messages } = contextWindowConfigSchema.parse(config);
   const [shown, setShown] = useState(1);
 
   const visible = messages.slice(0, shown);

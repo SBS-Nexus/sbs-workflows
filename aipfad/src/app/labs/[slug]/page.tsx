@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
-import { z } from 'zod';
 import { getCurrentUser } from '@/server/auth/session';
 import { getLabBySlug, LabNotFoundError } from '@/server/services/lab-service';
 import { getPublicExercise, getRevealedHints } from '@/server/services/exercise-service';
@@ -9,12 +8,11 @@ import { SectionHeading, Callout } from '@/components/ui/primitives';
 import { LabRunner } from '@/components/labs/lab-runner';
 import { ExerciseRunner } from '@/components/exercise/exercise-runner';
 import { recordLabCompletionAction } from '@/server/actions/lab-actions';
+import { promptRepairConfigSchema } from '@/domain/labs/prompt-repair-config';
 
 interface LabPageProps {
   params: Promise<{ slug: string }>;
 }
-
-const promptRepairConfigSchema = z.object({ relatedExerciseSlugs: z.array(z.string()).min(1) });
 
 export async function generateMetadata({ params }: LabPageProps): Promise<Metadata> {
   const { slug } = await params;
