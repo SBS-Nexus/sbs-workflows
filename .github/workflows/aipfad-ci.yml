@@ -50,10 +50,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://aipfad:aipfad@localhost:5432/aipfad?schema=public
       TEST_DATABASE_URL: postgresql://aipfad:aipfad@localhost:5432/aipfad_test?schema=public
-      # Nur für den CI-Lauf. Ein echtes Geheimnis gehört nicht ins Repository —
-      # hier steht ein Wert, der nichts schützt und nichts öffnet.
-      AUTH_SECRET: ci-lauf-geheimnis-ohne-jede-bedeutung-0123456789
       APP_URL: http://127.0.0.1:3101
+      DEPLOYMENT_ID: ${{ github.sha }}
       SEED_DEMO_USERS: 'false'
 
     steps:

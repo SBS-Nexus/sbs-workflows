@@ -11,7 +11,7 @@ unabhängig von PythonPfad/SQLPfad).
 ## Lokale Einrichtung
 
 ```bash
-cp .env.example .env        # AUTH_SECRET mit `openssl rand -base64 48` setzen
+cp .env.example .env        # DEPLOYMENT_ID lokal z. B. auf `lokal` lassen
 docker compose up -d        # Postgres auf Port 5433 (nicht 5432 – Kollision mit pythonpfad vermeiden)
 npm install
 npm run db:migrate
@@ -26,13 +26,23 @@ npm run build
 npm run start
 ```
 
-`npm run verify` führt Typprüfung, Lint, Unit-Tests und Build in Folge aus
-und ist das lokale Äquivalent des CI-Gates.
+`npm run verify` führt Typprüfung, Lint, Inhaltsvalidierung, Unit-Tests und Build in Folge aus
+und ist das lokale Äquivalent des CI-Gates. Beim Start einer Node.js-Serverinstanz
+führt `src/instrumentation.ts` den Konfigurationsvertrag aus, bevor Next.js
+Anfragen annimmt.
 
 ## Umgebungsvariablen
 
-Siehe `.env.example`. Notwendig: `DATABASE_URL`, `AUTH_SECRET`, `APP_URL`.
-Optional: `ATTEMPT_RETENTION_DAYS`, `SEED_DEMO_USERS`.
+Siehe `.env.example`. Notwendig: `DATABASE_URL` und `DEPLOYMENT_ID`.
+`APP_URL` hat lokal den Standard `http://localhost:3000`; in Produktion muss
+sie auf die echte HTTPS-Adresse gesetzt werden. Optional:
+`ATTEMPT_RETENTION_DAYS`, `SEED_DEMO_USERS`.
+
+`AUTH_SECRET` gehört nicht mehr zum Vertrag: AIPfad verwendet opake,
+kryptografisch zufällige Sitzungstoken und speichert davon nur SHA-256-Hashes;
+die frühere Variable wurde von keiner Codezeile verbraucht. Ein nicht
+verwendetes Secret als Pflichtvariable vorzutäuschen wäre kein zusätzlicher
+Schutz.
 
 ## Health/Readiness
 
@@ -51,9 +61,9 @@ sinnvoll für eine DACH-Zielgruppe und für die Nähe zur Datenbank.
    (Root-Verzeichnis `aipfad/`).
 2. Managed-Postgres-Instanz bereitstellen (z. B. über den Vercel
    Marketplace) und `DATABASE_URL` setzen.
-3. `AUTH_SECRET` produktiv erzeugen und als Secret hinterlegen, nie ins
-   Repository.
-4. `APP_URL` auf die tatsächliche Domain setzen, sobald eine existiert
+3. `DEPLOYMENT_ID` pro Release auf eine unveränderliche Build- oder
+   Commit-Kennung setzen. Sie darf keine Zugangsdaten enthalten.
+4. `APP_URL` auf die tatsächliche HTTPS-Domain setzen, sobald eine existiert
    (keine vorausgesetzt – siehe oben).
 5. Der GitHub-Actions-Workflow für `aipfad/` existiert seit Ausbaustufe 2:
    `.github/workflows/aipfad-ci.yml`. Er führt acht Prüfschritte aus —
