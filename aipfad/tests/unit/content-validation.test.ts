@@ -235,6 +235,31 @@ describe('Befehlsreferenz', () => {
     expect(result.issues[0]?.message).toContain('ohne ausreichende Erklärung');
   });
 
+  it('meldet ein Beispiel, das einen festen Schalter des beschriebenen Befehls austauscht', () => {
+    const result = validateCommandReference([
+      {
+        command: 'git push --force',
+        whatHappens: 'Beispielprüfung.',
+        example: 'git push --force-with-lease origin main',
+        safety: { gefahr: 'harmlos', reversibel: true, wirkung: ['remote'] },
+      },
+    ]);
+    expect(result.ok).toBe(false);
+    expect(result.issues[0]?.message).toContain('Beispiel passt nicht');
+  });
+
+  it('erlaubt konkrete Werte für ausdrücklich markierte Befehlsplatzhalter', () => {
+    const result = validateCommandReference([
+      {
+        command: 'git switch <branch>',
+        whatHappens: 'Wechselt auf den angegebenen Branch.',
+        example: 'git switch main',
+        safety: { gefahr: 'harmlos', reversibel: true, wirkung: ['arbeitsverzeichnis'] },
+      },
+    ]);
+    expect(result.issues.filter((i) => i.severity === 'error')).toEqual([]);
+  });
+
   it('meldet einen widersprüchlichen Wirkbereich', () => {
     const result = validateCommandReference([
       {
