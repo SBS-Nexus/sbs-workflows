@@ -3,10 +3,7 @@ import './setup';
 import { prisma } from '@/server/db/prisma';
 import { hashPassword } from '@/server/auth/password';
 import { getOrCreatePath } from '@/server/services/path-service';
-import {
-  finalisiereOnboarding,
-  type OnboardingInput,
-} from '@/server/services/onboarding-service';
+import { finalisiereOnboarding, type OnboardingInput } from '@/server/services/onboarding-service';
 
 /**
  * E01C: Der Pfaddienst bekommt eigene Integrationsabdeckung.
@@ -81,9 +78,7 @@ describe('Pfaddienst', () => {
     const vorhandener = await prisma.learningPath.findFirstOrThrow({ where: { userId } });
     expect(vorAufruf.currentPathId).toBe(vorhandener.id);
 
-    const parallel = await Promise.all(
-      Array.from({ length: 8 }, () => getOrCreatePath(userId)),
-    );
+    const parallel = await Promise.all(Array.from({ length: 8 }, () => getOrCreatePath(userId)));
 
     expect(new Set(parallel.map((pfad) => pfad.id))).toEqual(new Set([vorhandener.id]));
     await expect(prisma.learningPath.count({ where: { userId } })).resolves.toBe(1);
