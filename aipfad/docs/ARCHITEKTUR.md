@@ -67,6 +67,13 @@ nutzerbezogene Fremdschlüssel hat `onDelete: Cascade`.
 deterministische Visualisierungen und Simulationen, die kein Übungsformat im
 klassischen Sinn sind und deshalb ein eigenes Modell brauchen.
 
+`RateLimitBucket` (Tabelle `rate_limit_buckets`) gehört zu keiner der beiden
+Gruppen: Es ist Betriebszustand, kein Inhalt und kein Lernverlauf. Die Tabelle
+hat deshalb bewusst **keinen** Fremdschlüssel auf `User` und speichert den
+Grenzenschlüssel nur als SHA-256-Digest — weder IP- noch E-Mail-Adresse liegen
+dort im Klartext. Sie ersetzt seit E03 den Zähler im Prozessspeicher, der bei
+mehreren Instanzen wirkungslos war (Einzelheiten in `docs/SECURITY.md`).
+
 ## 5. Wissenslandkarte / Context Graph
 
 `components/context-graph.tsx`. Ebenenzerlegung des gerichteten,

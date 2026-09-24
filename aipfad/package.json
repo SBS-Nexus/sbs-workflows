@@ -29,6 +29,7 @@
     "test:integration": "vitest run --project integration",
     "test:e2e": "playwright test",
     "perf": "node scripts/pruefe-leistungsbudget.mjs",
+    "perf:rate-limit": "tsx --conditions=react-server scripts/measure-rate-limit.ts",
     "verify": "npm run typecheck && npm run lint && npm run content:validate && npm run test:unit && npm run build",
     "postinstall": "prisma generate"
   },

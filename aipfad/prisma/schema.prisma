@@ -613,3 +613,42 @@ model AnalyticsEvent {
   @@index([eventType, occurredOn])
   @@map("analytics_events")
 }
+
+// ---------------------------------------------------------------------------
+// Ratenbegrenzung
+// ---------------------------------------------------------------------------
+
+/// Gemeinsamer Zähler der Ratenbegrenzung, eine Zeile je Grenzenschlüssel
+/// (E03/ENT-B07). Bis dahin lag der Zähler im Arbeitsspeicher der Instanz und
+/// war bei mehreren Instanzen wirkungslos.
+///
+/// Diese Tabelle hat bewusst KEINEN Fremdschlüssel auf `User` und speichert
+/// weder E-Mail-Adresse noch IP: Der Schlüssel, aus dem sie entsteht, geht nur
+/// als SHA-256-Digest ein. Die Datenbank weiß dadurch nicht, ob darin eine
+/// Herkunft, eine Adresse oder eine Nutzerkennung steckt.
+model RateLimitBucket {
+  /// SHA-256 des Grenzenschlüssels, hexadezimal. Zugleich Primärschlüssel:
+  /// jeder Zugriff ist eine Gleichheitssuche genau auf diese Spalte, und der
+  /// Eindeutigkeitsindex trägt zugleich die Konfliktauflösung beim Anlegen.
+  keyHash   String     @id
+  /// Zeitpunkte der gezählten Versuche im laufenden Fenster, aufsteigend.
+  /// Bei jedem Zugriff auf das Fenster beschnitten; abgewiesene Versuche
+  /// werden NICHT angehängt. Die Länge ist dadurch durch das Limit der
+  /// jeweiligen Grenze nach oben beschränkt (derzeit höchstens 240).
+  hits      DateTime[]
+  /// Ab hier kann die Zeile nichts mehr abweisen und darf entfernt werden.
+  /// Siehe `pruneExpiredBuckets()` in `src/server/security/rate-limit.ts`.
+  ///
+  /// Bewusst `timestamp` OHNE Zeitzone, wie jede andere Zeitspalte dieses
+  /// Schemas — und bewusst NIE gegen `now()` der Datenbank verglichen,
+  /// sondern nur gegen Zeitpunkte, die dieselbe Anwendung geschrieben hat.
+  /// Mit `timestamptz` schrieb der Treiber den UTC-Zeitpunkt ohne Versatz,
+  /// und eine Sitzung in `Europe/Berlin` deutete ihn als Ortszeit: Jede
+  /// frisch geschriebene Zeile galt sofort als abgelaufen und wurde vom
+  /// Aufräumen entfernt, was den Zähler zurückgesetzt hätte. In der CI
+  /// (UTC, Versatz null) wäre das nicht aufgefallen.
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("rate_limit_buckets")
+}

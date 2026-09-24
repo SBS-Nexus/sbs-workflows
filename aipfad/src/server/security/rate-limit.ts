@@ -1,128 +1,126 @@
 import 'server-only';
+import { createHash } from 'node:crypto';
+import { prisma } from '@/server/db/prisma';
+import { logger } from '@/server/observability/logger';
+import { decideRateLimit } from '@/server/security/rate-limit-window';
+import type { RateLimitConfig, RateLimitResult } from '@/server/security/rate-limit-window';
+
+export { RATE_LIMITS } from '@/server/security/rate-limit-window';
+export type { RateLimitConfig, RateLimitResult } from '@/server/security/rate-limit-window';
 
 /**
- * Einfache Ratenbegrenzung mit gleitendem Fenster. Bewusst im Arbeitsspeicher
- * gehalten: Für eine Instanz genügt das. Wird die Anwendung auf mehrere
- * Instanzen verteilt, muss dieser Speicher gegen einen gemeinsamen Zähler
- * getauscht werden – die Schnittstelle bleibt dabei gleich. Vermerkt in
- * docs/SECURITY.md. Übernommen aus PythonPfad/SQLPfad.
+ * Ratenbegrenzung mit gleitendem Fenster — gemeinsam über alle Serverinstanzen
+ * (E03/ENT-B07, docs/ENTERPRISE-ROADMAP.md).
+ *
+ * Vorher lagen die Zähler in einer `Map` je Prozess. Auf einer waagerecht
+ * skalierenden Plattform hieß das: Jede Instanz zählte für sich, und die
+ * tatsächlich mögliche Anzahl Versuche war das Limit MAL der Anzahl Instanzen.
+ * Ein Neustart setzte sie zusätzlich zurück. Der Zähler liegt deshalb jetzt in
+ * PostgreSQL — der Datenbank, die ohnehin zur Laufzeit gebraucht wird. Kein
+ * Redis, kein zusätzlicher Dienst.
+ *
+ * ZWEI Folgen davon sind an der Schnittstelle sichtbar, beide unvermeidbar:
+ *
+ *  1. `checkRateLimit()` und `enforceRateLimit()` sind `async`. Ein
+ *     Datenbankzugriff ist nicht synchron zu haben, und eine blockierende
+ *     Attrappe wäre eine Lüge über das, was tatsächlich passiert. Namen,
+ *     Parameter und Bedeutung bleiben unverändert; alle Aufrufer standen
+ *     bereits in `async`-Funktionen und bekommen nur ein `await`.
+ *  2. `checkRateLimit()` kann werfen. Ist die Datenbank nicht erreichbar, ist
+ *     die Grenze nicht prüfbar — und dann wird gesperrt, nicht durchgelassen
+ *     (`RateLimitUnavailableError`, Begründung unten und in docs/SECURITY.md).
+ *
+ * Die Regel selbst steht in `rate-limit-window.ts` und ist dort ohne
+ * Datenbank prüfbar. Diese Datei kümmert sich ausschließlich darum, dass
+ * Lesen und Schreiben des Zählers EINE unteilbare Entscheidung bilden.
  */
 
-interface Bucket {
-  hits: number[];
+/**
+ * Der Schlüssel geht nur als Digest in die Datenbank.
+ *
+ * Aufrufer bilden Schlüssel aus IP-Adresse, E-Mail-Adresse oder Nutzerkennung
+ * (`requestKey()` in `server/actions/auth-actions.ts`). Nichts davon braucht
+ * die Tabelle im Klartext: Sie muss Schlüssel nur auf Gleichheit vergleichen.
+ *
+ * Das ist Datensparsamkeit, nicht Passwortschutz — SHA-256 ohne Schlüsselung
+ * ist für den Zweck richtig und bewusst gewählt: deterministisch, schnell,
+ * ohne zusätzliches Geheimnis, das verwaltet und gedreht werden müsste.
+ * Ebenso bewusst wird das Ergebnis NICHT als anonym bezeichnet: Wer die
+ * Tabelle lesen kann und eine IP- oder E-Mail-Adresse vermutet, kann den
+ * Digest nachrechnen und den Verdacht bestätigen. Es ist ein
+ * pseudonymisierter Nachschlageschlüssel, und so steht es auch in
+ * docs/SECURITY.md.
+ */
+function digest(key: string): string {
+  return createHash('sha256').update(key).digest('hex');
 }
 
-const buckets = new Map<string, Bucket>();
+/**
+ * Höchstens so viele abgelaufene Zeilen werden auf einmal entfernt. Deckelt
+ * die Arbeit eines einzelnen Aufräumlaufs — ohne Grenze wäre das ein
+ * unbeschränkter Löschvorgang mitten in einer Anfrage.
+ */
+const AUFRAEUMEN_HOECHSTENS = 500;
 
-export interface RateLimitConfig {
-  limit: number;
-  windowMs: number;
-}
+/**
+ * Jede so-und-so-vielte Anfrage räumt auf.
+ *
+ * Bewusst an die Anfragen gekoppelt und nicht an die Uhr: So wächst die
+ * Aufräumrate mit der Last, die die Zeilen überhaupt erst erzeugt. Ein fester
+ * Zeittakt (etwa einmal je Minute) hätte bei Lastspitzen zu wenig entfernt.
+ * Ein zusätzlicher Dienst oder ein Cron-Eintrag wäre dafür neue Infrastruktur
+ * — ausdrücklich nicht im Umfang von E03.
+ */
+const AUFRAEUMEN_JEDE_N_TE_ANFRAGE = 100;
 
-export interface RateLimitResult {
-  allowed: boolean;
-  remaining: number;
-  retryAfterSeconds: number;
-}
-
-export const RATE_LIMITS = {
-  login: { limit: 10, windowMs: 15 * 60 * 1000 },
-  register: { limit: 5, windowMs: 60 * 60 * 1000 },
-  submitAttempt: { limit: 240, windowMs: 60 * 60 * 1000 },
-  labAttempt: { limit: 120, windowMs: 60 * 60 * 1000 },
-  /**
-   * Zusätzliche, ausschließlich IP-basierte Obergrenze für Anmeldung und
-   * Registrierung — unabhängig von der jeweiligen E-Mail-Adresse.
-   *
-   * Der reguläre `login`/`register`-Schlüssel kombiniert IP und E-Mail
-   * (`requestKey()` in `server/actions/auth-actions.ts`). Das begrenzt
-   * Versuche gegen EIN Konto wirksam, aber jede neue E-Mail-Adresse eröffnet
-   * einen frischen Zähler. Von derselben IP aus reihum viele verschiedene
-   * Adressen durchzuprobieren (Credential Stuffing mit geleakten
-   * Zugangsdaten, oder massenhaftes Ausloten, welche Adressen bereits ein
-   * Konto haben) bliebe dadurch ungebremst. Diese zusätzliche, gröbere
-   * IP-only-Grenze schließt genau diese Lücke, ohne die feinere
-   * Pro-Konto-Grenze zu ersetzen — beide werden durchgesetzt.
-   */
-  loginPerIp: { limit: 30, windowMs: 15 * 60 * 1000 },
-  /**
-   * Grenze allein auf das Konto — ohne IP-Anteil, damit sie sich nicht durch
-   * einen Herkunftswechsel zurücksetzen lässt. `login` (IP + E-Mail) deckt
-   * die eine Richtung ab, `loginPerIp` die andere; erst diese dritte Grenze
-   * verhindert, dass ein gezielt ausgewähltes Konto über viele Herkünfte
-   * hinweg beliebig lange beschossen wird. Bewusst großzügiger als `login`:
-   * hier teilen sich alle legitimen Geräte einer Person einen Zähler.
-   */
-  loginPerAccount: { limit: 20, windowMs: 15 * 60 * 1000 },
-  /**
-   * Registrierungen je Herkunft und Stunde.
-   *
-   * Bewusst nicht sehr eng: Hinter einer einzelnen öffentlichen IP-Adresse
-   * steckt oft ein ganzes Netz — eine Schulklasse, ein Büro, ein Café. Fünfzehn
-   * Anmeldungen pro Stunde hätten dort reguläre Nutzung blockiert, und ein
-   * fälschlich ausgesperrter Kurs ist ein größerer Schaden als ein etwas
-   * höheres Kontingent. Gegen massenhafte Kontoerstellung bleibt die Grenze
-   * wirksam.
-   */
-  registerPerIp: { limit: 60, windowMs: 60 * 60 * 1000 },
-  hintReveal: { limit: 120, windowMs: 60 * 60 * 1000 },
-} as const satisfies Record<string, RateLimitConfig>;
-
-export function checkRateLimit(
-  key: string,
-  config: RateLimitConfig,
-  now: number = Date.now(),
-): RateLimitResult {
-  const bucket = buckets.get(key) ?? { hits: [] };
-  const windowStart = now - config.windowMs;
-
-  bucket.hits = bucket.hits.filter((timestamp) => timestamp > windowStart);
-
-  if (bucket.hits.length >= config.limit) {
-    const oldest = bucket.hits[0] ?? now;
-    buckets.set(key, bucket);
-    return {
-      allowed: false,
-      remaining: 0,
-      retryAfterSeconds: Math.max(1, Math.ceil((oldest + config.windowMs - now) / 1000)),
-    };
-  }
-
-  bucket.hits.push(now);
-  buckets.set(key, bucket);
-
-  if (buckets.size > 5_000) pruneBuckets(now);
-
-  return {
-    allowed: true,
-    remaining: config.limit - bucket.hits.length,
-    retryAfterSeconds: 0,
-  };
-}
-
-function pruneBuckets(now: number): void {
-  const maxWindow = Math.max(...Object.values(RATE_LIMITS).map((c) => c.windowMs));
-  for (const [key, bucket] of buckets) {
-    const alive = bucket.hits.filter((t) => t > now - maxWindow);
-    if (alive.length === 0) buckets.delete(key);
-    else bucket.hits = alive;
-  }
-}
-
-/** Nur für Tests. */
-export function __resetRateLimits(): void {
-  buckets.clear();
-}
+let anfragenSeitAufraeumen = 0;
 
 export class RateLimitError extends Error {
   readonly retryAfterSeconds: number;
 
-  constructor(retryAfterSeconds: number) {
+  constructor(retryAfterSeconds: number, message?: string) {
     super(
-      `Zu viele Versuche in kurzer Zeit. Bitte warte ${formatWait(retryAfterSeconds)} und versuche es erneut.`,
+      message ??
+        `Zu viele Versuche in kurzer Zeit. Bitte warte ${formatWait(retryAfterSeconds)} und versuche es erneut.`,
     );
     this.name = 'RateLimitError';
     this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+/**
+ * Die Datenbank ist nicht erreichbar, die Grenze also nicht prüfbar.
+ *
+ * ENTSCHEIDUNG: sperren (fail closed), nicht durchlassen — einheitlich für
+ * alle Grenzen, auch die des Lernbetriebs.
+ *
+ * Für Anmeldung und Registrierung ist das Argument unmittelbar: Durchlassen
+ * hieße, bei einem Datenbankausfall genau den Schutz abzuschalten, der
+ * Credential Stuffing und Massen-Enumeration begrenzt — und mit ihm die
+ * Begründung, warum der scrypt-Aufwand VOR der Authentifizierung vertretbar
+ * ist (docs/SECURITY.md). Ein Ausfall wäre damit zugleich das Zeitfenster für
+ * den Angriff.
+ *
+ * Für `submitAttempt`, `hintReveal` und `labAttempt` gilt dieselbe Regel, und
+ * zwar ohne Nachteil: Alle drei schreiben oder lesen unmittelbar danach
+ * selbst in der Datenbank. Ist sie weg, scheitert die Aktion ohnehin. Das
+ * Sperren an der Grenze ändert dort die Fehlermeldung, nicht die
+ * Verfügbarkeit. Eine zweite, laxere Richtlinie für den Lernbetrieb hätte
+ * also nichts gewonnen und die Regel nur schwerer prüfbar gemacht.
+ *
+ * Als `RateLimitError`-Unterklasse angelegt, damit die bestehende Behandlung
+ * in `auth-actions.ts` greift und Nutzende eine verständliche Meldung sehen
+ * statt eines Serverfehlers. Die Meldung behauptet ausdrücklich NICHT, eine
+ * Grenze sei erreicht.
+ */
+export class RateLimitUnavailableError extends RateLimitError {
+  constructor(cause: unknown) {
+    super(
+      0,
+      'Das ist gerade nicht möglich: Die Zählung der Versuche ist nicht erreichbar. Bitte versuche es in Kürze erneut.',
+    );
+    this.name = 'RateLimitUnavailableError';
+    this.cause = cause;
   }
 }
 
@@ -132,7 +130,177 @@ function formatWait(seconds: number): string {
   return minutes === 1 ? 'eine Minute' : `${minutes} Minuten`;
 }
 
-export function enforceRateLimit(key: string, config: RateLimitConfig): void {
-  const result = checkRateLimit(key, config);
+/**
+ * Prüft und verbraucht einen Versuch. Bei nicht erreichbarer Datenbank wirft
+ * die Funktion `RateLimitUnavailableError`, statt durchzulassen.
+ */
+export async function checkRateLimit(
+  key: string,
+  config: RateLimitConfig,
+  now: number = Date.now(),
+): Promise<RateLimitResult> {
+  let result: RateLimitResult;
+
+  try {
+    result = await zaehleUndPruefe(digest(key), config, now);
+  } catch (error) {
+    // Kein stilles Abfangen: Der Fehler wird protokolliert UND die Anfrage
+    // abgewiesen. Protokolliert wird nur die Fehlerart, nicht der Schlüssel
+    // und nicht seine Zeichenkette aus der Verbindung.
+    logger.error('Ratenbegrenzung nicht prüfbar, Anfrage wird abgewiesen', {
+      fehlerart: error instanceof Error ? error.name : 'unbekannt',
+      code: typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined,
+    });
+    throw new RateLimitUnavailableError(error);
+  }
+
+  await vielleichtAufraeumen();
+  return result;
+}
+
+/**
+ * Lesen, Entscheiden und Zurückschreiben in EINER Transaktion mit Zeilensperre.
+ *
+ * Warum nicht `SELECT` und danach `UPDATE` ohne Transaktion: Zwei gleichzeitige
+ * Anfragen auf denselben Schlüssel läsen beide denselben Stand, fänden beide
+ * Platz und schrieben beide — die Grenze wäre um die Anzahl gleichzeitiger
+ * Anfragen überschreitbar, und genau das darf nicht sein.
+ *
+ * Die drei Anweisungen sind je einzeln nötig:
+ *
+ *  1. `ON CONFLICT DO NOTHING` stellt sicher, dass die Zeile EXISTIERT. Ohne
+ *     sie sperrt `FOR UPDATE` nichts (eine nicht vorhandene Zeile lässt sich
+ *     nicht sperren), zwei gleichzeitige Erstzugriffe kämen beide durch und
+ *     einer der Versuche ginge verloren. Legen zwei Transaktionen zugleich an,
+ *     wartet die zweite hier auf den Eindeutigkeitsindex.
+ *  2. `FOR UPDATE` sperrt die Zeile bis zum Ende der Transaktion. Jede weitere
+ *     Anfrage auf denselben Schlüssel wartet ab hier.
+ *  3. Das Zurückschreiben ist bewusst wieder ein `UPSERT`: Zwischen 1 und 2
+ *     kann ein gleichzeitiger Aufräumlauf die Zeile entfernt haben. Ein reines
+ *     `UPDATE` träfe dann keine Zeile und der gezählte Versuch fiele lautlos
+ *     unter den Tisch. Aufgeräumt wird nur, was ohnehin nichts mehr abweisen
+ *     kann (`expiresAt` in der Vergangenheit), ein Neuanlegen ist dort also
+ *     die richtige Antwort.
+ *
+ * Folge der Sperre: Anfragen auf DENSELBEN Schlüssel werden serialisiert. Bei
+ * einem Ansturm auf einen einzelnen Schlüssel kann eine Transaktion in die
+ * Zeitgrenze laufen; sie scheitert dann, und das heißt hier abweisen. Das ist
+ * die richtige Richtung — ein Ansturm auf einen Schlüssel ist genau der Fall,
+ * für den die Grenze da ist. Verschiedene Schlüssel behindern sich nicht: Die
+ * Sperre hängt an der Zeile, nicht an der Tabelle.
+ */
+async function zaehleUndPruefe(
+  keyHash: string,
+  config: RateLimitConfig,
+  now: number,
+): Promise<RateLimitResult> {
+  const vorlaeufigesEnde = new Date(now + config.windowMs);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`
+      INSERT INTO rate_limit_buckets ("keyHash", hits, "expiresAt")
+      VALUES (${keyHash}, ARRAY[]::timestamp[], ${vorlaeufigesEnde})
+      ON CONFLICT ("keyHash") DO NOTHING`;
+
+    const zeilen = await tx.$queryRaw<{ hits: Date[] }[]>`
+      SELECT hits FROM rate_limit_buckets WHERE "keyHash" = ${keyHash} FOR UPDATE`;
+
+    const bisher = (zeilen[0]?.hits ?? []).map((zeitpunkt) => zeitpunkt.getTime());
+    const entscheidung = decideRateLimit(bisher, config, now);
+
+    // Aufbewahrung so kurz wie möglich: Ablauf ist der JÜNGSTE gezählte
+    // Versuch plus Fensterbreite — der Zeitpunkt, ab dem die Zeile nichts
+    // mehr abweisen kann. Ein abgewiesener Versuch wird nicht gezählt und
+    // verlängert die Aufbewahrung deshalb auch nicht.
+    const ende = new Date((entscheidung.hits.at(-1) ?? now) + config.windowMs);
+    const gespeicherteZeitpunkte = entscheidung.hits.map((zeitpunkt) => new Date(zeitpunkt));
+
+    await tx.$executeRaw`
+      INSERT INTO rate_limit_buckets ("keyHash", hits, "expiresAt")
+      VALUES (${keyHash}, ${gespeicherteZeitpunkte}::timestamp[], ${ende})
+      ON CONFLICT ("keyHash") DO UPDATE
+        SET hits = EXCLUDED.hits, "expiresAt" = EXCLUDED."expiresAt"`;
+
+    return entscheidung.result;
+  });
+}
+
+/**
+ * Entfernt abgelaufene Zeilen — beschränkt auf `hoechstens` Stück je Lauf.
+ *
+ * Warum das Tabellenwachstum damit beschränkt ist: Jeder Schlüssel belegt
+ * genau EINE Zeile, deren Zeitpunktfeld auf das Fenster beschnitten wird und
+ * deshalb höchstens `limit` Einträge trägt. Neue Zeilen entstehen nur durch
+ * Anfragen, und je hundert Anfragen wird ein Lauf ausgelöst, der bis zu
+ * fünfhundert abgelaufene Zeilen entfernt — die Aufräumrate wächst also
+ * mit der Rate, die die Zeilen erzeugt.
+ *
+ * Der Index auf `expiresAt` macht daraus einen begrenzten Indexzugriff statt
+ * eines vollständigen Tabellendurchlaufs bei jeder Anfrage.
+ *
+ * `jetzt` kommt bewusst aus der Anwendung und NICHT aus `now()` der
+ * Datenbank. Verglichen wird dadurch ausschließlich mit Zeitpunkten, die
+ * dieselbe Anwendung geschrieben hat, in derselben Darstellung. Die Variante
+ * mit `now()` war nachweislich falsch: Die Spalten lagen zunächst als
+ * `timestamptz` vor, der Treiber schickte den UTC-Zeitpunkt ohne Versatz,
+ * und eine Sitzung in `Europe/Berlin` deutete ihn als Ortszeit — jede frisch
+ * geschriebene Zeile galt sofort als zwei Stunden abgelaufen und wäre hier
+ * entfernt worden, mitten im laufenden Fenster. Das hätte den Zähler
+ * zurückgesetzt und die Grenze unterlaufen. In der CI (UTC, Versatz null)
+ * wäre es nicht aufgefallen.
+ */
+export async function pruneExpiredBuckets(
+  hoechstens: number = AUFRAEUMEN_HOECHSTENS,
+  jetzt: Date = new Date(),
+): Promise<number> {
+  return prisma.$executeRaw`
+    DELETE FROM rate_limit_buckets
+    WHERE "keyHash" IN (
+      SELECT "keyHash" FROM rate_limit_buckets
+      WHERE "expiresAt" < ${jetzt}
+      ORDER BY "expiresAt"
+      LIMIT ${hoechstens}
+    )`;
+}
+
+/**
+ * Das Aufräumen darf die Entscheidung nicht gefährden: Sie ist zu diesem
+ * Zeitpunkt bereits gefallen und festgeschrieben. Scheitert das Entfernen,
+ * wird das vermerkt und die Anfrage läuft weiter — abgelaufene Zeilen sind
+ * ein Platzproblem, kein Sicherheitsproblem.
+ */
+async function vielleichtAufraeumen(): Promise<void> {
+  anfragenSeitAufraeumen += 1;
+  if (anfragenSeitAufraeumen < AUFRAEUMEN_JEDE_N_TE_ANFRAGE) return;
+  anfragenSeitAufraeumen = 0;
+
+  try {
+    await pruneExpiredBuckets();
+  } catch (error) {
+    logger.warn('Abgelaufene Ratengrenzen-Zeilen konnten nicht entfernt werden', {
+      fehlerart: error instanceof Error ? error.name : 'unbekannt',
+    });
+  }
+}
+
+/**
+ * Nur für Tests: entfernt gezielt die Zeilen der angegebenen Schlüssel.
+ *
+ * Bewusst KEIN `TRUNCATE`: Die Tabelle ist prozessübergreifend geteilt, und
+ * ein Test, der alles leert, zieht anderen Tests den Zustand unter den Füßen
+ * weg (docs/TESTING.md).
+ */
+export async function __resetRateLimits(keys: readonly string[]): Promise<void> {
+  if (keys.length === 0) return;
+  await prisma.rateLimitBucket.deleteMany({ where: { keyHash: { in: keys.map(digest) } } });
+}
+
+/** Nur für Tests: der Digest, unter dem ein Schlüssel gespeichert wird. */
+export function __rateLimitKeyHash(key: string): string {
+  return digest(key);
+}
+
+export async function enforceRateLimit(key: string, config: RateLimitConfig): Promise<void> {
+  const result = await checkRateLimit(key, config);
   if (!result.allowed) throw new RateLimitError(result.retryAfterSeconds);
 }

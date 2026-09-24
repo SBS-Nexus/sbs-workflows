@@ -27,7 +27,7 @@ export async function recordLabAttempt(
   result: unknown,
   completed: boolean,
 ): Promise<void> {
-  enforceRateLimit(`labAttempt:${userId}`, RATE_LIMITS.labAttempt);
+  await enforceRateLimit(`labAttempt:${userId}`, RATE_LIMITS.labAttempt);
 
   const lab = await getLabBySlug(labSlug);
 
