@@ -21,10 +21,10 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL fehlt.'),
+  DATABASE_URL: z.string({ error: 'DATABASE_URL fehlt.' }).min(1, 'DATABASE_URL fehlt.'),
   APP_URL: z.url().default('http://localhost:3000'),
   DEPLOYMENT_ID: z
-    .string()
+    .string({ error: 'DEPLOYMENT_ID fehlt. Nutze eine unveränderliche Build- oder Commit-Kennung.' })
     .trim()
     .min(1, 'DEPLOYMENT_ID fehlt. Nutze eine unveränderliche Build- oder Commit-Kennung.')
     .max(200, 'DEPLOYMENT_ID darf höchstens 200 Zeichen lang sein.'),
