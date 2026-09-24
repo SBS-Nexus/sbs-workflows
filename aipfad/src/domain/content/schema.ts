@@ -3,6 +3,10 @@ import { exercisePayloadSchema, hintSchema } from './exercise-payload';
 import { mergeConflictConfigSchema } from '../labs/merge-conflict-config';
 import { branchConfigSchema } from '../labs/branch-config';
 import { gitStateConfigSchema } from '../labs/git-state-config';
+import { terminalConfigSchema } from '../labs/terminal-config';
+import { tokenizerConfigSchema } from '../labs/tokenizer-config';
+import { contextWindowConfigSchema } from '../labs/context-window-config';
+import { promptRepairConfigSchema } from '../labs/prompt-repair-config';
 
 /**
  * Zod-Schemata für redaktionelle Inhalte. Muster aus PythonPfad/SQLPfad
@@ -146,6 +150,21 @@ export const labKindSchema = z.enum([
   'BRANCH',
   'MERGE_CONFLICT',
 ]);
+
+/**
+ * Eine kanonische Quelle je Lab-Art. Dieselben Verträge lesen die Masken und
+ * die Inhaltsprüfung; damit kann eine Konfiguration nicht im Build gültig und
+ * erst beim Öffnen des Labs ungültig sein.
+ */
+const labConfigSchemas = {
+  TERMINAL: terminalConfigSchema,
+  TOKENIZER: tokenizerConfigSchema,
+  CONTEXT_WINDOW: contextWindowConfigSchema,
+  PROMPT_REPAIR: promptRepairConfigSchema,
+  GIT_STATE: gitStateConfigSchema,
+  BRANCH: branchConfigSchema,
+  MERGE_CONFLICT: mergeConflictConfigSchema,
+} as const;
 
 export const labSchema = z.object({
   slug: z.string().regex(/^[a-z0-9-]+$/),
@@ -366,30 +385,19 @@ export function validateCourseGraph(input: {
       }
     }
 
-    // `config` bleibt für die allgemeine Lab-Form bewusst offen — die Labs
-    // haben zu verschiedene Konfigurationen für einen gemeinsamen Typ. Wo es
-    // aber einen getypten Vertrag gibt, wird er hier auch angewandt; sonst
-    // fiele ein Fehler darin erst auf, wenn jemand das Lab im Browser
-    // öffnet (Codex-Review auf PR #30).
-    const configVertrag =
-      lab.kind === 'MERGE_CONFLICT'
-        ? mergeConflictConfigSchema
-        : lab.kind === 'BRANCH'
-          ? branchConfigSchema
-          : lab.kind === 'GIT_STATE'
-            ? gitStateConfigSchema
-            : null;
-    if (configVertrag) {
-      const geprueft = configVertrag.safeParse(lab.config);
-      if (!geprueft.success) {
-        for (const fehler of geprueft.error.issues) {
-          const pfad = fehler.path.map(String).join('.');
-          issues.push({
-            severity: 'error',
-            where: pfad.length > 0 ? `${where}.config.${pfad}` : `${where}.config`,
-            message: fehler.message,
-          });
-        }
+    // `labSchema.config` bleibt als gemeinsame Hülle offen, weil die sieben
+    // Lab-Arten verschiedene Formen haben. Ab hier ist die Art aber bekannt,
+    // deshalb wird ausnahmslos ihr kanonischer Vertrag angewandt.
+    const configVertrag = labConfigSchemas[lab.kind];
+    const geprueft = configVertrag.safeParse(lab.config);
+    if (!geprueft.success) {
+      for (const fehler of geprueft.error.issues) {
+        const pfad = fehler.path.map(String).join('.');
+        issues.push({
+          severity: 'error',
+          where: pfad.length > 0 ? `${where}.config.${pfad}` : `${where}.config`,
+          message: fehler.message,
+        });
       }
     }
   }
