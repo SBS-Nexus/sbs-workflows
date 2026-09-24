@@ -490,13 +490,6 @@ function beispielPasstZumBefehl(command: string, example: string): boolean {
     return wert === teil;
   });
 }
-function checkTextwand(where: string, feld: string, text: string, issues: ContentIssue[]): void {'),
-    )
-    .join('');
-
-  return new RegExp(`^${muster}(?:\\s|$)`).test(example.trim());
-}
-
 function checkTextwand(where: string, feld: string, text: string, issues: ContentIssue[]): void {
   if (text.length > MAX_FLIESSTEXT) {
     issues.push({
