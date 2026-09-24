@@ -6,10 +6,9 @@ import { z } from 'zod';
  * sie unplausibel, wirft `getEnv()` mit einer verständlichen Meldung – statt
  * später mit einem schwer zuzuordnenden Laufzeitfehler.
  *
- * Die Prüfung läuft beim ERSTEN Aufruf, nicht beim Start des Prozesses: Ein
- * fehlendes `AUTH_SECRET` fällt damit erst auf, wenn ein Pfad `getEnv()`
- * berührt. Ein Abbruch schon beim Start ist als eigener Schritt vorgemerkt
- * (siehe `docs/ENTERPRISE-ROADMAP.md`, E02).
+ * `src/instrumentation.ts` ruft `getEnv()` beim Start jeder Node.js-
+ * Serverinstanz auf. Ungültige oder fehlende Pflichtvariablen verhindern
+ * damit, dass der Prozess Anfragen entgegennimmt.
  *
  * Diese Datei ist mit `server-only` markiert und kann dadurch nicht
  * versehentlich in ein Client-Bundle geraten. Secrets bleiben auf dem Server.
@@ -23,10 +22,12 @@ import { z } from 'zod';
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL fehlt.'),
-  AUTH_SECRET: z
-    .string()
-    .min(32, 'AUTH_SECRET muss mindestens 32 Zeichen lang sein (openssl rand -base64 48).'),
   APP_URL: z.url().default('http://localhost:3000'),
+  DEPLOYMENT_ID: z
+    .string()
+    .trim()
+    .min(1, 'DEPLOYMENT_ID fehlt. Nutze eine unveränderliche Build- oder Commit-Kennung.')
+    .max(200, 'DEPLOYMENT_ID darf höchstens 200 Zeichen lang sein.'),
   ATTEMPT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(365),
 });
 
