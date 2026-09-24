@@ -34,7 +34,7 @@ externen AI-Anbieter** in dieser Ausbaustufe (siehe
 ## Schnellstart
 
 ```bash
-cp .env.example .env        # AUTH_SECRET setzen: openssl rand -base64 48
+cp .env.example .env        # DEPLOYMENT_ID lokal z. B. auf "lokal" lassen
 docker compose up -d        # Postgres auf Port 5433
 npm install
 npm run db:migrate
