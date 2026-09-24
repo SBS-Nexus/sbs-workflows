@@ -68,14 +68,14 @@ export const SETUP_SECTIONS: SetupSection[] = [
         safety: nurLesend(),
       },
       {
-        command: 'cd zielordner',
+        command: 'cd <zielordner>',
         description: 'Wechselt in ein anderes Verzeichnis.',
         whatHappens: 'Ändert nur, wo nachfolgende Befehle wirken — keine Datei wird angefasst.',
         example: 'cd ~/projekte/mein-projekt',
         safety: nurLesend(),
       },
       {
-        command: 'mkdir neuer-ordner',
+        command: 'mkdir <neuer-ordner>',
         description: 'Legt einen neuen Ordner an.',
         whatHappens: 'Erstellt ein leeres Verzeichnis auf der Festplatte.',
         example: 'mkdir notizen',
@@ -87,7 +87,7 @@ export const SETUP_SECTIONS: SetupSection[] = [
         },
       },
       {
-        command: 'rm -rf ordner',
+        command: 'rm -rf <ordner>',
         description: 'Löscht einen Ordner samt Inhalt unwiderruflich.',
         whatHappens:
           'Entfernt alle Dateien im angegebenen Ordner dauerhaft — kein Papierkorb, keine Nachfrage.',
@@ -155,7 +155,7 @@ export const SETUP_SECTIONS: SetupSection[] = [
         safety: nurLesend(),
       },
       {
-        command: 'pip install paketname',
+        command: 'pip install <paketname>',
         description: 'Installiert ein Python-Paket.',
         whatHappens: 'Lädt das Paket aus dem Python-Registry (PyPI) herunter und installiert es.',
         example: 'pip install requests',
@@ -225,7 +225,7 @@ export const SETUP_SECTIONS: SetupSection[] = [
         },
       },
       {
-        command: 'git commit -m "Nachricht"',
+        command: 'git commit -m "<nachricht>"',
         description: 'Hält alles Vorgemerkte als neuen Commit fest.',
         whatHappens:
           'Schreibt den Inhalt der Staging Area dauerhaft in den Verlauf. Nur was vorgemerkt war, kommt mit.',
@@ -405,7 +405,7 @@ export const SETUP_SECTIONS: SetupSection[] = [
         description: 'Überschreibt den Stand auf dem Remote.',
         whatHappens:
           'Ersetzt den entfernten Branch durch deinen. Commits, die andere bereits geholt haben, verschwinden aus dem gemeinsamen Verlauf — deren Arbeit kann dadurch verloren gehen. Auf gemeinsam genutzten Branches praktisch nie richtig. Wenn es sein muss: --force-with-lease prüft wenigstens, ob jemand anders inzwischen etwas hochgeladen hat.',
-        example: 'git push --force-with-lease origin mein-branch',
+        example: 'git push --force origin mein-branch',
         safety: {
           wirkung: ['remote', 'verlauf'],
           gefahr: 'destruktiv',
