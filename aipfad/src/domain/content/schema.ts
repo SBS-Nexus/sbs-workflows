@@ -412,11 +412,18 @@ export function validateCourseGraph(input: {
  * verloren gehen kann — sonst steht dort eine Warnfarbe ohne Inhalt. Die
  * Bedingung stammt aus `domain/commands/safety.ts`, damit Anzeige und
  * Prüfung dieselbe Regel meinen.
+ *
+ * Beispiele sind die kopierbare, konkrete Form der darüber beschriebenen
+ * Befehlsform. Feste Bestandteile — insbesondere Schalter — müssen deshalb
+ * identisch bleiben. Nur ausdrücklich als `<platzhalter>` markierte Teile
+ * dürfen im Beispiel durch konkrete Werte ersetzt werden. Zusätzliche
+ * Argumente hinter einer allgemein beschriebenen Befehlsform bleiben erlaubt.
  */
 export function validateCommandReference(
   befehle: {
     command: string;
     whatHappens: string;
+    example?: string;
     safety: { gefahr: string; reversibel: boolean; wirkung: string[] };
   }[],
 ): ContentValidationResult {
@@ -431,6 +438,15 @@ export function validateCommandReference(
     gesehen.add(befehl.command);
 
     checkPlaceholders(where, `${befehl.command} ${befehl.whatHappens}`, issues);
+
+    if (befehl.example && !beispielPasstZumBefehl(befehl.command, befehl.example)) {
+      issues.push({
+        severity: 'error',
+        where,
+        message:
+          'Beispiel passt nicht zur beschriebenen Befehlsform. Feste Befehls- und Schalterteile müssen übereinstimmen; nur <platzhalter> dürfen ersetzt werden.',
+      });
+    }
 
     const heikel = befehl.safety.gefahr === 'destruktiv' || !befehl.safety.reversibel;
     if (heikel && befehl.whatHappens.length < 60) {
@@ -455,6 +471,19 @@ export function validateCommandReference(
   }
 
   return { ok: issues.every((i) => i.severity !== 'error'), issues };
+}
+
+function beispielPasstZumBefehl(command: string, example: string): boolean {
+  const teile = command.trim().split(/(<[^<>]+>)/g).filter(Boolean);
+  const muster = teile
+    .map((teil) =>
+      /^<[^<>]+>$/.test(teil)
+        ? '.+?'
+        : teil.replace(/[.*+?^${}()|[\]\\]/g, '\\function checkTextwand(where: string, feld: string, text: string, issues: ContentIssue[]): void {'),
+    )
+    .join('');
+
+  return new RegExp(`^${muster}(?:\\s|$)`).test(example.trim());
 }
 
 function checkTextwand(where: string, feld: string, text: string, issues: ContentIssue[]): void {
