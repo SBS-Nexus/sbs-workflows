@@ -14,10 +14,12 @@ Stufen zu voller Tiefe (echte Lektionen, Aufgaben, Labs, Tests), statt alle
 | 4     | LLM-Grundlagen                     | 4 Lektionen (Tokens/Tokenisierung, Embeddings/Aufmerksamkeit, Training/Inferenz/Kontextfenster, Nachrichtenrollen/Halluzination), Tokenizer-Lab, Kontextfenster-Lab |
 | 5     | Prompting-Grundlagen               | 3 Lektionen (Ziel/Kontext, Constraints/Beispiele, Zerlegung/Iteration), Prompt-Reparatur-Lab                                                                        |
 
-**Zusammen:** 13 Lektionen, 17 Aufgaben über 6 Interaktionsformen
-(SINGLE_CHOICE, MULTIPLE_CHOICE, ORDERING, FILL_IN, SCENARIO_DECISION,
-TERMINAL_SIMULATION, PROMPT_REPAIR, TRANSFER), 4 Labs, 17 Konzepte, 1
-Kurs. Vollständige Infrastruktur: Auth, Mastery/Scheduling/Hints,
+**Zusammen:** 13 Lektionen, 17 Aufgaben über 8 Aufgabentypen der Achse
+`ExerciseType` (SINGLE_CHOICE, MULTIPLE_CHOICE, ORDERING, FILL_IN,
+SCENARIO_DECISION, TERMINAL_SIMULATION, PROMPT_REPAIR, TRANSFER), 4 Labs,
+17 Konzepte, 1 Kurs. Die Zahl nannte vorher sechs und zählte acht auf; die
+Interaktionsform (`payload.kind`) ist zudem eine andere Achse als der
+didaktische Aufgabentyp. Vollständige Infrastruktur: Auth, Mastery/Scheduling/Hints,
 Content-Validator, Pfad, Bibliothek, Übungslauf, Wiederholung, Fortschritt,
 Wissenslandkarte, Nachschlagen, Glossar, Setup-Center.
 
@@ -42,7 +44,7 @@ Wissenslandkarte, Nachschlagen, Glossar, Setup-Center.
 | 18 — Production AI/LLMOps             | Baut auf einem funktionierenden AI-Gateway auf (siehe unten).                                                                                                                                                                                   |
 | 19 — Advanced                         | Ausdrücklich optional, kein Anfänger-Kern.                                                                                                                                                                                                      |
 | 20 — Enterprise AI                    | Baut auf Governance (17) auf.                                                                                                                                                                                                                   |
-| Organisationen/Kohorten               | Spec markiert dies ausdrücklich als optional/gestaffelt (§55).                                                                                                                                                                                  |
+| Organisationen/Kohorten               | Bewusst gestaffelt: ohne Unternehmenseinsatz gibt es nichts zu verwalten. Siehe `docs/ENTERPRISE-ROADMAP.md` (E08, E08B, E11A–C).                                                                                                               |
 | Live-AI-Gateway/Playground            | Bewusst kein Live-Aufruf in Runde 1 (siehe `docs/CONTENT-POLICY.md`) — vermeidet Kosten, Secrets und Datenübertragung, bis eine dedizierte Gateway-Architektur (Provider-Abstraktion, Rate-Limits, Kostenbudget, Einwilligung) ansteht.         |
 | Vollständiges Admin-Content-Studio    | Nur Lesebereich/Validator vorbereitet (`domain/content/schema.ts#validateCourseGraph`); Bearbeitungsformulare sind ein späterer Schritt.                                                                                                        |
 | Rollenbasierte Tracks                 | Setzt mehr Inhalt über mehrere Stufen voraus, um sinnvoll zu filtern.                                                                                                                                                                           |
@@ -58,22 +60,11 @@ Wissenslandkarte, Nachschlagen, Glossar, Setup-Center.
    Markierung je Lektion: `evaluatePlacement()` berechnet
    `demonstratedConceptSlugs`, gespeichert wird das noch nicht — dafür
    bräuchte es eine eigene Spalte oder Tabelle.
-2. **Zwölf Quellenangaben brauchen das Präfix `pythonpfad/`.** Die
-   Kommentare wurden aus PythonPfad übernommen und behielten dessen
-   Abschnittsnummern, während der Pfad `docs/…` auf die hiesigen,
-   anders nummerierten Dokumente zeigt. Betroffen: `fortschritt/page.tsx`
-   (§2.5), `wiederholen/page.tsx` (§3.4), `auth/password.ts` und
-   `auth/session.ts` (§2.2), `exercise-service.ts` (§4),
-   `exercise-runner.tsx` (§2.6 und §4), `grade.ts` (§2.7),
-   `spaced-repetition.ts` (§3), `exercise-payload.ts` (§2.6),
-   `schema.ts` (§2.1), `hint-ladder.ts` (§4). Elf davon lösen sich mit
-   `pythonpfad/` davor auf; `exercise-runner.tsx` (§2.6) nennt gar keinen
-   Pfad und braucht `pythonpfad/docs/` — im Wurzelverzeichnis dort liegen
-   nur DESIGN.md und README.md. `icon.tsx` macht es bereits richtig. Die heimtückischen
-   sind die, deren Nummer es hier AUCH gibt — `hint-ladder.ts` schickt
-   einen Leser auf §4, wo statt der Hinweisleiter die Einstufung steht.
-   Nicht in der Einstufungs-Änderung mitgelaufen, weil es elf Dateien
-   betrifft, die damit nichts zu tun haben.
+2. ~~**Zwölf Quellenangaben brauchen das Präfix `pythonpfad/`.**~~
+   **Erledigt in E01A.** Die übernommenen Kommentare verweisen jetzt
+   ausdrücklich auf `pythonpfad/docs/…`; auch Fundstellen, deren
+   Abschnittsnummer in AIPfad zufällig existiert, zeigen damit nicht mehr auf
+   das falsche Thema.
 
 3. ~~**Stufe 2 (Git & GitHub).**~~ **Erledigt in Ausbaustufe 2.** Größter fachlicher Hebel: Voraussetzung für
    AI-Coding, CI/CD und einen Großteil der praktischen Übungen.

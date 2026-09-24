@@ -1,7 +1,7 @@
 # Security
 
-Übernommene Grundlage aus PythonPfad/SQLPfad (siehe dort `docs/SICHERHEIT.md`
-bzw. `docs/SECURITY.md`), angepasst auf die Unterschiede dieser Ausbaustufe.
+Übernommene Grundlage aus PythonPfad (siehe `pythonpfad/docs/SICHERHEIT.md`),
+ergänzt um die für AIPfad relevanten Unterschiede dieser Ausbaustufe.
 
 ## Authentifizierung und Sitzungen
 
@@ -142,7 +142,8 @@ Ausdrücklich gegengeprüft und ohne Fund: kein IDOR über `LessonProgress`,
 `Attempt`, `HintReveal`, `LabAttempt`, `ConceptMastery`, `ReviewQueueItem`
 (jede Abfrage ist auf die Sitzungs-`userId` bezogen); kein Mass Assignment;
 unveröffentlichte Inhalte sind auf keinem Pfad erreichbar; `toPublicPayload()`
-entfernt die Lösungsdaten aller sieben Interaktionsformen; Hinweistexte
+entfernt die Lösungsdaten aller zehn Interaktionsformen (`payload.kind`,
+nicht zu verwechseln mit der didaktischen Achse `ExerciseType`); Hinweistexte
 verlassen die öffentliche Aufgabe nicht; genau ein `dangerouslySetInnerHTML`
 mit einer Konstanten; kein Open Redirect; scrypt mit OWASP-Parametern und
 `timingSafeEqual`; Sitzungstoken nur als SHA-256-Hash gespeichert; Lockfile

@@ -4,14 +4,13 @@ import { eigenerEintrag } from '@/domain/eintraege';
 
 /**
  * Bewertung einer eingereichten Lösung. Muster aus PythonPfad/SQLPfad (siehe
- * docs/ARCHITEKTUR.md §2.7): eine reine Funktion ohne Datenbank- oder
+ * pythonpfad/docs/ARCHITEKTUR.md §2.7): eine reine Funktion ohne Datenbank- oder
  * Netzwerkzugriff, die ausschließlich auf dem Server läuft. Die richtigen
  * Antworten liegen dadurch nie im Browser vor – siehe `toPublicPayload()`
  * unten für die Funktion, die das technisch erzwingt.
  *
- * Diese Ausbaustufe führt keinen Code aus; alle Interaktionsformen sind
- * deterministisch (Auswahl, Reihenfolge, Lückentext, Szenario, Terminal,
- * Prompt-Reparatur).
+ * Diese Ausbaustufe führt keinen Code aus; alle aktuellen Interaktionsformen
+ * werden deterministisch bewertet.
  */
 
 export type GradeOutcome = 'PASSED' | 'PARTIAL' | 'FAILED';

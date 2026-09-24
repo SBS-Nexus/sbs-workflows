@@ -49,10 +49,10 @@ dokumentierter Begründung in den Ursprungsprojekten
 | ----------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Design-Sprache          | Indigo-getönte Neutraltöne, Modulfarben-Palette, "lebendig und zugewandt" | Warme Papier-/Tinten-Neutraltöne, ein Markenakzent (Bernstein) + ein zweckgebundener Akzent (Stahlblau, nur Wissenslandkarte) | Eigene, ruhigere Stimme in derselben Produktfamilie — siehe [`../DESIGN.md`](../DESIGN.md)                         |
 | Auszeichnungsschrift    | IBM Plex Sans für Überschriften, Plex Mono nur für Code                   | IBM Plex Mono auch für Überschriften/Navigation                                                                               | Der Lerninhalt selbst ist monospace-nativ (Tokens, Terminal, JSON)                                                 |
-| Ausführungs-Engine      | Pyodide (Python im Browser) bzw. SQL-Server-Sandbox                       | Keine — alle Aufgaben sind Auswahl/Reihenfolge/Lückentext/Szenario/Terminal-Simulation/Prompt-Reparatur                       | Diese Ausbaustufe braucht keine Code-Ausführung; spart ~13 MB Laufzeit-Payload                                     |
+| Ausführungs-Engine      | Pyodide (Python im Browser) bzw. SQL-Server-Sandbox                       | Keine — die aktuellen Interaktionsformen werden deterministisch ohne Code-Ausführung bewertet                                 | Diese Ausbaustufe braucht keine Code-Ausführung; spart ~13 MB Laufzeit-Payload                                     |
 | `ErrorCategory`         | SYNTAX/INDENTATION/NAME/… (laufzeitbezogen)                               | SURFACE/INCOMPLETE/MISCONCEPTION                                                                                              | Ohne Code-Ausführung gibt es keine Laufzeitfehler — die Kategorien beschreiben stattdessen die Art des Denkfehlers |
 | KI-Tutor                | Optionaler externer Anbieter, mit Einwilligung                            | Keiner in dieser Ausbaustufe                                                                                                  | Vermeidet jede Datenübertragung/Kosten in der ersten Ausbaustufe — siehe [`SECURITY.md`](SECURITY.md)              |
-| Organisationen/Kohorten | Vollständig modelliert                                                    | Nicht modelliert                                                                                                              | Spec markiert dies ausdrücklich als optional/gestaffelt — siehe [`LEHRPLAN.md`](LEHRPLAN.md)                       |
+| Organisationen/Kohorten | Vollständig modelliert                                                    | Nicht modelliert                                                                                                              | Bewusst gestaffelt: ohne Unternehmenseinsatz gibt es nichts zu verwalten — siehe [`LEHRPLAN.md`](LEHRPLAN.md)      |
 
 ## 4. Datenmodell
 
@@ -63,9 +63,9 @@ PythonPfad/SQLPfad): Inhalt (`Course`/`CourseModule`/`Lesson`/`Exercise`/
 `AnalyticsEvent` hat keinen Fremdschlüssel auf `User`. Jeder
 nutzerbezogene Fremdschlüssel hat `onDelete: Cascade`.
 
-**Neu gegenüber PythonPfad:** `Lab`/`LabAttempt` (spec §14/§47 — deckt
-interaktive, deterministische Visualisierungen/Simulationen ab, die kein
-Übungsformat im klassischen Sinn sind).
+**Neu gegenüber PythonPfad:** `Lab`/`LabAttempt` — interaktive,
+deterministische Visualisierungen und Simulationen, die kein Übungsformat im
+klassischen Sinn sind und deshalb ein eigenes Modell brauchen.
 
 ## 5. Wissenslandkarte / Context Graph
 

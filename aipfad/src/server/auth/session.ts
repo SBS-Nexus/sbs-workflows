@@ -9,7 +9,7 @@ import type { UserModel } from '@/generated/prisma/models';
 
 /**
  * Sitzungsverwaltung. Übernommen aus PythonPfad/SQLPfad (siehe dortige
- * Begründung in docs/ARCHITEKTUR.md §2.2): Auth.js liegt für den App Router
+ * Begründung in pythonpfad/docs/ARCHITEKTUR.md §2.2): Auth.js liegt für den App Router
  * als Vorabversion vor, und diese Anwendung braucht nur E-Mail und Passwort
  * ohne Fremdanbieter.
  *
@@ -18,8 +18,11 @@ import type { UserModel } from '@/generated/prisma/models';
  *  - In der Datenbank liegt nur dessen SHA-256-Hash.
  *  - Das Cookie ist httpOnly, SameSite=Lax und secure, sobald APP_URL auf
  *    https zeigt.
- *  - Zusätzlich zum SameSite-Schutz wird für Formulare ein
- *    Double-Submit-CSRF-Token verwendet.
+ *  - Ein Double-Submit-CSRF-Verfahren ist vorbereitet (`csrfSecret`,
+ *    `assertCsrf()`, `getCsrfToken()`), aber NICHT angebunden: Keine Server
+ *    Action ruft es auf. Wirksam sind `SameSite=Lax`, die bedingte
+ *    Herkunftsprüfung in `src/proxy.ts` (bei vorhandenem `Origin`) und die
+ *    eingebaute Prüfung von Next.js für Server Actions.
  */
 
 const SESSION_COOKIE = 'aipfad_session';

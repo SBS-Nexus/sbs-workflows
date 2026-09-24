@@ -6,9 +6,9 @@ import { BRAND } from '@/lib/brand';
 import { siteUrl } from '@/server/site';
 
 /*
- * Schriften. IBM Plex, selbst ausgeliefert (siehe pythonpfad/docs/ARCHITEKTUR.md
- * für die Begründung: kein Schriftennetz, damit kein Dritter bei jedem
- * Seitenaufruf die IP-Adresse der Lernenden erfährt).
+ * Schriften. IBM Plex wird selbst ausgeliefert statt über ein Schriftennetz:
+ * So kontaktiert der Browser beim Seitenaufruf keinen Drittanbieter nur zum
+ * Laden der Schrift und gibt dabei auch keine IP-Adresse an ihn weiter.
  *
  * Anders als PythonPfad wird Plex Mono hier VORGELADEN: Es ist in AIPfad die
  * Auszeichnungsschrift (Überschriften, Navigation), nicht nur die

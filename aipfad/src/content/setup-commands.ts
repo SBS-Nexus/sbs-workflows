@@ -4,8 +4,10 @@ import type { BefehlSicherheit } from '@/domain/commands/safety';
  * Setup-Center-Befehle (macOS). Bewusst als eigene, kleine statische Liste
  * und NICHT durch die Lektionsinhalts-Pipeline (parseContent) geprüft – das
  * ist für Lernstoff mit Konzeptverweisen und Hinweisleiter gedacht, hier
- * geht es um reine Werkzeug-Referenz. Deckt spec §44/§45: jeder Befehl
- * nennt Wirkung, Netzwerkbedarf, Reversibilität und Gefährdungsstufe.
+ * geht es um reine Werkzeug-Referenz. Jeder Befehl nennt Wirkung,
+ * Netzwerkbedarf, Reversibilität und Gefährdungsstufe — wer etwas in eine
+ * fremde Shell tippt, soll vorher wissen, was es anrichtet und ob es sich
+ * rückgängig machen lässt.
  */
 
 export interface SetupCommand {

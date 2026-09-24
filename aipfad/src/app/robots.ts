@@ -4,7 +4,7 @@ import { siteUrl } from '@/server/site';
 /**
  * Anweisungen für Suchmaschinen. Öffentlich ist nur, was ohne Anmeldung
  * sinnvoll ist. Zur Laufzeit erzeugt, nicht beim Übersetzen (siehe
- * pythonpfad/docs/ARCHITEKTUR.md für die Begründung: `APP_URL` gehört zur
+ * pythonpfad/docs/VERCEL.md für die Begründung: `APP_URL` gehört zur
  * Betriebsumgebung, nicht zum Übersetzungsvorgang).
  */
 export const dynamic = 'force-dynamic';

@@ -55,6 +55,8 @@ sinnvoll für eine DACH-Zielgruppe und für die Nähe zur Datenbank.
    Repository.
 4. `APP_URL` auf die tatsächliche Domain setzen, sobald eine existiert
    (keine vorausgesetzt – siehe oben).
-5. GitHub-Actions-Workflow (`../.github/workflows/`, sofern vorhanden)
-   um einen `aipfad`-spezifischen Job ergänzen, der `npm run verify` in
-   `aipfad/` ausführt, bevor ein Preview-Deployment entsteht.
+5. Der GitHub-Actions-Workflow für `aipfad/` existiert seit Ausbaustufe 2:
+   `.github/workflows/aipfad-ci.yml`. Er führt acht Prüfschritte aus —
+   Formatprüfung, Lint, Typecheck, Inhaltsvalidierung, Unit-, Integrations-
+   und E2E-Tests sowie den Produktionsbuild — gegen eine echte
+   PostgreSQL-Instanz im Lauf.

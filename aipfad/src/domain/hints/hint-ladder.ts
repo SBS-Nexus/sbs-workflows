@@ -2,7 +2,7 @@ import type { Hint } from '@/domain/content/exercise-payload';
 
 /**
  * Progressive Hinweisleiter. Muster aus PythonPfad/SQLPfad (siehe
- * docs/LERNMODELL.md §4). Ziel ist nicht, Hilfe zu verweigern, sondern sie in
+ * pythonpfad/docs/LERNMODELL.md §4). Ziel ist nicht, Hilfe zu verweigern, sondern sie in
  * der Reihenfolge zu geben, die das eigene Denken am wenigsten ersetzt:
  *
  *   1 Denkimpuls        – eine Frage, die den nächsten eigenen Schritt anstößt

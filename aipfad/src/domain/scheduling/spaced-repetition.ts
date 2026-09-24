@@ -2,7 +2,7 @@ import type { ConfidenceLevel, ErrorCategoryName, MasteryState } from '@/domain/
 
 /**
  * Wiederholungsplanung. Muster aus PythonPfad/SQLPfad (siehe
- * docs/LERNMODELL.md §3). Ausgangspunkt ist die Intervallleiter (Ende der
+ * pythonpfad/docs/LERNMODELL.md §3). Ausgangspunkt ist die Intervallleiter (Ende der
  * Lerneinheit → 1 → 3 → 7 → 14 → 30 Tage), individuell gestreckt/gestaucht
  * anhand von Erfolg, Eigenständigkeit, Stabilität, Schwierigkeit,
  * Selbsteinschätzung, Fehlerart und Transferleistung.

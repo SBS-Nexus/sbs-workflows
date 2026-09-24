@@ -10,20 +10,24 @@ als eigenständige Next.js-Anwendung.
 
 Volles Zielbild in [`docs/LEHRPLAN.md`](docs/LEHRPLAN.md) — 20 Stufen, 35–50
 Lektionen. Diese erste Ausbaustufe baut die Grundlagen zu voller Tiefe statt
-den gesamten Umfang oberflächlich:
+den gesamten Umfang oberflächlich. In Ausbaustufe 2 kam Git & GitHub hinzu:
 
 - **Stufe 0 — Orientierung**: was AIPfad ist, was AI kann/nicht kann, wie
   Fortschritt gemessen wird.
 - **Stufe 1 — Technischer Arbeitsplatz** (kompakt): Pfade, Terminal,
   Umgebungsvariablen.
+- **Stufe 2 — Git & GitHub**: Versionsverwaltung, Branches, Merge-Konflikte
+  und Zusammenarbeit über Pull Requests.
 - **Stufe 4 — LLM-Grundlagen**: Tokens, Embeddings, Aufmerksamkeit,
   Training/Inferenz, Kontextfenster, Nachrichtenrollen, Halluzination.
 - **Stufe 5 — Prompting-Grundlagen**: Ziel, Kontext, Constraints, Zerlegung,
   Iteration.
 
-13 Lektionen, 17 Aufgaben (6 Interaktionsformen), 4 Labs (Terminal,
-Tokenizer, Kontextfenster, Prompt-Reparatur), 17 Konzepte im
-Voraussetzungsgraphen. Alles deterministisch — **kein Aufruf an einen
+Die Grundlagenblöcke 0, 1, 4 und 5 umfassen 13 Lektionen, 17 Aufgaben über
+8 Aufgabentypen (`ExerciseType`), 4 Labs (Terminal, Tokenizer, Kontextfenster,
+Prompt-Reparatur) und 17 Konzepte im Voraussetzungsgraphen. Stufe 2 ergänzt
+weitere Git-/GitHub-Lektionen und Labs; der vollständige aktuelle Umfang steht
+in `docs/LEHRPLAN.md`. Alles deterministisch — **kein Aufruf an einen
 externen AI-Anbieter** in dieser Ausbaustufe (siehe
 [`docs/CONTENT-POLICY.md`](docs/CONTENT-POLICY.md)).
 
@@ -71,8 +75,8 @@ Details und aktueller Stand: [`docs/TESTING.md`](docs/TESTING.md).
 
 ## Was diese Ausbaustufe bewusst nicht enthält
 
-Git/GitHub, ML/DL-Grundlagen, HTTP/APIs, RAG, Agents, MCP, AI-Coding,
-Evals, AI-Sicherheit als eigene Stufe, DACH-Governance/EU-AI-Act,
+ML/DL-Grundlagen, HTTP/APIs, RAG, Agents, MCP, AI-Coding, Evals,
+AI-Sicherheit als eigene Stufe, DACH-Governance/EU-AI-Act,
 Organisationen/Kohorten, Live-AI-Gateway, vollständiges Admin-Content-Studio.
 Vollständig aufgelistet mit Begründung in
 [`docs/LEHRPLAN.md`](docs/LEHRPLAN.md).

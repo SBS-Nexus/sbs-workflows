@@ -6,7 +6,7 @@ import { gitStateConfigSchema } from '../labs/git-state-config';
 
 /**
  * Zod-Schemata für redaktionelle Inhalte. Muster aus PythonPfad/SQLPfad
- * (siehe docs/ARCHITEKTUR.md §2.1): Inhalte liegen als typisierte
+ * (siehe pythonpfad/docs/ARCHITEKTUR.md §2.1): Inhalte liegen als typisierte
  * TypeScript-Module unter `src/content/` und werden beim Seeding gegen diese
  * Schemata geprüft. `validateCourseGraph()` prüft zusätzlich Beziehungen, die
  * ein reines Schema nicht abbilden kann.

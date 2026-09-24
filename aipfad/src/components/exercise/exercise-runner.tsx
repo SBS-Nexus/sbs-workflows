@@ -14,9 +14,9 @@ import { eigenerEintrag } from '@/domain/eintraege';
 /**
  * Rendert eine Aufgabe anhand ihrer Interaktionsform (`payload.kind`) und
  * reicht die Antwort über die Server Action ein. Eine Komponente für alle
- * sieben Formen dieser Ausbaustufe — jede Form braucht wenig genug
- * Darstellungslogik, dass eine Aufspaltung in sieben Dateien nur Umwege
- * erzeugen würde (vgl. ARCHITEKTUR.md §2.6: die Interaktionsform steuert nur
+ * Interaktionsformen dieser Ausbaustufe — jede Form braucht wenig genug
+ * Darstellungslogik, dass eine Aufspaltung nach Interaktionsform nur Umwege
+ * erzeugen würde (vgl. pythonpfad/docs/ARCHITEKTUR.md §2.6: die Interaktionsform steuert nur
  * Darstellung und Bewertung, nicht die didaktische Rolle).
  */
 
@@ -513,7 +513,7 @@ function ConflictResolutionForm({
 }
 
 /**
- * Progressive Hinweisleiter (docs/LERNMODELL.md §4). Bewusst kompakt: eine
+ * Progressive Hinweisleiter (pythonpfad/docs/LERNMODELL.md §4). Bewusst kompakt: eine
  * einzelne Zeile pro bereits aufgedecktem Hinweis, ein Knopf für den
  * nächsten. Die eigentliche Freigabe-Entscheidung trifft ausschließlich der
  * Server (`revealHintAction` → `revealNextHint()`, echte Versuchszahl aus der
