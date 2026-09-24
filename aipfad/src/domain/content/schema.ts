@@ -473,13 +473,24 @@ export function validateCommandReference(
   return { ok: issues.every((i) => i.severity !== 'error'), issues };
 }
 
+function befehlsTeile(value: string): string[] {
+  return value.match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
+}
+
 function beispielPasstZumBefehl(command: string, example: string): boolean {
-  const teile = command.trim().split(/(<[^<>]+>)/g).filter(Boolean);
-  const muster = teile
-    .map((teil) =>
-      /^<[^<>]+>$/.test(teil)
-        ? '.+?'
-        : teil.replace(/[.*+?^${}()|[\]\\]/g, '\\function checkTextwand(where: string, feld: string, text: string, issues: ContentIssue[]): void {'),
+  const erwartet = befehlsTeile(command.trim());
+  const konkret = befehlsTeile(example.trim());
+  if (konkret.length < erwartet.length) return false;
+
+  return erwartet.every((teil, index) => {
+    const wert = konkret[index];
+    if (!wert) return false;
+    if (/^<[^<>]+>$/.test(teil)) return wert.length > 0;
+    if (/^"<[^<>]+>"$/.test(teil)) return wert.startsWith('"') && wert.endsWith('"');
+    return wert === teil;
+  });
+}
+function checkTextwand(where: string, feld: string, text: string, issues: ContentIssue[]): void {'),
     )
     .join('');
 
