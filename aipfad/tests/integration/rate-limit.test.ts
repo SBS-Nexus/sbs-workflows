@@ -41,6 +41,7 @@ const ALLE_SCHLUESSEL = [
   'gueltig',
   'frisch',
   'aufraeum-wettlauf',
+  'dauernd-weg',
   ...Array.from({ length: 5 }, (_, i) => `aufraeum-grenze-${i}`),
 ].map(schluessel);
 
@@ -257,12 +258,18 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
 
   it('hält eine eben erst geschriebene Zeile nicht für abgelaufen', async () => {
     // Regressionstest für einen Fehler, der in der CI nicht aufgefallen wäre:
-    // Mit `timestamptz` schrieb der Treiber den UTC-Zeitpunkt ohne Versatz,
-    // und eine Datenbanksitzung in `Europe/Berlin` deutete ihn als Ortszeit.
-    // Jede frisch geschriebene Zeile lag damit scheinbar zwei Stunden in der
-    // Vergangenheit, wurde beim nächsten Aufräumen entfernt — und der Zähler
-    // begann mitten im Fenster von vorn. Die CI läuft in UTC (Versatz null),
+    // Wird `expiresAt` gegen `now()` der Datenbank verglichen, deutet
+    // PostgreSQL die Spalte (UTC-Wanduhrzeit, ohne Zeitzone) mit der Zeitzone
+    // der SITZUNG. Auf einem Rechner in `Europe/Berlin` liegt eine frisch
+    // geschriebene Zeile damit scheinbar um den Zonenversatz in der
+    // Vergangenheit, wird beim nächsten Aufräumen entfernt — und der Zähler
+    // beginnt mitten im Fenster von vorn. Die CI läuft in UTC (Versatz null),
     // dort wäre nichts zu sehen gewesen.
+    //
+    // Die SPALTENART schützt davor nicht: Der Fehler tritt mit `timestamp`
+    // genauso auf wie mit `timestamptz`. Tragend ist allein, dass
+    // `pruneExpiredBuckets()` seinen Vergleichszeitpunkt aus der Anwendung
+    // bekommt.
     const key = schluessel('frisch');
     const config = { limit: 2, windowMs: 60_000 };
 
@@ -324,6 +331,46 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
       await zweiteVerbindung.$disconnect().catch(() => undefined);
     }
   });
+
+  it('bleibt bei gleichzeitigem, aggressivem Aufräumen antwortfähig', async () => {
+    // Ein Aufräumlauf mit einem Vergleichszeitpunkt weit in der ZUKUNFT trifft
+    // jede Zeile, auch die lebenden, und läuft hier parallel zu den Anfragen.
+    //
+    // Was dieser Test NACHWEIST: Unter dauerndem Wegräumen liefert jede
+    // Anfrage eine wohlgeformte Antwort, keine bleibt hängen, keine wirft.
+    //
+    // Was er NICHT nachweist — ausdrücklich, damit der Name nicht mehr
+    // verspricht als er hält: den Neu-Ansatz in `zaehleUndPruefe()` für den
+    // Fall, dass die Zeile genau ZWISCHEN Anlegen und Sperren verschwindet.
+    // Dieses Fenster liegt zwischen zwei unmittelbar aufeinanderfolgenden
+    // Anweisungen derselben Transaktion; es ließ sich hier nicht verlässlich
+    // treffen (mit `HOECHSTENS_ANLAEUFE = 1` läuft dieser Test unverändert
+    // durch). Der Zweig ist vorsorglich und bleibt ohne deterministische
+    // Abdeckung — ihn testbar zu machen hieße, eine Naht allein für den Test
+    // in den Produktionsweg zu legen.
+    const key = schluessel('dauernd-weg');
+    const config = { limit: 50, windowMs: 60_000 };
+    const zukunft = new Date(Date.now() + 3_600_000);
+
+    const loescher = (async () => {
+      for (let lauf = 0; lauf < 30; lauf += 1) {
+        await pruneExpiredBuckets(500, zukunft);
+      }
+    })();
+
+    const ergebnisse = await Promise.all(
+      Array.from({ length: 30 }, () => checkRateLimit(key, config, Date.now())),
+    );
+    await loescher;
+
+    for (const ergebnis of ergebnisse) {
+      expect(typeof ergebnis.allowed).toBe('boolean');
+      expect(ergebnis.remaining).toBeGreaterThanOrEqual(0);
+      expect(ergebnis.retryAfterSeconds).toBeGreaterThanOrEqual(0);
+    }
+    // Die Grenze ist großzügig genug, dass ohne Fehler alle durchkommen.
+    expect(ergebnisse.every((ergebnis) => ergebnis.allowed)).toBe(true);
+  }, 60_000);
 
   it('räumt je Lauf höchstens so viele Zeilen ab wie erlaubt', async () => {
     const schluesselListe = Array.from({ length: 5 }, (_, i) =>

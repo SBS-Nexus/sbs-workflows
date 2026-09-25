@@ -175,15 +175,17 @@ aber es ist kein kostenloser Schutz.
 
 **Zusatzaufwand je Anfrage.** Gemessen mit `npm run perf:rate-limit`, 300
 Messungen je Füllstand nach 50 Aufwärmläufen, PostgreSQL 14.21 auf demselben
-Rechner (Loopback). Angegeben sind Spannen über **drei** Läufe, nicht die
-Zahlen eines einzelnen: Die Streuung zwischen Läufen ist auf einem
-Entwicklungsrechner erheblich, und eine einzelne Zahl täuscht Genauigkeit vor,
-die die Messung nicht hergibt.
+Rechner (Loopback). Angegeben sind Spannen über **sechs** Läufe aus zwei
+getrennten Sitzungen, nicht die Zahlen eines einzelnen: Die Streuung zwischen
+Läufen ist auf einem Entwicklungsrechner erheblich, und eine einzelne Zahl
+täuscht Genauigkeit vor, die die Messung nicht hergibt. Eine erste Fassung
+dieser Tabelle nannte Spannen aus nur drei Läufen; eine Nachmessung fiel auf
+beiden Seiten aus ihnen heraus, weshalb hier jetzt alle sechs stehen.
 
-| Füllstand der Zeile                       | p50        | p95        |
-| ----------------------------------------- | ---------- | ---------- |
-| 10 (ausgereizte Anmeldegrenze)            | 0,7–1,0 ms | 1,0–2,1 ms |
-| 240 (`submitAttempt`, ungünstigster Fall) | 3,0–3,5 ms | 4,2–4,4 ms |
+| Füllstand der Zeile                       | p50          | p95        |
+| ----------------------------------------- | ------------ | ---------- |
+| 10 (ausgereizte Anmeldegrenze)            | 0,65–1,05 ms | 0,9–2,1 ms |
+| 240 (`submitAttempt`, ungünstigster Fall) | 2,95–3,9 ms  | 4,2–4,9 ms |
 
 Das ist eine **Untergrenze und keine Produktionslatenz**: Netzstrecke und
 Poolverhalten der Zielplattform kommen hinzu. Vorher lag der Zähler im

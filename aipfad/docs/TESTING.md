@@ -52,6 +52,13 @@ Schlüssel nur als Digest trägt und außer Digest, Zeitpunkten und Ablauf keine
 Spalte hat; und dass das Aufräumen gedeckelt ist und abgelaufene Zeilen
 wirklich verschwinden.
 
+Ein weiterer Test hält fest, dass die Ratenbegrenzung unter dauerndem,
+aggressivem Aufräumen antwortfähig bleibt. Er ist bewusst eng benannt: Den
+vorsorglichen Neu-Ansatz für eine Zeile, die genau zwischen Anlegen und
+Sperren verschwindet, weist er NICHT nach — dieses Fenster liegt zwischen zwei
+unmittelbar aufeinanderfolgenden Anweisungen und ließ sich nicht verlässlich
+treffen. Das steht auch so im Test.
+
 Die beiden Prozess-Tests starten `rate-limit-worker.ts` über `tsx` als echten
 Kindprozess — zwei `PrismaClient` nebeneinander wären zwar zwei
 Verbindungspools, aber ein Prozess mit gemeinsamem Modulzustand, und genau
@@ -60,16 +67,19 @@ spürbar länger als die übrigen Tests.
 
 Zwei Tests dort sind Regressionstests und sehen harmlos aus.
 
-"hält eine eben erst geschriebene Zeile nicht für abgelaufen" hätte in der CI
-nie angeschlagen: Das Aufräumen verglich `expiresAt` gegen `now()` der
-Datenbank. In der Spalte steht die UTC-Wanduhrzeit, `now()` ist `timestamptz`,
-und beim Vergleich wird die Spalte mit der Zeitzone der Sitzung gedeutet — auf
-einem Rechner in `Europe/Berlin` galt damit jede frisch geschriebene Zeile
-sofort als zwei Stunden abgelaufen und wäre mitten im Fenster aufgeräumt
-worden. Die CI läuft in UTC, wo der Versatz null ist. Anders als hier zunächst
-behauptet liegt das NICHT an der Spaltenart: Der Fehler tritt mit `timestamp`
-genauso auf wie mit dem ursprünglichen `timestamptz`. Tragend ist allein, dass
-der Vergleichszeitpunkt aus der Anwendung kommt.
+"hält eine eben erst geschriebene Zeile nicht für abgelaufen" würde in der CI
+nie anschlagen. Vergliche das Aufräumen `expiresAt` gegen `now()` der
+Datenbank, wäre es falsch: In der Spalte steht die UTC-Wanduhrzeit, `now()`
+ist `timestamptz`, und beim Vergleich deutet PostgreSQL die Spalte mit der
+Zeitzone der Sitzung. Auf einem Rechner in `Europe/Berlin` gilt damit jede
+frisch geschriebene Zeile sofort als abgelaufen — um den Zonenversatz, eine
+Stunde im Winter, zwei in der Sommerzeit — und würde mitten im Fenster
+aufgeräumt. Die CI läuft in UTC, wo der Versatz null ist; dort wäre nichts zu
+sehen.
+
+Das liegt NICHT an der Spaltenart: Der Fehler tritt mit `timestamp` genauso
+auf wie mit `timestamptz`. Tragend ist allein, dass der Vergleichszeitpunkt
+aus der Anwendung kommt (`pruneExpiredBuckets()`).
 
 "löscht keine Zeile, die während des Aufräumens aufgefrischt wird" deckt einen
 Wettlauf ab, den erst die Architekturprüfung zu diesem PR gefunden hat: Die
