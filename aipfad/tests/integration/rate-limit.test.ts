@@ -3,6 +3,8 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it, beforeEach, afterAll } from 'vitest';
 import './setup';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@/generated/prisma/client';
 import { prisma } from '@/server/db/prisma';
 import {
   checkRateLimit,
@@ -38,6 +40,7 @@ const ALLE_SCHLUESSEL = [
   'abgelaufen',
   'gueltig',
   'frisch',
+  'aufraeum-wettlauf',
   ...Array.from({ length: 5 }, (_, i) => `aufraeum-grenze-${i}`),
 ].map(schluessel);
 
@@ -274,6 +277,52 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
     // Und die Grenze greift danach weiterhin: Der Versuch von eben zählt noch.
     await checkRateLimit(key, config, Date.now());
     expect((await checkRateLimit(key, config, Date.now())).allowed).toBe(false);
+  });
+
+  it('löscht keine Zeile, die während des Aufräumens aufgefrischt wird', async () => {
+    // Der Aufräumlauf wählt in einer Unterabfrage aus, was zum
+    // Anweisungsbeginn abgelaufen war. Bis das `DELETE` die Zeile wirklich
+    // erwischt, kann eine gleichzeitige Anfrage sie längst fortgeschrieben
+    // haben — dann löschte der Lauf einen LEBENDEN Zähler, und die Grenze
+    // begänne mitten im Fenster von vorn.
+    //
+    // Nachgestellt mit einer zweiten, unabhängigen Verbindung, die die Zeile
+    // sperrt, den Aufräumlauf auflaufen lässt und erst danach auffrischt.
+    const keyHash = __rateLimitKeyHash(schluessel('aufraeum-wettlauf'));
+    const zweiteVerbindung = new PrismaClient({
+      adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
+    });
+
+    try {
+      await prisma.rateLimitBucket.create({
+        data: { keyHash, hits: [], expiresAt: new Date(Date.now() - 60_000) },
+      });
+
+      let aufraeumen: Promise<number> | undefined;
+
+      await zweiteVerbindung.$transaction(async (tx) => {
+        await tx.$executeRaw`
+          SELECT "keyHash" FROM rate_limit_buckets WHERE "keyHash" = ${keyHash} FOR UPDATE`;
+
+        // Der Lauf blockiert ab hier an der Zeilensperre.
+        aufraeumen = pruneExpiredBuckets(500);
+        await new Promise((fertig) => setTimeout(fertig, 500));
+
+        await tx.$executeRaw`
+          UPDATE rate_limit_buckets
+          SET "expiresAt" = ${new Date(Date.now() + 3_600_000)}
+          WHERE "keyHash" = ${keyHash}`;
+      });
+
+      await aufraeumen;
+
+      const zeile = await prisma.rateLimitBucket.findUnique({ where: { keyHash } });
+      expect(zeile).not.toBeNull();
+      expect(zeile?.expiresAt.getTime()).toBeGreaterThan(Date.now());
+    } finally {
+      await prisma.rateLimitBucket.deleteMany({ where: { keyHash } });
+      await zweiteVerbindung.$disconnect().catch(() => undefined);
+    }
   });
 
   it('räumt je Lauf höchstens so viele Zeilen ab wie erlaubt', async () => {

@@ -178,9 +178,9 @@ export async function checkRateLimit(
  *  3. Das Zurückschreiben ist bewusst wieder ein `UPSERT`: Zwischen 1 und 2
  *     kann ein gleichzeitiger Aufräumlauf die Zeile entfernt haben. Ein reines
  *     `UPDATE` träfe dann keine Zeile und der gezählte Versuch fiele lautlos
- *     unter den Tisch. Aufgeräumt wird nur, was ohnehin nichts mehr abweisen
- *     kann (`expiresAt` in der Vergangenheit), ein Neuanlegen ist dort also
- *     die richtige Antwort.
+ *     unter den Tisch. Entfernt wird nur, was zum Zeitpunkt des Aufräumens
+ *     abgelaufen ist (`pruneExpiredBuckets()` prüft das zweimal, siehe dort),
+ *     ein Neuanlegen ist hier also die richtige Antwort.
  *
  * Folge der Sperre: Anfragen auf DENSELBEN Schlüssel werden serialisiert. Bei
  * einem Ansturm auf einen einzelnen Schlüssel kann eine Transaktion in die
@@ -238,16 +238,32 @@ async function zaehleUndPruefe(
  * Der Index auf `expiresAt` macht daraus einen begrenzten Indexzugriff statt
  * eines vollständigen Tabellendurchlaufs bei jeder Anfrage.
  *
- * `jetzt` kommt bewusst aus der Anwendung und NICHT aus `now()` der
- * Datenbank. Verglichen wird dadurch ausschließlich mit Zeitpunkten, die
- * dieselbe Anwendung geschrieben hat, in derselben Darstellung. Die Variante
- * mit `now()` war nachweislich falsch: Die Spalten lagen zunächst als
- * `timestamptz` vor, der Treiber schickte den UTC-Zeitpunkt ohne Versatz,
- * und eine Sitzung in `Europe/Berlin` deutete ihn als Ortszeit — jede frisch
- * geschriebene Zeile galt sofort als zwei Stunden abgelaufen und wäre hier
- * entfernt worden, mitten im laufenden Fenster. Das hätte den Zähler
- * zurückgesetzt und die Grenze unterlaufen. In der CI (UTC, Versatz null)
- * wäre es nicht aufgefallen.
+ * `jetzt` kommt bewusst aus der Anwendung und NICHT aus `now()` der Datenbank.
+ * DAS IST DIE TRAGENDE ZUSICHERUNG DIESER FUNKTION — nicht die Spaltenart.
+ *
+ * Die Spalten sind `timestamp` ohne Zeitzone, wie jede andere Zeitspalte
+ * dieses Schemas. Darin steht die UTC-Wanduhrzeit. `now()` liefert dagegen
+ * `timestamptz`; beim Vergleich wird die Spalte mit der Zeitzone der SITZUNG
+ * gedeutet. Auf einem Rechner in `Europe/Berlin` gilt eine Zeile, die erst in
+ * 60 Sekunden abläuft, damit bereits als zwei Stunden abgelaufen — und wäre
+ * hier mitten im laufenden Fenster entfernt worden. Der Zähler hätte von vorn
+ * begonnen und die Grenze wäre unterlaufen.
+ *
+ * Wichtig für alle, die das später anfassen: Der Fehler ist mit `timestamp`
+ * GENAUSO vorhanden wie mit `timestamptz`. Die Spaltenart wurde nur der
+ * Einheitlichkeit halber geändert und behebt hier gar nichts. Wer `${jetzt}`
+ * durch `now()` ersetzt, holt den Fehler zurück — unabhängig von der
+ * Spaltenart. In der CI (UTC, Versatz null) fällt das nicht auf; der
+ * Regressionstest in `tests/integration/rate-limit.test.ts` schlägt nur auf
+ * einem Rechner an, der nicht in UTC läuft.
+ *
+ * `expiresAt` wird ZWEIMAL geprüft, in der Unterabfrage und noch einmal außen.
+ * Das ist keine Dopplung: Die Unterabfrage arbeitet auf dem Schnappschuss des
+ * Anweisungsbeginns. Hält eine gleichzeitige Transaktion die Zeile gesperrt
+ * und schreibt sie fort, wartet das `DELETE` auf die Sperre und prüft danach
+ * nur noch sein äußeres Prädikat gegen die NEUE Fassung der Zeile. Ohne die
+ * äußere Bedingung würde ein eben erst aufgefrischter, LEBENDER Zähler
+ * gelöscht, obwohl er zu diesem Zeitpunkt gar nicht mehr abgelaufen ist.
  */
 export async function pruneExpiredBuckets(
   hoechstens: number = AUFRAEUMEN_HOECHSTENS,
@@ -260,7 +276,8 @@ export async function pruneExpiredBuckets(
       WHERE "expiresAt" < ${jetzt}
       ORDER BY "expiresAt"
       LIMIT ${hoechstens}
-    )`;
+    )
+    AND "expiresAt" < ${jetzt}`;
 }
 
 /**

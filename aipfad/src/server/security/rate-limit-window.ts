@@ -65,14 +65,6 @@ export const RATE_LIMITS = {
   hintReveal: { limit: 120, windowMs: 60 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitConfig>;
 
-/**
- * Die längste aller Fensterbreiten. Obergrenze dafür, wie lange eine Zeile
- * überhaupt noch etwas abweisen kann — und damit für ihre Aufbewahrung.
- */
-export const LAENGSTES_FENSTER_MS = Math.max(
-  ...Object.values(RATE_LIMITS).map((config) => config.windowMs),
-);
-
 export interface RateLimitDecision {
   /**
    * Der Zustand, der gespeichert werden soll: das auf das Fenster

@@ -131,8 +131,19 @@ dieser Lage etwas zu ändern.
 Versuch wird nicht gezählt und verlängert die Aufbewahrung deshalb auch nicht.
 Abgelaufene Zeilen werden tatsächlich entfernt, nicht nur als entfernbar
 markiert: Je hundertster Anfrage läuft ein auf fünfhundert Zeilen gedeckeltes
-Aufräumen über den Index auf `expiresAt`. Die Aufräumrate wächst damit mit der
-Rate, die die Zeilen erzeugt. Längste Fensterbreite im System: eine Stunde.
+Aufräumen über den Index auf `expiresAt`. Längste Fensterbreite im System:
+eine Stunde.
+
+Einschränkung, die dazugehört: Der Zähler für "jede hundertste Anfrage" ist
+Modulzustand JE PROZESS, nicht global. Auf einer Plattform, die Instanzen
+häufig neu startet, kann eine Instanz sterben, bevor sie hundert Anfragen
+gesehen hat — sie räumt dann nie auf. Die Aufräumrate wächst also mit der Last
+je Instanz, nicht mit der Last insgesamt. Harmlos für die Durchsetzung
+(abgelaufene Zeilen weisen nichts mehr ab) und für die Abfragekosten (der
+Zugriff geht über den Primärschlüssel), aber es heißt, dass die Tabelle in
+einem solchen Betrieb länger belegt bleiben kann als die eine Stunde
+Fensterbreite. Ein regelmäßiger Lauf wäre die Lösung, ist aber neue
+Infrastruktur und damit nicht im Umfang von E03.
 
 **Atomarität.** Prüfen und Zählen bilden eine Transaktion mit Zeilensperre
 (`SELECT … FOR UPDATE`, davor ein `INSERT … ON CONFLICT DO NOTHING`, damit
@@ -154,13 +165,28 @@ Der Datenbankfehler wird protokolliert (nur Fehlerart und Code, nie der
 Schlüssel) und nicht still verschluckt. Geprüft mit einem echten Prozess gegen
 eine unerreichbare Adresse.
 
+Die Kehrseite, offen benannt: Sperren und Zeilensperre zusammen können einen
+Ansturm verstärken. Viele gleichzeitige Anfragen auf DENSELBEN Schlüssel
+werden serialisiert und belegen dabei Verbindungen aus dem Pool; laufen
+Transaktionen in ihre Zeitgrenze, werden sie abgewiesen — und das kann auch
+Anfragen auf ganz andere Schlüssel treffen, die keine Verbindung mehr
+bekommen. Das ist die bewusst gewählte Richtung (abweisen statt durchlassen),
+aber es ist kein kostenloser Schutz.
+
 **Zusatzaufwand je Anfrage.** Gemessen mit `npm run perf:rate-limit`, 300
 Messungen je Füllstand nach 50 Aufwärmläufen, PostgreSQL 14.21 auf demselben
-Rechner (Loopback): bei einem Füllstand von 10 Zeitpunkten — die Größenordnung
-einer ausgereizten Anmeldegrenze — p50 0,9 ms und p95 1,4 ms; im ungünstigsten
-Fall des Datenmodells (240 Zeitpunkte, `submitAttempt`) p50 3,5 ms und p95
-4,4 ms. Das ist eine **Untergrenze und keine Produktionslatenz**: Netzstrecke
-und Poolverhalten der Zielplattform kommen hinzu. Vorher lag der Zähler im
+Rechner (Loopback). Angegeben sind Spannen über **drei** Läufe, nicht die
+Zahlen eines einzelnen: Die Streuung zwischen Läufen ist auf einem
+Entwicklungsrechner erheblich, und eine einzelne Zahl täuscht Genauigkeit vor,
+die die Messung nicht hergibt.
+
+| Füllstand der Zeile                       | p50        | p95        |
+| ----------------------------------------- | ---------- | ---------- |
+| 10 (ausgereizte Anmeldegrenze)            | 0,7–1,0 ms | 1,0–2,1 ms |
+| 240 (`submitAttempt`, ungünstigster Fall) | 3,0–3,5 ms | 4,2–4,4 ms |
+
+Das ist eine **Untergrenze und keine Produktionslatenz**: Netzstrecke und
+Poolverhalten der Zielplattform kommen hinzu. Vorher lag der Zähler im
 Arbeitsspeicher, sein Aufwand war gegenüber jedem Datenbankzugriff
 vernachlässigbar — die gemessene Dauer IST deshalb der Zusatzaufwand.
 

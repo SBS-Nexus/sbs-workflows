@@ -58,13 +58,27 @@ Verbindungspools, aber ein Prozess mit gemeinsamem Modulzustand, und genau
 dieser Modulzustand war das Problem, das E03 beseitigt. Sie brauchen deshalb
 spürbar länger als die übrigen Tests.
 
-Ein Test dort ist ein Regressionstest und sieht harmlos aus ("hält eine eben
-erst geschriebene Zeile nicht für abgelaufen"): Er hätte in der CI nie
-angeschlagen. Die Spalten lagen zunächst als `timestamptz` vor und wurden
-gegen `now()` der Datenbank verglichen; auf einem Rechner in `Europe/Berlin`
-galt damit jede frisch geschriebene Zeile sofort als zwei Stunden abgelaufen
-und wäre mitten im Fenster aufgeräumt worden. Die CI läuft in UTC, wo der
-Versatz null ist.
+Zwei Tests dort sind Regressionstests und sehen harmlos aus.
+
+"hält eine eben erst geschriebene Zeile nicht für abgelaufen" hätte in der CI
+nie angeschlagen: Das Aufräumen verglich `expiresAt` gegen `now()` der
+Datenbank. In der Spalte steht die UTC-Wanduhrzeit, `now()` ist `timestamptz`,
+und beim Vergleich wird die Spalte mit der Zeitzone der Sitzung gedeutet — auf
+einem Rechner in `Europe/Berlin` galt damit jede frisch geschriebene Zeile
+sofort als zwei Stunden abgelaufen und wäre mitten im Fenster aufgeräumt
+worden. Die CI läuft in UTC, wo der Versatz null ist. Anders als hier zunächst
+behauptet liegt das NICHT an der Spaltenart: Der Fehler tritt mit `timestamp`
+genauso auf wie mit dem ursprünglichen `timestamptz`. Tragend ist allein, dass
+der Vergleichszeitpunkt aus der Anwendung kommt.
+
+"löscht keine Zeile, die während des Aufräumens aufgefrischt wird" deckt einen
+Wettlauf ab, den erst die Architekturprüfung zu diesem PR gefunden hat: Die
+Unterabfrage des Aufräumlaufs wählt aus, was zum Anweisungsbeginn abgelaufen
+war; bis das `DELETE` die Zeile erwischt, kann eine gleichzeitige Anfrage sie
+längst fortgeschrieben haben. Ohne ein zweites `expiresAt`-Prädikat am äußeren
+`DELETE` verschwand dabei ein LEBENDER Zähler. Der Test stellt das mit einer
+zweiten, unabhängigen Verbindung nach, die die Zeile sperrt, den Aufräumlauf
+auflaufen lässt und erst danach auffrischt.
 
 `onboarding-placement.test.ts` deckt den Abschluss des Onboardings ab:
 Abbruch vor der Transaktion, Abbruch MITTEN in ihr (die Kurse werden dafür
