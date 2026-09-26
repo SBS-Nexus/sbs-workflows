@@ -47,8 +47,9 @@ const PRAEFIX = 'messung-ratengrenze';
 const FENSTER_MS = 60 * 60 * 1000;
 
 /**
- * Füllstände, die im Betrieb wirklich vorkommen: eine frische Zeile, eine
- * ausgereizte Anmeldegrenze (`login`, 10) und die größte Grenze überhaupt
+ * Füllstände, die im Betrieb wirklich vorkommen: eine frische Zeile (0), eine
+ * ausgereizte Anmeldegrenze (`login`, 10), eine ausgereizte Lerngrenze
+ * (`labAttempt`/`hintReveal`, 120) und die größte Grenze überhaupt
  * (`submitAttempt`, 240) — der ungünstigste Fall dieses Datenmodells.
  */
 const FUELLSTAENDE = [0, 10, 120, 240];

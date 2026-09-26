@@ -339,37 +339,49 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
     // Was dieser Test NACHWEIST: Unter dauerndem Wegräumen liefert jede
     // Anfrage eine wohlgeformte Antwort, keine bleibt hängen, keine wirft.
     //
-    // Was er NICHT nachweist — ausdrücklich, damit der Name nicht mehr
-    // verspricht als er hält: den Neu-Ansatz in `zaehleUndPruefe()` für den
-    // Fall, dass die Zeile genau ZWISCHEN Anlegen und Sperren verschwindet.
-    // Dieses Fenster liegt zwischen zwei unmittelbar aufeinanderfolgenden
-    // Anweisungen derselben Transaktion; es ließ sich hier nicht verlässlich
-    // treffen (mit `HOECHSTENS_ANLAEUFE = 1` läuft dieser Test unverändert
-    // durch). Der Zweig ist vorsorglich und bleibt ohne deterministische
-    // Abdeckung — ihn testbar zu machen hieße, eine Naht allein für den Test
-    // in den Produktionsweg zu legen.
+    // Er trifft dabei AUCH den Neu-Ansatz in `zaehleUndPruefe()` für den Fall,
+    // dass die Zeile genau zwischen Anlegen und Sperren verschwindet — aber
+    // nicht verlässlich, sondern je nach Lauf. Belegt durch Mutation: Mit
+    // `HOECHSTENS_ANLAEUFE = 1` scheitert dieser Test in etwa der Hälfte der
+    // Läufe (gemessen 2 von 5, in einer unabhängigen Prüfung 3 von 5) mit
+    // `RateLimitUnavailableError`. Dass die Schleife hier greift, ist also
+    // nachgewiesen; verlassen sollte man sich auf die Abdeckung nicht.
+    //
+    // Was auch dieser Test NICHT prüft: ob der Neu-Ansatz den Zählstand
+    // KORREKT erhält. Die Grenze steht bewusst hoch, damit der Lauf nicht an
+    // legitimen Abweisungen scheitert — geprüft wird Antwortfähigkeit, nicht
+    // Genauigkeit unter Wegräumen.
     const key = schluessel('dauernd-weg');
     const config = { limit: 50, windowMs: 60_000 };
     const zukunft = new Date(Date.now() + 3_600_000);
 
+    let weiterLoeschen = true;
     const loescher = (async () => {
-      for (let lauf = 0; lauf < 30; lauf += 1) {
+      for (let lauf = 0; lauf < 30 && weiterLoeschen; lauf += 1) {
         await pruneExpiredBuckets(500, zukunft);
       }
     })();
 
-    const ergebnisse = await Promise.all(
-      Array.from({ length: 30 }, () => checkRateLimit(key, config, Date.now())),
-    );
-    await loescher;
+    try {
+      const ergebnisse = await Promise.all(
+        Array.from({ length: 30 }, () => checkRateLimit(key, config, Date.now())),
+      );
 
-    for (const ergebnis of ergebnisse) {
-      expect(typeof ergebnis.allowed).toBe('boolean');
-      expect(ergebnis.remaining).toBeGreaterThanOrEqual(0);
-      expect(ergebnis.retryAfterSeconds).toBeGreaterThanOrEqual(0);
+      for (const ergebnis of ergebnisse) {
+        expect(typeof ergebnis.allowed).toBe('boolean');
+        expect(ergebnis.remaining).toBeGreaterThanOrEqual(0);
+        expect(ergebnis.retryAfterSeconds).toBeGreaterThanOrEqual(0);
+      }
+      // Die Grenze ist großzügig genug, dass ohne Fehler alle durchkommen.
+      expect(ergebnisse.every((ergebnis) => ergebnis.allowed)).toBe(true);
+    } finally {
+      // Der Löschlauf MUSS abgewartet werden, auch wenn oben etwas scheitert.
+      // Sonst läuft er in den nächsten Test hinein und räumt dessen Zeilen
+      // weg — ein Fehler hier brächte dann einen zweiten, scheinbar fremden
+      // zum Scheitern.
+      weiterLoeschen = false;
+      await loescher;
     }
-    // Die Grenze ist großzügig genug, dass ohne Fehler alle durchkommen.
-    expect(ergebnisse.every((ergebnis) => ergebnis.allowed)).toBe(true);
   }, 60_000);
 
   it('räumt je Lauf höchstens so viele Zeilen ab wie erlaubt', async () => {

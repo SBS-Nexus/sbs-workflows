@@ -27,7 +27,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 88 bestehen
+### Integrationstests — 90 bestehen
 
 `tests/integration/`: `auth.test.ts`, `content-publication.test.ts`,
 `exercise-service.test.ts`, `lesson-progress.test.ts`,
@@ -53,11 +53,17 @@ Spalte hat; und dass das Aufräumen gedeckelt ist und abgelaufene Zeilen
 wirklich verschwinden.
 
 Ein weiterer Test hält fest, dass die Ratenbegrenzung unter dauerndem,
-aggressivem Aufräumen antwortfähig bleibt. Er ist bewusst eng benannt: Den
-vorsorglichen Neu-Ansatz für eine Zeile, die genau zwischen Anlegen und
-Sperren verschwindet, weist er NICHT nach — dieses Fenster liegt zwischen zwei
-unmittelbar aufeinanderfolgenden Anweisungen und ließ sich nicht verlässlich
-treffen. Das steht auch so im Test.
+aggressivem Aufräumen antwortfähig bleibt. Er trifft dabei auch den
+Neu-Ansatz für eine Zeile, die genau zwischen Anlegen und Sperren
+verschwindet — aber nicht verlässlich, sondern je nach Lauf. Belegt durch
+Mutation: Mit `HOECHSTENS_ANLAEUFE = 1` scheitert er in etwa der Hälfte der
+Läufe (gemessen 2 von 5, in einer unabhängigen Prüfung 3 von 5). Hier stand
+zuvor, er treffe den Zweig gar nicht; das war aus einem einzigen Lauf
+geschlossen und falsch.
+
+Nicht geprüft ist, ob der Neu-Ansatz den Zählstand korrekt ERHÄLT: Die Grenze
+in diesem Test steht bewusst hoch, damit er nicht an legitimen Abweisungen
+scheitert.
 
 Die beiden Prozess-Tests starten `rate-limit-worker.ts` über `tsx` als echten
 Kindprozess — zwei `PrismaClient` nebeneinander wären zwar zwei

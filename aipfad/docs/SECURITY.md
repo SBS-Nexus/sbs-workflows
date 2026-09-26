@@ -149,12 +149,17 @@ Infrastruktur und damit nicht im Umfang von E03.
 (`SELECT … FOR UPDATE`, davor ein `INSERT … ON CONFLICT DO NOTHING`, damit
 auch der allererste Zugriff auf einen Schlüssel serialisiert ist). Zwei
 gleichzeitige Anfragen auf denselben Schlüssel können nicht beide freie
-Kapazität sehen. Ein Sonderfall ist eigens behandelt: Räumt ein Aufräumlauf
-die Zeile genau zwischen Anlegen und Sperren weg, sperrt `FOR UPDATE` nichts
-mehr — dann wird neu angesetzt statt auf dem leeren Stand entschieden, sonst
-bliebe bei zwei gleichzeitigen Anläufen ein Versuch ungezählt. Nachgewiesen in `tests/integration/rate-limit.test.ts`, und
+Kapazität sehen. Nachgewiesen in `tests/integration/rate-limit.test.ts`, und
 zwar über **zwei getrennte Serverprozesse** mit je eigenem Verbindungspool —
 nicht über zwei Aufrufe in einem Prozess.
+
+Ein Sonderfall ist eigens behandelt: Räumt ein Aufräumlauf die Zeile genau
+zwischen Anlegen und Sperren weg, sperrt `FOR UPDATE` nichts mehr. Dann wird
+neu angesetzt statt auf dem leeren Stand entschieden — sonst bliebe bei zwei
+gleichzeitigen Anläufen ein Versuch ungezählt. Dieser Zweig ist nicht
+verlässlich abgedeckt: Ein Test trifft ihn, aber nur je nach Lauf (siehe
+docs/TESTING.md). Reicht der Neu-Ansatz nicht aus, wird abgewiesen, nie
+durchgelassen.
 
 **Verhalten bei nicht erreichbarer Datenbank: FAIL CLOSED.** Ist die Grenze
 nicht prüfbar, wird abgewiesen (`RateLimitUnavailableError`), nicht
