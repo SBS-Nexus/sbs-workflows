@@ -65,13 +65,27 @@ const AUFRAEUMEN_HOECHSTENS = 500;
 /**
  * Jede so-und-so-vielte Anfrage räumt auf.
  *
- * Bewusst an die Anfragen gekoppelt und nicht an die Uhr: So wächst die
- * Aufräumrate mit der Last, die die Zeilen überhaupt erst erzeugt. Ein fester
- * Zeittakt (etwa einmal je Minute) hätte bei Lastspitzen zu wenig entfernt.
- * Ein zusätzlicher Dienst oder ein Cron-Eintrag wäre dafür neue Infrastruktur
- * — ausdrücklich nicht im Umfang von E03.
+ * Bewusst an die Anfragen gekoppelt und nicht an die Uhr: Ein fester Zeittakt
+ * (etwa einmal je Minute) hätte bei Lastspitzen zu wenig entfernt. Ein
+ * zusätzlicher Dienst oder ein Cron-Eintrag wäre dafür neue Infrastruktur —
+ * ausdrücklich nicht im Umfang von E03.
+ *
+ * Einschränkung, die dazugehört: Der Zähler unten ist Modulzustand JE PROZESS.
+ * Die Aufräumrate wächst deshalb mit der Last je Instanz, nicht mit der Last
+ * insgesamt. Eine Instanz, die vor ihrer hundertsten Anfrage beendet wird,
+ * räumt nie auf (docs/SECURITY.md). Gezählt werden außerdem nur Anfragen, die
+ * tatsächlich entschieden wurden: Wirft der Datenbankzugriff, kommt es nicht
+ * bis hierher.
  */
 const AUFRAEUMEN_JEDE_N_TE_ANFRAGE = 100;
+
+/**
+ * Wie oft der Zählvorgang höchstens neu ansetzt, wenn ein gleichzeitiger
+ * Aufräumlauf ihm die Zeile zwischen Anlegen und Sperren wegnimmt. Mehr als
+ * ein Anlauf ist dafür praktisch nie nötig; die Grenze steht nur, damit
+ * daraus unter keinen Umständen eine Endlosschleife wird.
+ */
+const HOECHSTENS_ANLAEUFE = 3;
 
 let anfragenSeitAufraeumen = 0;
 
@@ -175,12 +189,14 @@ export async function checkRateLimit(
  *     wartet die zweite hier auf den Eindeutigkeitsindex.
  *  2. `FOR UPDATE` sperrt die Zeile bis zum Ende der Transaktion. Jede weitere
  *     Anfrage auf denselben Schlüssel wartet ab hier.
- *  3. Das Zurückschreiben ist bewusst wieder ein `UPSERT`: Zwischen 1 und 2
- *     kann ein gleichzeitiger Aufräumlauf die Zeile entfernt haben. Ein reines
- *     `UPDATE` träfe dann keine Zeile und der gezählte Versuch fiele lautlos
- *     unter den Tisch. Entfernt wird nur, was zum Zeitpunkt des Aufräumens
- *     abgelaufen ist (`pruneExpiredBuckets()` prüft das zweimal, siehe dort),
- *     ein Neuanlegen ist hier also die richtige Antwort.
+ *  3. Das Zurückschreiben ist bewusst wieder ein `UPSERT`, und Schritt 2
+ *     bricht ab, wenn die Zeile verschwunden ist. Ein gleichzeitiger
+ *     Aufräumlauf kann sie zwischen 1 und 2 entfernt haben — `ON CONFLICT DO
+ *     NOTHING` hält keine Sperre auf einer Zeile, die es schon gab. Dann
+ *     sperrt `FOR UPDATE` nichts, zwei gleichzeitige Anläufe läsen beide
+ *     denselben leeren Stand, schrieben beide `[jetzt]` — und ein Versuch
+ *     bliebe ungezählt. Deshalb wird in diesem Fall neu angesetzt statt
+ *     entschieden (`HOECHSTENS_ANLAEUFE`).
  *
  * Folge der Sperre: Anfragen auf DENSELBEN Schlüssel werden serialisiert. Bei
  * einem Ansturm auf einen einzelnen Schlüssel kann eine Transaktion in die
@@ -194,6 +210,31 @@ async function zaehleUndPruefe(
   config: RateLimitConfig,
   now: number,
 ): Promise<RateLimitResult> {
+  for (let anlauf = 1; anlauf <= HOECHSTENS_ANLAEUFE; anlauf += 1) {
+    const ergebnis = await einAnlauf(keyHash, config, now);
+    if (ergebnis) return ergebnis;
+  }
+
+  // Dafür müsste ein Aufräumlauf die Zeile dreimal hintereinander genau
+  // zwischen Anlegen und Sperren entfernen. Tritt es doch ein, gilt dieselbe
+  // Regel wie sonst: nicht zuverlässig prüfbar heißt abweisen. `checkRateLimit`
+  // macht daraus `RateLimitUnavailableError`.
+  throw new Error('Ratengrenzen-Zeile wurde wiederholt zwischen Anlegen und Sperren entfernt.');
+}
+
+/**
+ * Ein einzelner Anlauf. Gibt `null` zurück, wenn die Zeile zwischen Schritt 1
+ * und Schritt 2 verschwunden ist; dann hat niemand eine Sperre gehalten und
+ * auf dem leeren Stand darf nicht entschieden werden.
+ *
+ * `now` bleibt über alle Anläufe gleich. Das ist Absicht: Gezählt werden soll
+ * der Zeitpunkt der Anfrage, nicht der des letzten Anlaufs.
+ */
+async function einAnlauf(
+  keyHash: string,
+  config: RateLimitConfig,
+  now: number,
+): Promise<RateLimitResult | null> {
   const vorlaeufigesEnde = new Date(now + config.windowMs);
 
   return prisma.$transaction(async (tx) => {
@@ -204,6 +245,8 @@ async function zaehleUndPruefe(
 
     const zeilen = await tx.$queryRaw<{ hits: Date[] }[]>`
       SELECT hits FROM rate_limit_buckets WHERE "keyHash" = ${keyHash} FOR UPDATE`;
+
+    if (zeilen.length === 0) return null;
 
     const bisher = (zeilen[0]?.hits ?? []).map((zeitpunkt) => zeitpunkt.getTime());
     const entscheidung = decideRateLimit(bisher, config, now);
@@ -228,12 +271,12 @@ async function zaehleUndPruefe(
 /**
  * Entfernt abgelaufene Zeilen — beschränkt auf `hoechstens` Stück je Lauf.
  *
- * Warum das Tabellenwachstum damit beschränkt ist: Jeder Schlüssel belegt
- * genau EINE Zeile, deren Zeitpunktfeld auf das Fenster beschnitten wird und
- * deshalb höchstens `limit` Einträge trägt. Neue Zeilen entstehen nur durch
- * Anfragen, und je hundert Anfragen wird ein Lauf ausgelöst, der bis zu
- * fünfhundert abgelaufene Zeilen entfernt — die Aufräumrate wächst also
- * mit der Rate, die die Zeilen erzeugt.
+ * Warum das Tabellenwachstum beschränkt ist: Jeder Schlüssel belegt genau EINE
+ * Zeile, deren Zeitpunktfeld auf das Fenster beschnitten wird und deshalb
+ * höchstens `limit` Einträge trägt. Neue Zeilen entstehen nur durch Anfragen,
+ * und je hundert entschiedene Anfragen EINER INSTANZ wird ein Lauf ausgelöst,
+ * der bis zu fünfhundert abgelaufene Zeilen entfernt. Die Einschränkung dieser
+ * Kopplung steht bei `AUFRAEUMEN_JEDE_N_TE_ANFRAGE`.
  *
  * Der Index auf `expiresAt` macht daraus einen begrenzten Indexzugriff statt
  * eines vollständigen Tabellendurchlaufs bei jeder Anfrage.
@@ -245,8 +288,9 @@ async function zaehleUndPruefe(
  * dieses Schemas. Darin steht die UTC-Wanduhrzeit. `now()` liefert dagegen
  * `timestamptz`; beim Vergleich wird die Spalte mit der Zeitzone der SITZUNG
  * gedeutet. Auf einem Rechner in `Europe/Berlin` gilt eine Zeile, die erst in
- * 60 Sekunden abläuft, damit bereits als zwei Stunden abgelaufen — und wäre
- * hier mitten im laufenden Fenster entfernt worden. Der Zähler hätte von vorn
+ * 60 Sekunden abläuft, damit bereits als abgelaufen — um den Versatz der
+ * Sitzungszeitzone, also eine Stunde im Winter und zwei in der Sommerzeit —
+ * und wäre hier mitten im laufenden Fenster entfernt worden. Der Zähler hätte von vorn
  * begonnen und die Grenze wäre unterlaufen.
  *
  * Wichtig für alle, die das später anfassen: Der Fehler ist mit `timestamp`
