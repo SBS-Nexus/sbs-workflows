@@ -9,12 +9,13 @@ Zielbild — was hier steht, wurde beim Schreiben ausgeführt und ist grün).
 npm run test:unit          # Domainlogik, keine I/O — Millisekunden
 npm run test:integration   # Server-Dienste gegen echte PostgreSQL-Testdatenbank
 npm run test:e2e           # Playwright gegen den Produktionsbuild
+npm run perf:rate-limit    # Zusatzaufwand der Ratenbegrenzung, gegen echte Datenbank
 npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 456 bestehen
+### Unit-Tests — 473 bestehen
 
-`tests/unit/` (14 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
+`tests/unit/` (15 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
 `hint-ladder.test.ts`, `placement.test.ts`, `grade.test.ts`,
 `content-validation.test.ts`, `rate-limit.test.ts`, `terminal.test.ts`,
 `eintraege.test.ts` sowie die Git-Domäne aus Ausbaustufe 2
@@ -26,11 +27,12 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 74 bestehen
+### Integrationstests — 90 bestehen
 
 `tests/integration/`: `auth.test.ts`, `content-publication.test.ts`,
 `exercise-service.test.ts`, `lesson-progress.test.ts`,
-`onboarding-placement.test.ts`, `stage2-git.test.ts` — gegen eine echte, separate
+`onboarding-placement.test.ts`, `path-service.test.ts`, `rate-limit.test.ts`,
+`stage2-git.test.ts` — gegen eine echte, separate
 PostgreSQL-Testdatenbank (`TEST_DATABASE_URL`, per Docker-Compose auf
 Port 5433 wie die Entwicklungsdatenbank, eigene Datenbank `aipfad_test`
 innerhalb desselben Containers).
@@ -38,6 +40,61 @@ innerhalb desselben Containers).
 `auth.test.ts` deckt ab: Passwort-Hash wird korrekt verifiziert, eindeutiger
 Index auf `email` wird durchgesetzt, `onDelete: Cascade` entfernt abhängige
 Sitzungen beim Löschen eines Kontos.
+
+`rate-limit.test.ts` deckt die gemeinsame Ratenbegrenzung ab (E03) — und zwar
+das, was sich nur gegen eine echte Datenbank zeigt: dass vierzig gleichzeitige
+Versuche auf denselben Schlüssel zusammen genau das Limit ausschöpfen und
+nicht mehr; dass ein **zweiter, frisch gestarteter Serverprozess** den Zähler
+des ersten sieht, statt bei null zu beginnen; dass zwei solche Prozesse
+gleichzeitig die Grenze zusammen nicht überschreiten; dass bei unerreichbarer
+Datenbank abgewiesen und nicht durchgelassen wird; dass die Tabelle den
+Schlüssel nur als Digest trägt und außer Digest, Zeitpunkten und Ablauf keine
+Spalte hat; und dass das Aufräumen gedeckelt ist und abgelaufene Zeilen
+wirklich verschwinden.
+
+Ein weiterer Test hält fest, dass die Ratenbegrenzung unter dauerndem,
+aggressivem Aufräumen antwortfähig bleibt. Er trifft dabei auch den
+Neu-Ansatz für eine Zeile, die genau zwischen Anlegen und Sperren
+verschwindet — aber nicht verlässlich, sondern je nach Lauf. Belegt durch
+Mutation: Mit `HOECHSTENS_ANLAEUFE = 1` scheitert er in etwa der Hälfte der
+Läufe (gemessen 2 von 5, in einer unabhängigen Prüfung 3 von 5). Hier stand
+zuvor, er treffe den Zweig gar nicht; das war aus einem einzigen Lauf
+geschlossen und falsch.
+
+Nicht geprüft ist, ob der Neu-Ansatz den Zählstand korrekt ERHÄLT: Die Grenze
+in diesem Test steht bewusst hoch, damit er nicht an legitimen Abweisungen
+scheitert.
+
+Die beiden Prozess-Tests starten `rate-limit-worker.ts` über `tsx` als echten
+Kindprozess — zwei `PrismaClient` nebeneinander wären zwar zwei
+Verbindungspools, aber ein Prozess mit gemeinsamem Modulzustand, und genau
+dieser Modulzustand war das Problem, das E03 beseitigt. Sie brauchen deshalb
+spürbar länger als die übrigen Tests.
+
+Zwei Tests dort sind Regressionstests und sehen harmlos aus.
+
+"hält eine eben erst geschriebene Zeile nicht für abgelaufen" würde in der CI
+nie anschlagen. Vergliche das Aufräumen `expiresAt` gegen `now()` der
+Datenbank, wäre es falsch: In der Spalte steht die UTC-Wanduhrzeit, `now()`
+ist `timestamptz`, und beim Vergleich deutet PostgreSQL die Spalte mit der
+Zeitzone der Sitzung. Auf einem Rechner in `Europe/Berlin` gilt damit jede
+frisch geschriebene Zeile sofort als abgelaufen — um den Zonenversatz, eine
+Stunde im Winter, zwei in der Sommerzeit — und würde mitten im Fenster
+aufgeräumt. Die CI läuft in UTC, wo der Versatz null ist; dort wäre nichts zu
+sehen.
+
+Das liegt NICHT an der Spaltenart: Der Fehler tritt mit `timestamp` genauso
+auf wie mit `timestamptz`. Tragend ist allein, dass der Vergleichszeitpunkt
+aus der Anwendung kommt (`pruneExpiredBuckets()`).
+
+"löscht keine Zeile, die während des Aufräumens aufgefrischt wird" deckt einen
+Wettlauf ab, den erst die Architekturprüfung zu diesem PR gefunden hat: Die
+Unterabfrage des Aufräumlaufs wählt aus, was zum Anweisungsbeginn abgelaufen
+war; bis das `DELETE` die Zeile erwischt, kann eine gleichzeitige Anfrage sie
+längst fortgeschrieben haben. Ohne ein zweites `expiresAt`-Prädikat am äußeren
+`DELETE` verschwand dabei ein LEBENDER Zähler. Der Test stellt das mit einer
+zweiten, unabhängigen Verbindung nach, die die Zeile sperrt, den Aufräumlauf
+auflaufen lässt und erst danach auffrischt.
 
 `onboarding-placement.test.ts` deckt den Abschluss des Onboardings ab:
 Abbruch vor der Transaktion, Abbruch MITTEN in ihr (die Kurse werden dafür
@@ -105,6 +162,10 @@ Aufgaben-Einreichung, Labs-Übersicht und das Tokenizer-Lab. In jedem Fall:
   `forced-colors` `outline-style: none` und wird erkannt.)
 - Keine Lastprüfung. Die Sperre gegen zwei gleichzeitige Abschlüsse ist mit
   genau zwei Vorgängen nachgestellt, nicht mit vielen.
+- Die Messung von `npm run perf:rate-limit` läuft gegen eine Datenbank auf
+  demselben Rechner. Sie beziffert eine Untergrenze, keine Produktionslatenz,
+  und sie läuft nicht in der CI — sie ist ein Werkzeug zum Nachrechnen, kein
+  Tor.
 
 Drei Einträge standen hier, die es nicht mehr gibt: Der
 Accessibility-Scan (`e2e/accessibility.spec.ts`, 8 axe-Prüfungen), das

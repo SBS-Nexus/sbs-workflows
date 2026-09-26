@@ -19,11 +19,13 @@ ergänzt um die für AIPfad relevanten Unterschiede dieser Ausbaustufe.
   für eine spätere Ausbaustufe angelegt und darf bis dahin nicht als
   wirksame Maßnahme gezählt werden (Sicherheitsprüfung zu PR #29).
   und der eingebauten Server-Actions-Origin-Prüfung von Next.js.
-- Ratenbegrenzung: gleitendes Fenster im Arbeitsspeicher
-  (`src/server/security/rate-limit.ts`) für Login, Registrierung,
-  Aufgaben-Abgabe und Lab-Interaktionen. Bei mehreren Instanzen muss dies
-  gegen einen gemeinsamen Zähler getauscht werden (Schnittstelle bleibt
-  gleich).
+- Ratenbegrenzung: gleitendes Fenster in PostgreSQL
+  (`src/server/security/rate-limit.ts`, Tabelle `rate_limit_buckets`) für
+  Login, Registrierung, Aufgaben-Abgabe und Lab-Interaktionen. Der Zähler ist
+  damit über alle Serverinstanzen hinweg GEMEINSAM (E03). Vorher lag er in
+  einer `Map` je Prozess: Bei mehreren Instanzen zählte jede für sich, und
+  die tatsächlich mögliche Anzahl Versuche war das Limit mal der Anzahl
+  Instanzen. Einzelheiten unten unter "Gemeinsame Ratenbegrenzung".
   **Zwei Grenzen pro Aktion**, nicht nur eine: Die feinere Grenze schlüsselt
   nach IP **und** E-Mail-Adresse (`login`/`register`) — das begrenzt Versuche
   gegen ein einzelnes Konto wirksam, aber jede neue Adresse eröffnet einen
@@ -31,7 +33,7 @@ ergänzt um die für AIPfad relevanten Unterschiede dieser Ausbaustufe.
   derselben IP aus unbegrenzt durch viele Adressen rotieren (Credential
   Stuffing mit geleakten Zugangsdaten; Massen-Enumeration, welche Adressen
   registriert sind). Deshalb erzwingt `enforcePerIpLimit()` zusätzlich eine
-  reine IP-Grenze (`loginPerIp`: 30/15 Min., `registerPerIp`: 15/Std.) —
+  reine IP-Grenze (`loginPerIp`: 30/15 Min., `registerPerIp`: 60/Std.) —
   beide Grenzen gelten gemeinsam, keine ersetzt die andere.
 - **Bekannter, akzeptierter Kompromiss — E-Mail-Enumeration bei der
   Registrierung:** `registerAction()` antwortet mit "Für diese Adresse gibt
@@ -104,6 +106,107 @@ in `src/proxy.ts` nur gesetzt, wenn `APP_URL` tatsächlich auf `https` zeigt.
   geplanten Laufs eine Absichtserklärung, keine wirksame Maßnahme
   (Sicherheitsprüfung zu PR #29).
 
+## Gemeinsame Ratenbegrenzung (E03)
+
+Der Zähler liegt in PostgreSQL, Tabelle `rate_limit_buckets`, eine Zeile je
+Grenzenschlüssel. Kein Redis, kein zusätzlicher Dienst: Die Datenbank wird zur
+Laufzeit ohnehin gebraucht.
+
+**Was gespeichert wird.** Drei Spalten, mehr nicht: `keyHash`, `hits`,
+`expiresAt`. Der Grenzenschlüssel selbst — er enthält je nach Grenze eine
+IP-Adresse, eine E-Mail-Adresse oder eine Nutzerkennung — geht ausschließlich
+als SHA-256-Digest hinein. **Es wird keine IP-Adresse und keine E-Mail-Adresse
+im Klartext gespeichert**, und es gibt keinen Fremdschlüssel auf `User`.
+
+Das ist ein **pseudonymisierter Nachschlageschlüssel, nicht Anonymisierung**:
+Wer die Tabelle lesen kann und eine bestimmte Adresse vermutet, kann den
+Digest nachrechnen und den Verdacht bestätigen. Der Digest ist ungeschlüsselt
+(kein HMAC), weil der Zweck Datensparsamkeit beim Nachschlagen ist und nicht
+Geheimhaltung gegenüber jemandem, der bereits Lesezugriff auf die Datenbank
+hat; ein zusätzliches Geheimnis müsste verwaltet und gedreht werden, ohne an
+dieser Lage etwas zu ändern.
+
+**Wie lange.** `expiresAt` ist der jüngste GEZÄHLTE Versuch plus Fensterbreite
+— der Zeitpunkt, ab dem die Zeile nichts mehr abweisen kann. Ein abgewiesener
+Versuch wird nicht gezählt und verlängert die Aufbewahrung deshalb auch nicht.
+Abgelaufene Zeilen werden tatsächlich entfernt, nicht nur als entfernbar
+markiert: Je hundertster Anfrage läuft ein auf fünfhundert Zeilen gedeckeltes
+Aufräumen über den Index auf `expiresAt`. Längste Fensterbreite im System:
+eine Stunde.
+
+Einschränkung, die dazugehört: Der Zähler für "jede hundertste Anfrage" ist
+Modulzustand JE PROZESS, nicht global. Auf einer Plattform, die Instanzen
+häufig neu startet, kann eine Instanz sterben, bevor sie hundert Anfragen
+gesehen hat — sie räumt dann nie auf. Die Aufräumrate wächst also mit der Last
+je Instanz, nicht mit der Last insgesamt. Harmlos für die Durchsetzung
+(abgelaufene Zeilen weisen nichts mehr ab) und für die Abfragekosten (der
+Zugriff geht über den Primärschlüssel), aber es heißt, dass die Tabelle in
+einem solchen Betrieb länger belegt bleiben kann als die eine Stunde
+Fensterbreite. Ein regelmäßiger Lauf wäre die Lösung, ist aber neue
+Infrastruktur und damit nicht im Umfang von E03.
+
+**Atomarität.** Prüfen und Zählen bilden eine Transaktion mit Zeilensperre
+(`SELECT … FOR UPDATE`, davor ein `INSERT … ON CONFLICT DO NOTHING`, damit
+auch der allererste Zugriff auf einen Schlüssel serialisiert ist). Zwei
+gleichzeitige Anfragen auf denselben Schlüssel können nicht beide freie
+Kapazität sehen. Nachgewiesen in `tests/integration/rate-limit.test.ts`, und
+zwar über **zwei getrennte Serverprozesse** mit je eigenem Verbindungspool —
+nicht über zwei Aufrufe in einem Prozess.
+
+Ein Sonderfall ist eigens behandelt: Räumt ein Aufräumlauf die Zeile genau
+zwischen Anlegen und Sperren weg, sperrt `FOR UPDATE` nichts mehr. Dann wird
+neu angesetzt statt auf dem leeren Stand entschieden — sonst bliebe bei zwei
+gleichzeitigen Anläufen ein Versuch ungezählt. Dieser Zweig ist nicht
+verlässlich abgedeckt: Ein Test trifft ihn, aber nur je nach Lauf (siehe
+docs/TESTING.md). Reicht der Neu-Ansatz nicht aus, wird abgewiesen, nie
+durchgelassen.
+
+**Verhalten bei nicht erreichbarer Datenbank: FAIL CLOSED.** Ist die Grenze
+nicht prüfbar, wird abgewiesen (`RateLimitUnavailableError`), nicht
+durchgelassen. Einheitlich für alle Grenzen. Für Anmeldung und Registrierung
+ist das der Kern der Sache: Durchlassen hieße, bei einem Datenbankausfall
+genau den Schutz abzuschalten, der Credential Stuffing begrenzt — der Ausfall
+wäre damit das Zeitfenster für den Angriff. Für `submitAttempt`, `hintReveal`
+und `labAttempt` gilt dieselbe Regel ohne Nachteil: Alle drei greifen
+unmittelbar danach selbst auf die Datenbank zu und scheitern ohne sie ohnehin.
+Der Datenbankfehler wird protokolliert (nur Fehlerart und Code, nie der
+Schlüssel) und nicht still verschluckt. Geprüft mit einem echten Prozess gegen
+eine unerreichbare Adresse.
+
+Die Kehrseite, offen benannt: Sperren und Zeilensperre zusammen können einen
+Ansturm verstärken. Viele gleichzeitige Anfragen auf DENSELBEN Schlüssel
+werden serialisiert und belegen dabei Verbindungen aus dem Pool; laufen
+Transaktionen in ihre Zeitgrenze, werden sie abgewiesen — und das kann auch
+Anfragen auf ganz andere Schlüssel treffen, die keine Verbindung mehr
+bekommen. Das ist die bewusst gewählte Richtung (abweisen statt durchlassen),
+aber es ist kein kostenloser Schutz.
+
+**Zusatzaufwand je Anfrage.** Gemessen mit `npm run perf:rate-limit`, 300
+Messungen je Füllstand nach 50 Aufwärmläufen, PostgreSQL 14.21 auf demselben
+Rechner (Loopback). Angegeben sind Spannen über **sechs** Läufe aus zwei
+getrennten Sitzungen, nicht die Zahlen eines einzelnen: Die Streuung zwischen
+Läufen ist auf einem Entwicklungsrechner erheblich, und eine einzelne Zahl
+täuscht Genauigkeit vor, die die Messung nicht hergibt. Eine erste Fassung
+dieser Tabelle nannte Spannen aus nur drei Läufen; eine Nachmessung fiel auf
+beiden Seiten aus ihnen heraus, weshalb hier jetzt alle sechs stehen.
+
+| Füllstand der Zeile                       | p50          | p95        |
+| ----------------------------------------- | ------------ | ---------- |
+| 10 (ausgereizte Anmeldegrenze)            | 0,65–1,05 ms | 0,9–2,1 ms |
+| 240 (`submitAttempt`, ungünstigster Fall) | 2,95–3,9 ms  | 4,2–4,9 ms |
+
+Das ist eine **Untergrenze und keine Produktionslatenz**: Netzstrecke und
+Poolverhalten der Zielplattform kommen hinzu. Vorher lag der Zähler im
+Arbeitsspeicher, sein Aufwand war gegenüber jedem Datenbankzugriff
+vernachlässigbar — die gemessene Dauer IST deshalb der Zusatzaufwand.
+
+**Rücknahme.** Das Schema ist additiv. Wird der Code zurückgenommen, darf die
+Tabelle stehen bleiben; sie stört niemanden und enthält nach einer Stunde
+nichts Wirksames mehr. Eine Down-Migration ist dafür nicht nötig, und es gibt
+bewusst keinen Laufzeitschalter zurück auf den Speicherzähler: Ein zweiter,
+dauerhaft mitgeführter Betriebsmodus wäre mehr Fläche als die Rücknahme wert,
+und ein Zurücknehmen des Commits ist in diesem Repository der übliche Weg.
+
 ## Bekannte, akzeptierte Restrisiken dieser Ausbaustufe
 
 - **`deepmerge-ts` (transitive Abhängigkeit von `prisma`/`@prisma/config`,
@@ -116,9 +219,10 @@ in `src/proxy.ts` nur gesetzt, wenn `APP_URL` tatsächlich auf `https` zeigt.
   PythonPfad/SQLPfad (Prisma 7.9.1) widerspräche. `npm audit --omit=dev`
   meldet für die tatsächlich ausgelieferten Abhängigkeiten **keine**
   Funde.
-- **In-Memory-Ratenbegrenzung:** wirkungslos bei horizontaler Skalierung
-  auf mehrere Instanzen. Dokumentiert, Schnittstelle bleibt beim Wechsel
-  auf einen gemeinsamen Zähler (z. B. Redis) gleich.
+
+Ein Eintrag stand hier und ist mit E03 erledigt: Die Ratenbegrenzung lag im
+Prozessspeicher und war bei horizontaler Skalierung wirkungslos. Sie liegt
+jetzt in PostgreSQL und wird instanzübergreifend durchgesetzt (siehe unten).
 
 ## Sicherheitsprüfung zu PR #29
 
@@ -151,13 +255,13 @@ vollständig integritätsgesichert.
 
 ### Einstufung der mittleren Funde
 
-| Fund                                                                                       | Einstufung                                                                                                                                                                                                                                                        |
-| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ratengrenzen über ein client-gesetztes `x-forwarded-for` umgehbar                          | **BEHOBEN** — zuerst die Plattform-Kopfzeile, sonst der rechte Eintrag der Kette.                                                                                                                                                                                 |
-| Anmeldegrenze nur je (IP, E-Mail), ein Konto über viele Herkünften beliebig oft angreifbar | **BEHOBEN** — zusätzliche kontobezogene Grenze ohne IP-Anteil.                                                                                                                                                                                                    |
-| Rechenaufwand von scrypt vor der Authentifizierung als Verstärkungsfläche                  | **AKZEPTIERT MIT BEGRÜNDUNG** — die Grenzen greifen davor, und auf der Zielplattform ist die Herkunft nicht fälschbar. Vollständig entschärft erst mit dem gemeinsamen Zähler unten; bis dahin ist der Aufwand je Anfrage begrenzt und die Kosten sind gedeckelt. |
-| Ratenbegrenzung im Prozessspeicher, hält nicht über Instanzen                              | **AKZEPTIERT MIT BEGRÜNDUNG** — bereits oben als Restrisiko geführt. Vor dem öffentlichen Start wird auf einen gemeinsamen Zähler gewechselt; die Schnittstelle bleibt gleich.                                                                                    |
-| `script-src` erlaubt `'unsafe-inline'`                                                     | **AKZEPTIERT MIT BEGRÜNDUNG** — Kompromiss des App Routers für das Skript gegen das Themen-Flackern. Es existiert keine Injektionsstelle: genau ein `dangerouslySetInnerHTML`, und das mit einer Konstanten. Umstellung auf ein Nonce ist vorgemerkt.             |
+| Fund                                                                                       | Einstufung                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ratengrenzen über ein client-gesetztes `x-forwarded-for` umgehbar                          | **BEHOBEN** — zuerst die Plattform-Kopfzeile, sonst der rechte Eintrag der Kette.                                                                                                                                                                              |
+| Anmeldegrenze nur je (IP, E-Mail), ein Konto über viele Herkünften beliebig oft angreifbar | **BEHOBEN** — zusätzliche kontobezogene Grenze ohne IP-Anteil.                                                                                                                                                                                                 |
+| Rechenaufwand von scrypt vor der Authentifizierung als Verstärkungsfläche                  | **BEHOBEN** — die Grenzen greifen davor, auf der Zielplattform ist die Herkunft nicht fälschbar, und seit E03 zählt der gemeinsame Zähler über alle Instanzen hinweg. Damit ist der Aufwand je Herkunft und Konto tatsächlich gedeckelt, nicht nur je Instanz. |
+| Ratenbegrenzung im Prozessspeicher, hält nicht über Instanzen                              | **BEHOBEN** (E03) — der Zähler liegt in PostgreSQL (`rate_limit_buckets`), Prüfen und Zählen bilden eine Transaktion mit Zeilensperre. Nachgewiesen über zwei getrennte Serverprozesse in `tests/integration/rate-limit.test.ts`.                              |
+| `script-src` erlaubt `'unsafe-inline'`                                                     | **AKZEPTIERT MIT BEGRÜNDUNG** — Kompromiss des App Routers für das Skript gegen das Themen-Flackern. Es existiert keine Injektionsstelle: genau ein `dangerouslySetInnerHTML`, und das mit einer Konstanten. Umstellung auf ein Nonce ist vorgemerkt.          |
 
 Es bleibt kein mittlerer Fund ohne Einstufung.
 

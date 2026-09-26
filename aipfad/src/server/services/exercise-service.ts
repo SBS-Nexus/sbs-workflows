@@ -102,7 +102,7 @@ export async function revealNextHint(
   userId: string,
   exerciseSlug: string,
 ): Promise<RevealHintResult> {
-  enforceRateLimit(`hint:${userId}`, RATE_LIMITS.hintReveal);
+  await enforceRateLimit(`hint:${userId}`, RATE_LIMITS.hintReveal);
 
   const exercise = await prisma.exercise.findFirst({
     where: { slug: exerciseSlug, ...veroeffentlichteAufgabe },
@@ -334,7 +334,7 @@ export async function submitAttempt(
   userId: string,
   input: SubmitAttemptInput,
 ): Promise<SubmitAttemptResult> {
-  enforceRateLimit(`submit:${userId}`, RATE_LIMITS.submitAttempt);
+  await enforceRateLimit(`submit:${userId}`, RATE_LIMITS.submitAttempt);
 
   const exercise = await prisma.exercise.findFirst({
     where: { slug: input.exerciseSlug, ...veroeffentlichteAufgabe },
