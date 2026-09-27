@@ -176,24 +176,43 @@ eine unerreichbare Adresse.
 Die Kehrseite, offen benannt: Sperren und Zeilensperre zusammen können einen
 Ansturm verstärken. Viele gleichzeitige Anfragen auf DENSELBEN Schlüssel
 werden serialisiert und belegen dabei Verbindungen aus dem Pool; laufen
-Transaktionen in ihre Zeitgrenze, werden sie abgewiesen — und das kann auch
+Transaktionen in eine Zeitgrenze, werden sie abgewiesen — und das kann auch
 Anfragen auf ganz andere Schlüssel treffen, die keine Verbindung mehr
 bekommen. Das ist die bewusst gewählte Richtung (abweisen statt durchlassen),
 aber es ist kein kostenloser Schutz.
 
-**Zusatzaufwand je Anfrage.** Gemessen mit `npm run perf:rate-limit`, 300
-Messungen je Füllstand nach 50 Aufwärmläufen, PostgreSQL 14.21 auf demselben
-Rechner (Loopback). Angegeben sind Spannen über **sechs** Läufe aus zwei
-getrennten Sitzungen, nicht die Zahlen eines einzelnen: Die Streuung zwischen
-Läufen ist auf einem Entwicklungsrechner erheblich, und eine einzelne Zahl
-täuscht Genauigkeit vor, die die Messung nicht hergibt. Eine erste Fassung
-dieser Tabelle nannte Spannen aus nur drei Läufen; eine Nachmessung fiel auf
-beiden Seiten aus ihnen heraus, weshalb hier jetzt alle sechs stehen.
+**Zusatzaufwand je Anfrage.** Nachzurechnen mit:
 
-| Füllstand der Zeile                       | p50          | p95        |
-| ----------------------------------------- | ------------ | ---------- |
-| 10 (ausgereizte Anmeldegrenze)            | 0,65–1,05 ms | 0,9–2,1 ms |
-| 240 (`submitAttempt`, ungünstigster Fall) | 2,95–3,9 ms  | 4,2–4,9 ms |
+```bash
+DATABASE_URL=… npm run perf:rate-limit
+```
+
+300 Messungen je Füllstand nach 50 nicht gewerteten Aufwärmläufen.
+
+Hier steht bewusst **ein datierter Bezugslauf** und keine Spanne. Zweimal
+wurde versucht, die Streuung als Spanne zu fassen — erst über drei Läufe, dann
+über sechs — und beide Male fiel eine unabhängige Nachmessung heraus, die
+zweite sogar nach oben UND nach unten (p95 bei Füllstand 240: 5,07 ms in einer
+Prüfung, 3,26 ms in einer anderen, gegen eine angegebene Spanne von 4,2–4,9
+ms). Eine Spanne von einem Entwicklungsrechner behauptet eine Stabilität, die
+diese Messung nicht hat. Deshalb: eine Momentaufnahme mit Datum, und wer eine
+Zahl braucht, führt den Befehl selbst aus.
+
+Bezugslauf vom 27.09.2026, PostgreSQL 14.21, Node 22.23.2, darwin/arm64,
+Datenbank auf demselben Rechner (Loopback):
+
+| Füllstand der Zeile                       | p50     | p95     | max     |
+| ----------------------------------------- | ------- | ------- | ------- |
+| 0 (neue Zeile)                            | 0,71 ms | 1,61 ms | 3,57 ms |
+| 10 (ausgereizte Anmeldegrenze)            | 0,67 ms | 0,98 ms | 2,41 ms |
+| 120 (`labAttempt`, `hintReveal`)          | 2,03 ms | 2,43 ms | 3,67 ms |
+| 240 (`submitAttempt`, ungünstigster Fall) | 2,86 ms | 3,26 ms | 9,57 ms |
+
+Über alle bisher beobachteten Läufe lagen p50 bei Füllstand 240 zwischen 2,59
+und 3,86 ms und p95 zwischen 3,26 und 5,07 ms. Die `max`-Spalte zeigt, woran
+das liegt: Einzelne Messungen springen um ein Mehrfaches nach oben — jede
+hundertste Anfrage räumt zusätzlich auf (siehe Skriptkopf), und ein
+Entwicklungsrechner tut derweil anderes.
 
 Das ist eine **Untergrenze und keine Produktionslatenz**: Netzstrecke und
 Poolverhalten der Zielplattform kommen hinzu. Vorher lag der Zähler im
@@ -222,7 +241,7 @@ und ein Zurücknehmen des Commits ist in diesem Repository der übliche Weg.
 
 Ein Eintrag stand hier und ist mit E03 erledigt: Die Ratenbegrenzung lag im
 Prozessspeicher und war bei horizontaler Skalierung wirkungslos. Sie liegt
-jetzt in PostgreSQL und wird instanzübergreifend durchgesetzt (siehe unten).
+jetzt in PostgreSQL und wird instanzübergreifend durchgesetzt (siehe oben).
 
 ## Sicherheitsprüfung zu PR #29
 

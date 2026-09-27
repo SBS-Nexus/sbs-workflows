@@ -347,9 +347,17 @@ async function vielleichtAufraeumen(): Promise<void> {
 /**
  * Nur für Tests: entfernt gezielt die Zeilen der angegebenen Schlüssel.
  *
- * Bewusst KEIN `TRUNCATE`: Die Tabelle ist prozessübergreifend geteilt, und
- * ein Test, der alles leert, zieht anderen Tests den Zustand unter den Füßen
- * weg (docs/TESTING.md).
+ * Bewusst schlüsselweise und kein `TRUNCATE`: Die Tabelle ist geteilt, und ein
+ * Test, der sie leert, zieht anderen Tests den Zustand unter den Füßen weg.
+ *
+ * Eine Ausnahme gibt es, und sie steht hier, damit sie nicht als Versehen
+ * gelesen wird: Der Test "bleibt bei gleichzeitigem, aggressivem Aufräumen
+ * antwortfähig" ruft `pruneExpiredBuckets()` mit einem Vergleichszeitpunkt in
+ * der Zukunft auf und leert damit die Tabelle vollständig — genau das ist dort
+ * der Zweck. Unschädlich ist das nur wegen zweier Umstände: Der Löschlauf wird
+ * in einem `finally` abgewartet, und `vitest.config.ts` setzt
+ * `fileParallelism: false`, sodass keine andere Integrationsdatei gleichzeitig
+ * läuft. Fällt einer der beiden weg, greift dieser Test in fremde Tests.
  */
 export async function __resetRateLimits(keys: readonly string[]): Promise<void> {
   if (keys.length === 0) return;

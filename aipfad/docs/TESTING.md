@@ -65,6 +65,14 @@ Nicht geprüft ist, ob der Neu-Ansatz den Zählstand korrekt ERHÄLT: Die Grenze
 in diesem Test steht bewusst hoch, damit er nicht an legitimen Abweisungen
 scheitert.
 
+Ein Umstand, von dem die Isolation dieser Datei abhängt: `vitest.config.ts`
+setzt `fileParallelism: false`. Der Test zum aggressiven Aufräumen leert die
+Tabelle `rate_limit_buckets` absichtlich vollständig, und mehrere andere
+Integrationsdateien schreiben dort hinein (über `submitAttempt`,
+`revealNextHint`, `recordLabAttempt`). Ohne die serielle Ausführung — oder ohne
+das `finally`, das den Löschlauf abwartet — griffe dieser Test in fremde
+Dateien.
+
 Die beiden Prozess-Tests starten `rate-limit-worker.ts` über `tsx` als echten
 Kindprozess — zwei `PrismaClient` nebeneinander wären zwar zwei
 Verbindungspools, aber ein Prozess mit gemeinsamem Modulzustand, und genau
