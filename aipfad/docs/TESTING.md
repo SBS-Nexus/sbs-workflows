@@ -27,7 +27,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 90 bestehen
+### Integrationstests — 91 bestehen
 
 `tests/integration/`: `auth.test.ts`, `content-publication.test.ts`,
 `exercise-service.test.ts`, `lesson-progress.test.ts`,
@@ -51,6 +51,20 @@ Datenbank abgewiesen und nicht durchgelassen wird; dass die Tabelle den
 Schlüssel nur als Digest trägt und außer Digest, Zeitpunkten und Ablauf keine
 Spalte hat; und dass das Aufräumen gedeckelt ist und abgelaufene Zeilen
 wirklich verschwinden.
+
+Ein Test hält das Abnahmekriterium "kein unbegrenztes Tabellenwachstum"
+unmittelbar fest: "räumt schon bei wenigen Anfragen auf, auch in einem frisch
+gestarteten Prozess". Er legt zehn abgelaufene Zeilen an, führt DREI ganz
+normale Entscheidungen aus — weit unter hundert — und erwartet danach genau
+vier übrige: aufgeräumt wurde, und zwar gedeckelt. Eine lebende Zeile bleibt
+unangetastet. Danach führt ein frisch gestarteter Kindprozess EINE Entscheidung
+aus und räumt weitere zwei ab; das ist der Teil, der über Prozessgrenzen hinweg
+gilt und nicht von einem Zähler im Arbeitsspeicher abhängt.
+
+Der Test ist deterministisch (die abgelaufenen Zeilen tragen Ablaufzeitpunkte
+im Jahr 2000 und sind damit sicher die ältesten der Tabelle) und schlägt unter
+der Vorgängerfassung fehl: Dort räumte nur jede hundertste Anfrage auf, drei
+Entscheidungen bewirkten nichts, und die Zusicherung war "expected 10 to be 4".
 
 Ein weiterer Test hält fest, dass die Ratenbegrenzung unter dauerndem,
 aggressivem Aufräumen antwortfähig bleibt. Er trifft dabei auch den

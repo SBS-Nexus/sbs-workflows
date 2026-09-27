@@ -42,6 +42,10 @@ const ALLE_SCHLUESSEL = [
   'frisch',
   'aufraeum-wettlauf',
   'dauernd-weg',
+  'gebunden-a',
+  'gebunden-b',
+  'gebunden-c',
+  'gebunden-kind',
   ...Array.from({ length: 5 }, (_, i) => `aufraeum-grenze-${i}`),
 ].map(schluessel);
 
@@ -383,6 +387,74 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
       await loescher;
     }
   }, 60_000);
+
+  it('räumt schon bei wenigen Anfragen auf, auch in einem frisch gestarteten Prozess', async () => {
+    // Das Abnahmekriterium aus docs/ENTERPRISE-ROADMAP.md verlangt "beschränkte
+    // Schlüsselmenge; kein unbegrenztes Tabellenwachstum". Die erste Fassung
+    // räumte nur jede hundertste Anfrage auf, gezählt in Modulzustand JE
+    // PROZESS — eine Instanz, die vorher endete, räumte nie auf. Nachgestellt:
+    // drei Prozesse mit je 99 Entscheidungen entfernten von zwanzig
+    // abgelaufenen Zeilen keine einzige, und die Tabelle wuchs weiter.
+    //
+    // Dieser Test hält das Gegenteil fest, ohne Modulzähler und ohne
+    // Wahrscheinlichkeit: Wenige Entscheidungen räumen auf, das Kontingent je
+    // Entscheidung ist gedeckelt, lebende Zeilen bleiben, und der ERSTE
+    // Aufruf eines frisch gestarteten Prozesses räumt bereits mit.
+    //
+    // Unter der alten Fassung schlägt er fehl: Drei Entscheidungen lägen weit
+    // unter hundert, es verschwände nichts.
+    const abgelaufen = Array.from({ length: 10 }, (_, i) =>
+      `beeeeeeee${String(i).padStart(2, '0')}`.padEnd(64, 'f'),
+    );
+    const lebend = 'aaaaaaaa'.padEnd(64, 'e');
+
+    const nochDa = async (): Promise<number> =>
+      prisma.rateLimitBucket.count({ where: { keyHash: { in: abgelaufen } } });
+
+    try {
+      await prisma.rateLimitBucket.deleteMany({
+        where: { keyHash: { in: [...abgelaufen, lebend] } },
+      });
+      await prisma.rateLimitBucket.createMany({
+        data: [
+          // Bewusst der Jahrtausendwechsel: Damit sind diese Zeilen die
+          // ältesten der Tabelle, und `ORDER BY "expiresAt"` greift sie
+          // zuerst — unabhängig davon, was andere Tests liegen ließen.
+          ...abgelaufen.map((keyHash, i) => ({
+            keyHash,
+            hits: [],
+            expiresAt: new Date(Date.UTC(2000, 0, 1, 0, 0, i)),
+          })),
+          { keyHash: lebend, hits: [], expiresAt: new Date(Date.now() + 3_600_000) },
+        ],
+      });
+      expect(await nochDa()).toBe(10);
+
+      // Drei ganz normale Entscheidungen — weit unter hundert.
+      for (const name of ['gebunden-a', 'gebunden-b', 'gebunden-c']) {
+        await checkRateLimit(schluessel(name), { limit: 5, windowMs: 60_000 }, Date.now());
+      }
+
+      // Aufgeräumt wurde, und zwar gedeckelt: zwei je Entscheidung, nicht alles.
+      expect(await nochDa()).toBe(4);
+
+      // Die lebende Zeile ist unangetastet.
+      expect(
+        await prisma.rateLimitBucket.findUnique({ where: { keyHash: lebend } }),
+      ).not.toBeNull();
+
+      // Und der ERSTE Aufruf eines frisch gestarteten Prozesses räumt mit:
+      // kein Vorlauf, kein prozesslokaler Zähler, der erst anlaufen müsste.
+      const kind = await workerLauf(schluessel('gebunden-kind'), 5, 60_000, Date.now(), 1);
+      expect(kind.fehler).toBeUndefined();
+      expect(kind.erlaubt).toBe(1);
+      expect(await nochDa()).toBe(2);
+    } finally {
+      await prisma.rateLimitBucket.deleteMany({
+        where: { keyHash: { in: [...abgelaufen, lebend] } },
+      });
+    }
+  }, 120_000);
 
   it('räumt je Lauf höchstens so viele Zeilen ab wie erlaubt', async () => {
     const schluesselListe = Array.from({ length: 5 }, (_, i) =>

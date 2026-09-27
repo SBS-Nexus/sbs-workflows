@@ -130,20 +130,44 @@ dieser Lage etwas zu ändern.
 — der Zeitpunkt, ab dem die Zeile nichts mehr abweisen kann. Ein abgewiesener
 Versuch wird nicht gezählt und verlängert die Aufbewahrung deshalb auch nicht.
 Abgelaufene Zeilen werden tatsächlich entfernt, nicht nur als entfernbar
-markiert: Je hundertster Anfrage läuft ein auf fünfhundert Zeilen gedeckeltes
-Aufräumen über den Index auf `expiresAt`. Längste Fensterbreite im System:
-eine Stunde.
+markiert: JEDE abgeschlossene Entscheidung entfernt bis zu zwei abgelaufene
+Zeilen über den Index auf `expiresAt`. Längste Fensterbreite im System: eine
+Stunde.
 
-Einschränkung, die dazugehört: Der Zähler für "jede hundertste Anfrage" ist
-Modulzustand JE PROZESS, nicht global. Auf einer Plattform, die Instanzen
-häufig neu startet, kann eine Instanz sterben, bevor sie hundert Anfragen
-gesehen hat — sie räumt dann nie auf. Die Aufräumrate wächst also mit der Last
-je Instanz, nicht mit der Last insgesamt. Harmlos für die Durchsetzung
-(abgelaufene Zeilen weisen nichts mehr ab) und für die Abfragekosten (der
-Zugriff geht über den Primärschlüssel), aber es heißt, dass die Tabelle in
-einem solchen Betrieb länger belegt bleiben kann als die eine Stunde
-Fensterbreite. Ein regelmäßiger Lauf wäre die Lösung, ist aber neue
-Infrastruktur und damit nicht im Umfang von E03.
+**Was damit beschränkt ist, und was nicht.** Drei Aussagen, die auseinander
+gehalten gehören:
+
+- **Je Zeile:** Eine Zeile trägt höchstens so viele Zeitpunkte, wie die Grenze
+  dieses Schlüssels erlaubt — derzeit höchstens 240 (`submitAttempt`). Das ist
+  eine Schranke JE SCHLÜSSEL, keine Schranke für die Tabelle.
+- **Lebende Zeilen:** Eine Zeile je unterschiedlichem Schlüssel, der im
+  laufenden Fenster vorkam. Wie viele das sind, hängt am tatsächlichen
+  Verkehr; eine feste Obergrenze gibt es dafür nicht und kann es nicht geben.
+- **Abgelaufene Zeilen:** Eine Entscheidung legt höchstens EINE neue Zeile an
+  und räumt bis zu ZWEI abgelaufene weg. Solange Verkehr läuft, steht der
+  Zufuhr also mindestens die doppelte Abfuhr gegenüber. Bleibt der Verkehr
+  ganz aus, bleiben Zeilen liegen — dann entstehen aber auch keine neuen.
+
+Entscheidend ist, dass das Aufräumen an der einzelnen Entscheidung hängt und
+nicht an einem prozesslokalen Zähler. Eine frühere Fassung räumte nur jede
+hundertste Anfrage auf, gezählt im Arbeitsspeicher des Prozesses: Eine
+Instanz, die vorher endete, räumte NIE auf, und auf einer Plattform mit
+kurzlebigen Instanzen wuchs die Tabelle dadurch unbegrenzt — das
+Abnahmekriterium "kein unbegrenztes Tabellenwachstum" war damit nicht
+erfüllt. Nachgestellt vor der Änderung: drei Prozesse mit je 99 Entscheidungen
+entfernten von zwanzig abgelaufenen Zeilen keine einzige. Seit der Umstellung
+räumt bereits die ERSTE Anfrage eines frisch gestarteten Prozesses mit; ein
+Integrationstest hält das fest und schlägt unter der alten Fassung fehl.
+
+Weil nun jede Entscheidung aufräumt, treffen viele Läufe gleichzeitig auf
+dieselben ältesten Zeilen. `FOR UPDATE SKIP LOCKED` wäre dafür das übliche
+Mittel und wurde geprüft — in `psql` wirkt es wie erwartet (0,05 s statt
+2,98 s, wenn die älteste Zeile gesperrt ist). Über den hier verwendeten
+Treiber entfernt dieselbe Anweisung damit jedoch ALLE passenden Zeilen statt
+der per `LIMIT` erlaubten (fünf statt zwei, gemessen). Die Deckelung wiegt
+schwerer als die Wartefreiheit: Eine unbegrenzte Löschanweisung mitten in
+einer Anfrage ist genau das, was hier nicht passieren darf. Es bleibt deshalb
+beim einfachen `LIMIT`; Einzelheiten stehen im Quelltext.
 
 **Atomarität.** Prüfen und Zählen bilden eine Transaktion mit Zeilensperre
 (`SELECT … FOR UPDATE`, davor ein `INSERT … ON CONFLICT DO NOTHING`, damit
@@ -199,20 +223,32 @@ diese Messung nicht hat. Deshalb: eine Momentaufnahme mit Datum, und wer eine
 Zahl braucht, führt den Befehl selbst aus.
 
 Bezugslauf vom 27.09.2026, PostgreSQL 14.21, Node 22.23.2, darwin/arm64,
-Datenbank auf demselben Rechner (Loopback):
+Datenbank auf demselben Rechner (Loopback), 300 Messungen je Füllstand nach 50
+nicht gewerteten Aufwärmläufen:
 
-| Füllstand der Zeile                       | p50     | p95     | max     |
-| ----------------------------------------- | ------- | ------- | ------- |
-| 0 (neue Zeile)                            | 0,71 ms | 1,61 ms | 3,57 ms |
-| 10 (ausgereizte Anmeldegrenze)            | 0,67 ms | 0,98 ms | 2,41 ms |
-| 120 (`labAttempt`, `hintReveal`)          | 2,03 ms | 2,43 ms | 3,67 ms |
-| 240 (`submitAttempt`, ungünstigster Fall) | 2,86 ms | 3,26 ms | 9,57 ms |
+| Füllstand der Zeile                       | p50     | p95     | max      |
+| ----------------------------------------- | ------- | ------- | -------- |
+| 0 (neue Zeile)                            | 0,84 ms | 1,68 ms | 3,26 ms  |
+| 10 (ausgereizte Anmeldegrenze)            | 0,82 ms | 1,43 ms | 3,47 ms  |
+| 120 (`labAttempt`, `hintReveal`)          | 1,83 ms | 2,99 ms | 10,04 ms |
+| 240 (`submitAttempt`, ungünstigster Fall) | 2,50 ms | 3,87 ms | 8,21 ms  |
 
-Über alle bisher beobachteten Läufe lagen p50 bei Füllstand 240 zwischen 2,59
-und 3,86 ms und p95 zwischen 3,26 und 5,07 ms. Die `max`-Spalte zeigt, woran
-das liegt: Einzelne Messungen springen um ein Mehrfaches nach oben — jede
-hundertste Anfrage räumt zusätzlich auf (siehe Skriptkopf), und ein
-Entwicklungsrechner tut derweil anderes.
+Diese Zahlen gelten für die Fassung, in der JEDE Entscheidung aufräumt. Das
+Aufräumen liegt damit in der gemessenen Strecke — nicht mehr bei jeder
+hundertsten Anfrage, sondern bei jeder. Die vorherigen Zahlen sind dadurch
+hinfällig und stehen hier nicht mehr.
+
+Was die `max`-Spalte zeigt, und warum hier bewusst KEINE Spanne steht: Einzelne
+Messungen springen um ein Vielfaches nach oben — 10,04 ms gegen einen Median
+von 1,83 ms im selben Lauf, und in anderen Läufen deutlich weiter. Auf einem Entwicklungsrechner ist das
+Hintergrundlast, nicht Eigenschaft der Anwendung. Zweimal wurde hier versucht,
+die Streuung als Spanne zu fassen, und beide Male fiel eine unabhängige
+Nachmessung heraus; ein dritter Versuch, sie als Satz statt als Tabelle zu
+schreiben ("über alle bisher beobachteten Läufe … zwischen X und Y"), wurde
+ebenfalls binnen einer Prüfung widerlegt. Eine Spanne von diesem Rechner
+behauptet eine Stabilität, die die Messung nicht hat. Deshalb steht hier eine
+datierte Momentaufnahme, und wer eine Zahl braucht, führt den Befehl selbst
+aus und bekommt seine eigene.
 
 Das ist eine **Untergrenze und keine Produktionslatenz**: Netzstrecke und
 Poolverhalten der Zielplattform kommen hinzu. Vorher lag der Zähler im

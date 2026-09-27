@@ -56,28 +56,30 @@ function digest(key: string): string {
 }
 
 /**
- * Höchstens so viele abgelaufene Zeilen werden auf einmal entfernt. Deckelt
- * die Arbeit eines einzelnen Aufräumlaufs — ohne Grenze wäre das ein
- * unbeschränkter Löschvorgang mitten in einer Anfrage.
- */
-const AUFRAEUMEN_HOECHSTENS = 500;
-
-/**
- * Jede so-und-so-vielte Anfrage räumt auf.
+ * Wie viele abgelaufene Zeilen eine EINZELNE Entscheidung höchstens entfernt.
  *
- * Bewusst an die Anfragen gekoppelt und nicht an die Uhr: Ein fester Zeittakt
- * (etwa einmal je Minute) hätte bei Lastspitzen zu wenig entfernt. Ein
- * zusätzlicher Dienst oder ein Cron-Eintrag wäre dafür neue Infrastruktur —
- * ausdrücklich nicht im Umfang von E03.
+ * Jede abgeschlossene Entscheidung bekommt genau eine Aufräumgelegenheit
+ * dieser Größe — kein prozesslokaler Takt, keine Uhr, kein Zähler, der beim
+ * Start bei null beginnt.
  *
- * Einschränkung, die dazugehört: Der Zähler unten ist Modulzustand JE PROZESS.
- * Die Aufräumrate wächst deshalb mit der Last je Instanz, nicht mit der Last
- * insgesamt. Eine Instanz, die vor ihrer hundertsten Anfrage beendet wird,
- * räumt nie auf (docs/SECURITY.md). Gezählt werden außerdem nur Anfragen, die
- * tatsächlich entschieden wurden: Wirft der Datenbankzugriff, kommt es nicht
- * bis hierher.
+ * Warum das die Abnahmebedingung "kein unbegrenztes Tabellenwachstum" erst
+ * erfüllt: Eine Entscheidung legt HÖCHSTENS eine neue Zeile an (und meistens
+ * gar keine, weil der Schlüssel schon existiert). Mit zwei entfernten Zeilen
+ * je Entscheidung steht der Zufuhr also mindestens die doppelte Abfuhr
+ * gegenüber, und zwar ab der ERSTEN Anfrage eines Prozesses. Die Vorgänger-
+ * fassung räumte nur jede hundertste Anfrage auf, gezählt in Modulzustand je
+ * Prozess: Eine Instanz, die vor ihrer hundertsten Anfrage endete, räumte nie
+ * auf, und bei kurzlebigen Instanzen wuchs die Tabelle unbegrenzt. Das war
+ * nachstellbar — drei Prozesse mit je 99 Entscheidungen entfernten von zwanzig
+ * abgelaufenen Zeilen keine einzige.
+ *
+ * Zwei statt eins, damit ein Rückstand auch abgebaut wird und nicht bloß
+ * gehalten: Bei eins hielte die Abfuhr die Zufuhr gerade auf, ein Bestand aus
+ * einer früheren Fassung oder einer Verkehrspause bliebe aber liegen. Größere
+ * Werte kosten je Anfrage mehr, ohne etwas zu garantieren, was zwei nicht
+ * schon garantiert.
  */
-const AUFRAEUMEN_JEDE_N_TE_ANFRAGE = 100;
+const AUFRAEUMEN_JE_ENTSCHEIDUNG = 2;
 
 /**
  * Wie oft der Zählvorgang höchstens neu ansetzt, wenn ein gleichzeitiger
@@ -86,8 +88,6 @@ const AUFRAEUMEN_JEDE_N_TE_ANFRAGE = 100;
  * daraus unter keinen Umständen eine Endlosschleife wird.
  */
 const HOECHSTENS_ANLAEUFE = 3;
-
-let anfragenSeitAufraeumen = 0;
 
 export class RateLimitError extends Error {
   readonly retryAfterSeconds: number;
@@ -168,7 +168,7 @@ export async function checkRateLimit(
     throw new RateLimitUnavailableError(error);
   }
 
-  await vielleichtAufraeumen();
+  await aufraeumenNachEntscheidung();
   return result;
 }
 
@@ -271,15 +271,36 @@ async function einAnlauf(
 /**
  * Entfernt abgelaufene Zeilen — beschränkt auf `hoechstens` Stück je Lauf.
  *
- * Warum das Tabellenwachstum beschränkt ist: Jeder Schlüssel belegt genau EINE
- * Zeile, deren Zeitpunktfeld auf das Fenster beschnitten wird und deshalb
- * höchstens `limit` Einträge trägt. Neue Zeilen entstehen nur durch Anfragen,
- * und je hundert entschiedene Anfragen EINER INSTANZ wird ein Lauf ausgelöst,
- * der bis zu fünfhundert abgelaufene Zeilen entfernt. Die Einschränkung dieser
- * Kopplung steht bei `AUFRAEUMEN_JEDE_N_TE_ANFRAGE`.
+ * Aufgerufen nach JEDER abgeschlossenen Entscheidung, mit einem kleinen festen
+ * Kontingent (`AUFRAEUMEN_JE_ENTSCHEIDUNG`). Die Arbeit je Anfrage ist damit
+ * fest gedeckelt, und die Abfuhr hängt am laufenden Verkehr statt an einem
+ * Zähler, der bei jedem Prozessstart wieder bei null beginnt.
  *
  * Der Index auf `expiresAt` macht daraus einen begrenzten Indexzugriff statt
- * eines vollständigen Tabellendurchlaufs bei jeder Anfrage.
+ * eines vollständigen Tabellendurchlaufs.
+ *
+ * KEIN `FOR UPDATE SKIP LOCKED` in der Unterabfrage — geprüft und verworfen.
+ *
+ * Der Gedanke lag nahe: Weil jetzt jede Entscheidung aufräumt, treffen viele
+ * Läufe gleichzeitig auf dieselben ältesten abgelaufenen Zeilen, und mit
+ * `SKIP LOCKED` griffe jeder nach den nächsten freien statt zu warten. In
+ * `psql` verhält sich das auch genau so: gesperrte Zeile übersprungen, Lauf
+ * nach 0,05 s zurück statt nach 2,98 s.
+ *
+ * Über den hier verwendeten Treiber (`@prisma/adapter-pg`, `$executeRaw`)
+ * stimmt das Ergebnis aber nicht mehr: Mit `SKIP LOCKED` entfernt die
+ * Anweisung ALLE passenden Zeilen statt der per `LIMIT` erlaubten. Gemessen
+ * an fünf abgelaufenen Zeilen mit `LIMIT 2`: ohne `SKIP LOCKED` zwei
+ * entfernt, mit `SKIP LOCKED` fünf. Dieselbe Anweisung in `psql`, ob mit
+ * Literalen oder mit Parametern, entfernt beide Male zwei — es ist also kein
+ * Fehler der Abfrage, sondern ein Unterschied im Ausführungsweg.
+ *
+ * Die Deckelung ist wichtiger als die Wartefreiheit: Eine unbegrenzte
+ * Löschanweisung mitten in einer Anfrage ist genau das, was hier nicht
+ * passieren darf. Deshalb bleibt es beim einfachen `LIMIT`. Wer `SKIP LOCKED`
+ * erneut erwägt, prüfe zuerst `pruneExpiredBuckets(2)` gegen fünf abgelaufene
+ * Zeilen — der Integrationstest "räumt je Lauf höchstens so viele Zeilen ab
+ * wie erlaubt" tut genau das und schlug bei diesem Versuch fehl.
  *
  * `jetzt` kommt bewusst aus der Anwendung und NICHT aus `now()` der Datenbank.
  * DAS IST DIE TRAGENDE ZUSICHERUNG DIESER FUNKTION — nicht die Spaltenart.
@@ -310,7 +331,7 @@ async function einAnlauf(
  * gelöscht, obwohl er zu diesem Zeitpunkt gar nicht mehr abgelaufen ist.
  */
 export async function pruneExpiredBuckets(
-  hoechstens: number = AUFRAEUMEN_HOECHSTENS,
+  hoechstens: number = AUFRAEUMEN_JE_ENTSCHEIDUNG,
   jetzt: Date = new Date(),
 ): Promise<number> {
   return prisma.$executeRaw`
@@ -328,13 +349,11 @@ export async function pruneExpiredBuckets(
  * Das Aufräumen darf die Entscheidung nicht gefährden: Sie ist zu diesem
  * Zeitpunkt bereits gefallen und festgeschrieben. Scheitert das Entfernen,
  * wird das vermerkt und die Anfrage läuft weiter — abgelaufene Zeilen sind
- * ein Platzproblem, kein Sicherheitsproblem.
+ * ein Platzproblem, kein Sicherheitsproblem. Eine nicht erreichbare Datenbank
+ * sperrt an der Grenze (fail closed), aber ein misslungenes Aufräumen darf
+ * keine zweite Ausfallursache werden.
  */
-async function vielleichtAufraeumen(): Promise<void> {
-  anfragenSeitAufraeumen += 1;
-  if (anfragenSeitAufraeumen < AUFRAEUMEN_JEDE_N_TE_ANFRAGE) return;
-  anfragenSeitAufraeumen = 0;
-
+async function aufraeumenNachEntscheidung(): Promise<void> {
   try {
     await pruneExpiredBuckets();
   } catch (error) {
