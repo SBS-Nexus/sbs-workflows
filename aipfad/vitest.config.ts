@@ -38,6 +38,12 @@ export default defineConfig({
           environment: 'node',
           include: ['tests/integration/**/*.test.ts'],
           setupFiles: ['tests/integration/setup.ts'],
+          // Nicht nur Bequemlichkeit: Mehrere Integrationsdateien schreiben
+          // in `rate_limit_buckets`, und ein Test in `rate-limit.test.ts`
+          // leert diese Tabelle absichtlich vollständig (Aufräumen mit
+          // Vergleichszeitpunkt in der Zukunft). Auf `true` gestellt, greift
+          // er in fremde Dateien — siehe `__resetRateLimits()` in
+          // `src/server/security/rate-limit.ts`.
           fileParallelism: false,
           testTimeout: 30_000,
           hookTimeout: 60_000,

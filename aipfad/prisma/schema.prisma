@@ -613,3 +613,50 @@ model AnalyticsEvent {
   @@index([eventType, occurredOn])
   @@map("analytics_events")
 }
+
+// ---------------------------------------------------------------------------
+// Ratenbegrenzung
+// ---------------------------------------------------------------------------
+
+/// Gemeinsamer Zähler der Ratenbegrenzung, eine Zeile je Grenzenschlüssel
+/// (E03/ENT-B07). Bis dahin lag der Zähler im Arbeitsspeicher der Instanz und
+/// war bei mehreren Instanzen wirkungslos.
+///
+/// Diese Tabelle hat bewusst KEINEN Fremdschlüssel auf `User` und speichert
+/// weder E-Mail-Adresse noch IP: Der Schlüssel, aus dem sie entsteht, geht nur
+/// als SHA-256-Digest ein. Die Datenbank weiß dadurch nicht, ob darin eine
+/// Herkunft, eine Adresse oder eine Nutzerkennung steckt.
+model RateLimitBucket {
+  /// SHA-256 des Grenzenschlüssels, hexadezimal. Zugleich Primärschlüssel:
+  /// jeder Zugriff ist eine Gleichheitssuche genau auf diese Spalte, und der
+  /// Eindeutigkeitsindex trägt zugleich die Konfliktauflösung beim Anlegen.
+  keyHash   String     @id
+  /// Zeitpunkte der gezählten Versuche im laufenden Fenster, aufsteigend.
+  /// Bei jedem Zugriff auf das Fenster beschnitten; abgewiesene Versuche
+  /// werden NICHT angehängt. Die Länge ist dadurch durch das Limit der
+  /// jeweiligen Grenze nach oben beschränkt (derzeit höchstens 240).
+  hits      DateTime[]
+  /// Ab hier kann die Zeile nichts mehr abweisen und darf entfernt werden.
+  /// Siehe `pruneExpiredBuckets()` in `src/server/security/rate-limit.ts`.
+  ///
+  /// `timestamp` OHNE Zeitzone, wie jede andere Zeitspalte dieses Schemas.
+  ///
+  /// Diese Spalte darf NIE gegen `now()` der Datenbank verglichen werden,
+  /// sondern nur gegen Zeitpunkte, die dieselbe Anwendung geschrieben hat.
+  /// Darin steht die UTC-Wanduhrzeit; `now()` ist `timestamptz`, und beim
+  /// Vergleich wird die Spalte mit der Zeitzone der SITZUNG gedeutet. Auf
+  /// einem Rechner in `Europe/Berlin` gilt eine Zeile, die erst in einer
+  /// Minute abläuft, dadurch schon als abgelaufen — um den Zonenversatz, eine
+  /// Stunde im Winter, zwei in der Sommerzeit — und würde
+  /// mitten im laufenden Fenster aufgeräumt — der Zähler begänne von vorn.
+  ///
+  /// Die Spaltenart schützt davor NICHT: Der Fehler tritt mit `timestamp`
+  /// genauso auf wie mit `timestamptz`. Getragen wird die Zusicherung
+  /// allein von `pruneExpiredBuckets()`, das seinen Vergleichszeitpunkt aus
+  /// der Anwendung bekommt. In der CI (UTC, Versatz null) fiele ein Rückfall
+  /// nicht auf.
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("rate_limit_buckets")
+}

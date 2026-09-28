@@ -9,12 +9,13 @@ Zielbild — was hier steht, wurde beim Schreiben ausgeführt und ist grün).
 npm run test:unit          # Domainlogik, keine I/O — Millisekunden
 npm run test:integration   # Server-Dienste gegen echte PostgreSQL-Testdatenbank
 npm run test:e2e           # Playwright gegen den Produktionsbuild
+npm run perf:rate-limit    # Zusatzaufwand der Ratenbegrenzung, gegen echte Datenbank
 npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 456 bestehen
+### Unit-Tests — 473 bestehen
 
-`tests/unit/` (14 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
+`tests/unit/` (15 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
 `hint-ladder.test.ts`, `placement.test.ts`, `grade.test.ts`,
 `content-validation.test.ts`, `rate-limit.test.ts`, `terminal.test.ts`,
 `eintraege.test.ts` sowie die Git-Domäne aus Ausbaustufe 2
@@ -26,11 +27,12 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 74 bestehen
+### Integrationstests — 92 bestehen
 
 `tests/integration/`: `auth.test.ts`, `content-publication.test.ts`,
 `exercise-service.test.ts`, `lesson-progress.test.ts`,
-`onboarding-placement.test.ts`, `stage2-git.test.ts` — gegen eine echte, separate
+`onboarding-placement.test.ts`, `path-service.test.ts`, `rate-limit.test.ts`,
+`stage2-git.test.ts` — gegen eine echte, separate
 PostgreSQL-Testdatenbank (`TEST_DATABASE_URL`, per Docker-Compose auf
 Port 5433 wie die Entwicklungsdatenbank, eigene Datenbank `aipfad_test`
 innerhalb desselben Containers).
@@ -38,6 +40,101 @@ innerhalb desselben Containers).
 `auth.test.ts` deckt ab: Passwort-Hash wird korrekt verifiziert, eindeutiger
 Index auf `email` wird durchgesetzt, `onDelete: Cascade` entfernt abhängige
 Sitzungen beim Löschen eines Kontos.
+
+`rate-limit.test.ts` deckt die gemeinsame Ratenbegrenzung ab (E03) — und zwar
+das, was sich nur gegen eine echte Datenbank zeigt: dass vierzig gleichzeitige
+Versuche auf denselben Schlüssel zusammen genau das Limit ausschöpfen und
+nicht mehr; dass ein **zweiter, frisch gestarteter Serverprozess** den Zähler
+des ersten sieht, statt bei null zu beginnen; dass zwei solche Prozesse
+gleichzeitig die Grenze zusammen nicht überschreiten; dass bei unerreichbarer
+Datenbank abgewiesen und nicht durchgelassen wird; dass die Tabelle den
+Schlüssel nur als Digest trägt und außer Digest, Zeitpunkten und Ablauf keine
+Spalte hat; und dass das Aufräumen gedeckelt ist und abgelaufene Zeilen
+wirklich verschwinden.
+
+Ein Test hält das Abnahmekriterium "kein unbegrenztes Tabellenwachstum"
+unmittelbar fest: "räumt schon bei wenigen Anfragen auf, auch in einem frisch
+gestarteten Prozess". Er legt zehn abgelaufene Zeilen an, führt DREI ganz
+normale Entscheidungen aus — weit unter hundert — und erwartet danach genau
+vier übrige: aufgeräumt wurde, und zwar gedeckelt. Eine lebende Zeile bleibt
+unangetastet. Danach führt ein frisch gestarteter Kindprozess EINE Entscheidung
+aus und räumt weitere zwei ab; das ist der Teil, der über Prozessgrenzen hinweg
+gilt und nicht von einem Zähler im Arbeitsspeicher abhängt.
+
+Der Test ist deterministisch (die abgelaufenen Zeilen tragen Ablaufzeitpunkte
+im Jahr 2000 und sind damit sicher die ältesten der Tabelle) und schlägt unter
+der Vorgängerfassung fehl: Dort räumte nur jede hundertste Anfrage auf, drei
+Entscheidungen bewirkten nichts, und die Zusicherung war "expected 10 to be 4".
+
+Ein zweiter Test prüft, was der erste ausdrücklich nicht prüft: ob die Abfuhr
+auch unter GLEICHZEITIGEN Entscheidungen über der Zufuhr bleibt. Zwanzig
+gleichzeitige Entscheidungen auf frischen Schlüsseln legen zwanzig Zeilen an;
+mindestens zwanzig abgelaufene müssen verschwinden. Eine frühere Fassung ohne
+jede Sperrklausel in der Auswahl scheiterte daran: gegen zwanzig angelegte
+Zeilen wurden in drei Läufen nur 32, 10 und 12 entfernt, wo vierzig möglich
+gewesen wären. Tragend ist die Sperrklausel selbst — `FOR UPDATE` allein
+genügt bereits —, nicht `SKIP LOCKED`; hier stand zuvor das Gegenteil.
+
+Ein dritter Test hält fest, dass die Ratenbegrenzung unter dauerndem,
+aggressivem Aufräumen antwortfähig bleibt. Sein Löschlauf ist adversariell:
+Er nimmt einen Vergleichszeitpunkt in der Zukunft und trifft damit auch
+LEBENDE Zeilen, was die Produktion nicht kann. Geprüft wird deshalb, dass
+jede Anfrage entweder eine wohlgeformte Entscheidung liefert ODER mit
+`RateLimitUnavailableError` sperrt — nichts hängt, nichts zählt still falsch.
+
+Zur Abdeckung des Neu-Ansatzes (`HOECHSTENS_ANLAEUFE`) gehört eine ehrliche
+Einschränkung: Der adversarielle Löschlauf KANN die Wiederholschleife bis zur
+Abweisung treiben, tut das aber nicht verlässlich. Gemessen wurden bei fünf
+Läufen insgesamt 150 Anfragen mit genau einer Erschöpfung; eine unabhängige
+Prüfung sah bei ebenfalls 150 Anfragen keine. Mit `HOECHSTENS_ANLAEUFE = 1`
+bestehen die Tests deshalb weiterhin — Sperren ist in diesem Szenario ein
+zulässiges Ergebnis. Der Test belegt robuste Antwortfähigkeit unter dem
+adversariellen Löschlauf, nicht die Wirksamkeit einer bestimmten Zahl von
+Neu-Anläufen.
+
+Ein Umstand, von dem die Isolation dieser Datei abhängt: `vitest.config.ts`
+setzt `fileParallelism: false`. Der Test zum aggressiven Aufräumen leert die
+Tabelle `rate_limit_buckets` absichtlich vollständig, und mehrere andere
+Integrationsdateien schreiben dort hinein (über `submitAttempt`,
+`revealNextHint`, `recordLabAttempt`). Ohne die serielle Ausführung — oder ohne
+das `finally`, das den Löschlauf abwartet — griffe dieser Test in fremde
+Dateien.
+
+Die beiden Prozess-Tests starten `rate-limit-worker.ts` über `tsx` als echten
+Kindprozess — zwei `PrismaClient` nebeneinander wären zwar zwei
+Verbindungspools, aber ein Prozess mit gemeinsamem Modulzustand, und genau
+dieser Modulzustand war das Problem, das E03 beseitigt. Sie brauchen deshalb
+spürbar länger als die übrigen Tests.
+
+Zwei Tests dort sind Regressionstests und sehen harmlos aus.
+
+"hält eine eben erst geschriebene Zeile nicht für abgelaufen" würde in der CI
+nie anschlagen. Vergliche das Aufräumen `expiresAt` gegen `now()` der
+Datenbank, wäre es falsch: In der Spalte steht die UTC-Wanduhrzeit, `now()`
+ist `timestamptz`, und beim Vergleich deutet PostgreSQL die Spalte mit der
+Zeitzone der Sitzung. Auf einem Rechner in `Europe/Berlin` gilt damit jede
+frisch geschriebene Zeile sofort als abgelaufen — um den Zonenversatz, eine
+Stunde im Winter, zwei in der Sommerzeit — und würde mitten im Fenster
+aufgeräumt. Die CI läuft in UTC, wo der Versatz null ist; dort wäre nichts zu
+sehen.
+
+Das liegt NICHT an der Spaltenart: Der Fehler tritt mit `timestamp` genauso
+auf wie mit `timestamptz`. Tragend ist allein, dass der Vergleichszeitpunkt
+aus der Anwendung kommt (`pruneExpiredBuckets()`).
+
+"überspringt eine gesperrte Zeile, die gleichzeitig aufgefrischt wird" prüft
+die HEUTIGE Wettlaufsicherung: Eine zweite, unabhängige Verbindung hält eine
+abgelaufene Zeile mit `FOR UPDATE` fest; der Aufräumlauf muss sie wegen
+`FOR UPDATE SKIP LOCKED` sofort überspringen und null Zeilen entfernen.
+Anschließend wird die gesperrte Zeile auf einen lebenden Ablaufzeitpunkt
+fortgeschrieben und muss bestehen bleiben.
+
+Das zusätzliche `expiresAt`-Prädikat am äußeren `DELETE` bleibt als
+defensive Redundanz bestehen. Es ist unter der aktuellen SKIP-LOCKED-Auswahl
+nicht der Mechanismus dieses Tests: Entfernt man nur dieses Prädikat, bleibt
+die Suite grün. Deshalb wird hier ausdrücklich KEINE eigenständige
+Testabdeckung oder aktuelle Lasttragfähigkeit dieses zweiten Prädikats
+behauptet.
 
 `onboarding-placement.test.ts` deckt den Abschluss des Onboardings ab:
 Abbruch vor der Transaktion, Abbruch MITTEN in ihr (die Kurse werden dafür
@@ -105,6 +202,10 @@ Aufgaben-Einreichung, Labs-Übersicht und das Tokenizer-Lab. In jedem Fall:
   `forced-colors` `outline-style: none` und wird erkannt.)
 - Keine Lastprüfung. Die Sperre gegen zwei gleichzeitige Abschlüsse ist mit
   genau zwei Vorgängen nachgestellt, nicht mit vielen.
+- Die Messung von `npm run perf:rate-limit` läuft gegen eine Datenbank auf
+  demselben Rechner. Sie beziffert eine Untergrenze, keine Produktionslatenz,
+  und sie läuft nicht in der CI — sie ist ein Werkzeug zum Nachrechnen, kein
+  Tor.
 
 Drei Einträge standen hier, die es nicht mehr gibt: Der
 Accessibility-Scan (`e2e/accessibility.spec.ts`, 8 axe-Prüfungen), das

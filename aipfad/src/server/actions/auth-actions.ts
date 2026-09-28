@@ -83,7 +83,7 @@ async function enforcePerIpLimit(
   config: Parameters<typeof enforceRateLimit>[1],
   prefix: string,
 ): Promise<void> {
-  enforceRateLimit(`${prefix}-ip:${await clientIp()}`, config);
+  await enforceRateLimit(`${prefix}-ip:${await clientIp()}`, config);
 }
 
 /**
@@ -96,12 +96,12 @@ async function enforcePerIpLimit(
  * beschießen. Diese kontobezogene Grenze schließt genau diese Richtung
  * (Sicherheitsprüfung zu PR #29).
  */
-function enforcePerAccountLimit(
+async function enforcePerAccountLimit(
   config: Parameters<typeof enforceRateLimit>[1],
   prefix: string,
   email: string,
-): void {
-  enforceRateLimit(`${prefix}-konto:${email.toLowerCase()}`, config);
+): Promise<void> {
+  await enforceRateLimit(`${prefix}-konto:${email.toLowerCase()}`, config);
 }
 
 export async function registerAction(_previous: FormState, formData: FormData): Promise<FormState> {
@@ -123,7 +123,7 @@ export async function registerAction(_previous: FormState, formData: FormData): 
   const email = parsed.data.email.toLowerCase();
 
   try {
-    enforceRateLimit(await requestKey('register', email), RATE_LIMITS.register);
+    await enforceRateLimit(await requestKey('register', email), RATE_LIMITS.register);
     await enforcePerIpLimit(RATE_LIMITS.registerPerIp, 'register');
   } catch (error) {
     if (error instanceof RateLimitError) return { ok: false, error: error.message };
@@ -195,9 +195,9 @@ export async function loginAction(_previous: FormState, formData: FormData): Pro
   const email = parsed.data.email.toLowerCase();
 
   try {
-    enforceRateLimit(await requestKey('login', email), RATE_LIMITS.login);
+    await enforceRateLimit(await requestKey('login', email), RATE_LIMITS.login);
     await enforcePerIpLimit(RATE_LIMITS.loginPerIp, 'login');
-    enforcePerAccountLimit(RATE_LIMITS.loginPerAccount, 'login', email);
+    await enforcePerAccountLimit(RATE_LIMITS.loginPerAccount, 'login', email);
   } catch (error) {
     if (error instanceof RateLimitError) return { ok: false, error: error.message };
     throw error;

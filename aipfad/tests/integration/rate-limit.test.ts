@@ -1,0 +1,556 @@
+import { execFile } from 'node:child_process';
+import path from 'node:path';
+import { promisify } from 'node:util';
+import { describe, expect, it, beforeEach, afterAll } from 'vitest';
+import './setup';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@/generated/prisma/client';
+import { prisma } from '@/server/db/prisma';
+import {
+  checkRateLimit,
+  pruneExpiredBuckets,
+  RateLimitUnavailableError,
+  __rateLimitKeyHash,
+  __resetRateLimits,
+} from '@/server/security/rate-limit';
+import type { WorkerErgebnis } from './rate-limit-worker';
+
+const ausfuehren = promisify(execFile);
+const projektWurzel = path.resolve(import.meta.dirname, '..', '..');
+const workerPfad = path.join(projektWurzel, 'tests', 'integration', 'rate-limit-worker.ts');
+
+/**
+ * Alle Schlüssel dieser Datei tragen dasselbe Präfix. Aufgeräumt wird
+ * ausschließlich, was dazu gehört — kein `TRUNCATE`, keine fremden Zeilen
+ * (docs/TESTING.md, Abschnitt zur Testisolation).
+ */
+const PRAEFIX = 'integrationstest-ratengrenze';
+const schluessel = (name: string): string => `${PRAEFIX}:${name}`;
+
+const ALLE_SCHLUESSEL = [
+  'grenze',
+  'fenster',
+  'retry',
+  'getrennt-a',
+  'getrennt-b',
+  'digest',
+  'wettlauf',
+  'zwei-prozesse-nacheinander',
+  'zwei-prozesse-gleichzeitig',
+  'ausfall',
+  'abgelaufen',
+  'gueltig',
+  'frisch',
+  'aufraeum-wettlauf',
+  'dauernd-weg',
+  'gebunden-a',
+  'gebunden-b',
+  'gebunden-c',
+  'gebunden-kind',
+  ...Array.from({ length: 5 }, (_, i) => `aufraeum-grenze-${i}`),
+].map(schluessel);
+
+async function eigeneZeilenEntfernen(): Promise<void> {
+  await __resetRateLimits(ALLE_SCHLUESSEL);
+}
+
+/**
+ * Startet den Worker als echten Kindprozess mit eigenem Verbindungspool.
+ * `datenbank` erlaubt es, ihm bewusst eine unerreichbare Adresse zu geben.
+ */
+async function workerLauf(
+  key: string,
+  limit: number,
+  windowMs: number,
+  now: number,
+  versuche: number,
+  datenbank: string | undefined = process.env.TEST_DATABASE_URL,
+): Promise<WorkerErgebnis> {
+  const { stdout } = await ausfuehren(
+    'npx',
+    [
+      'tsx',
+      '--conditions=react-server',
+      workerPfad,
+      key,
+      String(limit),
+      String(windowMs),
+      String(now),
+      String(versuche),
+    ],
+    { cwd: projektWurzel, env: { ...process.env, DATABASE_URL: datenbank } },
+  );
+
+  return JSON.parse(stdout) as WorkerErgebnis;
+}
+
+describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
+  beforeEach(eigeneZeilenEntfernen);
+  afterAll(eigeneZeilenEntfernen);
+
+  it('erlaubt bis zur Grenze und weist danach ab', async () => {
+    const key = schluessel('grenze');
+    const config = { limit: 3, windowMs: 60_000 };
+    const now = Date.now();
+
+    expect((await checkRateLimit(key, config, now)).allowed).toBe(true);
+    expect((await checkRateLimit(key, config, now)).allowed).toBe(true);
+    const dritter = await checkRateLimit(key, config, now);
+    expect(dritter.allowed).toBe(true);
+    expect(dritter.remaining).toBe(0);
+    expect((await checkRateLimit(key, config, now)).allowed).toBe(false);
+  });
+
+  it('lässt nach Ablauf des Fensters wieder zu und zählt abgewiesene Versuche nicht mit', async () => {
+    const key = schluessel('fenster');
+    const config = { limit: 2, windowMs: 60_000 };
+    const start = Date.now();
+
+    await checkRateLimit(key, config, start);
+    await checkRateLimit(key, config, start);
+    expect((await checkRateLimit(key, config, start)).allowed).toBe(false);
+
+    // Ein abgewiesener Versuch darf die Sperre NICHT verlängern: Sonst käme
+    // niemand, der einmal gegen die Wand gelaufen ist, je wieder heraus.
+    // Nach Fensterbreite ab dem letzten GEZÄHLTEN Versuch ist wieder frei.
+    expect((await checkRateLimit(key, config, start + 60_001)).allowed).toBe(true);
+  });
+
+  it('meldet eine Wartezeit, die zum ältesten Versuch im Fenster passt', async () => {
+    const key = schluessel('retry');
+    const config = { limit: 1, windowMs: 60_000 };
+    const start = Date.now();
+
+    await checkRateLimit(key, config, start);
+    const abgewiesen = await checkRateLimit(key, config, start + 20_000);
+
+    expect(abgewiesen.allowed).toBe(false);
+    expect(abgewiesen.remaining).toBe(0);
+    // Ältester Versuch bei `start`, Fenster 60 s, jetzt +20 s → noch 40 s.
+    expect(abgewiesen.retryAfterSeconds).toBe(40);
+  });
+
+  it('führt verschiedene Schlüssel als getrennte Zähler', async () => {
+    const a = schluessel('getrennt-a');
+    const b = schluessel('getrennt-b');
+    const config = { limit: 1, windowMs: 60_000 };
+    const now = Date.now();
+
+    expect((await checkRateLimit(a, config, now)).allowed).toBe(true);
+    expect((await checkRateLimit(a, config, now)).allowed).toBe(false);
+    expect((await checkRateLimit(b, config, now)).allowed).toBe(true);
+  });
+
+  it('speichert den Schlüssel nur als Digest, nie im Klartext', async () => {
+    const key = schluessel('digest');
+    await checkRateLimit(key, { limit: 2, windowMs: 60_000 }, Date.now());
+
+    const zeile = await prisma.rateLimitBucket.findUniqueOrThrow({
+      where: { keyHash: __rateLimitKeyHash(key) },
+    });
+
+    expect(zeile.keyHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(JSON.stringify(zeile)).not.toContain(PRAEFIX);
+
+    // Die Tabelle trägt außer Digest, Zeitpunkten und Ablauf nichts —
+    // insbesondere keine Spalte, in der eine Adresse, eine Herkunft oder ein
+    // Nutzerbezug landen könnte. Geprüft an der echten Tabelle, nicht am
+    // Prisma-Modell: Eine später von Hand hinzugefügte Spalte fiele hier auf.
+    const spalten = await prisma.$queryRaw<{ column_name: string }[]>`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'rate_limit_buckets'
+      ORDER BY column_name`;
+    expect(spalten.map((spalte) => spalte.column_name)).toEqual(['expiresAt', 'hits', 'keyHash']);
+  });
+
+  it('bleibt bei gleichzeitigen Anfragen auf denselben Schlüssel atomar', async () => {
+    const key = schluessel('wettlauf');
+    const config = { limit: 5, windowMs: 60_000 };
+    const now = Date.now();
+
+    // Vierzig gleichzeitige Versuche gegen eine Grenze von fünf. Ohne
+    // Zeilensperre läsen mehrere denselben Stand, fänden alle Platz und
+    // schrieben sich gegenseitig zu — erlaubt wären dann mehr als fünf.
+    const ergebnisse = await Promise.all(
+      Array.from({ length: 40 }, () => checkRateLimit(key, config, now)),
+    );
+
+    expect(ergebnisse.filter((ergebnis) => ergebnis.allowed)).toHaveLength(config.limit);
+
+    const zeile = await prisma.rateLimitBucket.findUniqueOrThrow({
+      where: { keyHash: __rateLimitKeyHash(key) },
+    });
+    expect(zeile.hits).toHaveLength(config.limit);
+  });
+
+  it('teilt den Zähler über zwei getrennte Prozesse hinweg', async () => {
+    const key = schluessel('zwei-prozesse-nacheinander');
+    const config = { limit: 4, windowMs: 60_000 };
+    const now = Date.now();
+
+    // Erster Prozess verbraucht das Kontingent vollständig.
+    const erster = await workerLauf(key, config.limit, config.windowMs, now, config.limit);
+    expect(erster).toEqual({ erlaubt: 4, abgewiesen: 0 });
+
+    // Zweiter, frisch gestarteter Prozess: eigener Speicher, eigener
+    // Verbindungspool, kein gemeinsamer Modulzustand. Mit dem alten
+    // `new Map()` je Prozess hätte er vier weitere Versuche freigegeben.
+    const zweiter = await workerLauf(key, config.limit, config.windowMs, now, config.limit);
+    expect(zweiter).toEqual({ erlaubt: 0, abgewiesen: 4 });
+  }, 120_000);
+
+  it('lässt zwei gleichzeitige Prozesse die Grenze zusammen nicht überschreiten', async () => {
+    const key = schluessel('zwei-prozesse-gleichzeitig');
+    const config = { limit: 6, windowMs: 60_000 };
+    const now = Date.now();
+
+    // Beide Prozesse laufen zur selben Zeit und versuchen je das volle
+    // Kontingent. Zusammen dürfen trotzdem nur sechs durchkommen.
+    const [a, b] = await Promise.all([
+      workerLauf(key, config.limit, config.windowMs, now, config.limit),
+      workerLauf(key, config.limit, config.windowMs, now, config.limit),
+    ]);
+
+    expect(a.fehler).toBeUndefined();
+    expect(b.fehler).toBeUndefined();
+    expect(a.erlaubt + b.erlaubt).toBe(config.limit);
+    expect(a.abgewiesen + b.abgewiesen).toBe(config.limit);
+
+    const zeile = await prisma.rateLimitBucket.findUniqueOrThrow({
+      where: { keyHash: __rateLimitKeyHash(key) },
+    });
+    expect(zeile.hits).toHaveLength(config.limit);
+  }, 120_000);
+
+  it('sperrt, wenn die Datenbank nicht erreichbar ist (fail closed)', async () => {
+    // Ein echter Prozess mit echtem Code gegen eine Adresse, auf der nichts
+    // lauscht. Die Entscheidung ist ausdrücklich: Ist die Grenze nicht
+    // prüfbar, wird abgewiesen statt durchgelassen (docs/SECURITY.md).
+    const ergebnis = await workerLauf(
+      schluessel('ausfall'),
+      5,
+      60_000,
+      Date.now(),
+      3,
+      'postgresql://aipfad:aipfad@127.0.0.1:1/existiert-nicht',
+    );
+
+    expect(ergebnis.erlaubt).toBe(0);
+    expect(ergebnis.fehler).toBe('RateLimitUnavailableError');
+  }, 120_000);
+
+  it('entfernt abgelaufene Zeilen und lässt gültige stehen', async () => {
+    const abgelaufen = __rateLimitKeyHash(schluessel('abgelaufen'));
+    const gueltig = __rateLimitKeyHash(schluessel('gueltig'));
+
+    await prisma.rateLimitBucket.createMany({
+      data: [
+        {
+          keyHash: abgelaufen,
+          hits: [new Date(Date.now() - 120_000)],
+          expiresAt: new Date(Date.now() - 60_000),
+        },
+        { keyHash: gueltig, hits: [new Date()], expiresAt: new Date(Date.now() + 60_000) },
+      ],
+    });
+
+    const entfernt = await pruneExpiredBuckets(100);
+
+    expect(entfernt).toBeGreaterThanOrEqual(1);
+    expect(await prisma.rateLimitBucket.findUnique({ where: { keyHash: abgelaufen } })).toBeNull();
+    expect(await prisma.rateLimitBucket.findUnique({ where: { keyHash: gueltig } })).not.toBeNull();
+  });
+
+  it('hält eine eben erst geschriebene Zeile nicht für abgelaufen', async () => {
+    // Regressionstest für einen Fehler, der in der CI nicht aufgefallen wäre:
+    // Wird `expiresAt` gegen `now()` der Datenbank verglichen, deutet
+    // PostgreSQL die Spalte (UTC-Wanduhrzeit, ohne Zeitzone) mit der Zeitzone
+    // der SITZUNG. Auf einem Rechner in `Europe/Berlin` liegt eine frisch
+    // geschriebene Zeile damit scheinbar um den Zonenversatz in der
+    // Vergangenheit, wird beim nächsten Aufräumen entfernt — und der Zähler
+    // beginnt mitten im Fenster von vorn. Die CI läuft in UTC (Versatz null),
+    // dort wäre nichts zu sehen gewesen.
+    //
+    // Die SPALTENART schützt davor nicht: Der Fehler tritt mit `timestamp`
+    // genauso auf wie mit `timestamptz`. Tragend ist allein, dass
+    // `pruneExpiredBuckets()` seinen Vergleichszeitpunkt aus der Anwendung
+    // bekommt.
+    const key = schluessel('frisch');
+    const config = { limit: 2, windowMs: 60_000 };
+
+    await checkRateLimit(key, config, Date.now());
+    await pruneExpiredBuckets(500);
+
+    const zeile = await prisma.rateLimitBucket.findUnique({
+      where: { keyHash: __rateLimitKeyHash(key) },
+    });
+    expect(zeile).not.toBeNull();
+
+    // Und die Grenze greift danach weiterhin: Der Versuch von eben zählt noch.
+    await checkRateLimit(key, config, Date.now());
+    expect((await checkRateLimit(key, config, Date.now())).allowed).toBe(false);
+  });
+
+  it('überspringt eine gesperrte Zeile, die gleichzeitig aufgefrischt wird', async () => {
+    // Die aktuelle Aufräumstrategie wählt mit `FOR UPDATE SKIP LOCKED`.
+    // Hält eine andere Verbindung eine abgelaufene Zeile gesperrt, darf der
+    // Aufräumlauf deshalb NICHT auf sie warten und sie auch nicht in seine
+    // materialisierte Auswahl aufnehmen.
+    //
+    // Nachgestellt mit einer zweiten, unabhängigen Verbindung: Sie sperrt die
+    // Zeile, der Aufräumlauf muss sie überspringen, danach wird sie auf einen
+    // lebenden Ablaufzeitpunkt fortgeschrieben. Dieser Test pinnt damit die
+    // heutige SKIP-LOCKED-Sicherung — NICHT die Notwendigkeit des defensiven
+    // äußeren `expiresAt`-Prädikats.
+    const keyHash = __rateLimitKeyHash(schluessel('aufraeum-wettlauf'));
+    const zweiteVerbindung = new PrismaClient({
+      adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
+    });
+
+    try {
+      await prisma.rateLimitBucket.create({
+        data: { keyHash, hits: [], expiresAt: new Date(Date.now() - 60_000) },
+      });
+
+      await zweiteVerbindung.$transaction(async (tx) => {
+        await tx.$executeRaw`
+          SELECT "keyHash" FROM rate_limit_buckets WHERE "keyHash" = ${keyHash} FOR UPDATE`;
+
+        // `SKIP LOCKED` muss die gesperrte Zeile sofort auslassen: keine
+        // Wartezeit auf die fremde Transaktion und keine Löschung.
+        expect(await pruneExpiredBuckets(500)).toBe(0);
+
+        await tx.$executeRaw`
+          UPDATE rate_limit_buckets
+          SET "expiresAt" = ${new Date(Date.now() + 3_600_000)}
+          WHERE "keyHash" = ${keyHash}`;
+      });
+
+      const zeile = await prisma.rateLimitBucket.findUnique({ where: { keyHash } });
+      expect(zeile).not.toBeNull();
+      expect(zeile?.expiresAt.getTime()).toBeGreaterThan(Date.now());
+    } finally {
+      await prisma.rateLimitBucket.deleteMany({ where: { keyHash } });
+      await zweiteVerbindung.$disconnect().catch(() => undefined);
+    }
+  });
+
+  it('bleibt bei gleichzeitigem, aggressivem Aufräumen antwortfähig', async () => {
+    // Ein Aufräumlauf mit einem Vergleichszeitpunkt weit in der ZUKUNFT trifft
+    // jede Zeile, auch die lebenden, und läuft hier parallel zu den Anfragen.
+    //
+    // Was dieser Test NACHWEIST: Unter dauerndem Wegräumen liefert jede
+    // Anfrage eine wohlgeformte Antwort, keine bleibt hängen, keine wirft.
+    //
+    // Der Löschlauf ist hier ADVERSARIELL: Ein Vergleichszeitpunkt in der
+    // Zukunft trifft auch LEBENDE Zeilen. Das kann die Produktion nicht — dort
+    // läuft das Aufräumen immer mit `new Date()` und damit nur gegen bereits
+    // abgelaufene Zeilen, und eine eben angelegte Zeile läuft erst nach dem
+    // Fenster ab.
+    //
+    // Geprüft wird deshalb die Eigenschaft, die auch unter diesem Druck gelten
+    // muss: Jede Anfrage endet entweder mit einer wohlgeformten Entscheidung
+    // ODER mit `RateLimitUnavailableError` — also gesperrt. Keine hängt, keine
+    // zählt still falsch, keine kommt mit einem halben Ergebnis zurück.
+    //
+    // Dass hier auch das Sperren vorkommt, ist kein Mangel, sondern die
+    // entworfene Antwort: Wenn die Zeile dreimal hintereinander zwischen
+    // Anlegen und Sperren verschwindet, ist die Grenze nicht zuverlässig
+    // prüfbar, und dann wird abgewiesen statt geraten.
+    //
+    // Was auch dieser Test NICHT prüft: ob der Neu-Ansatz den Zählstand
+    // KORREKT erhält. Die Grenze steht bewusst hoch, damit der Lauf nicht an
+    // legitimen Abweisungen scheitert.
+    const key = schluessel('dauernd-weg');
+    const config = { limit: 50, windowMs: 60_000 };
+    const zukunft = new Date(Date.now() + 3_600_000);
+
+    let weiterLoeschen = true;
+    const loescher = (async () => {
+      for (let lauf = 0; lauf < 30 && weiterLoeschen; lauf += 1) {
+        await pruneExpiredBuckets(500, zukunft);
+      }
+    })();
+
+    try {
+      const ergebnisse = await Promise.allSettled(
+        Array.from({ length: 30 }, () => checkRateLimit(key, config, Date.now())),
+      );
+
+      for (const ergebnis of ergebnisse) {
+        if (ergebnis.status === 'fulfilled') {
+          expect(typeof ergebnis.value.allowed).toBe('boolean');
+          expect(ergebnis.value.remaining).toBeGreaterThanOrEqual(0);
+          expect(ergebnis.value.retryAfterSeconds).toBeGreaterThanOrEqual(0);
+        } else {
+          // Gesperrt ist zulässig, irgendetwas anderes nicht.
+          expect(ergebnis.reason).toBeInstanceOf(RateLimitUnavailableError);
+        }
+      }
+
+      // Und keine der erfüllten Entscheidungen darf fälschlich abgewiesen
+      // haben: Die Grenze ist großzügig genug, dass nur der Löschlauf stören
+      // kann, und der führt zu `RateLimitUnavailableError`, nicht zu einer
+      // regulären Abweisung.
+      const erfuellt = ergebnisse.filter((e) => e.status === 'fulfilled');
+      // Der Test darf nicht allein dadurch grün werden, dass ALLE Anfragen
+      // fail closed enden. Mindestens eine reguläre Entscheidung muss den
+      // adversariellen Löschlauf überstehen.
+      expect(erfuellt.length).toBeGreaterThan(0);
+      expect(erfuellt.every((e) => e.value.allowed)).toBe(true);
+    } finally {
+      // Der Löschlauf MUSS abgewartet werden, auch wenn oben etwas scheitert.
+      // Sonst läuft er in den nächsten Test hinein und räumt dessen Zeilen
+      // weg — ein Fehler hier brächte dann einen zweiten, scheinbar fremden
+      // zum Scheitern.
+      weiterLoeschen = false;
+      await loescher;
+    }
+  }, 60_000);
+
+  it('räumt schon bei wenigen Anfragen auf, auch in einem frisch gestarteten Prozess', async () => {
+    // Das Abnahmekriterium aus docs/ENTERPRISE-ROADMAP.md verlangt "beschränkte
+    // Schlüsselmenge; kein unbegrenztes Tabellenwachstum". Die erste Fassung
+    // räumte nur jede hundertste Anfrage auf, gezählt in Modulzustand JE
+    // PROZESS — eine Instanz, die vorher endete, räumte nie auf. Nachgestellt:
+    // drei Prozesse mit je 99 Entscheidungen entfernten von zwanzig
+    // abgelaufenen Zeilen keine einzige, und die Tabelle wuchs weiter.
+    //
+    // Dieser Test hält das Gegenteil fest, ohne Modulzähler und ohne
+    // Wahrscheinlichkeit: Wenige Entscheidungen räumen auf, das Kontingent je
+    // Entscheidung ist gedeckelt, lebende Zeilen bleiben, und der ERSTE
+    // Aufruf eines frisch gestarteten Prozesses räumt bereits mit.
+    //
+    // Unter der alten Fassung schlägt er fehl: Drei Entscheidungen lägen weit
+    // unter hundert, es verschwände nichts.
+    const abgelaufen = Array.from({ length: 10 }, (_, i) =>
+      `beeeeeeee${String(i).padStart(2, '0')}`.padEnd(64, 'f'),
+    );
+    const lebend = 'aaaaaaaa'.padEnd(64, 'e');
+
+    const nochDa = async (): Promise<number> =>
+      prisma.rateLimitBucket.count({ where: { keyHash: { in: abgelaufen } } });
+
+    try {
+      await prisma.rateLimitBucket.deleteMany({
+        where: { keyHash: { in: [...abgelaufen, lebend] } },
+      });
+      await prisma.rateLimitBucket.createMany({
+        data: [
+          // Bewusst der Jahrtausendwechsel: Damit sind diese Zeilen die
+          // ältesten der Tabelle, und `ORDER BY "expiresAt"` greift sie
+          // zuerst — unabhängig davon, was andere Tests liegen ließen.
+          ...abgelaufen.map((keyHash, i) => ({
+            keyHash,
+            hits: [],
+            expiresAt: new Date(Date.UTC(2000, 0, 1, 0, 0, i)),
+          })),
+          { keyHash: lebend, hits: [], expiresAt: new Date(Date.now() + 3_600_000) },
+        ],
+      });
+      expect(await nochDa()).toBe(10);
+
+      // Drei ganz normale Entscheidungen — weit unter hundert.
+      for (const name of ['gebunden-a', 'gebunden-b', 'gebunden-c']) {
+        await checkRateLimit(schluessel(name), { limit: 5, windowMs: 60_000 }, Date.now());
+      }
+
+      // Aufgeräumt wurde, und zwar gedeckelt: zwei je Entscheidung, nicht alles.
+      expect(await nochDa()).toBe(4);
+
+      // Die lebende Zeile ist unangetastet.
+      expect(
+        await prisma.rateLimitBucket.findUnique({ where: { keyHash: lebend } }),
+      ).not.toBeNull();
+
+      // Und der ERSTE Aufruf eines frisch gestarteten Prozesses räumt mit:
+      // kein Vorlauf, kein prozesslokaler Zähler, der erst anlaufen müsste.
+      const kind = await workerLauf(schluessel('gebunden-kind'), 5, 60_000, Date.now(), 1);
+      expect(kind.fehler).toBeUndefined();
+      expect(kind.erlaubt).toBe(1);
+      expect(await nochDa()).toBe(2);
+    } finally {
+      await prisma.rateLimitBucket.deleteMany({
+        where: { keyHash: { in: [...abgelaufen, lebend] } },
+      });
+    }
+  }, 120_000);
+
+  it('hält die Abfuhr auch bei gleichzeitigen Entscheidungen über der Zufuhr', async () => {
+    // Der sequenzielle Test oben beweist, dass überhaupt und ohne Anlauf
+    // aufgeräumt wird. Er beweist NICHT, dass die Abfuhr unter
+    // Gleichzeitigkeit mithält — und genau daran ist eine frühere Fassung
+    // gescheitert: Ohne ZEILENSPERRE in der Auswahl wählten alle
+    // gleichzeitigen Läufe dieselben ältesten Zeilen, einer löschte sie, die
+    // übrigen fanden sie beim Wiederprüfen verschwunden und löschten nichts.
+    // Gemessen gegen zwanzig gleichzeitige Entscheidungen, ideal vierzig:
+    // 32, 10 und 12 entfernte Zeilen in drei Läufen, bei zwanzig angelegten.
+    // Tragend ist die Sperrklausel, nicht `SKIP LOCKED` — `FOR UPDATE` allein
+    // genügt bereits.
+    //
+    // Geprüft wird deshalb die Eigenschaft, auf die es ankommt: Bei n
+    // gleichzeitigen Entscheidungen auf n FRISCHEN Schlüsseln (also n neuen
+    // Zeilen) verschwinden mindestens n abgelaufene.
+    const rueckstand = Array.from({ length: 60 }, (_, i) =>
+      `dead${String(i).padStart(4, '0')}`.padEnd(64, 'b'),
+    );
+    const gleichzeitig = 20;
+    const marke = `${PRAEFIX}:nebenlauf-${Date.now()}`;
+    const nebenlaufSchluessel = Array.from({ length: gleichzeitig }, (_, i) => `${marke}-${i}`);
+
+    try {
+      await prisma.rateLimitBucket.deleteMany({ where: { keyHash: { in: rueckstand } } });
+      await prisma.rateLimitBucket.createMany({
+        data: rueckstand.map((keyHash, i) => ({
+          keyHash,
+          hits: [],
+          expiresAt: new Date(Date.UTC(2000, 0, 1, 0, 0, i)),
+        })),
+      });
+
+      await Promise.all(
+        nebenlaufSchluessel.map((key) =>
+          checkRateLimit(key, { limit: 5, windowMs: 60_000 }, Date.now()),
+        ),
+      );
+
+      const uebrig = await prisma.rateLimitBucket.count({
+        where: { keyHash: { in: rueckstand } },
+      });
+      const entfernt = rueckstand.length - uebrig;
+
+      // Mindestens so viele entfernt wie angelegt — sonst wächst die Tabelle.
+      expect(entfernt).toBeGreaterThanOrEqual(gleichzeitig);
+    } finally {
+      await prisma.rateLimitBucket.deleteMany({ where: { keyHash: { in: rueckstand } } });
+      await __resetRateLimits(nebenlaufSchluessel);
+    }
+  }, 120_000);
+
+  it('räumt je Lauf höchstens so viele Zeilen ab wie erlaubt', async () => {
+    const schluesselListe = Array.from({ length: 5 }, (_, i) =>
+      __rateLimitKeyHash(schluessel(`aufraeum-grenze-${i}`)),
+    );
+    await prisma.rateLimitBucket.createMany({
+      data: schluesselListe.map((keyHash) => ({
+        keyHash,
+        hits: [],
+        expiresAt: new Date(Date.now() - 60_000),
+      })),
+    });
+
+    // Der Lauf ist gedeckelt: Es verschwinden genau zwei Zeilen, obwohl fünf
+    // abgelaufen sind. Ohne diese Deckelung wäre das Aufräumen ein
+    // unbeschränkter Löschvorgang mitten in einer Anfrage.
+    expect(await pruneExpiredBuckets(2)).toBe(2);
+
+    // Bewusst "mindestens drei" statt "genau drei": Welche zwei Zeilen der
+    // Lauf erwischt, hängt an `ORDER BY "expiresAt"` und damit daran, ob noch
+    // ältere abgelaufene Zeilen herumliegen. Gedeckelt ist er in jedem Fall,
+    // und genau das ist die Aussage dieses Tests.
+    const uebrig = await prisma.rateLimitBucket.count({
+      where: { keyHash: { in: schluesselListe } },
+    });
+    expect(uebrig).toBeGreaterThanOrEqual(3);
+  });
+});
