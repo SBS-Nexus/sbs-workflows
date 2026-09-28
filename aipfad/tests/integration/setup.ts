@@ -21,6 +21,11 @@ if (!testDatabaseUrl) {
 
 process.env.DATABASE_URL = testDatabaseUrl;
 process.env.AUTH_SECRET ??= 'testschluessel-nur-fuer-automatisierte-tests-0000';
+process.env.DEPLOYMENT_ID ??= 'integrationstest';
+// Seit E04A ist CRON_SECRET Pflicht in `getEnv()`. Testwert, kein echtes
+// Geheimnis; die Aufbewahrungsregeln lesen ihre Frist über `getEnv()`.
+process.env.CRON_SECRET ??= 'testgeheimnis-nur-fuer-automatisierte-tests';
+process.env.RETENTION_MODE ??= 'dry-run';
 
 beforeAll(() => {
   execSync('npx prisma migrate deploy', {

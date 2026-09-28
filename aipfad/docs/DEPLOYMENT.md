@@ -33,10 +33,17 @@ Anfragen annimmt.
 
 ## Umgebungsvariablen
 
-Siehe `.env.example`. Notwendig: `DATABASE_URL` und `DEPLOYMENT_ID`.
-`APP_URL` hat lokal den Standard `http://localhost:3000`; in Produktion muss
-sie auf die echte HTTPS-Adresse gesetzt werden. Optional:
-`ATTEMPT_RETENTION_DAYS`, `SEED_DEMO_USERS`.
+Siehe `.env.example`. Notwendig: `DATABASE_URL`, `DEPLOYMENT_ID` und seit
+E04A `CRON_SECRET`. `APP_URL` hat lokal den Standard `http://localhost:3000`;
+in Produktion muss sie auf die echte HTTPS-Adresse gesetzt werden. Optional:
+`ATTEMPT_RETENTION_DAYS`, `RETENTION_MODE` (Vorgabe `dry-run`),
+`SEED_DEMO_USERS`.
+
+`CRON_SECRET` ist Pflicht, weil die Anwendung seit E04A einen Zeitplan hat,
+der eine Route mit Löschwirkung aufruft. Ohne Geheimnis wäre entweder die
+Route offen oder der Zeitplan wirkungslos — beides still. Mindestens 16
+Zeichen; einen Wert erzeugt etwa `openssl rand -base64 32`. `.env.example`
+enthält nur einen Platzhalter.
 
 `AUTH_SECRET` gehört nicht mehr zum Vertrag: AIPfad verwendet opake,
 kryptografisch zufällige Sitzungstoken und speichert davon nur SHA-256-Hashes;
@@ -54,6 +61,48 @@ Schutz.
 
 `vercel.json` setzt `fra1` (Frankfurt) – identisch mit PythonPfad/SQLPfad,
 sinnvoll für eine DACH-Zielgruppe und für die Nähe zur Datenbank.
+
+## Aufbewahrung in Betrieb nehmen (E04A)
+
+Der geplante Lauf löscht Daten unwiderruflich. Deshalb diese Reihenfolge, und
+nicht die kürzere.
+
+**Noch nicht durchgeführt:** Für AIPfad existiert derzeit kein aktives
+Vercel-Projekt. Die Schritte unten sind die vorgesehene Einführung, keine
+Beschreibung eines erfolgten Vorgangs. In dieser Ausbaustufe wurde keine
+Vercel-Einstellung angelegt oder geändert und kein echtes Geheimnis erzeugt.
+
+1. `CRON_SECRET` in der Bereitstellungsumgebung setzen — eigener, zufälliger
+   Wert, mindestens 16 Zeichen, nicht der Platzhalter aus `.env.example`.
+2. `RETENTION_MODE=dry-run` setzen.
+3. Bereitstellen.
+4. Den nächsten planmäßigen Lauf abwarten oder die Route einmal von Hand mit
+   dem Geheimnis aufrufen, und das Protokoll ansehen
+   (`retention_run_completed`).
+5. Die gemeldeten Kandidatenzahlen prüfen: Passen sie zur Erwartung? Eine
+   unerwartet hohe Zahl ist der Grund, warum dieser Schritt vor dem nächsten
+   steht.
+6. Erst dann `RETENTION_MODE=execute` setzen — ausdrücklich, nicht nebenbei.
+7. Erneut bereitstellen.
+8. Den nächsten Lauf prüfen: Status `success`, Löschzahlen plausibel.
+9. Weiter beobachten. Ein Lauf mit `partial-failure` oder `failed` antwortet
+   mit 500 und ist in der Aufrufübersicht sichtbar.
+
+**Zeitplan.** `vercel.json` enthält genau einen Eintrag:
+`/api/cron/retention`, `0 3 * * *`. Vercel-Zeitpläne laufen nach **UTC**. Der
+Zeitpunkt ist nicht auf die Sekunde zugesichert. Vercel wiederholt einen
+fehlgeschlagenen Aufruf nicht automatisch — die Wiederholung ist der nächste
+planmäßige Lauf, der die liegengebliebenen Daten mit erfasst.
+
+**Rücknahme.** Zum Anhalten genügt `RETENTION_MODE=dry-run`: Der Lauf zählt
+dann weiter, löscht aber nichts. Dauerhaft abschalten heißt, den Eintrag aus
+`crons` zu entfernen oder eine frühere `vercel.json` bereitzustellen.
+
+Was eine Rücknahme NICHT leistet: Bereits gelöschte Zeilen kommen dadurch
+nicht zurück. Weder ein Code-Rückbau noch das Umschalten auf `dry-run` stellt
+Daten wieder her. Dafür bräuchte es eine Sicherung; eine solche gibt es in
+dieser Ausbaustufe nicht, und ihr Aufbau gehört zu E10. Genau deshalb steht
+der Trockenlauf vor dem Ernstfall.
 
 ## Nächste Schritte für einen echten Produktivbetrieb
 

@@ -52,6 +52,11 @@ jobs:
       TEST_DATABASE_URL: postgresql://aipfad:aipfad@localhost:5432/aipfad_test?schema=public
       APP_URL: http://127.0.0.1:3101
       DEPLOYMENT_ID: ${{ github.sha }}
+      # Testwert, kein echtes Geheimnis: Seit E04A verlangt getEnv() ein
+      # CRON_SECRET, und der Produktionsbuild sowie die E2E-Tests starten den
+      # Server samt Konfigurationsprüfung.
+      CRON_SECRET: 'ci-testgeheimnis-kein-echtes-geheimnis'
+      RETENTION_MODE: 'dry-run'
       SEED_DEMO_USERS: 'false'
 
     steps:
