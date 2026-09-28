@@ -20,13 +20,12 @@
  * Mittelwert über einen willkürlichen Füllstand wäre eine Zahl ohne Aussage.
  * Der Füllstand wird vor jeder Messung gesetzt — außerhalb der Zeitnahme.
  *
- * MIT GEMESSEN, und das gehört offengelegt: `checkRateLimit()` stößt intern
- * jede hundertste Anfrage einen Aufräumlauf an. Der liegt damit INNERHALB der
- * gestoppten Zeit, und der Zähler dafür läuft über das ganze Skript weiter.
- * Ungefähr jede hundertste Messung trägt also zusätzlich ein `DELETE` — das
- * ist echter Aufwand je Anfrage und deshalb richtig hier, erklärt aber einen
- * Teil der Streuung, die man sonst dem Rechner zuschriebe. Auf p50 wirkt es
- * sich nicht aus, auf p95 und den Höchstwert kann es das.
+ * MIT GEMESSEN, und das gehört offengelegt: `checkRateLimit()` räumt nach
+ * JEDER abgeschlossenen Entscheidung bis zu zwei abgelaufene Zeilen auf.
+ * Dieser `DELETE` liegt damit bei jeder Messung INNERHALB der gestoppten
+ * Zeit. Die ausgewiesenen p50-, p95- und Höchstwerte enthalten diesen Aufwand;
+ * das Skript versucht nicht, seinen Anteil an einzelnen Ausschlägen separat
+ * zu bestimmen.
  *
  * Bewusst NICHT gemessen: Anfragen unter Wettstreit um denselben Schlüssel.
  * Die sind per Konstruktion serialisiert — die Zeilensperre ist ja der Zweck

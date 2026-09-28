@@ -81,12 +81,14 @@ jede Anfrage entweder eine wohlgeformte Entscheidung liefert ODER mit
 `RateLimitUnavailableError` sperrt — nichts hängt, nichts zählt still falsch.
 
 Zur Abdeckung des Neu-Ansatzes (`HOECHSTENS_ANLAEUFE`) gehört eine ehrliche
-Einschränkung, die sich mit dieser Fassung geändert hat: Der Zweig wird von
-diesem Test zwar ausgelöst — unter dem adversariellen Löschlauf erschöpft er
-sich sogar —, aber seine Wirksamkeit ist nicht mehr festgenagelt. Mit
-`HOECHSTENS_ANLAEUFE = 1` bestehen alle Tests unverändert (3 von 3 Läufen),
-weil Sperren als zulässiges Ergebnis gilt. Zuvor scheiterte diese Mutation in
-etwa der Hälfte der Läufe; diese Angabe gilt nicht mehr.
+Einschränkung: Der adversarielle Löschlauf KANN die Wiederholschleife bis zur
+Abweisung treiben, tut das aber nicht verlässlich. Gemessen wurden bei fünf
+Läufen insgesamt 150 Anfragen mit genau einer Erschöpfung; eine unabhängige
+Prüfung sah bei ebenfalls 150 Anfragen keine. Mit `HOECHSTENS_ANLAEUFE = 1`
+bestehen die Tests deshalb weiterhin — Sperren ist in diesem Szenario ein
+zulässiges Ergebnis. Der Test belegt robuste Antwortfähigkeit unter dem
+adversariellen Löschlauf, nicht die Wirksamkeit einer bestimmten Zahl von
+Neu-Anläufen.
 
 Ein Umstand, von dem die Isolation dieser Datei abhängt: `vitest.config.ts`
 setzt `fileParallelism: false`. Der Test zum aggressiven Aufräumen leert die

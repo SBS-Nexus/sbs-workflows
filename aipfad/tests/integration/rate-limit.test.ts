@@ -395,6 +395,10 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
       // kann, und der führt zu `RateLimitUnavailableError`, nicht zu einer
       // regulären Abweisung.
       const erfuellt = ergebnisse.filter((e) => e.status === 'fulfilled');
+      // Der Test darf nicht allein dadurch grün werden, dass ALLE Anfragen
+      // fail closed enden. Mindestens eine reguläre Entscheidung muss den
+      // adversariellen Löschlauf überstehen.
+      expect(erfuellt.length).toBeGreaterThan(0);
       expect(erfuellt.every((e) => e.value.allowed)).toBe(true);
     } finally {
       // Der Löschlauf MUSS abgewartet werden, auch wenn oben etwas scheitert.

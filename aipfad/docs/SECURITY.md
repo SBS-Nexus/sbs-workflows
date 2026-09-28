@@ -254,9 +254,9 @@ Was die `max`-Spalte zeigt, und warum hier bewusst KEINE Spanne steht: Einzelne
 Messungen springen nach oben — 7,20 ms gegen einen Median von 2,60 ms im
 selben Lauf, und in anderen Läufen deutlich weiter (beobachtet wurden schon
 99 ms bei einem Median von 1,5 ms). Woran das im Einzelfall liegt, sagt die
-Messung nicht; ein Entwicklungsrechner unter anderer Last ist die
-naheliegende, aber nicht belegte Erklärung. Auf einem Entwicklungsrechner ist das
-Hintergrundlast, nicht Eigenschaft der Anwendung. Zweimal wurde hier versucht,
+Messung nicht; ein Entwicklungsrechner unter anderer Last ist eine
+mögliche, aber nicht belegte Erklärung. Eine Ursache für einzelne Ausschläge
+wird aus diesen Messwerten ausdrücklich nicht abgeleitet. Zweimal wurde hier versucht,
 die Streuung als Spanne zu fassen, und beide Male fiel eine unabhängige
 Nachmessung heraus; ein dritter Versuch, sie als Satz statt als Tabelle zu
 schreiben ("über alle bisher beobachteten Läufe … zwischen X und Y"), wurde
