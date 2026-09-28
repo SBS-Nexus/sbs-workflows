@@ -144,9 +144,12 @@ gehalten gehören:
   laufenden Fenster vorkam. Wie viele das sind, hängt am tatsächlichen
   Verkehr; eine feste Obergrenze gibt es dafür nicht und kann es nicht geben.
 - **Abgelaufene Zeilen:** Eine Entscheidung legt höchstens EINE neue Zeile an
-  und räumt bis zu ZWEI abgelaufene weg. Solange Verkehr läuft, steht der
-  Zufuhr also mindestens die doppelte Abfuhr gegenüber. Bleibt der Verkehr
-  ganz aus, bleiben Zeilen liegen — dann entstehen aber auch keine neuen.
+  und räumt bis zu ZWEI abgelaufene weg. "Bis zu zwei" ist nicht dasselbe wie
+  "zwei" — ob die Abfuhr die Zufuhr wirklich übersteigt, hängt daran, dass
+  gleichzeitige Läufe nicht dieselben Zeilen greifen; siehe den Absatz zur
+  Auswahl unten. Gemessen gilt es: zwanzig gleichzeitige Entscheidungen
+  entfernen vierzig Zeilen. Bleibt der Verkehr ganz aus, bleiben Zeilen
+  liegen — dann entstehen aber auch keine neuen.
 
 Entscheidend ist, dass das Aufräumen an der einzelnen Entscheidung hängt und
 nicht an einem prozesslokalen Zähler. Eine frühere Fassung räumte nur jede
@@ -160,14 +163,23 @@ räumt bereits die ERSTE Anfrage eines frisch gestarteten Prozesses mit; ein
 Integrationstest hält das fest und schlägt unter der alten Fassung fehl.
 
 Weil nun jede Entscheidung aufräumt, treffen viele Läufe gleichzeitig auf
-dieselben ältesten Zeilen. `FOR UPDATE SKIP LOCKED` wäre dafür das übliche
-Mittel und wurde geprüft — in `psql` wirkt es wie erwartet (0,05 s statt
-2,98 s, wenn die älteste Zeile gesperrt ist). Über den hier verwendeten
-Treiber entfernt dieselbe Anweisung damit jedoch ALLE passenden Zeilen statt
-der per `LIMIT` erlaubten (fünf statt zwei, gemessen). Die Deckelung wiegt
-schwerer als die Wartefreiheit: Eine unbegrenzte Löschanweisung mitten in
-einer Anfrage ist genau das, was hier nicht passieren darf. Es bleibt deshalb
-beim einfachen `LIMIT`; Einzelheiten stehen im Quelltext.
+dieselben ältesten Zeilen. Ohne Gegenmaßnahme bricht die Abfuhr dabei ein:
+Einer löscht, die übrigen finden die Zeilen beim Wiederprüfen verschwunden und
+löschen nichts. Gemessen gegen einen Rückstand von hundert Zeilen —
+nacheinander entfernten zwanzig Entscheidungen vierzig Zeilen, gleichzeitig
+nur sechzehn, bei zwanzig neu angelegten. Die Zufuhr überstieg also die
+Abfuhr, und damit war die Abnahmebedingung NICHT erfüllt.
+
+Die Auswahl steht deshalb in einer `MATERIALIZED`-CTE mit
+`FOR UPDATE SKIP LOCKED`. Beide Teile sind nötig: `SKIP LOCKED`, damit
+gleichzeitige Läufe nach verschiedenen Zeilen greifen statt aufeinander zu
+warten; `MATERIALIZED`, weil die Sperrklausel in einer gewöhnlichen
+Unterabfrage je äußerer Zeile erneut ausgewertet wird und die Deckelung dann
+nicht mehr hält (fünf von fünf Zeilen entfernt bei `LIMIT 2` — tatsächlich
+entfernt, nicht nur im Rückgabewert). Mit der CTE gilt beides: Deckelung
+gehalten, und zwanzig gleichzeitige Entscheidungen entfernen vierzig Zeilen,
+fünfzig entfernen hundert. Ein Integrationstest hält fest, dass bei n
+gleichzeitigen Entscheidungen mindestens n abgelaufene Zeilen verschwinden.
 
 **Atomarität.** Prüfen und Zählen bilden eine Transaktion mit Zeilensperre
 (`SELECT … FOR UPDATE`, davor ein `INSERT … ON CONFLICT DO NOTHING`, damit
@@ -222,16 +234,16 @@ ms). Eine Spanne von einem Entwicklungsrechner behauptet eine Stabilität, die
 diese Messung nicht hat. Deshalb: eine Momentaufnahme mit Datum, und wer eine
 Zahl braucht, führt den Befehl selbst aus.
 
-Bezugslauf vom 27.09.2026, PostgreSQL 14.21, Node 22.23.2, darwin/arm64,
+Bezugslauf vom 28.09.2026, PostgreSQL 14.21, Node 22.23.2, darwin/arm64,
 Datenbank auf demselben Rechner (Loopback), 300 Messungen je Füllstand nach 50
 nicht gewerteten Aufwärmläufen:
 
-| Füllstand der Zeile                       | p50     | p95     | max      |
-| ----------------------------------------- | ------- | ------- | -------- |
-| 0 (neue Zeile)                            | 0,84 ms | 1,68 ms | 3,26 ms  |
-| 10 (ausgereizte Anmeldegrenze)            | 0,82 ms | 1,43 ms | 3,47 ms  |
-| 120 (`labAttempt`, `hintReveal`)          | 1,83 ms | 2,99 ms | 10,04 ms |
-| 240 (`submitAttempt`, ungünstigster Fall) | 2,50 ms | 3,87 ms | 8,21 ms  |
+| Füllstand der Zeile                       | p50     | p95     | max     |
+| ----------------------------------------- | ------- | ------- | ------- |
+| 0 (neue Zeile)                            | 0,87 ms | 1,71 ms | 2,08 ms |
+| 10 (ausgereizte Anmeldegrenze)            | 0,83 ms | 1,31 ms | 2,43 ms |
+| 120 (`labAttempt`, `hintReveal`)          | 2,60 ms | 4,17 ms | 7,20 ms |
+| 240 (`submitAttempt`, ungünstigster Fall) | 3,84 ms | 4,84 ms | 5,63 ms |
 
 Diese Zahlen gelten für die Fassung, in der JEDE Entscheidung aufräumt. Das
 Aufräumen liegt damit in der gemessenen Strecke — nicht mehr bei jeder
@@ -239,8 +251,11 @@ hundertsten Anfrage, sondern bei jeder. Die vorherigen Zahlen sind dadurch
 hinfällig und stehen hier nicht mehr.
 
 Was die `max`-Spalte zeigt, und warum hier bewusst KEINE Spanne steht: Einzelne
-Messungen springen um ein Vielfaches nach oben — 10,04 ms gegen einen Median
-von 1,83 ms im selben Lauf, und in anderen Läufen deutlich weiter. Auf einem Entwicklungsrechner ist das
+Messungen springen nach oben — 7,20 ms gegen einen Median von 2,60 ms im
+selben Lauf, und in anderen Läufen deutlich weiter (beobachtet wurden schon
+99 ms bei einem Median von 1,5 ms). Woran das im Einzelfall liegt, sagt die
+Messung nicht; ein Entwicklungsrechner unter anderer Last ist die
+naheliegende, aber nicht belegte Erklärung. Auf einem Entwicklungsrechner ist das
 Hintergrundlast, nicht Eigenschaft der Anwendung. Zweimal wurde hier versucht,
 die Streuung als Spanne zu fassen, und beide Male fiel eine unabhängige
 Nachmessung heraus; ein dritter Versuch, sie als Satz statt als Tabelle zu

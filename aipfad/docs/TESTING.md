@@ -27,7 +27,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 91 bestehen
+### Integrationstests — 92 bestehen
 
 `tests/integration/`: `auth.test.ts`, `content-publication.test.ts`,
 `exercise-service.test.ts`, `lesson-progress.test.ts`,
@@ -66,18 +66,27 @@ im Jahr 2000 und sind damit sicher die ältesten der Tabelle) und schlägt unter
 der Vorgängerfassung fehl: Dort räumte nur jede hundertste Anfrage auf, drei
 Entscheidungen bewirkten nichts, und die Zusicherung war "expected 10 to be 4".
 
-Ein weiterer Test hält fest, dass die Ratenbegrenzung unter dauerndem,
-aggressivem Aufräumen antwortfähig bleibt. Er trifft dabei auch den
-Neu-Ansatz für eine Zeile, die genau zwischen Anlegen und Sperren
-verschwindet — aber nicht verlässlich, sondern je nach Lauf. Belegt durch
-Mutation: Mit `HOECHSTENS_ANLAEUFE = 1` scheitert er in etwa der Hälfte der
-Läufe (gemessen 2 von 5, in einer unabhängigen Prüfung 3 von 5). Hier stand
-zuvor, er treffe den Zweig gar nicht; das war aus einem einzigen Lauf
-geschlossen und falsch.
+Ein zweiter Test prüft, was der erste ausdrücklich nicht prüft: ob die Abfuhr
+auch unter GLEICHZEITIGEN Entscheidungen über der Zufuhr bleibt. Zwanzig
+gleichzeitige Entscheidungen auf frischen Schlüsseln legen zwanzig Zeilen an;
+mindestens zwanzig abgelaufene müssen verschwinden. Eine frühere Fassung ohne
+`SKIP LOCKED` scheiterte daran — gemessen sechzehn entfernte gegen zwanzig
+angelegte, die Tabelle wuchs.
 
-Nicht geprüft ist, ob der Neu-Ansatz den Zählstand korrekt ERHÄLT: Die Grenze
-in diesem Test steht bewusst hoch, damit er nicht an legitimen Abweisungen
-scheitert.
+Ein dritter Test hält fest, dass die Ratenbegrenzung unter dauerndem,
+aggressivem Aufräumen antwortfähig bleibt. Sein Löschlauf ist adversariell:
+Er nimmt einen Vergleichszeitpunkt in der Zukunft und trifft damit auch
+LEBENDE Zeilen, was die Produktion nicht kann. Geprüft wird deshalb, dass
+jede Anfrage entweder eine wohlgeformte Entscheidung liefert ODER mit
+`RateLimitUnavailableError` sperrt — nichts hängt, nichts zählt still falsch.
+
+Zur Abdeckung des Neu-Ansatzes (`HOECHSTENS_ANLAEUFE`) gehört eine ehrliche
+Einschränkung, die sich mit dieser Fassung geändert hat: Der Zweig wird von
+diesem Test zwar ausgelöst — unter dem adversariellen Löschlauf erschöpft er
+sich sogar —, aber seine Wirksamkeit ist nicht mehr festgenagelt. Mit
+`HOECHSTENS_ANLAEUFE = 1` bestehen alle Tests unverändert (3 von 3 Läufen),
+weil Sperren als zulässiges Ergebnis gilt. Zuvor scheiterte diese Mutation in
+etwa der Hälfte der Läufe; diese Angabe gilt nicht mehr.
 
 Ein Umstand, von dem die Isolation dieser Datei abhängt: `vitest.config.ts`
 setzt `fileParallelism: false`. Der Test zum aggressiven Aufräumen leert die

@@ -64,9 +64,16 @@ function digest(key: string): string {
  *
  * Warum das die Abnahmebedingung "kein unbegrenztes Tabellenwachstum" erst
  * erfüllt: Eine Entscheidung legt HÖCHSTENS eine neue Zeile an (und meistens
- * gar keine, weil der Schlüssel schon existiert). Mit zwei entfernten Zeilen
- * je Entscheidung steht der Zufuhr also mindestens die doppelte Abfuhr
- * gegenüber, und zwar ab der ERSTEN Anfrage eines Prozesses. Die Vorgänger-
+ * gar keine, weil der Schlüssel schon existiert) und räumt bis zu zwei
+ * abgelaufene ab — ab der ERSTEN Anfrage eines Prozesses, ohne Anlauf.
+ *
+ * "Bis zu zwei" ist dabei nicht dasselbe wie "zwei": Ob die Abfuhr die Zufuhr
+ * wirklich übersteigt, hängt daran, dass gleichzeitige Läufe nicht auf
+ * dieselben Zeilen greifen. Genau dafür steht die Auswahl in einer
+ * `MATERIALIZED`-CTE mit `SKIP LOCKED` (Begründung und Messung bei
+ * `pruneExpiredBuckets()`). Nachgemessen gegen einen Rückstand von hundert
+ * Zeilen: zwanzig gleichzeitige Entscheidungen entfernen vierzig, fünfzig
+ * entfernen hundert — jeweils das Doppelte der Entscheidungen. Die Vorgänger-
  * fassung räumte nur jede hundertste Anfrage auf, gezählt in Modulzustand je
  * Prozess: Eine Instanz, die vor ihrer hundertsten Anfrage endete, räumte nie
  * auf, und bei kurzlebigen Instanzen wuchs die Tabelle unbegrenzt. Das war
@@ -279,28 +286,32 @@ async function einAnlauf(
  * Der Index auf `expiresAt` macht daraus einen begrenzten Indexzugriff statt
  * eines vollständigen Tabellendurchlaufs.
  *
- * KEIN `FOR UPDATE SKIP LOCKED` in der Unterabfrage — geprüft und verworfen.
+ * Die Auswahl steht in einer `MATERIALIZED`-CTE mit `FOR UPDATE SKIP LOCKED`,
+ * und beide Teile sind einzeln nötig. Der Weg dahin lohnt die Zeilen, weil
+ * zwei naheliegende Fassungen still das Falsche tun:
  *
- * Der Gedanke lag nahe: Weil jetzt jede Entscheidung aufräumt, treffen viele
- * Läufe gleichzeitig auf dieselben ältesten abgelaufenen Zeilen, und mit
- * `SKIP LOCKED` griffe jeder nach den nächsten freien statt zu warten. In
- * `psql` verhält sich das auch genau so: gesperrte Zeile übersprungen, Lauf
- * nach 0,05 s zurück statt nach 2,98 s.
+ * OHNE `SKIP LOCKED` bricht die Abfuhr unter Gleichzeitigkeit ein. Alle
+ * gleichzeitigen Läufe wählen dieselben ÄLTESTEN Zeilen; einer löscht sie,
+ * die anderen warten, finden die Zeilen beim Wiederprüfen verschwunden und
+ * löschen NICHTS — die Unterabfrage wird dabei nicht neu ausgeführt. Gemessen
+ * gegen einen Rückstand von hundert Zeilen: nacheinander entfernten zwanzig
+ * Entscheidungen vierzig Zeilen, gleichzeitig nur sechzehn. Da zwanzig
+ * Entscheidungen zugleich bis zu zwanzig neue Zeilen anlegen, überstieg die
+ * Zufuhr die Abfuhr — genau das Tabellenwachstum, das E03 ausschließen soll.
  *
- * Über den hier verwendeten Treiber (`@prisma/adapter-pg`, `$executeRaw`)
- * stimmt das Ergebnis aber nicht mehr: Mit `SKIP LOCKED` entfernt die
- * Anweisung ALLE passenden Zeilen statt der per `LIMIT` erlaubten. Gemessen
- * an fünf abgelaufenen Zeilen mit `LIMIT 2`: ohne `SKIP LOCKED` zwei
- * entfernt, mit `SKIP LOCKED` fünf. Dieselbe Anweisung in `psql`, ob mit
- * Literalen oder mit Parametern, entfernt beide Male zwei — es ist also kein
- * Fehler der Abfrage, sondern ein Unterschied im Ausführungsweg.
+ * MIT `SKIP LOCKED`, aber als gewöhnliche Unterabfrage in `IN (…)`, hält die
+ * Anweisung ihre Deckelung nicht mehr ein: Gegen fünf abgelaufene Zeilen mit
+ * `LIMIT 2` verschwanden alle fünf (und zwar wirklich, nicht nur im
+ * Rückgabewert). Der Grund ist die Sperrklausel im Sublink: Der Planer führt
+ * ihn je äußerer Zeile erneut aus, und jede Ausführung darf zwei weitere
+ * Zeilen greifen.
  *
- * Die Deckelung ist wichtiger als die Wartefreiheit: Eine unbegrenzte
- * Löschanweisung mitten in einer Anfrage ist genau das, was hier nicht
- * passieren darf. Deshalb bleibt es beim einfachen `LIMIT`. Wer `SKIP LOCKED`
- * erneut erwägt, prüfe zuerst `pruneExpiredBuckets(2)` gegen fünf abgelaufene
- * Zeilen — der Integrationstest "räumt je Lauf höchstens so viele Zeilen ab
- * wie erlaubt" tut genau das und schlug bei diesem Versuch fehl.
+ * `MATERIALIZED` erzwingt genau EINE Auswertung der Auswahl. Damit gilt beides
+ * zugleich: Die Deckelung hält (fünf Zeilen, `LIMIT 2`, zwei entfernt), und
+ * die Abfuhr skaliert (zwanzig gleichzeitige Läufe entfernen vierzig Zeilen,
+ * fünfzig entfernen hundert). Wer hier etwas ändert, prüfe beides — die
+ * Deckelung mit `pruneExpiredBuckets(2)` gegen fünf Zeilen, die Skalierung
+ * mit gleichzeitigen Entscheidungen gegen einen Rückstand.
  *
  * `jetzt` kommt bewusst aus der Anwendung und NICHT aus `now()` der Datenbank.
  * DAS IST DIE TRAGENDE ZUSICHERUNG DIESER FUNKTION — nicht die Spaltenart.
@@ -335,14 +346,16 @@ export async function pruneExpiredBuckets(
   jetzt: Date = new Date(),
 ): Promise<number> {
   return prisma.$executeRaw`
-    DELETE FROM rate_limit_buckets
-    WHERE "keyHash" IN (
+    WITH zu_entfernen AS MATERIALIZED (
       SELECT "keyHash" FROM rate_limit_buckets
       WHERE "expiresAt" < ${jetzt}
       ORDER BY "expiresAt"
       LIMIT ${hoechstens}
+      FOR UPDATE SKIP LOCKED
     )
-    AND "expiresAt" < ${jetzt}`;
+    DELETE FROM rate_limit_buckets
+    WHERE "keyHash" IN (SELECT "keyHash" FROM zu_entfernen)
+      AND "expiresAt" < ${jetzt}`;
 }
 
 /**

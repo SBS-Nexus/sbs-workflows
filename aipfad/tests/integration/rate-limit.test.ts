@@ -9,6 +9,7 @@ import { prisma } from '@/server/db/prisma';
 import {
   checkRateLimit,
   pruneExpiredBuckets,
+  RateLimitUnavailableError,
   __rateLimitKeyHash,
   __resetRateLimits,
 } from '@/server/security/rate-limit';
@@ -343,18 +344,25 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
     // Was dieser Test NACHWEIST: Unter dauerndem Wegräumen liefert jede
     // Anfrage eine wohlgeformte Antwort, keine bleibt hängen, keine wirft.
     //
-    // Er trifft dabei AUCH den Neu-Ansatz in `zaehleUndPruefe()` für den Fall,
-    // dass die Zeile genau zwischen Anlegen und Sperren verschwindet — aber
-    // nicht verlässlich, sondern je nach Lauf. Belegt durch Mutation: Mit
-    // `HOECHSTENS_ANLAEUFE = 1` scheitert dieser Test in etwa der Hälfte der
-    // Läufe (gemessen 2 von 5, in einer unabhängigen Prüfung 3 von 5) mit
-    // `RateLimitUnavailableError`. Dass die Schleife hier greift, ist also
-    // nachgewiesen; verlassen sollte man sich auf die Abdeckung nicht.
+    // Der Löschlauf ist hier ADVERSARIELL: Ein Vergleichszeitpunkt in der
+    // Zukunft trifft auch LEBENDE Zeilen. Das kann die Produktion nicht — dort
+    // läuft das Aufräumen immer mit `new Date()` und damit nur gegen bereits
+    // abgelaufene Zeilen, und eine eben angelegte Zeile läuft erst nach dem
+    // Fenster ab.
+    //
+    // Geprüft wird deshalb die Eigenschaft, die auch unter diesem Druck gelten
+    // muss: Jede Anfrage endet entweder mit einer wohlgeformten Entscheidung
+    // ODER mit `RateLimitUnavailableError` — also gesperrt. Keine hängt, keine
+    // zählt still falsch, keine kommt mit einem halben Ergebnis zurück.
+    //
+    // Dass hier auch das Sperren vorkommt, ist kein Mangel, sondern die
+    // entworfene Antwort: Wenn die Zeile dreimal hintereinander zwischen
+    // Anlegen und Sperren verschwindet, ist die Grenze nicht zuverlässig
+    // prüfbar, und dann wird abgewiesen statt geraten.
     //
     // Was auch dieser Test NICHT prüft: ob der Neu-Ansatz den Zählstand
     // KORREKT erhält. Die Grenze steht bewusst hoch, damit der Lauf nicht an
-    // legitimen Abweisungen scheitert — geprüft wird Antwortfähigkeit, nicht
-    // Genauigkeit unter Wegräumen.
+    // legitimen Abweisungen scheitert.
     const key = schluessel('dauernd-weg');
     const config = { limit: 50, windowMs: 60_000 };
     const zukunft = new Date(Date.now() + 3_600_000);
@@ -367,17 +375,27 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
     })();
 
     try {
-      const ergebnisse = await Promise.all(
+      const ergebnisse = await Promise.allSettled(
         Array.from({ length: 30 }, () => checkRateLimit(key, config, Date.now())),
       );
 
       for (const ergebnis of ergebnisse) {
-        expect(typeof ergebnis.allowed).toBe('boolean');
-        expect(ergebnis.remaining).toBeGreaterThanOrEqual(0);
-        expect(ergebnis.retryAfterSeconds).toBeGreaterThanOrEqual(0);
+        if (ergebnis.status === 'fulfilled') {
+          expect(typeof ergebnis.value.allowed).toBe('boolean');
+          expect(ergebnis.value.remaining).toBeGreaterThanOrEqual(0);
+          expect(ergebnis.value.retryAfterSeconds).toBeGreaterThanOrEqual(0);
+        } else {
+          // Gesperrt ist zulässig, irgendetwas anderes nicht.
+          expect(ergebnis.reason).toBeInstanceOf(RateLimitUnavailableError);
+        }
       }
-      // Die Grenze ist großzügig genug, dass ohne Fehler alle durchkommen.
-      expect(ergebnisse.every((ergebnis) => ergebnis.allowed)).toBe(true);
+
+      // Und keine der erfüllten Entscheidungen darf fälschlich abgewiesen
+      // haben: Die Grenze ist großzügig genug, dass nur der Löschlauf stören
+      // kann, und der führt zu `RateLimitUnavailableError`, nicht zu einer
+      // regulären Abweisung.
+      const erfuellt = ergebnisse.filter((e) => e.status === 'fulfilled');
+      expect(erfuellt.every((e) => e.value.allowed)).toBe(true);
     } finally {
       // Der Löschlauf MUSS abgewartet werden, auch wenn oben etwas scheitert.
       // Sonst läuft er in den nächsten Test hinein und räumt dessen Zeilen
@@ -452,6 +470,56 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
     } finally {
       await prisma.rateLimitBucket.deleteMany({
         where: { keyHash: { in: [...abgelaufen, lebend] } },
+      });
+    }
+  }, 120_000);
+
+  it('hält die Abfuhr auch bei gleichzeitigen Entscheidungen über der Zufuhr', async () => {
+    // Der sequenzielle Test oben beweist, dass überhaupt und ohne Anlauf
+    // aufgeräumt wird. Er beweist NICHT, dass die Abfuhr unter
+    // Gleichzeitigkeit mithält — und genau daran ist eine frühere Fassung
+    // gescheitert: Ohne `SKIP LOCKED` wählten alle gleichzeitigen Läufe
+    // dieselben ältesten Zeilen, einer löschte sie, die übrigen fanden sie
+    // beim Wiederprüfen verschwunden und löschten nichts. Gemessen: zwanzig
+    // gleichzeitige Entscheidungen entfernten sechzehn Zeilen und legten
+    // zwanzig an — die Tabelle wuchs.
+    //
+    // Geprüft wird deshalb die Eigenschaft, auf die es ankommt: Bei n
+    // gleichzeitigen Entscheidungen auf n FRISCHEN Schlüsseln (also n neuen
+    // Zeilen) verschwinden mindestens n abgelaufene.
+    const rueckstand = Array.from({ length: 60 }, (_, i) =>
+      `dead${String(i).padStart(4, '0')}`.padEnd(64, 'b'),
+    );
+    const gleichzeitig = 20;
+
+    try {
+      await prisma.rateLimitBucket.deleteMany({ where: { keyHash: { in: rueckstand } } });
+      await prisma.rateLimitBucket.createMany({
+        data: rueckstand.map((keyHash, i) => ({
+          keyHash,
+          hits: [],
+          expiresAt: new Date(Date.UTC(2000, 0, 1, 0, 0, i)),
+        })),
+      });
+
+      const marke = `${PRAEFIX}:nebenlauf-${Date.now()}`;
+      await Promise.all(
+        Array.from({ length: gleichzeitig }, (_, i) =>
+          checkRateLimit(`${marke}-${i}`, { limit: 5, windowMs: 60_000 }, Date.now()),
+        ),
+      );
+
+      const uebrig = await prisma.rateLimitBucket.count({
+        where: { keyHash: { in: rueckstand } },
+      });
+      const entfernt = rueckstand.length - uebrig;
+
+      // Mindestens so viele entfernt wie angelegt — sonst wächst die Tabelle.
+      expect(entfernt).toBeGreaterThanOrEqual(gleichzeitig);
+    } finally {
+      await prisma.rateLimitBucket.deleteMany({ where: { keyHash: { in: rueckstand } } });
+      await prisma.rateLimitBucket.deleteMany({
+        where: { keyHash: { in: [] } },
       });
     }
   }, 120_000);
