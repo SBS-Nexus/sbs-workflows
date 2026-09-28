@@ -70,8 +70,10 @@ Ein zweiter Test prüft, was der erste ausdrücklich nicht prüft: ob die Abfuhr
 auch unter GLEICHZEITIGEN Entscheidungen über der Zufuhr bleibt. Zwanzig
 gleichzeitige Entscheidungen auf frischen Schlüsseln legen zwanzig Zeilen an;
 mindestens zwanzig abgelaufene müssen verschwinden. Eine frühere Fassung ohne
-`SKIP LOCKED` scheiterte daran — gemessen sechzehn entfernte gegen zwanzig
-angelegte, die Tabelle wuchs.
+jede Sperrklausel in der Auswahl scheiterte daran: gegen zwanzig angelegte
+Zeilen wurden in drei Läufen nur 32, 10 und 12 entfernt, wo vierzig möglich
+gewesen wären. Tragend ist die Sperrklausel selbst — `FOR UPDATE` allein
+genügt bereits —, nicht `SKIP LOCKED`; hier stand zuvor das Gegenteil.
 
 Ein dritter Test hält fest, dass die Ratenbegrenzung unter dauerndem,
 aggressivem Aufräumen antwortfähig bleibt. Sein Löschlauf ist adversariell:

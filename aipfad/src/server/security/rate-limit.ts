@@ -70,7 +70,7 @@ function digest(key: string): string {
  * "Bis zu zwei" ist dabei nicht dasselbe wie "zwei": Ob die Abfuhr die Zufuhr
  * wirklich übersteigt, hängt daran, dass gleichzeitige Läufe nicht auf
  * dieselben Zeilen greifen. Genau dafür steht die Auswahl in einer
- * `MATERIALIZED`-CTE mit `SKIP LOCKED` (Begründung und Messung bei
+ * `MATERIALIZED`-CTE mit Zeilensperre (Begründung und Messung bei
  * `pruneExpiredBuckets()`). Nachgemessen gegen einen Rückstand von hundert
  * Zeilen: zwanzig gleichzeitige Entscheidungen entfernen vierzig, fünfzig
  * entfernen hundert — jeweils das Doppelte der Entscheidungen. Die Vorgänger-
@@ -286,18 +286,28 @@ async function einAnlauf(
  * Der Index auf `expiresAt` macht daraus einen begrenzten Indexzugriff statt
  * eines vollständigen Tabellendurchlaufs.
  *
- * Die Auswahl steht in einer `MATERIALIZED`-CTE mit `FOR UPDATE SKIP LOCKED`,
- * und beide Teile sind einzeln nötig. Der Weg dahin lohnt die Zeilen, weil
- * zwei naheliegende Fassungen still das Falsche tun:
+ * Die Auswahl steht in einer `MATERIALIZED`-CTE mit `FOR UPDATE SKIP LOCKED`.
+ * Jeder Teil hat eine eigene, getrennt gemessene Aufgabe — und die Zuordnung
+ * war hier zunächst falsch dokumentiert, deshalb steht sie jetzt ausführlich
+ * da.
  *
- * OHNE `SKIP LOCKED` bricht die Abfuhr unter Gleichzeitigkeit ein. Alle
- * gleichzeitigen Läufe wählen dieselben ÄLTESTEN Zeilen; einer löscht sie,
- * die anderen warten, finden die Zeilen beim Wiederprüfen verschwunden und
- * löschen NICHTS — die Unterabfrage wird dabei nicht neu ausgeführt. Gemessen
- * gegen einen Rückstand von hundert Zeilen: nacheinander entfernten zwanzig
- * Entscheidungen vierzig Zeilen, gleichzeitig nur sechzehn. Da zwanzig
- * Entscheidungen zugleich bis zu zwanzig neue Zeilen anlegen, überstieg die
- * Zufuhr die Abfuhr — genau das Tabellenwachstum, das E03 ausschließen soll.
+ * Tragend für die Abfuhr unter Gleichzeitigkeit ist, dass überhaupt eine
+ * ZEILENSPERRE in der Auswahl steht. Ohne jede Sperrklausel wählen alle
+ * gleichzeitigen Läufe dieselben ÄLTESTEN Zeilen; einer löscht sie, die
+ * übrigen finden sie beim Wiederprüfen verschwunden und löschen nichts, denn
+ * die Unterabfrage wird nicht neu ausgewertet. Gemessen gegen einen Rückstand
+ * von hundert Zeilen, zwanzig gleichzeitige Läufe, ideal wären vierzig:
+ * ohne Sperrklausel wurden in drei Läufen 32, 10 und 12 Zeilen entfernt. Da
+ * zwanzig Entscheidungen zugleich bis zu zwanzig neue Zeilen anlegen, kann
+ * die Zufuhr die Abfuhr übersteigen — genau das Tabellenwachstum, das E03
+ * ausschließen soll.
+ *
+ * NICHT tragend dafür ist `SKIP LOCKED`: Schon ein einfaches `FOR UPDATE`
+ * stellt die Abfuhr wieder her (drei Läufe, je vierzig von vierzig). Eine
+ * frühere Fassung dieses Kommentars schrieb die Wirkung `SKIP LOCKED` zu;
+ * das war eine Fehlzuschreibung. `SKIP LOCKED` verhindert etwas anderes,
+ * ebenfalls Erwünschtes: dass ein Aufräumlauf hinter einer Zeile wartet, die
+ * gerade ein anderer hält, statt zur nächsten freien zu greifen.
  *
  * `MATERIALIZED` pinnt die Auswahl auf eine einmal materialisierte Menge,
  * bevor das `DELETE` darauf zugreift. Damit hängt die Deckelung nicht davon

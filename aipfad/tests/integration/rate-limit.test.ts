@@ -482,11 +482,13 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
     // Der sequenzielle Test oben beweist, dass überhaupt und ohne Anlauf
     // aufgeräumt wird. Er beweist NICHT, dass die Abfuhr unter
     // Gleichzeitigkeit mithält — und genau daran ist eine frühere Fassung
-    // gescheitert: Ohne `SKIP LOCKED` wählten alle gleichzeitigen Läufe
-    // dieselben ältesten Zeilen, einer löschte sie, die übrigen fanden sie
-    // beim Wiederprüfen verschwunden und löschten nichts. Gemessen: zwanzig
-    // gleichzeitige Entscheidungen entfernten sechzehn Zeilen und legten
-    // zwanzig an — die Tabelle wuchs.
+    // gescheitert: Ohne ZEILENSPERRE in der Auswahl wählten alle
+    // gleichzeitigen Läufe dieselben ältesten Zeilen, einer löschte sie, die
+    // übrigen fanden sie beim Wiederprüfen verschwunden und löschten nichts.
+    // Gemessen gegen zwanzig gleichzeitige Entscheidungen, ideal vierzig:
+    // 32, 10 und 12 entfernte Zeilen in drei Läufen, bei zwanzig angelegten.
+    // Tragend ist die Sperrklausel, nicht `SKIP LOCKED` — `FOR UPDATE` allein
+    // genügt bereits.
     //
     // Geprüft wird deshalb die Eigenschaft, auf die es ankommt: Bei n
     // gleichzeitigen Entscheidungen auf n FRISCHEN Schlüsseln (also n neuen

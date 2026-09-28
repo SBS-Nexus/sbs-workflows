@@ -163,27 +163,34 @@ räumt bereits die ERSTE Anfrage eines frisch gestarteten Prozesses mit; ein
 Integrationstest hält das fest und schlägt unter der alten Fassung fehl.
 
 Weil nun jede Entscheidung aufräumt, treffen viele Läufe gleichzeitig auf
-dieselben ältesten Zeilen. Ohne Gegenmaßnahme bricht die Abfuhr dabei ein:
-Einer löscht, die übrigen finden die Zeilen beim Wiederprüfen verschwunden und
-löschen nichts. Gemessen gegen einen Rückstand von hundert Zeilen —
-nacheinander entfernten zwanzig Entscheidungen vierzig Zeilen, gleichzeitig
-nur sechzehn, bei zwanzig neu angelegten. Die Zufuhr überstieg also die
-Abfuhr, und damit war die Abnahmebedingung NICHT erfüllt.
+dieselben ältesten Zeilen. Ohne ZEILENSPERRE in der Auswahl bricht die Abfuhr
+dabei ein: Einer löscht, die übrigen finden die Zeilen beim Wiederprüfen
+verschwunden und löschen nichts. Gemessen gegen einen Rückstand von hundert
+Zeilen, zwanzig gleichzeitige Entscheidungen, ideal wären vierzig — ohne
+Sperrklausel wurden in drei Läufen 32, 10 und 12 Zeilen entfernt, bei zwanzig
+neu angelegten. Die Zufuhr kann die Abfuhr damit übersteigen, und die
+Abnahmebedingung war NICHT erfüllt.
 
 Die Auswahl steht deshalb in einer `MATERIALIZED`-CTE mit
-`FOR UPDATE SKIP LOCKED`. `SKIP LOCKED` sorgt dafür, dass gleichzeitige
-Läufe nach verschiedenen abgelaufenen Zeilen greifen statt aufeinander zu
-warten. `MATERIALIZED` pinnt die begrenzte Auswahl auf eine einmal
-materialisierte Menge, bevor das `DELETE` darauf zugreift, sodass die
-Deckelung nicht von einer möglichen Mehrfachauswertung der Unterabfrage
-abhängt. Die belastbaren Messungen der aktuellen Form sind: Bei fünf
-abgelaufenen Zeilen und `LIMIT 2` werden genau zwei entfernt; zwanzig
-gleichzeitige Entscheidungen entfernen vierzig Zeilen, fünfzig entfernen
-hundert. Ein Integrationstest hält fest, dass bei n gleichzeitigen
-Entscheidungen mindestens n abgelaufene Zeilen verschwinden. Eine frühere
-Behauptung, die nicht-materialisierte Form lösche reproduzierbar fünf von fünf
-Zeilen, wurde in unabhängigen Prüfungen nicht bestätigt und ist deshalb nicht
-mehr Teil der Begründung.
+`FOR UPDATE SKIP LOCKED`. Was welcher Teil beiträgt, ist getrennt gemessen:
+
+- **Die Sperrklausel** stellt die Abfuhr wieder her. Das leistet bereits ein
+  einfaches `FOR UPDATE` (drei Läufe, je vierzig von vierzig). Eine frühere
+  Fassung dieses Abschnitts schrieb diese Wirkung `SKIP LOCKED` zu — das war
+  eine Fehlzuschreibung und ist hiermit richtiggestellt.
+- **`SKIP LOCKED`** verhindert, dass ein Aufräumlauf hinter einer gerade
+  gehaltenen Zeile wartet, statt zur nächsten freien zu greifen.
+- **`MATERIALIZED`** pinnt die begrenzte Auswahl auf eine einmal
+  materialisierte Menge, bevor das `DELETE` darauf zugreift, sodass die
+  Deckelung nicht von einer möglichen Mehrfachauswertung der Unterabfrage
+  abhängt. Die belastbaren Messungen der aktuellen Form sind: Bei fünf
+  abgelaufenen Zeilen und `LIMIT 2` werden genau zwei entfernt; zwanzig
+  gleichzeitige Entscheidungen entfernen vierzig Zeilen, fünfzig entfernen
+  hundert. Ein Integrationstest hält fest, dass bei n gleichzeitigen
+  Entscheidungen mindestens n abgelaufene Zeilen verschwinden. Eine frühere
+  Behauptung, die nicht-materialisierte Form lösche reproduzierbar fünf von fünf
+  Zeilen, wurde in unabhängigen Prüfungen nicht bestätigt und ist deshalb nicht
+  mehr Teil der Begründung.
 
 **Atomarität.** Prüfen und Zählen bilden eine Transaktion mit Zeilensperre
 (`SELECT … FOR UPDATE`, davor ein `INSERT … ON CONFLICT DO NOTHING`, damit
