@@ -507,9 +507,13 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
       });
 
       const marke = `${PRAEFIX}:nebenlauf-${Date.now()}`;
+      const nebenlaufSchluessel = Array.from(
+        { length: gleichzeitig },
+        (_, i) => `${marke}-${i}`,
+      );
       await Promise.all(
-        Array.from({ length: gleichzeitig }, (_, i) =>
-          checkRateLimit(`${marke}-${i}`, { limit: 5, windowMs: 60_000 }, Date.now()),
+        nebenlaufSchluessel.map((key) =>
+          checkRateLimit(key, { limit: 5, windowMs: 60_000 }, Date.now()),
         ),
       );
 
@@ -522,9 +526,9 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
       expect(entfernt).toBeGreaterThanOrEqual(gleichzeitig);
     } finally {
       await prisma.rateLimitBucket.deleteMany({ where: { keyHash: { in: rueckstand } } });
-      await prisma.rateLimitBucket.deleteMany({
-        where: { keyHash: { in: [] } },
-      });
+      if (typeof nebenlaufSchluessel !== 'undefined') {
+        await __resetRateLimits(nebenlaufSchluessel);
+      }
     }
   }, 120_000);
 

@@ -171,15 +171,19 @@ nur sechzehn, bei zwanzig neu angelegten. Die Zufuhr überstieg also die
 Abfuhr, und damit war die Abnahmebedingung NICHT erfüllt.
 
 Die Auswahl steht deshalb in einer `MATERIALIZED`-CTE mit
-`FOR UPDATE SKIP LOCKED`. Beide Teile sind nötig: `SKIP LOCKED`, damit
-gleichzeitige Läufe nach verschiedenen Zeilen greifen statt aufeinander zu
-warten; `MATERIALIZED`, weil die Sperrklausel in einer gewöhnlichen
-Unterabfrage je äußerer Zeile erneut ausgewertet wird und die Deckelung dann
-nicht mehr hält (fünf von fünf Zeilen entfernt bei `LIMIT 2` — tatsächlich
-entfernt, nicht nur im Rückgabewert). Mit der CTE gilt beides: Deckelung
-gehalten, und zwanzig gleichzeitige Entscheidungen entfernen vierzig Zeilen,
-fünfzig entfernen hundert. Ein Integrationstest hält fest, dass bei n
-gleichzeitigen Entscheidungen mindestens n abgelaufene Zeilen verschwinden.
+`FOR UPDATE SKIP LOCKED`. `SKIP LOCKED` sorgt dafür, dass gleichzeitige
+Läufe nach verschiedenen abgelaufenen Zeilen greifen statt aufeinander zu
+warten. `MATERIALIZED` pinnt die begrenzte Auswahl auf eine einmal
+materialisierte Menge, bevor das `DELETE` darauf zugreift, sodass die
+Deckelung nicht von einer möglichen Mehrfachauswertung der Unterabfrage
+abhängt. Die belastbaren Messungen der aktuellen Form sind: Bei fünf
+abgelaufenen Zeilen und `LIMIT 2` werden genau zwei entfernt; zwanzig
+gleichzeitige Entscheidungen entfernen vierzig Zeilen, fünfzig entfernen
+hundert. Ein Integrationstest hält fest, dass bei n gleichzeitigen
+Entscheidungen mindestens n abgelaufene Zeilen verschwinden. Eine frühere
+Behauptung, die nicht-materialisierte Form lösche reproduzierbar fünf von fünf
+Zeilen, wurde in unabhängigen Prüfungen nicht bestätigt und ist deshalb nicht
+mehr Teil der Begründung.
 
 **Atomarität.** Prüfen und Zählen bilden eine Transaktion mit Zeilensperre
 (`SELECT … FOR UPDATE`, davor ein `INSERT … ON CONFLICT DO NOTHING`, damit

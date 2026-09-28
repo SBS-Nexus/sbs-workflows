@@ -299,17 +299,18 @@ async function einAnlauf(
  * Entscheidungen zugleich bis zu zwanzig neue Zeilen anlegen, überstieg die
  * Zufuhr die Abfuhr — genau das Tabellenwachstum, das E03 ausschließen soll.
  *
- * MIT `SKIP LOCKED`, aber als gewöhnliche Unterabfrage in `IN (…)`, hält die
- * Anweisung ihre Deckelung nicht mehr ein: Gegen fünf abgelaufene Zeilen mit
- * `LIMIT 2` verschwanden alle fünf (und zwar wirklich, nicht nur im
- * Rückgabewert). Der Grund ist die Sperrklausel im Sublink: Der Planer führt
- * ihn je äußerer Zeile erneut aus, und jede Ausführung darf zwei weitere
- * Zeilen greifen.
+ * `MATERIALIZED` pinnt die Auswahl auf eine einmal materialisierte Menge,
+ * bevor das `DELETE` darauf zugreift. Damit hängt die Deckelung nicht davon
+ * ab, wie der Planer eine korrelierte/mehrfach ausgewertete Unterabfrage
+ * ausführt. Der belastbare Nachweis ist das Ergebnis der aktuellen Form:
+ * Gegen fünf abgelaufene Zeilen mit `LIMIT 2` werden genau zwei entfernt,
+ * und unter Gleichzeitigkeit skaliert die Abfuhr (zwanzig gleichzeitige Läufe
+ * entfernen vierzig Zeilen, fünfzig entfernen hundert).
  *
- * `MATERIALIZED` erzwingt genau EINE Auswertung der Auswahl. Damit gilt beides
- * zugleich: Die Deckelung hält (fünf Zeilen, `LIMIT 2`, zwei entfernt), und
- * die Abfuhr skaliert (zwanzig gleichzeitige Läufe entfernen vierzig Zeilen,
- * fünfzig entfernen hundert). Wer hier etwas ändert, prüfe beides — die
+ * Frühere Versuche, eine konkrete Fehlwirkung der nicht-materialisierten Form
+ * als "fünf von fünf gelöscht" zu dokumentieren, ließen sich unabhängig
+ * nicht stabil reproduzieren und sind deshalb ausdrücklich KEIN Teil der
+ * Begründung mehr. Wer hier etwas ändert, prüfe beide Eigenschaften — die
  * Deckelung mit `pruneExpiredBuckets(2)` gegen fünf Zeilen, die Skalierung
  * mit gleichzeitigen Entscheidungen gegen einen Rückstand.
  *
