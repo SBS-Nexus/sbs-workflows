@@ -26,6 +26,10 @@ process.env.DEPLOYMENT_ID ??= 'integrationstest';
 // Geheimnis; die Aufbewahrungsregeln lesen ihre Frist über `getEnv()`.
 process.env.CRON_SECRET ??= 'testgeheimnis-nur-fuer-automatisierte-tests';
 process.env.RETENTION_MODE ??= 'dry-run';
+// Retention-Integrationstests rechnen bewusst mit 365 Tagen. Die Testgrenze
+// wird hier fest gepinnt, damit eine lokale .env den Test nicht semantisch
+// verändert.
+process.env.ATTEMPT_RETENTION_DAYS = '365';
 
 beforeAll(() => {
   execSync('npx prisma migrate deploy', {

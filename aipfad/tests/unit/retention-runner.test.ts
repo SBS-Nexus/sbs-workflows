@@ -197,6 +197,24 @@ describe('Aufbewahrungslauf', () => {
     expect(bericht.totalDeletedCount).toBe(3);
   });
 
+  it('behält bekannte Kennzahlen, wenn erst das Löschen scheitert', async () => {
+    const bericht = await runRetention({
+      rules: [testregel('A', { days: 30, candidates: 4, wirftBeim: 'loeschen' })],
+      mode: 'execute',
+      now: JETZT,
+      runId: 'lauf-spaeter-fehler',
+    });
+
+    expect(bericht.rules[0]).toMatchObject({
+      status: 'failed',
+      retentionDays: 30,
+      cutoff: '2026-05-16T12:00:00.000Z',
+      candidateCount: 4,
+      deletedCount: 0,
+      errorType: 'RangeError',
+    });
+  });
+
   it('meldet nur die Fehlerart, nie die Fehlermeldung', async () => {
     const bericht = await runRetention({
       rules: [testregel('A', { wirftBeim: 'zaehlen' })],

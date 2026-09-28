@@ -178,17 +178,18 @@ Schnittstelle `checkRateLimit()`/`enforceRateLimit()`.
 
 ### E04A — Aufbewahrung ausführen · `ENT-B03`
 
-**WARUM** `applyRetentionPolicy()` hat keinen Aufrufer; `crons: []`.
+**WARUM (Ausgangslage vor E04A)** `applyRetentionPolicy()` hatte keinen
+Aufrufer; `vercel.json` enthielt `crons: []`.
 **UMFANG** Geschützte Route und Cron-Eintrag; **Trockenlauf zuerst**;
 Laufprotokoll; Idempotenz; festgelegtes Verhalten bei Teilfehlern.
 
 Der Lauf trägt eine **Menge von Aufbewahrungsregeln**, je Datenart mit eigener
 Frist und eigener Variable; `ATTEMPT_RETENTION_DAYS` ist die erste. Spätere
 Änderungen melden ihre Frist hier an, statt einen zweiten Lauf zu bauen — E07
-tut genau das für die Auditzeilen. Heute löscht `applyRetentionPolicy()` eine
-einzige Tabelle nach einer einzigen Variablen (`session.ts:214`); der Rahmen
-ist also neue Arbeit und gehört in diesen Umfang, nicht bloß in die
-Beschreibung von E07.
+tut genau das für die Auditzeilen. Vor E04A löschte `applyRetentionPolicy()` nur
+`Attempt` nach einer einzigen Variablen. E04A ersetzt diesen Einzelfall durch
+den gemeinsamen Regelrahmen; genau deshalb gehört der Rahmen in diesen Umfang
+und nicht erst in die Beschreibung von E07.
 **SICHERHEIT** Route nur mit geheimem Kopfzeilenwert.
 **RÜCKNAHME** Cron leeren. Bereits gelöschte Daten kommen nicht zurück —
 deshalb der Trockenlauf.

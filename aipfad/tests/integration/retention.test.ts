@@ -73,7 +73,7 @@ describe('Aufbewahrung (Integration mit echter Datenbank)', () => {
   it('zählt im Trockenlauf und lässt beide Zeilen stehen', async () => {
     const userId = await nutzerAnlegen('trocken');
     const exerciseId = await aufgabeHolen();
-    // ATTEMPT_RETENTION_DAYS ist im Test 365 (tests/integration/setup.ts).
+    // ATTEMPT_RETENTION_DAYS ist in tests/integration/setup.ts fest auf 365 gepinnt.
     await versuchAnlegen(userId, exerciseId, new Date(JETZT.getTime() - 400 * TAG));
     await versuchAnlegen(userId, exerciseId, new Date(JETZT.getTime() - 10 * TAG));
 

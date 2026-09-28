@@ -45,9 +45,13 @@ async function regelAusfuehren(
 ): Promise<RetentionRuleResult> {
   const begonnen = Date.now();
   const basis = { ruleId: rule.id, dataCategory: rule.dataCategory };
+  let retentionDays = 0;
+  let cutoffIso: string | undefined;
+  let candidateCount = 0;
+  let deletedCount = 0;
 
   try {
-    const retentionDays = rule.retentionDays();
+    retentionDays = rule.retentionDays();
 
     // Frist 0 heißt ABGESCHALTET, nicht "alles löschen, was älter als jetzt
     // ist". Die Unterscheidung steht auch im Protokoll: `skipped-disabled`
@@ -68,19 +72,20 @@ async function regelAusfuehren(
     // Ernstfall es tut.
     const cutoff = rule.cutoffAt(new Date(now.getTime()), retentionDays);
     const cutoffMs = cutoff.getTime();
+    cutoffIso = new Date(cutoffMs).toISOString();
 
     // `Date` ist in JavaScript veränderlich. Eine Regel darf durch einen
     // Setter in `countCandidates` nicht unbemerkt die Grenze verändern, die
     // anschließend `deleteCandidates` sieht. Beide bekommen deshalb eigene
     // Objekte mit exakt demselben Zeitwert.
-    const candidateCount = await rule.countCandidates(new Date(cutoffMs));
-    const deletedCount = mode === 'execute' ? await rule.deleteCandidates(new Date(cutoffMs)) : 0;
+    candidateCount = await rule.countCandidates(new Date(cutoffMs));
+    deletedCount = mode === 'execute' ? await rule.deleteCandidates(new Date(cutoffMs)) : 0;
 
     return {
       ...basis,
       status: 'success',
       retentionDays,
-      cutoff: new Date(cutoffMs).toISOString(),
+      cutoff: cutoffIso,
       candidateCount,
       deletedCount,
       durationMs: Date.now() - begonnen,
@@ -89,9 +94,10 @@ async function regelAusfuehren(
     return {
       ...basis,
       status: 'failed',
-      retentionDays: 0,
-      candidateCount: 0,
-      deletedCount: 0,
+      retentionDays,
+      ...(cutoffIso ? { cutoff: cutoffIso } : {}),
+      candidateCount,
+      deletedCount,
       durationMs: Date.now() - begonnen,
       errorType: error instanceof Error ? error.name : 'unbekannt',
     };

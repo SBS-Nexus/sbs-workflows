@@ -1,7 +1,10 @@
 # Enterprise-Readiness — Bestandsaufnahme
 
-Stand: `b3454762a9c316a3aa4d78e9ed6216eb4da730fd` (main, nach PR #31).
-Reine Lesebestandsaufnahme. Kein Quellcode wurde für dieses Dokument geändert.
+Ursprünglicher Stichtag: `b3454762a9c316a3aa4d78e9ed6216eb4da730fd`
+(main, nach PR #31). Seit E01A wird diese Bestandsaufnahme fortgeschrieben;
+diese Fassung enthält den technischen Stand bis einschließlich E04A auf dem
+aktuellen PR-Branch. Aussagen über einen produktiven Rollout stehen nur dort,
+wo er tatsächlich stattgefunden hat.
 
 ## Wortschatz
 
@@ -36,9 +39,11 @@ Mandantentrennung sind an diesem Stand nicht möglich, weil es keine Mandanten
 gibt — das ist kein Mangel in der Umsetzung, sondern eine noch nicht begonnene
 Schicht.
 
-Drei in `docs/SECURITY.md` beschriebene Maßnahmen sind nachgeprüft **nicht
-wirksam**: die Aufbewahrungslöschung, das Double-Submit-CSRF-Verfahren und
-(bei mehreren Instanzen) die Ratenbegrenzung.
+Von den drei am ursprünglichen Stichtag unwirksamen Maßnahmen sind zwei
+inzwischen technisch geschlossen und verifiziert: die instanzübergreifende
+Ratenbegrenzung mit E03 und die Aufbewahrungslöschung mit E04A. Das
+vorbereitete Double-Submit-CSRF-Verfahren bleibt dagegen ohne Aufrufer und
+zählt weiterhin nicht als wirksame Maßnahme.
 
 ## Blockerregister
 
@@ -57,22 +62,27 @@ es gibt keine Mehrfachzählung.
 | ENT-B04 | Keine Datenauskunft (Selbstexport)                                                     | DATEN             | `FEHLT`                         | E04B             |
 | ENT-B05 | Keine Löschung auf Betroffenenwunsch                                                   | DATEN             | `FEHLT`                         | E04C             |
 | ENT-B06 | Kein Auditlog für Unternehmensvorgänge                                                 | DATEN             | `FEHLT`                         | E07              |
-| ENT-B07 | Ratenbegrenzung nur je Prozess                                                         | SICHERHEIT        | `AKZEPTIERT`                    | E03              |
+| ENT-B07 | Gemeinsame Ratenbegrenzung über PostgreSQL                                             | SICHERHEIT        | `VERIFIZIERT`                   | E03              |
 | ENT-B08 | Ungenutztes CSRF-Verfahren (`DOKUMENTIERT`); `unsafe-inline` in der CSP (`AKZEPTIERT`) | SICHERHEIT        | gemischt                        | E05C, E05D, E05E |
 | ENT-B09 | Kein Leerlauf-Ablauf; Sitzungsentzug ohne Aufrufer                                     | AUTHENTIFIZIERUNG | `DOKUMENTIERT`                  | E05A             |
 | ENT-B10 | Keine Passwort-Wiederherstellung                                                       | AUTHENTIFIZIERUNG | `FEHLT`                         | E05B             |
 | ENT-B11 | Keine belegte Wiederherstellung aus einer Sicherung                                    | BETRIEB           | `FEHLT`                         | E10              |
 | ENT-B12 | Keine Runbooks, keine Migrations-Rücknahmestrategie                                    | BETRIEB           | `FEHLT`                         | E10              |
-| ENT-B13 | Konfiguration bricht nicht früh ab; `AUTH_SECRET` ungenutzt                            | BETRIEB           | `IMPLEMENTIERT` (unvollständig) | E02              |
-| ENT-B14 | Logger existiert, wird in genau einer Datei benutzt                                    | BEOBACHTBARKEIT   | `IMPLEMENTIERT` (ungenutzt)     | E06              |
-| ENT-B15 | 4 von 7 Lab-Arten ohne kanonischen Vertrag                                             | INHALTE           | `FEHLT`                         | E01B             |
+| ENT-B13 | Konfiguration wird beim Serverstart geprüft; ungenutztes `AUTH_SECRET` entfernt        | BETRIEB           | `VERIFIZIERT`                   | E02              |
+| ENT-B14 | Logger wird punktuell genutzt; flächige Betriebsbeobachtbarkeit fehlt                  | BEOBACHTBARKEIT   | `IMPLEMENTIERT` (unvollständig) | E06              |
+| ENT-B15 | Sieben von sieben Lab-Arten unter kanonischem Konfigurationsvertrag                     | INHALTE           | `VERIFIZIERT`                   | E01B             |
 
 Vier Zeilen bündeln zwei Befunde derselben Domäne (`ENT-B08`, `ENT-B09`,
 `ENT-B12`, `ENT-B13`). Das ist Absicht und die Konvention lautet: **eine Zeile je
 abgrenzbarem Befund**. Die Änderungen sind teils feiner geschnitten
 (`ENT-B08` auf E05C/D/E), teils gröber (`ENT-B11` und `ENT-B12` beide auf E10). `ENT-B08` bis `B10` verteilen sich auf E05A bis E05E.
 
-**FUNDAMENT_BLOCKER = 15**
+Die fünfzehn Kennungen bleiben als ursprüngliches Blockerregister bestehen;
+der aktuelle `Zustand` zeigt, welche davon bereits geschlossen sind. Die
+folgende Zahl ist deshalb die Zahl der identifizierten Fundamentblocker, nicht
+die Zahl der heute noch offenen.
+
+**FUNDAMENT_BLOCKER_IDENTIFIZIERT = 15**
 
 | Hauptdomäne       | Zahl   |
 | ----------------- | ------ |
@@ -114,9 +124,9 @@ Kunde sie vertraglich fordert.
 | ------------------------ | --------------- | -------------------------------------------------------------- |
 | Onboarding               | `VERIFIZIERT`   | `app/onboarding/`, Integrations- und E2E-Prüfungen             |
 | Einstufung               | `VERIFIZIERT`   | `domain/placement/`, Grenzprüfungen beidseitig                 |
-| Lernpfad                 | `IMPLEMENTIERT` | `services/path-service.ts` — ohne eigene Integrationsprüfungen |
+| Lernpfad                 | `VERIFIZIERT`   | `path-service.test.ts`: Fallback idempotent, Produktpfad nutzt bestehenden Pfad |
 | Lektionen/Übungen        | `VERIFIZIERT`   | 10 Interaktionsformen, `toPublicPayload()` entfernt Lösungen   |
-| Labs                     | `IMPLEMENTIERT` | 7 `LabKind`, davon 3 mit kanonischem Konfigvertrag             |
+| Labs                     | `VERIFIZIERT`   | 7 `LabKind`, 7 kanonische Konfigverträge in UI und Inhaltsprüfung |
 | Wiederholung             | `IMPLEMENTIERT` | `domain/scheduling/`                                           |
 | Fortschritt/Wissenskarte | `IMPLEMENTIERT` | `app/fortschritt/`, `app/wissenslandkarte/`                    |
 | Glossar/Nachschlagen     | `IMPLEMENTIERT` | `app/glossar/`, `app/nachschlagen/`                            |
@@ -147,7 +157,7 @@ Mandantenmodell aufsetzen kann, aber es ist nicht dasselbe.
 | Absolute Gültigkeit       | `IMPLEMENTIERT` | 30 Tage (`SESSION_TTL_DAYS`)                                                                                                                                                                                                                                                                                                                                                                        |
 | **Leerlauf-Gültigkeit**   | **`FEHLT`**     | `lastSeenAt` wird geführt, läuft aber nichts ab                                                                                                                                                                                                                                                                                                                                                     |
 | **Sitzungsentzug (alle)** | `DOKUMENTIERT`  | `destroyAllSessions()` — **kein Aufrufer**                                                                                                                                                                                                                                                                                                                                                          |
-| Ratenbegrenzung Anmeldung | `AKZEPTIERT`    | wirksam je Instanz, siehe G                                                                                                                                                                                                                                                                                                                                                                         |
+| Ratenbegrenzung Anmeldung | `VERIFIZIERT`   | PostgreSQL-gestützt, instanzübergreifend und fail closed, siehe G                                                                                                                                                                                                                                                                                                                                                                         |
 | **Passwortrichtlinie**    | `IMPLEMENTIERT` | Mindestlänge 10, Höchstlänge 200, Sperrliste häufiger Passwörter (13 Einträge), Prüfung, ob der lokale Teil der E-Mail-Adresse (ab drei Zeichen) im Passwort enthalten ist, Ablehnung eines einzelnen wiederholten Zeichens — `auth/password.ts:94`, aufgerufen bei jeder Registrierung (`auth-actions.ts:133`). Kein Abgleich gegen bekannte Leaks. **Keine Prüfung deckt eine dieser Regeln ab.** |
 | **Passwort zurücksetzen** | **`FEHLT`**     | kein Modell, keine Route, kein Mailversand                                                                                                                                                                                                                                                                                                                                                          |
 | **E-Mail-Bestätigung**    | **`FEHLT`**     | keine Spalte, kein Ablauf                                                                                                                                                                                                                                                                                                                                                                           |
@@ -155,10 +165,10 @@ Mandantenmodell aufsetzen kann, aber es ist nicht dasselbe.
 | **SCIM**                  | **`FEHLT`**     | —                                                                                                                                                                                                                                                                                                                                                                                                   |
 | **Kontolebenszyklus**     | **`FEHLT`**     | kein Sperren, kein Deaktivieren, kein Selbstlöschen                                                                                                                                                                                                                                                                                                                                                 |
 
-Nachgeprüft: `AUTH_SECRET` wird in `server/env.ts` erzwungen (mind. 32
-Zeichen), aber **von keiner Zeile des Anwendungscodes verbraucht**. Sitzungen
-nutzen Zufallstoken plus SHA-256, keinen HMAC. Die Variable ist heute eine
-Startbedingung ohne Wirkung.
+E02 hat das ungenutzte `AUTH_SECRET` aus dem Konfigurationsvertrag entfernt.
+Sitzungen verwenden weiterhin kryptografisch zufällige opake Token; in der
+Datenbank liegt nur deren SHA-256-Hash. Die aktuelle Startkonfiguration verlangt
+nur Variablen, die der Anwendungspfad tatsächlich nutzt.
 
 ## D — Autorisierung
 
@@ -214,7 +224,7 @@ Nicht wirksam oder eingeschränkt:
 | Double-Submit-CSRF                 | `DOKUMENTIERT`                  | `assertCsrf`/`getCsrfToken` — **0 Aufrufer**                                                           |
 | CSRF wirksam über                  | `IMPLEMENTIERT` (eingeschränkt) | `SameSite=Lax` + Next-Server-Actions; Herkunftsprüfung greift nur bei gesetztem `Origin` (siehe unten) |
 | `script-src 'unsafe-inline'`       | `AKZEPTIERT`                    | Themenflacker-Skript; Nonce vorgemerkt                                                                 |
-| Ratenbegrenzung                    | `AKZEPTIERT`                    | `new Map()` im Modul → je Prozess                                                                      |
+| Ratenbegrenzung                    | `VERIFIZIERT`                   | PostgreSQL-Zähler, atomar und instanzübergreifend; Fail-closed bei DB-Ausfall, siehe G                   |
 | E-Mail-Enumeration (Registrierung) | `AKZEPTIERT`                    | bewusst, mit Begründung                                                                                |
 | Actions auf Haupt-Tags gepinnt     | `AKZEPTIERT`                    | `@v4`, nicht Commit-Hash; Lauf trägt keine Geheimnisse                                                 |
 | Dev-Abhängigkeiten                 | `AKZEPTIERT`                    | heute 4 hoch / 2 mittel, nur Werkzeugkette                                                             |
@@ -237,24 +247,29 @@ Sicherheitslauf.
 
 ## G — Ratenbegrenzung
 
-`src/server/security/rate-limit.ts` hält die Zähler in einer modulweiten
-`Map`. Auf einer einzelnen Instanz wirkt das; bei zwei Instanzen teilt sich
-ein Angreifer die Zähler nicht, sondern bekommt zwei. Die Zielplattform
-(Vercel, `fra1`) skaliert horizontal — die Maßnahme ist dort strukturell
-unvollständig.
+E03 hat den prozesslokalen Speicherzähler durch PostgreSQL ersetzt.
+`rate_limit_buckets` enthält je Grenzenschlüssel eine Zeile; gespeichert wird
+nur ein SHA-256-Digest des Schlüssels, nicht die rohe IP-Adresse oder
+E-Mail-Adresse. Prüfen und Zählen laufen atomar in einer Transaktion mit
+Zeilensperre; bei nicht erreichbarer Datenbank gilt **FAIL CLOSED**.
 
-Drei Bauformen kommen infrage. Bewertet gegen den vorhandenen Stapel:
+Die Abdeckung geht ausdrücklich über einen Prozess hinaus:
+`tests/integration/rate-limit.test.ts` startet getrennte Kindprozesse mit
+eigenen Verbindungspools und prüft gemeinsamen Zustand sowie Gleichzeitigkeit.
+Das Aufräumen abgelaufener Zeilen läuft nach jeder abgeschlossenen Entscheidung
+begrenzt und ist sowohl gegen kurzlebige Prozesse als auch unter
+Parallelität geprüft. Die detaillierten Sperr-, Cleanup- und
+Datensparsamkeitsgrenzen stehen in `docs/SECURITY.md`.
 
-| Ansatz                    | Atomarität                     | Latenz    | Kosten             | Betriebsaufwand          | Verhalten bei Ausfall                 |
-| ------------------------- | ------------------------------ | --------- | ------------------ | ------------------------ | ------------------------------------- |
-| **PostgreSQL**            | über eine Anweisung erreichbar | +1 Umlauf | keine zusätzlichen | keine neue Infrastruktur | Datenbank weg = Anwendung ohnehin weg |
-| Managed Redis/KV          | nativ                          | gering    | laufend            | neue Komponente          | Ausfall = Grundsatzentscheidung nötig |
-| Plattformnativer Speicher | nativ                          | gering    | laufend            | Bindung an Anbieter      | dito                                  |
+Die Umstellung macht `checkRateLimit()`/`enforceRateLimit()` asynchron;
+Namen und fachliche Bedeutung blieben, die Promise-Grenze musste wegen des
+Datenbankzugriffs angepasst werden. Redis/KV oder ein weiterer Dienst wurden
+nicht eingeführt.
 
-Empfehlung für V1: **PostgreSQL**. Es gibt bereits eine verwaltete Instanz,
-die Anwendung ist ohne sie ohnehin nicht betriebsfähig, und die
-Schnittstelle von `checkRateLimit()` bleibt unverändert. Keine Infrastruktur
-ohne ausdrückliche Freigabe.
+Nicht als erledigt ausgegeben sind die in der E03-Schlussprüfung bewusst
+nicht blockierenden Härtungspunkte, insbesondere Host-Uhrabweichung sowie
+Lock-/Pool-Timeouts. Sie ändern den verifizierten instanzübergreifenden
+Grundmechanismus nicht, bleiben aber Betriebsarbeit für spätere Punkte.
 
 ## H — Betrieb
 
@@ -262,11 +277,11 @@ ohne ausdrückliche Freigabe.
 | ------------------------------- | --------------- | -------------------------------------------------------- |
 | `/api/health`                   | `IMPLEMENTIERT` | ohne Datenbankzugriff, bewusst                           |
 | `/api/ready`                    | `IMPLEMENTIERT` | Datenbank + Inhaltsprüfung, keine Details in der Antwort |
-| Migrationen                     | `IMPLEMENTIERT` | 3 Migrationen, `prisma migrate deploy`                   |
-| Konfigurationsvertrag           | `IMPLEMENTIERT` | `server/env.ts` mit Zod                                  |
-| **Start bricht früh ab**        | **`FEHLT`**     | `getEnv()` ist verzögert; keine `instrumentation.ts`     |
+| Migrationen                     | `IMPLEMENTIERT` | 4 Migrationen, `prisma migrate deploy`                   |
+| Konfigurationsvertrag           | `VERIFIZIERT`   | `server/env.ts` + Starttests                             |
+| **Start bricht früh ab**        | **`VERIFIZIERT`** | `instrumentation.ts` ruft `getEnv()` vor Node-Anfragen auf |
 | Strukturierte Logs              | `IMPLEMENTIERT` | `observability/logger.ts` mit Anfrage-Kennung            |
-| **Logs tatsächlich genutzt**    | **`FEHLT`**     | **genau eine Datei** nutzt den Logger (`api/ready`)      |
+| **Logs tatsächlich genutzt**    | **`IMPLEMENTIERT`** | punktuell in `api/ready`, Ratenbegrenzung und Retention-Route |
 | **Fehlerberichte**              | **`FEHLT`**     | keine Anbindung                                          |
 | **Metriken / Alarme / SLOs**    | **`FEHLT`**     | —                                                        |
 | **Sicherung/Wiederherstellung** | **`FEHLT`**     | weder Verfahren noch Nachweis                            |
@@ -291,21 +306,24 @@ lassen. Nachgelesen und nachgemessen:
 - **Lektionsbeginn** (`lesson-service.ts`): bedingtes `updateMany`, danach
   `create` mit Toleranz für P2002, abgesichert durch
   `@@unique([userId, lessonId])`. Kein Rennen.
-- **`getOrCreatePath`** (`path-service.ts`): Suchen-dann-Anlegen ohne
-  Transaktion und ohne eindeutigen Index auf `userId`. Heute nicht
-  erreichbar, weil der einzige Aufrufer hinter `onboardingCompleted` liegt
-  und der Onboarding-Abschluss den Pfad in derselben Transaktion anlegt.
-  `VERIFIZIERT` ist das nicht — es ist `AKZEPTIERT` mit statischem Beleg.
+- **`getOrCreatePath`** (`path-service.ts`): E01C hat dem Dienst eigene
+  Integrationsabdeckung gegeben. Der isolierte Fallback legt genau einen Pfad
+  an und ist bei erneutem Aufruf idempotent; nach regulärem Onboarding führt
+  auch ein achtfach paralleler Aufruf ausschließlich zum bereits in der
+  Onboarding-Transaktion angelegten Pfad. Der potenziell anfällige
+  Suchen-dann-Anlegen-Zweig bleibt im normalen Produktfluss damit
+  unerreichbar; E01C hat ihn nicht durch einen neuen Unique-Index umgebaut.
 
 Offen: keine Last- oder Nebenläufigkeitsprüfung jenseits gezielter
 Zweier-Rennen.
 
 ## J — Beobachtbarkeit
 
-Der Baukasten ist da und wird nicht benutzt. `logger.ts` bietet Stufen,
-Anfrage-Kennung und gekürzte Nutzerkennung; genutzt wird er in **einer**
-Route. Server Actions, Dienste und Fehlerpfade schreiben nichts. Es gibt
-keine Bereitstellungskennung in den Logs und keine Metriken.
+Der Baukasten ist da und wird punktuell benutzt. `logger.ts` bietet Stufen,
+Anfrage-Kennung und gekürzte Nutzerkennung; Aufrufer existieren unter anderem
+in `api/ready`, der gemeinsamen Ratenbegrenzung und der E04A-Retention-Route.
+Eine flächige Instrumentierung von Server Actions, Diensten und Fehlerpfaden
+fehlt weiterhin; ebenso Metriken und Alarme. E06 bleibt deshalb offen.
 
 ## K — Nachvollziehbarkeit
 
@@ -333,10 +351,11 @@ ein eigenes, nur anfügbares Modell.
 | **Redaktionelle Freigabe**     | **`FEHLT`**     |
 | **Veralterungserkennung**      | **`FEHLT`**     |
 
-Nachgeprüfte Lücke: `validateCourseGraph()` prüft Lab-Konfigurationen nur für
-`MERGE_CONFLICT`, `BRANCH` und `GIT_STATE`. Für `TERMINAL`, `TOKENIZER`,
-`CONTEXT_WINDOW` und `PROMPT_REPAIR` gibt es keinen kanonischen Vertrag.
-Ungeprüft sind sie damit nicht: Alle vier haben ein Zod-Schema in der Maske, das beim Anzeigen greift (`terminal-lab.tsx:9`, `tokenizer-lab.tsx:8`, `context-window-lab.tsx:8`, `labs/[slug]/page.tsx:17`). Der Unterschied ist der Zeitpunkt — ein Fehler fällt erst auf, wenn jemand das Lab im Browser öffnet, nicht beim Bauen. `schema.ts:369` sagt das über sich selbst bereits genauer, als die vorige Fassung dieses Dokuments es tat.
+E01B hat die frühere Lücke geschlossen: Alle sieben `LabKind` verwenden
+kanonische Zod-Verträge unter `src/domain/labs/`. Dieselben Verträge werden
+von den jeweiligen Masken und von `validateCourseGraph()` genutzt. Dadurch
+fällt eine ungültige Lab-Konfiguration bereits in der Inhaltsprüfung/CI auf
+und nicht erst beim Öffnen des Labs.
 
 ## M — Lehrplan
 

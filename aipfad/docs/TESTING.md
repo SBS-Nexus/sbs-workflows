@@ -13,7 +13,7 @@ npm run perf:rate-limit    # Zusatzaufwand der Ratenbegrenzung, gegen echte Date
 npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 497 bestehen
+### Unit-Tests — 498 bestehen
 
 `tests/unit/` (17 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
 `retention-runner.test.ts`, `cron-auth.test.ts`,
@@ -104,8 +104,10 @@ Grenzwert bekommen und eine Mutation des `Date`-Objekts im Zählweg die
 Löschgrenze nicht verändern kann; dass Frist 0 als abgeschaltet gilt und nicht als "alles
 löschen" (`skipped-disabled` ist etwas anderes als "gelaufen, nichts
 gefunden"); dass eine zweite angemeldete Regel mit eigener Frist läuft, ohne
-das Ergebnis der ersten zu berühren; und dass nach einem Regelfehler die
-nachfolgenden Regeln weiterlaufen, der Lauf aber `partial-failure` meldet.
+das Ergebnis der ersten zu berühren; dass nach einem Regelfehler die
+nachfolgenden Regeln weiterlaufen, der Lauf aber `partial-failure` meldet;
+und dass bei einem erst im Löschschritt auftretenden Fehler die bereits
+bekannten Frist-, Grenz- und Kandidatenwerte im Bericht erhalten bleiben.
 
 Die Regeln sind eingeschleust, weil beides anders kaum zu zeigen wäre: Einen
 Teilfehler mit echten Tabellen verlässlich herbeizuführen ist schwer, und
@@ -113,7 +115,8 @@ eine zweite produktive Datenart nur für einen Test zu erfinden wäre teurer
 als die Eigenschaft, die sie belegen soll.
 
 `tests/integration/retention.test.ts` prüft gegen echte Zeilen, was nur dort
-sichtbar wird: Der Trockenlauf zählt eine Zeile und lässt beide stehen; der
+sichtbar wird. `ATTEMPT_RETENTION_DAYS` ist im Integrationstest-Setup fest
+auf 365 Tage gepinnt, damit eine lokale `.env` die Testgrenze nicht verändert: Der Trockenlauf zählt eine Zeile und lässt beide stehen; der
 Ernstfall entfernt genau die zu alte; ein zweiter Ernstfall meldet
 `deletedCount: 0`; zwei gleichzeitige Läufe entfernen zusammen genau die
 alten Zeilen und scheitern nicht; und die Grenze liegt bei `createdAt <
