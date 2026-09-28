@@ -122,14 +122,19 @@ Das liegt NICHT an der Spaltenart: Der Fehler tritt mit `timestamp` genauso
 auf wie mit `timestamptz`. Tragend ist allein, dass der Vergleichszeitpunkt
 aus der Anwendung kommt (`pruneExpiredBuckets()`).
 
-"löscht keine Zeile, die während des Aufräumens aufgefrischt wird" deckt einen
-Wettlauf ab, den erst die Architekturprüfung zu diesem PR gefunden hat: Die
-Unterabfrage des Aufräumlaufs wählt aus, was zum Anweisungsbeginn abgelaufen
-war; bis das `DELETE` die Zeile erwischt, kann eine gleichzeitige Anfrage sie
-längst fortgeschrieben haben. Ohne ein zweites `expiresAt`-Prädikat am äußeren
-`DELETE` verschwand dabei ein LEBENDER Zähler. Der Test stellt das mit einer
-zweiten, unabhängigen Verbindung nach, die die Zeile sperrt, den Aufräumlauf
-auflaufen lässt und erst danach auffrischt.
+"überspringt eine gesperrte Zeile, die gleichzeitig aufgefrischt wird" prüft
+die HEUTIGE Wettlaufsicherung: Eine zweite, unabhängige Verbindung hält eine
+abgelaufene Zeile mit `FOR UPDATE` fest; der Aufräumlauf muss sie wegen
+`FOR UPDATE SKIP LOCKED` sofort überspringen und null Zeilen entfernen.
+Anschließend wird die gesperrte Zeile auf einen lebenden Ablaufzeitpunkt
+fortgeschrieben und muss bestehen bleiben.
+
+Das zusätzliche `expiresAt`-Prädikat am äußeren `DELETE` bleibt als
+defensive Redundanz bestehen. Es ist unter der aktuellen SKIP-LOCKED-Auswahl
+nicht der Mechanismus dieses Tests: Entfernt man nur dieses Prädikat, bleibt
+die Suite grün. Deshalb wird hier ausdrücklich KEINE eigenständige
+Testabdeckung oder aktuelle Lasttragfähigkeit dieses zweiten Prädikats
+behauptet.
 
 `onboarding-placement.test.ts` deckt den Abschluss des Onboardings ab:
 Abbruch vor der Transaktion, Abbruch MITTEN in ihr (die Kurse werden dafür

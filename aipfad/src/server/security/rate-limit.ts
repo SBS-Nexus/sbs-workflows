@@ -344,13 +344,18 @@ async function einAnlauf(
  * Regressionstest in `tests/integration/rate-limit.test.ts` schlägt nur auf
  * einem Rechner an, der nicht in UTC läuft.
  *
- * `expiresAt` wird ZWEIMAL geprüft, in der Unterabfrage und noch einmal außen.
- * Das ist keine Dopplung: Die Unterabfrage arbeitet auf dem Schnappschuss des
- * Anweisungsbeginns. Hält eine gleichzeitige Transaktion die Zeile gesperrt
- * und schreibt sie fort, wartet das `DELETE` auf die Sperre und prüft danach
- * nur noch sein äußeres Prädikat gegen die NEUE Fassung der Zeile. Ohne die
- * äußere Bedingung würde ein eben erst aufgefrischter, LEBENDER Zähler
- * gelöscht, obwohl er zu diesem Zeitpunkt gar nicht mehr abgelaufen ist.
+ * `expiresAt` steht sowohl in der materialisierten Auswahl als auch noch
+ * einmal am äußeren `DELETE`. Unter der AKTUELLEN Abfrage ist das äußere
+ * Prädikat defensive Redundanz, nicht die tragende Wettlaufsicherung:
+ * `FOR UPDATE SKIP LOCKED` nimmt eine von einer gleichzeitigen Transaktion
+ * gesperrte Zeile gar nicht erst in `zu_entfernen` auf. Der Integrationstest
+ * hält genau dieses Verhalten fest.
+ *
+ * Das zweite Prädikat bleibt bewusst stehen, damit eine spätere Änderung der
+ * Sperr-/Auswahlstrategie nicht automatisch aus einer früher abgelaufenen
+ * Auswahl eine lebende Zeile löscht. Seine Notwendigkeit ist in der heutigen
+ * Fassung NICHT eigenständig durch Mutation abgesichert und darf deshalb nicht
+ * als aktuell lasttragender Schutz dokumentiert werden.
  */
 export async function pruneExpiredBuckets(
   hoechstens: number = AUFRAEUMEN_JE_ENTSCHEIDUNG,

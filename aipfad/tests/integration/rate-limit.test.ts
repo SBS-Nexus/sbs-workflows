@@ -291,15 +291,17 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
     expect((await checkRateLimit(key, config, Date.now())).allowed).toBe(false);
   });
 
-  it('löscht keine Zeile, die während des Aufräumens aufgefrischt wird', async () => {
-    // Der Aufräumlauf wählt in einer Unterabfrage aus, was zum
-    // Anweisungsbeginn abgelaufen war. Bis das `DELETE` die Zeile wirklich
-    // erwischt, kann eine gleichzeitige Anfrage sie längst fortgeschrieben
-    // haben — dann löschte der Lauf einen LEBENDEN Zähler, und die Grenze
-    // begänne mitten im Fenster von vorn.
+  it('überspringt eine gesperrte Zeile, die gleichzeitig aufgefrischt wird', async () => {
+    // Die aktuelle Aufräumstrategie wählt mit `FOR UPDATE SKIP LOCKED`.
+    // Hält eine andere Verbindung eine abgelaufene Zeile gesperrt, darf der
+    // Aufräumlauf deshalb NICHT auf sie warten und sie auch nicht in seine
+    // materialisierte Auswahl aufnehmen.
     //
-    // Nachgestellt mit einer zweiten, unabhängigen Verbindung, die die Zeile
-    // sperrt, den Aufräumlauf auflaufen lässt und erst danach auffrischt.
+    // Nachgestellt mit einer zweiten, unabhängigen Verbindung: Sie sperrt die
+    // Zeile, der Aufräumlauf muss sie überspringen, danach wird sie auf einen
+    // lebenden Ablaufzeitpunkt fortgeschrieben. Dieser Test pinnt damit die
+    // heutige SKIP-LOCKED-Sicherung — NICHT die Notwendigkeit des defensiven
+    // äußeren `expiresAt`-Prädikats.
     const keyHash = __rateLimitKeyHash(schluessel('aufraeum-wettlauf'));
     const zweiteVerbindung = new PrismaClient({
       adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -310,23 +312,19 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
         data: { keyHash, hits: [], expiresAt: new Date(Date.now() - 60_000) },
       });
 
-      let aufraeumen: Promise<number> | undefined;
-
       await zweiteVerbindung.$transaction(async (tx) => {
         await tx.$executeRaw`
           SELECT "keyHash" FROM rate_limit_buckets WHERE "keyHash" = ${keyHash} FOR UPDATE`;
 
-        // Der Lauf blockiert ab hier an der Zeilensperre.
-        aufraeumen = pruneExpiredBuckets(500);
-        await new Promise((fertig) => setTimeout(fertig, 500));
+        // `SKIP LOCKED` muss die gesperrte Zeile sofort auslassen: keine
+        // Wartezeit auf die fremde Transaktion und keine Löschung.
+        expect(await pruneExpiredBuckets(500)).toBe(0);
 
         await tx.$executeRaw`
           UPDATE rate_limit_buckets
           SET "expiresAt" = ${new Date(Date.now() + 3_600_000)}
           WHERE "keyHash" = ${keyHash}`;
       });
-
-      await aufraeumen;
 
       const zeile = await prisma.rateLimitBucket.findUnique({ where: { keyHash } });
       expect(zeile).not.toBeNull();
