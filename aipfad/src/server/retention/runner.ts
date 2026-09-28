@@ -74,8 +74,7 @@ async function regelAusfuehren(
     // anschließend `deleteCandidates` sieht. Beide bekommen deshalb eigene
     // Objekte mit exakt demselben Zeitwert.
     const candidateCount = await rule.countCandidates(new Date(cutoffMs));
-    const deletedCount =
-      mode === 'execute' ? await rule.deleteCandidates(new Date(cutoffMs)) : 0;
+    const deletedCount = mode === 'execute' ? await rule.deleteCandidates(new Date(cutoffMs)) : 0;
 
     return {
       ...basis,

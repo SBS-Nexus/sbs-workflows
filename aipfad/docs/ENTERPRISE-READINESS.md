@@ -178,16 +178,16 @@ ihn prüft.
 
 ## E — Datenschutz
 
-| Punkt                               | Zustand         | Beleg                                                                                     |
-| ----------------------------------- | --------------- | ----------------------------------------------------------------------------------------- |
-| Trennung Lerndaten / Produktanalyse | `IMPLEMENTIERT` | `AnalyticsEvent` ohne Fremdschlüssel, Datum tagesgenau                                    |
-| Kaskadenlöschung                    | `IMPLEMENTIERT` | jeder Fremdschlüssel auf `User` mit `onDelete: Cascade`                                   |
+| Punkt                               | Zustand           | Beleg                                                                                     |
+| ----------------------------------- | ----------------- | ----------------------------------------------------------------------------------------- |
+| Trennung Lerndaten / Produktanalyse | `IMPLEMENTIERT`   | `AnalyticsEvent` ohne Fremdschlüssel, Datum tagesgenau                                    |
+| Kaskadenlöschung                    | `IMPLEMENTIERT`   | jeder Fremdschlüssel auf `User` mit `onDelete: Cascade`                                   |
 | **Aufbewahrungslöschung**           | **`VERIFIZIERT`** | Regelrahmen `src/server/retention/`, Cron `/api/cron/retention` täglich, `RETENTION_MODE` |
-| **Auskunft / Datenexport**          | **`FEHLT`**     | keine Route, keine Oberfläche                                                             |
-| **Löschung auf Betroffenenwunsch**  | **`FEHLT`**     | kein `prisma.user.delete()` im Anwendungscode                                             |
-| **Verarbeitungsverzeichnis**        | **`FEHLT`**     | —                                                                                         |
-| **Pseudonymisierung**               | **`FEHLT`**     | —                                                                                         |
-| **Sicherung / Wiederherstellung**   | **`FEHLT`**     | `docs/DEPLOYMENT.md` hat keinen Abschnitt dazu                                            |
+| **Auskunft / Datenexport**          | **`FEHLT`**       | keine Route, keine Oberfläche                                                             |
+| **Löschung auf Betroffenenwunsch**  | **`FEHLT`**       | kein `prisma.user.delete()` im Anwendungscode                                             |
+| **Verarbeitungsverzeichnis**        | **`FEHLT`**       | —                                                                                         |
+| **Pseudonymisierung**               | **`FEHLT`**       | —                                                                                         |
+| **Sicherung / Wiederherstellung**   | **`FEHLT`**       | `docs/DEPLOYMENT.md` hat keinen Abschnitt dazu                                            |
 
 Die Aufbewahrungslöschung ist mit E04A technisch angebunden: Die produktive
 Regelliste unter `src/server/retention/` enthält derzeit

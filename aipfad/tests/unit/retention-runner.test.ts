@@ -100,10 +100,7 @@ describe('Aufbewahrungslauf', () => {
       runId: 'lauf-mutation',
     });
 
-    expect(gesehen).toEqual([
-      '2026-05-16T12:00:00.000Z',
-      '2026-05-16T12:00:00.000Z',
-    ]);
+    expect(gesehen).toEqual(['2026-05-16T12:00:00.000Z', '2026-05-16T12:00:00.000Z']);
   });
 
   it('zählt im Trockenlauf und löscht dabei nicht', async () => {
