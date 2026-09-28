@@ -496,10 +496,7 @@ describe('Ratenbegrenzung (Integration mit echter Datenbank)', () => {
     );
     const gleichzeitig = 20;
     const marke = `${PRAEFIX}:nebenlauf-${Date.now()}`;
-    const nebenlaufSchluessel = Array.from(
-      { length: gleichzeitig },
-      (_, i) => `${marke}-${i}`,
-    );
+    const nebenlaufSchluessel = Array.from({ length: gleichzeitig }, (_, i) => `${marke}-${i}`);
 
     try {
       await prisma.rateLimitBucket.deleteMany({ where: { keyHash: { in: rueckstand } } });
