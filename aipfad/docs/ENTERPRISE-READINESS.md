@@ -82,7 +82,7 @@ der aktuelle `Zustand` zeigt, welche davon bereits geschlossen sind. Die
 folgende Zahl ist deshalb die Zahl der identifizierten Fundamentblocker, nicht
 die Zahl der heute noch offenen.
 
-**FUNDAMENT_BLOCKER_IDENTIFIZIERT = 15**
+**FUNDAMENT_BLOCKER = 15**
 
 | Hauptdomäne       | Zahl   |
 | ----------------- | ------ |
