@@ -53,7 +53,7 @@ es gibt keine Mehrfachzählung.
 | ------- | -------------------------------------------------------------------------------------- | ----------------- | ------------------------------- | ---------------- |
 | ENT-B01 | Kein `Organization`/`OrganizationMembership`, keine Verwaltung dafür                   | MANDANTEN         | `FEHLT`                         | E08, E08B        |
 | ENT-B02 | Keine Organisationsautorisierung; `ADMIN` ohne Durchsetzung                            | AUTORISIERUNG     | `FEHLT`                         | E09A–C           |
-| ENT-B03 | Aufbewahrungslöschung läuft nie                                                        | DATEN             | `DOKUMENTIERT`                  | E04A             |
+| ENT-B03 | Aufbewahrungslöschung wird kontrolliert ausgeführt                                     | DATEN             | `VERIFIZIERT`                   | E04A             |
 | ENT-B04 | Keine Datenauskunft (Selbstexport)                                                     | DATEN             | `FEHLT`                         | E04B             |
 | ENT-B05 | Keine Löschung auf Betroffenenwunsch                                                   | DATEN             | `FEHLT`                         | E04C             |
 | ENT-B06 | Kein Auditlog für Unternehmensvorgänge                                                 | DATEN             | `FEHLT`                         | E07              |
@@ -182,19 +182,22 @@ ihn prüft.
 | ----------------------------------- | --------------- | ----------------------------------------------------------------------------------------- |
 | Trennung Lerndaten / Produktanalyse | `IMPLEMENTIERT` | `AnalyticsEvent` ohne Fremdschlüssel, Datum tagesgenau                                    |
 | Kaskadenlöschung                    | `IMPLEMENTIERT` | jeder Fremdschlüssel auf `User` mit `onDelete: Cascade`                                   |
-| **Aufbewahrungslöschung**           | **`UMGESETZT`** | Regelrahmen `src/server/retention/`, Cron `/api/cron/retention` täglich, `RETENTION_MODE` |
+| **Aufbewahrungslöschung**           | **`VERIFIZIERT`** | Regelrahmen `src/server/retention/`, Cron `/api/cron/retention` täglich, `RETENTION_MODE` |
 | **Auskunft / Datenexport**          | **`FEHLT`**     | keine Route, keine Oberfläche                                                             |
 | **Löschung auf Betroffenenwunsch**  | **`FEHLT`**     | kein `prisma.user.delete()` im Anwendungscode                                             |
 | **Verarbeitungsverzeichnis**        | **`FEHLT`**     | —                                                                                         |
 | **Pseudonymisierung**               | **`FEHLT`**     | —                                                                                         |
 | **Sicherung / Wiederherstellung**   | **`FEHLT`**     | `docs/DEPLOYMENT.md` hat keinen Abschnitt dazu                                            |
 
-Die Aufbewahrungsfrist ist der schärfste Fall: `.env.example` setzt
-`ATTEMPT_RETENTION_DAYS="365"`, `server/env.ts` validiert sie,
-`session.ts:215` liest sie — und **niemand ruft die Funktion auf**.
-`vercel.json` enthält `"crons": []`. Rohe Versuchsdaten werden damit
-unbegrenzt aufbewahrt. `docs/SECURITY.md` benennt das bereits korrekt; dieses
-Dokument bestätigt es unabhängig.
+Die Aufbewahrungslöschung ist mit E04A technisch angebunden: Die produktive
+Regelliste unter `src/server/retention/` enthält derzeit
+`ATTEMPT_RETENTION`; `GET /api/cron/retention` ist über
+`Authorization: Bearer <CRON_SECRET>` geschützt, und `vercel.json` ruft die
+Route täglich um 03:00 UTC auf. `RETENTION_MODE=dry-run` zählt nur,
+`execute` löscht nach `createdAt < cutoff`; Frist 0 schaltet die Regel ab.
+Unit-, Integrations- und Routentests decken Trockenlauf, Ernstfall,
+Idempotenz, überlappende Läufe und Teilfehler ab. Eine reale
+Produktionsbereitstellung wurde in E04A ausdrücklich nicht durchgeführt.
 
 ## F — Sicherheit
 

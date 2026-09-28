@@ -13,7 +13,7 @@ npm run perf:rate-limit    # Zusatzaufwand der Ratenbegrenzung, gegen echte Date
 npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 496 bestehen
+### Unit-Tests — 497 bestehen
 
 `tests/unit/` (17 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
 `retention-runner.test.ts`, `cron-auth.test.ts`,
@@ -99,8 +99,9 @@ Die Aufbewahrung ist auf drei Dateien verteilt, entlang dessen, was sich wo
 überhaupt zeigen lässt.
 
 `tests/unit/retention-runner.test.ts` prüft die Orchestrierung mit
-EINGESCHLEUSTEN Regeln, ohne Datenbank: dass Zählen und Löschen dieselbe
-Grenze bekommen; dass Frist 0 als abgeschaltet gilt und nicht als "alles
+EINGESCHLEUSTEN Regeln, ohne Datenbank: dass Zählen und Löschen denselben
+Grenzwert bekommen und eine Mutation des `Date`-Objekts im Zählweg die
+Löschgrenze nicht verändern kann; dass Frist 0 als abgeschaltet gilt und nicht als "alles
 löschen" (`skipped-disabled` ist etwas anderes als "gelaufen, nichts
 gefunden"); dass eine zweite angemeldete Regel mit eigener Frist läuft, ohne
 das Ergebnis der ersten zu berühren; und dass nach einem Regelfehler die
@@ -116,8 +117,10 @@ sichtbar wird: Der Trockenlauf zählt eine Zeile und lässt beide stehen; der
 Ernstfall entfernt genau die zu alte; ein zweiter Ernstfall meldet
 `deletedCount: 0`; zwei gleichzeitige Läufe entfernen zusammen genau die
 alten Zeilen und scheitern nicht; und die Grenze liegt bei `createdAt <
-cutoff` — eine Zeile GENAU auf der Grenze bleibt stehen (`lt`, nicht `lte`,
-unverändert aus der Vorgängerfassung übernommen).
+cutoff` — derselbe Datensatz liefert im Trockenlauf genau einen Kandidaten und
+im anschließenden Ernstfall genau eine Löschung; eine Zeile GENAU auf der
+Grenze bleibt stehen (`lt`, nicht `lte`, unverändert aus der
+Vorgängerfassung übernommen).
 
 `tests/integration/retention-route.test.ts` prüft die Route: ohne Kopfzeile
 401 und nichts gelöscht, falsches Geheimnis 401 und nichts gelöscht,

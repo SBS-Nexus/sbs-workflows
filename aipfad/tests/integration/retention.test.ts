@@ -146,7 +146,13 @@ describe('Aufbewahrung (Integration mit echter Datenbank)', () => {
     const genau = await versuchAnlegen(userId, exerciseId, cutoff);
     const danach = await versuchAnlegen(userId, exerciseId, new Date(cutoff.getTime() + 1));
 
-    expect((await lauf('execute')).rules[0]?.deletedCount).toBe(1);
+    const trocken = await lauf('dry-run');
+    expect(trocken.rules[0]?.candidateCount).toBe(1);
+    expect(trocken.rules[0]?.deletedCount).toBe(0);
+
+    const ernstfall = await lauf('execute');
+    expect(ernstfall.rules[0]?.candidateCount).toBe(1);
+    expect(ernstfall.rules[0]?.deletedCount).toBe(1);
 
     expect(await prisma.attempt.findUnique({ where: { id: davor } })).toBeNull();
     // Auf der Grenze bleibt die Zeile: `lt`, nicht `lte`. Diese Unterscheidung

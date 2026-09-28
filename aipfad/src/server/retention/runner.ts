@@ -66,15 +66,22 @@ async function regelAusfuehren(
     // EINE Grenze für beide Wege. Zählen und Löschen dürfen nicht je eigene
     // Formeln haben, sonst misst der Trockenlauf etwas anderes als der
     // Ernstfall es tut.
-    const cutoff = rule.cutoffAt(now, retentionDays);
-    const candidateCount = await rule.countCandidates(cutoff);
-    const deletedCount = mode === 'execute' ? await rule.deleteCandidates(cutoff) : 0;
+    const cutoff = rule.cutoffAt(new Date(now.getTime()), retentionDays);
+    const cutoffMs = cutoff.getTime();
+
+    // `Date` ist in JavaScript veränderlich. Eine Regel darf durch einen
+    // Setter in `countCandidates` nicht unbemerkt die Grenze verändern, die
+    // anschließend `deleteCandidates` sieht. Beide bekommen deshalb eigene
+    // Objekte mit exakt demselben Zeitwert.
+    const candidateCount = await rule.countCandidates(new Date(cutoffMs));
+    const deletedCount =
+      mode === 'execute' ? await rule.deleteCandidates(new Date(cutoffMs)) : 0;
 
     return {
       ...basis,
       status: 'success',
       retentionDays,
-      cutoff: cutoff.toISOString(),
+      cutoff: new Date(cutoffMs).toISOString(),
       candidateCount,
       deletedCount,
       durationMs: Date.now() - begonnen,

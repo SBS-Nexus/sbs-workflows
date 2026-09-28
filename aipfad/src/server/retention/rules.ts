@@ -3,6 +3,7 @@ import { prisma } from '@/server/db/prisma';
 import { getEnv } from '@/server/env';
 import { cutoffFromDays } from '@/server/retention/runner';
 import type { RetentionRule } from '@/server/retention/types';
+import type { Prisma } from '@/generated/prisma/client';
 
 /**
  * Die Aufbewahrungsregeln, die im Betrieb wirklich laufen.
@@ -23,6 +24,10 @@ import type { RetentionRule } from '@/server/retention/types';
  * läuft. Die Bedingung selbst ist unverändert — `createdAt < cutoff`, Frist aus
  * `ATTEMPT_RETENTION_DAYS`, 0 schaltet ab.
  */
+function attemptRetentionWhere(cutoff: Date): Prisma.AttemptWhereInput {
+  return { createdAt: { lt: cutoff } };
+}
+
 export const attemptRetentionRule: RetentionRule = {
   id: 'ATTEMPT_RETENTION',
   dataCategory: 'Attempt',
@@ -32,12 +37,14 @@ export const attemptRetentionRule: RetentionRule = {
 
   cutoffAt: cutoffFromDays,
 
-  // Zählen und Löschen teilen dieselbe Bedingung. Wer sie ändert, ändert
-  // beide — sonst zeigt der Trockenlauf nicht mehr, was der Ernstfall tut.
-  countCandidates: (cutoff) => prisma.attempt.count({ where: { createdAt: { lt: cutoff } } }),
+  // Zählen und Löschen bauen ihre Prisma-Bedingung über dieselbe Funktion.
+  // Damit gibt es für Attempt nur eine Stelle für die fachliche Grenze
+  // `createdAt < cutoff`; Trockenlauf und Ernstfall können hier nicht durch
+  // zwei getrennte Where-Literale auseinanderdriften.
+  countCandidates: (cutoff) => prisma.attempt.count({ where: attemptRetentionWhere(cutoff) }),
 
   deleteCandidates: async (cutoff) => {
-    const ergebnis = await prisma.attempt.deleteMany({ where: { createdAt: { lt: cutoff } } });
+    const ergebnis = await prisma.attempt.deleteMany({ where: attemptRetentionWhere(cutoff) });
     return ergebnis.count;
   },
 };

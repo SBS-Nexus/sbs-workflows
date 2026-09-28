@@ -80,6 +80,32 @@ describe('Aufbewahrungslauf', () => {
     expect(protokoll.geloescht[0]?.toISOString()).toBe(protokoll.gezaehlt[0]?.toISOString());
   });
 
+  it('schützt die Löschgrenze vor Mutation durch eine Regel', async () => {
+    const gesehen: string[] = [];
+    const regel = testregel('MUTATION');
+    regel.countCandidates = async (cutoff) => {
+      gesehen.push(cutoff.toISOString());
+      cutoff.setTime(0);
+      return 1;
+    };
+    regel.deleteCandidates = async (cutoff) => {
+      gesehen.push(cutoff.toISOString());
+      return 1;
+    };
+
+    await runRetention({
+      rules: [regel],
+      mode: 'execute',
+      now: JETZT,
+      runId: 'lauf-mutation',
+    });
+
+    expect(gesehen).toEqual([
+      '2026-05-16T12:00:00.000Z',
+      '2026-05-16T12:00:00.000Z',
+    ]);
+  });
+
   it('zählt im Trockenlauf und löscht dabei nicht', async () => {
     const protokoll: RegelProtokoll = { gezaehlt: [], geloescht: [] };
     const bericht = await runRetention({
