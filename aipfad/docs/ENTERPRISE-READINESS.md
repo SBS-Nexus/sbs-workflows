@@ -70,7 +70,7 @@ es gibt keine Mehrfachzählung.
 | ENT-B12 | Keine Runbooks, keine Migrations-Rücknahmestrategie                                    | BETRIEB           | `FEHLT`                         | E10              |
 | ENT-B13 | Konfiguration wird beim Serverstart geprüft; ungenutztes `AUTH_SECRET` entfernt        | BETRIEB           | `VERIFIZIERT`                   | E02              |
 | ENT-B14 | Logger wird punktuell genutzt; flächige Betriebsbeobachtbarkeit fehlt                  | BEOBACHTBARKEIT   | `IMPLEMENTIERT` (unvollständig) | E06              |
-| ENT-B15 | Sieben von sieben Lab-Arten unter kanonischem Konfigurationsvertrag                     | INHALTE           | `VERIFIZIERT`                   | E01B             |
+| ENT-B15 | Sieben von sieben Lab-Arten unter kanonischem Konfigurationsvertrag                    | INHALTE           | `VERIFIZIERT`                   | E01B             |
 
 Vier Zeilen bündeln zwei Befunde derselben Domäne (`ENT-B08`, `ENT-B09`,
 `ENT-B12`, `ENT-B13`). Das ist Absicht und die Konvention lautet: **eine Zeile je
@@ -120,20 +120,20 @@ Kunde sie vertraglich fordert.
 
 ## A — Produktvollständigkeit
 
-| Bereich                  | Zustand         | Beleg                                                          |
-| ------------------------ | --------------- | -------------------------------------------------------------- |
-| Onboarding               | `VERIFIZIERT`   | `app/onboarding/`, Integrations- und E2E-Prüfungen             |
-| Einstufung               | `VERIFIZIERT`   | `domain/placement/`, Grenzprüfungen beidseitig                 |
+| Bereich                  | Zustand         | Beleg                                                                           |
+| ------------------------ | --------------- | ------------------------------------------------------------------------------- |
+| Onboarding               | `VERIFIZIERT`   | `app/onboarding/`, Integrations- und E2E-Prüfungen                              |
+| Einstufung               | `VERIFIZIERT`   | `domain/placement/`, Grenzprüfungen beidseitig                                  |
 | Lernpfad                 | `VERIFIZIERT`   | `path-service.test.ts`: Fallback idempotent, Produktpfad nutzt bestehenden Pfad |
-| Lektionen/Übungen        | `VERIFIZIERT`   | 10 Interaktionsformen, `toPublicPayload()` entfernt Lösungen   |
-| Labs                     | `VERIFIZIERT`   | 7 `LabKind`, 7 kanonische Konfigverträge in UI und Inhaltsprüfung |
-| Wiederholung             | `IMPLEMENTIERT` | `domain/scheduling/`                                           |
-| Fortschritt/Wissenskarte | `IMPLEMENTIERT` | `app/fortschritt/`, `app/wissenslandkarte/`                    |
-| Glossar/Nachschlagen     | `IMPLEMENTIERT` | `app/glossar/`, `app/nachschlagen/`                            |
-| Barrierefreiheit         | `VERIFIZIERT`   | 8 axe-Prüfungen, Fokusführung bis zum Ergebnisbildschirm       |
-| **Adminbetrieb**         | **`FEHLT`**     | keine Route unter `app/`, `requireAdmin()` ohne Aufrufer       |
-| **Inhaltslebenszyklus**  | `DOKUMENTIERT`  | `ContentStatus` existiert, keine Redaktionsoberfläche          |
-| **Unternehmensabläufe**  | **`FEHLT`**     | kein Modell, keine Oberfläche                                  |
+| Lektionen/Übungen        | `VERIFIZIERT`   | 10 Interaktionsformen, `toPublicPayload()` entfernt Lösungen                    |
+| Labs                     | `VERIFIZIERT`   | 7 `LabKind`, 7 kanonische Konfigverträge in UI und Inhaltsprüfung               |
+| Wiederholung             | `IMPLEMENTIERT` | `domain/scheduling/`                                                            |
+| Fortschritt/Wissenskarte | `IMPLEMENTIERT` | `app/fortschritt/`, `app/wissenslandkarte/`                                     |
+| Glossar/Nachschlagen     | `IMPLEMENTIERT` | `app/glossar/`, `app/nachschlagen/`                                             |
+| Barrierefreiheit         | `VERIFIZIERT`   | 8 axe-Prüfungen, Fokusführung bis zum Ergebnisbildschirm                        |
+| **Adminbetrieb**         | **`FEHLT`**     | keine Route unter `app/`, `requireAdmin()` ohne Aufrufer                        |
+| **Inhaltslebenszyklus**  | `DOKUMENTIERT`  | `ContentStatus` existiert, keine Redaktionsoberfläche                           |
+| **Unternehmensabläufe**  | **`FEHLT`**     | kein Modell, keine Oberfläche                                                   |
 
 ## B — Mandanten / Organisationen
 
@@ -157,7 +157,7 @@ Mandantenmodell aufsetzen kann, aber es ist nicht dasselbe.
 | Absolute Gültigkeit       | `IMPLEMENTIERT` | 30 Tage (`SESSION_TTL_DAYS`)                                                                                                                                                                                                                                                                                                                                                                        |
 | **Leerlauf-Gültigkeit**   | **`FEHLT`**     | `lastSeenAt` wird geführt, läuft aber nichts ab                                                                                                                                                                                                                                                                                                                                                     |
 | **Sitzungsentzug (alle)** | `DOKUMENTIERT`  | `destroyAllSessions()` — **kein Aufrufer**                                                                                                                                                                                                                                                                                                                                                          |
-| Ratenbegrenzung Anmeldung | `VERIFIZIERT`   | PostgreSQL-gestützt, instanzübergreifend und fail closed, siehe G                                                                                                                                                                                                                                                                                                                                                                         |
+| Ratenbegrenzung Anmeldung | `VERIFIZIERT`   | PostgreSQL-gestützt, instanzübergreifend und fail closed, siehe G                                                                                                                                                                                                                                                                                                                                   |
 | **Passwortrichtlinie**    | `IMPLEMENTIERT` | Mindestlänge 10, Höchstlänge 200, Sperrliste häufiger Passwörter (13 Einträge), Prüfung, ob der lokale Teil der E-Mail-Adresse (ab drei Zeichen) im Passwort enthalten ist, Ablehnung eines einzelnen wiederholten Zeichens — `auth/password.ts:94`, aufgerufen bei jeder Registrierung (`auth-actions.ts:133`). Kein Abgleich gegen bekannte Leaks. **Keine Prüfung deckt eine dieser Regeln ab.** |
 | **Passwort zurücksetzen** | **`FEHLT`**     | kein Modell, keine Route, kein Mailversand                                                                                                                                                                                                                                                                                                                                                          |
 | **E-Mail-Bestätigung**    | **`FEHLT`**     | keine Spalte, kein Ablauf                                                                                                                                                                                                                                                                                                                                                                           |
@@ -224,7 +224,7 @@ Nicht wirksam oder eingeschränkt:
 | Double-Submit-CSRF                 | `DOKUMENTIERT`                  | `assertCsrf`/`getCsrfToken` — **0 Aufrufer**                                                           |
 | CSRF wirksam über                  | `IMPLEMENTIERT` (eingeschränkt) | `SameSite=Lax` + Next-Server-Actions; Herkunftsprüfung greift nur bei gesetztem `Origin` (siehe unten) |
 | `script-src 'unsafe-inline'`       | `AKZEPTIERT`                    | Themenflacker-Skript; Nonce vorgemerkt                                                                 |
-| Ratenbegrenzung                    | `VERIFIZIERT`                   | PostgreSQL-Zähler, atomar und instanzübergreifend; Fail-closed bei DB-Ausfall, siehe G                   |
+| Ratenbegrenzung                    | `VERIFIZIERT`                   | PostgreSQL-Zähler, atomar und instanzübergreifend; Fail-closed bei DB-Ausfall, siehe G                 |
 | E-Mail-Enumeration (Registrierung) | `AKZEPTIERT`                    | bewusst, mit Begründung                                                                                |
 | Actions auf Haupt-Tags gepinnt     | `AKZEPTIERT`                    | `@v4`, nicht Commit-Hash; Lauf trägt keine Geheimnisse                                                 |
 | Dev-Abhängigkeiten                 | `AKZEPTIERT`                    | heute 4 hoch / 2 mittel, nur Werkzeugkette                                                             |
@@ -273,21 +273,21 @@ Grundmechanismus nicht, bleiben aber Betriebsarbeit für spätere Punkte.
 
 ## H — Betrieb
 
-| Punkt                           | Zustand         | Beleg                                                    |
-| ------------------------------- | --------------- | -------------------------------------------------------- |
-| `/api/health`                   | `IMPLEMENTIERT` | ohne Datenbankzugriff, bewusst                           |
-| `/api/ready`                    | `IMPLEMENTIERT` | Datenbank + Inhaltsprüfung, keine Details in der Antwort |
-| Migrationen                     | `IMPLEMENTIERT` | 4 Migrationen, `prisma migrate deploy`                   |
-| Konfigurationsvertrag           | `VERIFIZIERT`   | `server/env.ts` + Starttests                             |
-| **Start bricht früh ab**        | **`VERIFIZIERT`** | `instrumentation.ts` ruft `getEnv()` vor Node-Anfragen auf |
-| Strukturierte Logs              | `IMPLEMENTIERT` | `observability/logger.ts` mit Anfrage-Kennung            |
+| Punkt                           | Zustand             | Beleg                                                         |
+| ------------------------------- | ------------------- | ------------------------------------------------------------- |
+| `/api/health`                   | `IMPLEMENTIERT`     | ohne Datenbankzugriff, bewusst                                |
+| `/api/ready`                    | `IMPLEMENTIERT`     | Datenbank + Inhaltsprüfung, keine Details in der Antwort      |
+| Migrationen                     | `IMPLEMENTIERT`     | 4 Migrationen, `prisma migrate deploy`                        |
+| Konfigurationsvertrag           | `VERIFIZIERT`       | `server/env.ts` + Starttests                                  |
+| **Start bricht früh ab**        | **`VERIFIZIERT`**   | `instrumentation.ts` ruft `getEnv()` vor Node-Anfragen auf    |
+| Strukturierte Logs              | `IMPLEMENTIERT`     | `observability/logger.ts` mit Anfrage-Kennung                 |
 | **Logs tatsächlich genutzt**    | **`IMPLEMENTIERT`** | punktuell in `api/ready`, Ratenbegrenzung und Retention-Route |
-| **Fehlerberichte**              | **`FEHLT`**     | keine Anbindung                                          |
-| **Metriken / Alarme / SLOs**    | **`FEHLT`**     | —                                                        |
-| **Sicherung/Wiederherstellung** | **`FEHLT`**     | weder Verfahren noch Nachweis                            |
-| **Rücknahme (Migration)**       | **`FEHLT`**     | keine Abwärtsstrategie beschrieben                       |
-| **Runbooks / Incident**         | **`FEHLT`**     | —                                                        |
-| **Geheimnisrotation**           | **`FEHLT`**     | —                                                        |
+| **Fehlerberichte**              | **`FEHLT`**         | keine Anbindung                                               |
+| **Metriken / Alarme / SLOs**    | **`FEHLT`**         | —                                                             |
+| **Sicherung/Wiederherstellung** | **`FEHLT`**         | weder Verfahren noch Nachweis                                 |
+| **Rücknahme (Migration)**       | **`FEHLT`**         | keine Abwärtsstrategie beschrieben                            |
+| **Runbooks / Incident**         | **`FEHLT`**         | —                                                             |
+| **Geheimnisrotation**           | **`FEHLT`**         | —                                                             |
 
 `docs/DEPLOYMENT.md` Punkt 5 ist überholt: Er empfiehlt, einen CI-Job
 anzulegen, „sofern vorhanden" — der Workflow existiert seit Ausbaustufe 2.
