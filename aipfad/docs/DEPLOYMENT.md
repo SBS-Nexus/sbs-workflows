@@ -103,9 +103,12 @@ Lauf weiter und löscht nichts. Dauerhaft abschalten heißt, den Eintrag aus
 `crons` zu entfernen oder eine frühere `vercel.json` bereitzustellen.
 
 Soll sofort nichts mehr gelöscht werden und ist die Zeit für eine
-Bereitstellung zu knapp, ist `ATTEMPT_RETENTION_DAYS=0` kein schnellerer Weg —
-es ist dieselbe Variable mit derselben Bedingung. Schnell wirkt nur, den
-Cron-Eintrag zu entfernen oder die Bereitstellung anzuhalten.
+Bereitstellung zu knapp, hilft keine der Konfigurationsvariablen:
+`ATTEMPT_RETENTION_DAYS=0` ist dieselbe Variable mit derselben Bedingung, und
+den Eintrag aus `crons` zu entfernen heißt, `vercel.json` zu ändern — also
+wieder eine Bereitstellung. Ohne neue Bereitstellung wirkt nur, das Projekt
+in der Vercel-Oberfläche anzuhalten; das verhindert zugleich jeden anderen
+Aufruf der Anwendung.
 
 Was eine Rücknahme NICHT leistet: Bereits gelöschte Zeilen kommen dadurch
 nicht zurück. Weder ein Code-Rückbau noch das Umschalten auf `dry-run` stellt
