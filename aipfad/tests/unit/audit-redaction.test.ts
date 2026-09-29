@@ -69,6 +69,9 @@ describe('Schwärzung der Auditmetadaten', () => {
       'email',
       'name',
       'password',
+      // Die deutsche Schreibweise steht ebenfalls in der Regel; sie fehlte
+      // hier, und ihr Entfernen aus dem Code blieb dadurch unbemerkt.
+      'passwort',
       'passwordHash',
       'token',
       'tokenHash',
@@ -84,6 +87,45 @@ describe('Schwärzung der Auditmetadaten', () => {
       const ergebnis = redactMetadata({ [feld]: GEHEIM });
       expect(ergebnis[feld], `${feld} wurde nicht geschwärzt`).toBe(SCHWAERZUNG);
     }
+  });
+
+  it('vergleicht den GANZEN Feldnamen, nicht einen Namensbestandteil', () => {
+    // Festgehalten, weil es die wichtigste Grenze der Regel ist und jeder
+    // spätere Ereigniserzeuger (E04B, E04C, E08B) sie kennen muss:
+    // Zusammengesetzte Namen sind NICHT abgedeckt. Eine Teilstringsuche
+    // träfe auch `hostname`, `filename` oder `courseName` und gäbe eine
+    // Sicherheit vor, die sie nicht hat. Schlägt diese Prüfung fehl, weil
+    // jemand auf Teilstrings umgestellt hat, ist das eine bewusste
+    // Entscheidung — und die Dokumentation muss mit.
+    const zusammengesetzt = ['userEmail', 'accessToken', 'emailAddress', 'user_email', 'api_key'];
+    for (const feld of zusammengesetzt) {
+      const ergebnis = redactMetadata({ [feld]: GEHEIM });
+      expect(ergebnis[feld], `${feld} verhält sich anders als dokumentiert`).toBe(GEHEIM);
+    }
+  });
+
+  it('zählt vierzehn verbotene Felder, nicht dreizehn', () => {
+    // Die Regel deckt eines mehr ab, als Dokumentation und Vertrag lange
+    // nannten (`passwort`). Diese Prüfung hält Zahl und Liste zusammen.
+    const alle = [
+      'email',
+      'name',
+      'password',
+      'passwort',
+      'passwordHash',
+      'token',
+      'tokenHash',
+      'csrfSecret',
+      'authorization',
+      'cookie',
+      'secret',
+      'apiKey',
+      'submittedAnswer',
+      'solutionNotes',
+    ];
+    expect(alle).toHaveLength(14);
+    const geschwaerzt = alle.filter((f) => redactMetadata({ [f]: GEHEIM })[f] === SCHWAERZUNG);
+    expect(geschwaerzt).toHaveLength(14);
   });
 
   it('behält den Schlüssel und ersetzt nur den Wert', () => {

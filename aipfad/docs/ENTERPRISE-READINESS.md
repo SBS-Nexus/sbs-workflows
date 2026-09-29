@@ -204,7 +204,10 @@ Regelliste unter `src/server/retention/` enthält seit E07 zwei Regeln,
 `ATTEMPT_RETENTION` und `AUDIT_RETENTION`; `GET /api/cron/retention` ist über
 `Authorization: Bearer <CRON_SECRET>` geschützt, und `vercel.json` ruft die
 Route täglich um 03:00 UTC auf. `RETENTION_MODE=dry-run` zählt nur,
-`execute` löscht nach `createdAt < cutoff`; Frist 0 schaltet die Regel ab.
+`execute` löscht nach der Grenze der jeweiligen Regel — `Attempt` nach
+`createdAt < cutoff`, `AuditEvent` nach `occurredAt < cutoff`. Frist 0
+schaltet eine Regel ab; für `AUDIT_RETENTION_DAYS` ist 0 ausgeschlossen, weil
+die Aufbewahrung dort der einzige Löschweg ist.
 Unit-, Integrations- und Routentests decken Trockenlauf, Ernstfall,
 Idempotenz, überlappende Läufe und Teilfehler ab. Eine reale
 Produktionsbereitstellung wurde in E04A ausdrücklich nicht durchgeführt.

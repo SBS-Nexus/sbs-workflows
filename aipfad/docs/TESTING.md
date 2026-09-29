@@ -13,9 +13,9 @@ npm run perf:rate-limit    # Zusatzaufwand der Ratenbegrenzung, gegen echte Date
 npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 520 bestehen
+### Unit-Tests — 528 bestehen
 
-`tests/unit/` (17 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
+`tests/unit/` (19 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
 `retention-runner.test.ts`, `cron-auth.test.ts`, `env.test.ts`,
 `audit-actions.test.ts`, `audit-redaction.test.ts`,
 `hint-ladder.test.ts`, `placement.test.ts`, `grade.test.ts`,
@@ -29,7 +29,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 121 bestehen
+### Integrationstests — 125 bestehen
 
 `tests/integration/`: `auth.test.ts`, `audit.test.ts`,
 `content-publication.test.ts`, `exercise-service.test.ts`,
@@ -150,7 +150,10 @@ Prüfung ist derselbe: Der ursprüngliche Wert darf im Ergebnis nirgends mehr
 vorkommen — deshalb wird gegen die serialisierte Ausgabe geprüft und nicht
 nur gegen einzelne Felder; ein Feldvergleich übersähe eine Kopie an anderer
 Stelle. Abgedeckt sind verschachtelte Objekte, Objekte innerhalb von Arrays,
-Groß- und Kleinschreibung, jedes einzelne der dreizehn verbotenen Felder,
+Groß- und Kleinschreibung, jedes einzelne der vierzehn verbotenen Felder
+(einschließlich der deutschen Schreibweise `passwort`, die lange in Regel und
+Prosa auseinanderliefen), die Grenze des Namensvergleichs — `userEmail` und
+`accessToken` werden bewusst NICHT geschwärzt —,
 sehr tiefe Verschachtelung, ein zyklischer Wert (die Funktion terminiert)
 und Werte, die kein gültiges JSON sind.
 
@@ -166,6 +169,14 @@ an der Tabelle, am Dienst vorbei, denn entscheidend ist, was in der
 Datenbank steht, nicht was der Rückgabewert zeigt. Eine erfundene
 Vorgangsbezeichnung wird abgewiesen, und in der Zeile stehen weder Name noch
 Adresse, nur die Kennung.
+
+Vier Prüfungen sichern die Grenzen des Dienstes selbst: dass eine überlange
+Vorgangsbezeichnung in der Fehlermeldung gekürzt wird (die Meldung kann in
+einem Log landen), dass die Metadatengröße und die Länge der Kennungsfelder
+begrenzt sind — der Vertrag „knappe betriebliche Tatsachen" stand bis dahin
+nur in der Prosa —, und dass die gelesene Menge auch bei unbrauchbarem Limit
+gedeckelt bleibt; `Number('keine-zahl')` ist genau der Wert, den
+`Number(searchParams.get('take'))` liefert.
 
 Die Auditaufbewahrung wird gegen denselben Rahmen geprüft wie die
 Versuchsdaten: Trockenlauf zählt und löscht nichts, der Ernstfall trifft

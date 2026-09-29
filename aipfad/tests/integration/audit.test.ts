@@ -2,7 +2,11 @@ import { describe, expect, it, beforeEach, afterAll } from 'vitest';
 import './setup';
 import { prisma } from '@/server/db/prisma';
 import { hashPassword } from '@/server/auth/password';
-import { appendAuditEvent, readAuditEvents } from '@/server/audit/service';
+import {
+  appendAuditEvent,
+  appendAuditEventMitZeitpunktFuerTests,
+  readAuditEvents,
+} from '@/server/audit/service';
 import { SCHWAERZUNG } from '@/server/audit/redaction';
 import {
   auditRetentionRule,
@@ -173,9 +177,67 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
         action: 'GIBT_ES_NICHT' as never,
         targetType: 'IntegrationstestZiel',
       }),
-    ).rejects.toThrow(TypeError);
+      // Auf die MELDUNG der Eingabeprüfung, nicht nur auf `TypeError`: Beim
+      // Zurücklesen wirft `alsRecord()` ebenfalls einen `TypeError`, und
+      // eine Prüfung nur auf die Fehlerart bestünde deshalb auch dann, wenn
+      // die Eingabeprüfung ganz fehlte — die Zeile wäre dann längst
+      // geschrieben.
+    ).rejects.toThrow('Unbekannte Auditvorgangsbezeichnung');
 
     expect(await prisma.auditEvent.count({ where: { action: 'GIBT_ES_NICHT' } })).toBe(0);
+  });
+
+  it('kürzt eine überlange Vorgangsbezeichnung in der Fehlermeldung', async () => {
+    // Die Meldung kann in einem Log landen. Eine ungekürzte Eingabe machte
+    // den Logstrom zum Ablageort für beliebigen fremden Text.
+    const sehrLang = 'X'.repeat(50_000);
+    await expect(
+      appendAuditEvent({ action: sehrLang as never, targetType: 'IntegrationstestZiel' }),
+    ).rejects.toThrow(/… \(50000 Zeichen\)/);
+  });
+
+  it('begrenzt die Größe der Metadaten', async () => {
+    // „Knappe betriebliche Tatsachen" stand bisher nur in der Prosa. Ohne
+    // Grenze ließe sich beliebig viel in eine Tabelle schreiben, die keinen
+    // fachlichen Löschpfad hat.
+    await expect(
+      appendAuditEvent({
+        action: 'ACCOUNT_DELETED',
+        targetType: 'IntegrationstestZiel',
+        metadata: { blob: 'A'.repeat(200_000) },
+      }),
+    ).rejects.toThrow(RangeError);
+
+    expect(await prisma.auditEvent.count({ where: { targetType: 'IntegrationstestZiel' } })).toBe(
+      0,
+    );
+  });
+
+  it('begrenzt die Länge der Kennungsfelder', async () => {
+    await expect(
+      appendAuditEvent({
+        action: 'ACCOUNT_DELETED',
+        targetType: 'X'.repeat(5000),
+      }),
+    ).rejects.toThrow('höchstens 200 Zeichen');
+  });
+
+  it('deckelt die gelesene Menge, auch bei unbrauchbarem Limit', async () => {
+    const userId = await nutzerAnlegen('limit');
+    await appendAuditEvent({
+      action: 'ACCOUNT_DELETED',
+      actorUserId: userId,
+      targetType: 'IntegrationstestZiel',
+    });
+
+    // `NaN` entsteht leicht aus `Number(searchParams.get('take'))`. Ohne
+    // Abfangen reichte es bis zu Prisma durch, dessen Fehlermeldung den
+    // absoluten Quellpfad enthält.
+    await expect(
+      readAuditEvents({ actorUserId: userId, take: Number('keine-zahl') }),
+    ).resolves.toHaveLength(1);
+    await expect(readAuditEvents({ actorUserId: userId, take: -5 })).resolves.toHaveLength(1);
+    await expect(readAuditEvents({ actorUserId: userId, take: 1e9 })).resolves.toHaveLength(1);
   });
 
   it('überdauert die Löschung des Kontos, auf das der Akteursabdruck zeigt', async () => {
@@ -204,11 +266,11 @@ describe('Auditaufbewahrung (Integration mit echter Datenbank)', () => {
 
   /** Eine alte und eine junge Zeile, relativ zur festen Uhr. */
   async function zweiZeilenAnlegen(): Promise<{ alt: string; jung: string }> {
-    const alt = await appendAuditEvent(
+    const alt = await appendAuditEventMitZeitpunktFuerTests(
       { action: 'ORGANIZATION_CREATED', organizationId: ORG, targetType: 'IntegrationstestZiel' },
       new Date(JETZT.getTime() - 400 * TAG),
     );
-    const jung = await appendAuditEvent(
+    const jung = await appendAuditEventMitZeitpunktFuerTests(
       { action: 'ORGANIZATION_UPDATED', organizationId: ORG, targetType: 'IntegrationstestZiel' },
       new Date(JETZT.getTime() - 10 * TAG),
     );

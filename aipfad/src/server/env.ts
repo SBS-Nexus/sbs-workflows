@@ -47,7 +47,13 @@ const envSchema = z.object({
    * technischen Beispielwert.
    */
   AUDIT_RETENTION_DAYS: z.coerce
-    .number({ error: 'AUDIT_RETENTION_DAYS fehlt. Vorlage: .env.example' })
+    .number({
+      // Gilt für „fehlt" UND für „steht da, ist aber keine Zahl": `z.coerce`
+      // macht aus beidem `NaN`. Deshalb nennt die Meldung beide Fälle — eine
+      // Meldung „fehlt" wäre für `AUDIT_RETENTION_DAYS=abc` schlicht falsch
+      // und schickte den Betrieb an die falsche Stelle.
+      error: 'AUDIT_RETENTION_DAYS fehlt oder ist keine Zahl. Vorlage: .env.example',
+    })
     .int('AUDIT_RETENTION_DAYS muss eine ganze Zahl sein.')
     .min(1, 'AUDIT_RETENTION_DAYS muss größer als 0 sein; 0 wäre "nie löschen".')
     .max(3650, 'AUDIT_RETENTION_DAYS darf höchstens 3650 betragen.'),

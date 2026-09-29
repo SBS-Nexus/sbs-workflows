@@ -19,9 +19,20 @@
 /**
  * Feldnamen, deren Wert nie in einer Auditzeile landen darf.
  *
- * Verglichen wird ohne Rücksicht auf Groß-/Kleinschreibung. Die Liste deckt
- * die Felder des Loggers ab und ergänzt, was erst im Auditzusammenhang
- * auftauchen kann (`authorization`, `cookie`, `secret`, `apiKey`).
+ * Vierzehn Namen. Verglichen wird ohne Rücksicht auf Groß-/Kleinschreibung.
+ * Die Liste deckt die Felder des Loggers ab (einschließlich der deutschen
+ * Schreibweise `passwort`) und ergänzt, was erst im Auditzusammenhang
+ * auftauchen kann: `authorization`, `cookie`, `secret`, `apiKey`.
+ *
+ * WICHTIG — verglichen wird der GANZE Feldname, nicht ein Namensbestandteil.
+ * `userEmail`, `accessToken`, `emailAddress`, `user_email` und `api_key`
+ * werden NICHT geschwärzt. Das ist Absicht: Eine Teilstringsuche träfe auch
+ * harmlose Namen und gäbe eine Sicherheit vor, die sie nicht hat — `name`
+ * etwa steckt in `hostname`, `filename` und `courseName`. Wer einen
+ * Ereigniserzeuger schreibt, kann sich deshalb NICHT darauf verlassen, dass
+ * diese Regel eine ungünstig benannte Kopie abfängt. Sie ist die zweite
+ * Verteidigungslinie; die erste ist der Vertrag, dass Metadaten knappe
+ * betriebliche Tatsachen tragen.
  */
 const VERBOTENE_FELDER = new Set([
   'email',

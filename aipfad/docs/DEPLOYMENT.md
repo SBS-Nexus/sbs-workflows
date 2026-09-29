@@ -119,7 +119,9 @@ Lauf weiter und löscht nichts. Dauerhaft abschalten heißt, den Eintrag aus
 
 Soll sofort nichts mehr gelöscht werden und ist die Zeit für eine
 Bereitstellung zu knapp, hilft keine der Konfigurationsvariablen:
-`ATTEMPT_RETENTION_DAYS=0` ist dieselbe Variable mit derselben Bedingung, und
+`ATTEMPT_RETENTION_DAYS=0` ist dieselbe Variable mit derselben Bedingung
+(`AUDIT_RETENTION_DAYS=0` wäre nicht einmal das: Die Anwendung startet damit
+gar nicht erst), und
 den Eintrag aus `crons` zu entfernen heißt, `vercel.json` zu ändern — also
 wieder eine Bereitstellung. Ohne neue Bereitstellung wirkt nur, das Projekt
 in der Vercel-Oberfläche anzuhalten; das verhindert zugleich jeden anderen

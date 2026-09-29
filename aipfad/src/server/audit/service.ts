@@ -33,10 +33,46 @@ import type {
 const HOECHSTES_LIMIT = 500;
 const STANDARD_LIMIT = 100;
 
+/**
+ * Obergrenzen für die Größe einer Zeile.
+ *
+ * Der Vertrag „knappe betriebliche Tatsachen" (docs/SECURITY.md) stand bisher
+ * nur in Prosa. Prosa hält keinen Aufrufer auf: Ohne Grenze ließe sich über
+ * `metadata` beliebig viel in eine Tabelle schreiben, die keinen fachlichen
+ * Löschpfad hat und erst nach Ablauf der Frist verschwindet. Die Zahlen sind
+ * bewusst großzügig — sie sollen einen Missbrauch abfangen, keinen
+ * legitimen Vorgang.
+ *
+ * `HOECHSTE_KENNUNGSLAENGE` passt zu `DEPLOYMENT_ID` in `env.ts`.
+ */
+const HOECHSTE_KENNUNGSLAENGE = 200;
+const HOECHSTE_METADATENGROESSE = 4096;
+
+/** Wie viel einer fremden Zeichenkette in einer Fehlermeldung erscheinen darf. */
+const HOECHSTE_MELDUNGSLAENGE = 80;
+
+/**
+ * Kürzt einen nicht vertrauenswürdigen Wert für eine Fehlermeldung.
+ *
+ * Die Meldung kann in einem Log landen; eine ungekürzte Eingabe machte den
+ * Logstrom zum Ablageort für beliebigen fremden Text.
+ */
+function fuerMeldung(wert: unknown): string {
+  const text = typeof wert === 'string' ? wert : String(wert);
+  return text.length <= HOECHSTE_MELDUNGSLAENGE
+    ? text
+    : `${text.slice(0, HOECHSTE_MELDUNGSLAENGE)}… (${text.length} Zeichen)`;
+}
+
 function pflichtfeld(wert: string, feld: string): string {
   const getrimmt = wert.trim();
   if (getrimmt.length === 0) {
     throw new TypeError(`${feld} darf nicht leer sein.`);
+  }
+  if (getrimmt.length > HOECHSTE_KENNUNGSLAENGE) {
+    throw new TypeError(
+      `${feld} darf höchstens ${HOECHSTE_KENNUNGSLAENGE} Zeichen lang sein (war ${getrimmt.length}).`,
+    );
   }
   return getrimmt;
 }
@@ -64,13 +100,27 @@ function pruefeEingabe(eingabe: AppendAuditEventInput): {
 } {
   if (!istAuditAction(eingabe.action)) {
     // Nur die Bezeichnung, nie die übrigen Felder: Die Meldung kann in einem
-    // Log landen, die Felder gehören dort nicht hin.
-    throw new TypeError(`Unbekannte Auditvorgangsbezeichnung: ${String(eingabe.action)}`);
+    // Log landen, die Felder gehören dort nicht hin. Und auch die
+    // Bezeichnung nur gekürzt — sie kommt von außen und kann beliebig lang
+    // sein; sonst widerspräche dieser Satz sich selbst.
+    throw new TypeError(`Unbekannte Auditvorgangsbezeichnung: ${fuerMeldung(eingabe.action)}`);
   }
 
   const metadata = eingabe.metadata ?? {};
   if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) {
     throw new TypeError('Auditmetadaten müssen ein Objekt sein.');
+  }
+
+  const geschwaerzt = redactMetadata(metadata);
+  // Nach der Schwärzung gemessen: Was zählt, ist die Größe dessen, was
+  // WIRKLICH in die Zeile geht. Vor der Schwärzung gemessen wäre die Grenze
+  // strenger als nötig, wenn ein langer Wert ohnehin ersetzt wird.
+  const groesse = JSON.stringify(geschwaerzt).length;
+  if (groesse > HOECHSTE_METADATENGROESSE) {
+    throw new RangeError(
+      `Auditmetadaten sind zu groß: ${groesse} Zeichen, erlaubt sind ${HOECHSTE_METADATENGROESSE}. ` +
+        'Metadaten tragen knappe betriebliche Tatsachen, keine Anfrageinhalte.',
+    );
   }
 
   return {
@@ -79,20 +129,13 @@ function pruefeEingabe(eingabe: AppendAuditEventInput): {
     organizationId: freiwilligesFeld(eingabe.organizationId, 'organizationId') ?? null,
     targetType: pflichtfeld(eingabe.targetType, 'targetType'),
     targetId: freiwilligesFeld(eingabe.targetId, 'targetId') ?? null,
-    metadata: redactMetadata(metadata),
+    metadata: geschwaerzt,
   };
 }
 
-/**
- * Fügt eine Auditzeile an.
- *
- * `occurredAt` kommt vom Server. Der Parameter existiert für Tests, die
- * eine feste Grenze brauchen — nicht für Aufrufer, die einen Zeitpunkt
- * mitbringen wollen; eine künftige Route darf ihn nicht durchreichen.
- */
-export async function appendAuditEvent(
+async function schreiben(
   eingabe: AppendAuditEventInput,
-  occurredAt: Date = new Date(),
+  occurredAt: Date,
 ): Promise<AuditEventRecord> {
   const geprueft = pruefeEingabe(eingabe);
 
@@ -104,6 +147,35 @@ export async function appendAuditEvent(
 }
 
 /**
+ * Fügt eine Auditzeile an. Der Zeitpunkt kommt IMMER vom Server.
+ *
+ * Es gibt hier absichtlich keinen Zeitparameter. Eine frühere Fassung hatte
+ * einen mit dem Hinweis, eine Route dürfe ihn nicht durchreichen — aber ein
+ * Hinweis ist eine Bitte, keine Grenze: Wer eine Route baut und den Wert aus
+ * der Anfrage weiterreicht, könnte eine Spur zurückdatieren. Jetzt ist der
+ * einzige Weg dazu die Funktion darunter, deren Name das Missverständnis
+ * ausschließt.
+ */
+export async function appendAuditEvent(eingabe: AppendAuditEventInput): Promise<AuditEventRecord> {
+  return schreiben(eingabe, new Date());
+}
+
+/**
+ * NUR FÜR TESTS: fügt mit einem gewählten Zeitpunkt an.
+ *
+ * Die Aufbewahrungsprüfungen brauchen Zeilen, die messbar zu alt sind; ohne
+ * diesen Weg müssten sie warten oder an der Schnittstelle vorbei direkt in
+ * die Tabelle schreiben — und prüften dann nicht mehr, was der Dienst tut.
+ * Im Anwendungscode hat diese Funktion nichts zu suchen.
+ */
+export async function appendAuditEventMitZeitpunktFuerTests(
+  eingabe: AppendAuditEventInput,
+  occurredAt: Date,
+): Promise<AuditEventRecord> {
+  return schreiben(eingabe, occurredAt);
+}
+
+/**
  * Liest Auditzeilen, neueste zuerst.
  *
  * Ohne Filter liefert sie die neuesten `STANDARD_LIMIT` Zeilen. Das Limit
@@ -111,7 +183,12 @@ export async function appendAuditEvent(
  * Weg, die Tabelle in einer Antwort auszuleeren.
  */
 export async function readAuditEvents(query: AuditEventQuery = {}): Promise<AuditEventRecord[]> {
-  const take = Math.min(Math.max(query.take ?? STANDARD_LIMIT, 1), HOECHSTES_LIMIT);
+  // `Number.isFinite` zuerst: `Math.min(Math.max(NaN, 1), 500)` ist `NaN`,
+  // und ein `NaN` reichte bis zu Prisma durch, dessen Fehlermeldung den
+  // absoluten Quellpfad und einen Codeausschnitt enthält. Ein `take`, das
+  // aus `Number(searchParams.get(...))` stammt, ist genau dieser Fall.
+  const gewuenscht = Number.isFinite(query.take) ? Number(query.take) : STANDARD_LIMIT;
+  const take = Math.min(Math.max(Math.trunc(gewuenscht), 1), HOECHSTES_LIMIT);
 
   const occurredAt =
     query.occurredFrom || query.occurredBefore

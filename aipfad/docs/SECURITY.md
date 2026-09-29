@@ -226,9 +226,17 @@ Profilabbilder, keine Geheimnisse. Vor dem Schreiben läuft eine feste,
 **rekursive** Schwärzungsregel (`src/server/audit/redaction.ts`) über die
 Felder `email`, `name`, `password`, `passwordHash`, `token`, `tokenHash`,
 `csrfSecret`, `authorization`, `cookie`, `secret`, `apiKey`,
-`submittedAnswer`, `solutionNotes` — ohne Rücksicht auf Groß- und
-Kleinschreibung, auch in verschachtelten Objekten und in Objekten innerhalb
-von Arrays. Der Wert wird durch `[entfernt]` ersetzt; der ursprüngliche Wert
+`submittedAnswer`, `solutionNotes` sowie die deutsche Schreibweise
+`passwort` — vierzehn Namen, ohne Rücksicht auf Groß- und Kleinschreibung,
+auch in verschachtelten Objekten und in Objekten innerhalb von Arrays.
+
+**Verglichen wird der ganze Feldname, nicht ein Namensbestandteil.**
+`userEmail`, `accessToken`, `emailAddress`, `user_email` und `api_key` werden
+deshalb **nicht** geschwärzt. Das ist Absicht: Eine Teilstringsuche träfe auch
+harmlose Namen — `name` steckt in `hostname`, `filename`, `courseName` — und
+gäbe eine Sicherheit vor, die sie nicht hat. Wer einen Ereigniserzeuger
+schreibt, kann sich also nicht darauf verlassen, dass eine ungünstig benannte
+Kopie abgefangen wird. Der Wert wird durch `[entfernt]` ersetzt; der ursprüngliche Wert
 wird weder zurückgegeben noch protokolliert noch in eine Fehlermeldung
 aufgenommen. Die Regel ist die zweite Verteidigungslinie: `metadata: {
 ...requestBody }` bleibt falsch, auch wenn sie darin etwas schwärzt.
@@ -244,6 +252,13 @@ der **einzige** Löschweg; eine 0 hieße im Rahmen „abgeschaltet" und damit
 Der Wert in `.env.example` ist ein technischer Beispielwert und **keine**
 rechtliche Empfehlung. Die Regel läuft im Rahmen aus E04A mit, über
 denselben Cron und denselben Lauf; ein zweiter Zeitplan entsteht nicht.
+
+**Die Frist allein löscht noch nichts.** Sie ist notwendig, nicht
+hinreichend: Der Rahmen löscht nur bei `RETENTION_MODE=execute`, und die
+Vorgabe ist `dry-run`. Eine Bereitstellung, die den Modus nie umstellt,
+zählt Auditzeilen dauerhaft nur — sie behält sie also, obwohl eine Frist
+gesetzt ist. Das ist für eine unwiderrufliche Löschung die richtige Vorgabe,
+aber wer die Frist für wirksam hält, ohne den Modus zu prüfen, irrt.
 
 **Kein Ersatz für Logs.** Auditzeilen sind nicht der Logstrom und umgekehrt.
 Es wird nichts automatisch aus dem Logger in `AuditEvent` gespiegelt: andere
