@@ -13,9 +13,10 @@ npm run perf:rate-limit    # Zusatzaufwand der Ratenbegrenzung, gegen echte Date
 npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 473 bestehen
+### Unit-Tests — 500 bestehen
 
-`tests/unit/` (15 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
+`tests/unit/` (17 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
+`retention-runner.test.ts`, `cron-auth.test.ts`,
 `hint-ladder.test.ts`, `placement.test.ts`, `grade.test.ts`,
 `content-validation.test.ts`, `rate-limit.test.ts`, `terminal.test.ts`,
 `eintraege.test.ts` sowie die Git-Domäne aus Ausbaustufe 2
@@ -27,7 +28,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 92 bestehen
+### Integrationstests — 108 bestehen
 
 `tests/integration/`: `auth.test.ts`, `content-publication.test.ts`,
 `exercise-service.test.ts`, `lesson-progress.test.ts`,
@@ -91,6 +92,55 @@ bestehen die Tests deshalb weiterhin — Sperren ist in diesem Szenario ein
 zulässiges Ergebnis. Der Test belegt robuste Antwortfähigkeit unter dem
 adversariellen Löschlauf, nicht die Wirksamkeit einer bestimmten Zahl von
 Neu-Anläufen.
+
+### Aufbewahrung (E04A)
+
+Die Aufbewahrung ist auf drei Dateien verteilt, entlang dessen, was sich wo
+überhaupt zeigen lässt.
+
+`tests/unit/retention-runner.test.ts` prüft die Orchestrierung mit
+EINGESCHLEUSTEN Regeln, ohne Datenbank: dass Zählen und Löschen denselben
+Grenzwert bekommen und eine Mutation des `Date`-Objekts im Zählweg die
+Löschgrenze nicht verändern kann; dass Frist 0 als abgeschaltet gilt und nicht als "alles
+löschen" (`skipped-disabled` ist etwas anderes als "gelaufen, nichts
+gefunden"); dass eine zweite angemeldete Regel mit eigener Frist läuft, ohne
+das Ergebnis der ersten zu berühren; dass nach einem Regelfehler die
+nachfolgenden Regeln weiterlaufen, der Lauf aber `partial-failure` meldet;
+und dass bei einem erst im Löschschritt auftretenden Fehler die bereits
+bekannten Frist-, Grenz- und Kandidatenwerte im Bericht erhalten bleiben.
+
+Zwei Prüfungen richten sich gegen Fehler, die der Rahmen selbst machen
+könnte. Eine negative oder nicht ganzzahlige Frist wird abgewiesen, bevor
+eine Grenze entsteht: Negativ hieße eine Grenze in der Zukunft, auf die jede
+Zeile passt, und der Rahmen darf sich dabei nicht darauf verlassen, dass
+`env.ts` das schon abfängt — `retentionDays()` gehört der Regel, nicht der
+Umgebung. Und `durationMs` wird gegen einen Lauf geprüft, der messbar Zeit
+kostet; die frühere Prüfung `>= 0` traf auf jede Differenz zweier Uhrstände
+zu und blieb auch dann grün, wenn der Wert fest auf 0 verdrahtet wurde.
+
+Die Regeln sind eingeschleust, weil beides anders kaum zu zeigen wäre: Einen
+Teilfehler mit echten Tabellen verlässlich herbeizuführen ist schwer, und
+eine zweite produktive Datenart nur für einen Test zu erfinden wäre teurer
+als die Eigenschaft, die sie belegen soll.
+
+`tests/integration/retention.test.ts` prüft gegen echte Zeilen, was nur dort
+sichtbar wird. `ATTEMPT_RETENTION_DAYS` ist im Integrationstest-Setup fest
+auf 365 Tage gepinnt, damit eine lokale `.env` die Testgrenze nicht verändert: Der Trockenlauf zählt eine Zeile und lässt beide stehen; der
+Ernstfall entfernt genau die zu alte; ein zweiter Ernstfall meldet
+`deletedCount: 0`; zwei gleichzeitige Läufe entfernen zusammen genau die
+alten Zeilen und scheitern nicht; und die Grenze liegt bei `createdAt <
+cutoff` — derselbe Datensatz liefert im Trockenlauf genau einen Kandidaten und
+im anschließenden Ernstfall genau eine Löschung; eine Zeile GENAU auf der
+Grenze bleibt stehen (`lt`, nicht `lte`, unverändert aus der
+Vorgängerfassung übernommen).
+
+`tests/integration/retention-route.test.ts` prüft die Route: ohne Kopfzeile
+401 und nichts gelöscht, falsches Geheimnis 401 und nichts gelöscht,
+gültiges Geheimnis im Trockenlauf 200 ohne Löschung, im Ernstfall 200 mit
+Löschung, zweiter Aufruf 200 mit `deletedCount: 0`, `Cache-Control:
+no-store`, und weder Geheimnis noch Datensatzinhalte in der Antwort. Der
+Teilfehlerfall ersetzt dafür die produktive Regelliste und belegt, dass die
+Route dann mit 500 antwortet, während die nachfolgende Regel trotzdem läuft.
 
 Ein Umstand, von dem die Isolation dieser Datei abhängt: `vitest.config.ts`
 setzt `fileParallelism: false`. Der Test zum aggressiven Aufräumen leert die

@@ -31,6 +31,29 @@ const envSchema = z.object({
     .min(1, 'DEPLOYMENT_ID fehlt. Nutze eine unveränderliche Build- oder Commit-Kennung.')
     .max(200, 'DEPLOYMENT_ID darf höchstens 200 Zeichen lang sein.'),
   ATTEMPT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(365),
+  /**
+   * Geheimnis für den geplanten Aufbewahrungslauf (E04A).
+   *
+   * Bewusst PFLICHT und ohne Vorgabewert: Die Anwendung hat seit E04A einen
+   * Zeitplan, der eine Route mit Löschwirkung aufruft. Startete sie ohne
+   * Geheimnis, wäre entweder die Route offen oder der Zeitplan dauerhaft
+   * wirkungslos — beides still. E02 hat dafür die Richtung vorgegeben: Was
+   * der Betrieb braucht, wird beim Start geprüft, nicht beim ersten Aufruf.
+   *
+   * Mindestens 16 Zeichen, passend zur heutigen Vercel-Empfehlung.
+   */
+  CRON_SECRET: z
+    .string({ error: 'CRON_SECRET fehlt. Vorlage: .env.example' })
+    .min(16, 'CRON_SECRET muss mindestens 16 Zeichen lang sein.'),
+  /**
+   * Trockenlauf oder Ernstfall für die Aufbewahrung (E04A).
+   *
+   * Vorgabe ist `dry-run`. Eine Bereitstellung, die versehentlich nichts
+   * setzt, zählt dann nur — sie löscht nicht. Für eine unwiderrufliche
+   * Operation ist das die einzig vertretbare Vorgabe; `execute` muss jemand
+   * ausdrücklich wählen.
+   */
+  RETENTION_MODE: z.enum(['dry-run', 'execute']).default('dry-run'),
 });
 
 export type Env = z.infer<typeof envSchema>;

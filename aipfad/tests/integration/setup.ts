@@ -21,6 +21,15 @@ if (!testDatabaseUrl) {
 
 process.env.DATABASE_URL = testDatabaseUrl;
 process.env.AUTH_SECRET ??= 'testschluessel-nur-fuer-automatisierte-tests-0000';
+process.env.DEPLOYMENT_ID ??= 'integrationstest';
+// Seit E04A ist CRON_SECRET Pflicht in `getEnv()`. Testwert, kein echtes
+// Geheimnis; die Aufbewahrungsregeln lesen ihre Frist über `getEnv()`.
+process.env.CRON_SECRET ??= 'testgeheimnis-nur-fuer-automatisierte-tests';
+process.env.RETENTION_MODE ??= 'dry-run';
+// Retention-Integrationstests rechnen bewusst mit 365 Tagen. Die Testgrenze
+// wird hier fest gepinnt, damit eine lokale .env den Test nicht semantisch
+// verändert.
+process.env.ATTEMPT_RETENTION_DAYS = '365';
 
 beforeAll(() => {
   execSync('npx prisma migrate deploy', {

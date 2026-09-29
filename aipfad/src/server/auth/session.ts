@@ -3,7 +3,6 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { cookies, headers } from 'next/headers';
 import { cache } from 'react';
 import { prisma } from '@/server/db/prisma';
-import { getEnv } from '@/server/env';
 import { isSecureDeployment } from '@/server/site';
 import type { UserModel } from '@/generated/prisma/models';
 
@@ -211,14 +210,4 @@ export const SESSION_TTL_IN_DAYS = SESSION_TTL_DAYS;
 /** Nur für Tests und Wartungsskripte. */
 export function __hashTokenForTests(token: string): string {
   return hashToken(token);
-}
-
-/** Aufbewahrungsfrist für Versuchsdaten anwenden (Datenschutz). */
-export async function applyRetentionPolicy(now: Date = new Date()): Promise<number> {
-  const days = getEnv().ATTEMPT_RETENTION_DAYS;
-  if (days === 0) return 0;
-
-  const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-  const result = await prisma.attempt.deleteMany({ where: { createdAt: { lt: cutoff } } });
-  return result.count;
 }

@@ -98,13 +98,80 @@ in `src/proxy.ts` nur gesetzt, wenn `APP_URL` tatsächlich auf `https` zeigt.
   `AnalyticsEvent` hat keinen Fremdschlüssel auf `User`.
 - Jeder Fremdschlüssel auf `User` hat `onDelete: Cascade` – ein einziges
   `prisma.user.delete()` entfernt sämtliche personenbezogenen Daten.
-- Aufbewahrungsfrist für `Attempt`-Rohdaten konfigurierbar über
-  `ATTEMPT_RETENTION_DAYS` (`src/server/auth/session.ts:applyRetentionPolicy`).
-  ACHTUNG: Die Funktion ist vorhanden, wird aber in dieser Ausbaustufe von
-  nichts aufgerufen — `vercel.json` enthält keinen Cron-Eintrag. Die Löschung
-  findet also derzeit NICHT statt; die Frist ist bis zur Anbindung eines
-  geplanten Laufs eine Absichtserklärung, keine wirksame Maßnahme
-  (Sicherheitsprüfung zu PR #29).
+- Aufbewahrungsfristen werden seit E04A von einem geplanten Lauf ausgeführt,
+  nicht mehr nur beschrieben. Einzelheiten unten unter "Geplante
+  Aufbewahrung".
+
+## Geplante Aufbewahrung (E04A)
+
+Bis E04A gab es `applyRetentionPolicy()` in `server/auth/session.ts` — ohne
+Aufrufer, bei `crons: []`. Die Frist war damit eine Absichtserklärung. Die
+Funktion ist entfernt; ihre Löschbedingung lebt unverändert als Regel im
+Aufbewahrungsrahmen weiter (`src/server/retention/`), und ein Zeitplan ruft
+sie auf.
+
+**Was läuft.** `vercel.json` trägt genau einen Eintrag:
+`/api/cron/retention`, täglich `0 3 * * *`. Vercel-Zeitpläne laufen nach UTC.
+Der genaue Zeitpunkt ist nicht zugesichert — die Plattform startet den Lauf
+innerhalb des Zeitfensters, nicht auf die Sekunde.
+
+**Was aufgeräumt wird.** Heute eine Datenart: `Attempt`, Frist aus
+`ATTEMPT_RETENTION_DAYS` (Vorgabe 365). Gelöscht wird, was `createdAt <
+jetzt − Frist` erfüllt; auf der Grenze bleibt eine Zeile stehen. **Frist 0
+schaltet die Regel ab** — es heißt ausdrücklich nicht "alles löschen, was
+älter als jetzt ist". Das Protokoll unterscheidet beides:
+`skipped-disabled` ist etwas anderes als "gelaufen, nichts gefunden".
+
+Die Liste der Regeln steht an genau einer Stelle
+(`src/server/retention/rules.ts`). Eine weitere Datenart meldet dort ihre
+Regel an; ein zweiter Zeitplan ist dafür nicht nötig und wäre die eigentliche
+Gefahr.
+
+**Trockenlauf zuerst.** `RETENTION_MODE` kennt `dry-run` und `execute` und
+hat keinen dritten, unklaren Wert. Vorgabe ist `dry-run`: Eine Bereitstellung,
+die den Modus vergisst, zählt nur. Beide Modi rechnen dieselbe Grenze — der
+Trockenlauf zeigt also, was der Ernstfall täte, und nicht etwas Ähnliches.
+Der Weg von Trockenlauf zu Ernstfall steht in docs/DEPLOYMENT.md.
+
+**Zugang.** Die Route ist nur mit dem Kopfzeilenwert
+`Authorization: Bearer <CRON_SECRET>` benutzbar; so ruft Vercel geplante
+Läufe auf. Geprüft wird VOR jedem Datenbankzugriff. Fehlt die Kopfzeile, ist
+sie falsch, oder ist gar kein Geheimnis gesetzt, antwortet die Route mit 401
+und rührt nichts an. `CRON_SECRET` ist seit E04A Teil der beim Start
+geprüften Konfiguration (mindestens 16 Zeichen): Eine Instanz, die ohne
+Geheimnis startet, hätte entweder eine offene Route oder einen wirkungslosen
+Zeitplan — beides still.
+
+**Mehrfachausführung.** Zwei Läufe hintereinander oder gleichzeitig sind
+unschädlich. Das trägt die Löschbedingung selbst, nicht eine Sperre: Was weg
+ist, erfüllt die Bedingung nicht mehr. Ein zweiter Lauf meldet
+`deletedCount: 0` und Erfolg. Die Plattform sichert weder genau eine
+Zustellung noch Überschneidungsfreiheit zu; darauf verlässt sich hier nichts.
+
+**Wenn eine Regel scheitert.** Die übrigen laufen weiter, und was vorher
+gelöscht wurde, bleibt gelöscht. Es gibt bewusst keine gemeinsame
+Transaktion über alle Regeln: Die Fristen verschiedener Datenarten haben
+nichts miteinander zu tun, und eine kaputte Regel dürfte nicht dafür sorgen,
+dass auf Dauer gar nichts mehr aufgeräumt wird. Der Lauf meldet dann
+`partial-failure`, und die Route antwortet mit 500 — sonst zeigte die
+Aufrufübersicht ein grünes Häkchen. Vercel wiederholt einen
+fehlgeschlagenen geplanten Aufruf nicht automatisch; die Wiederholung ist
+der nächste planmäßige Lauf, der die liegengebliebenen Daten mit erfasst.
+
+**Was protokolliert wird.** Zahlen, keine Inhalte: Lauf-Kennung, Modus,
+Regel-Kennung, Frist, Kandidaten- und Löschzahl, Dauer, Status, im
+Fehlerfall nur die Fehlerart. Keine Adressen, keine Nutzerkennungen, keine
+Antwortinhalte, kein Geheimnis, keine Datenbankmeldung — eine solche kann
+Verbindungsangaben oder Feldinhalte enthalten. Eine Zeile je Regel und eine
+Zusammenfassung je Lauf, nie eine Zeile je gelöschtem Datensatz. Dasselbe
+gilt für die Antwort der Route: Sie nennt Zahlen, nicht wessen Daten
+betroffen waren.
+
+**Grenze dieser Ausbaustufe.** Das hier ist ein technischer
+Aufbewahrungsmechanismus für eine Datenart. Datenauskunft (E04B) und
+Kontolöschung auf Verlangen (E04C) fehlen weiterhin; ENT-B04, ENT-B05 und
+ENT-B06 sind offen. Aus E04A folgt keine Aussage über rechtliche
+Anforderungen.
 
 ## Gemeinsame Ratenbegrenzung (E03)
 
