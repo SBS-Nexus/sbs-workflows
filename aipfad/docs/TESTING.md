@@ -13,10 +13,11 @@ npm run perf:rate-limit    # Zusatzaufwand der Ratenbegrenzung, gegen echte Date
 npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 500 bestehen
+### Unit-Tests — 520 bestehen
 
 `tests/unit/` (17 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
-`retention-runner.test.ts`, `cron-auth.test.ts`,
+`retention-runner.test.ts`, `cron-auth.test.ts`, `env.test.ts`,
+`audit-actions.test.ts`, `audit-redaction.test.ts`,
 `hint-ladder.test.ts`, `placement.test.ts`, `grade.test.ts`,
 `content-validation.test.ts`, `rate-limit.test.ts`, `terminal.test.ts`,
 `eintraege.test.ts` sowie die Git-Domäne aus Ausbaustufe 2
@@ -28,12 +29,13 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 108 bestehen
+### Integrationstests — 121 bestehen
 
-`tests/integration/`: `auth.test.ts`, `content-publication.test.ts`,
-`exercise-service.test.ts`, `lesson-progress.test.ts`,
-`onboarding-placement.test.ts`, `path-service.test.ts`, `rate-limit.test.ts`,
-`stage2-git.test.ts` — gegen eine echte, separate
+`tests/integration/`: `auth.test.ts`, `audit.test.ts`,
+`content-publication.test.ts`, `exercise-service.test.ts`,
+`lesson-progress.test.ts`, `onboarding-placement.test.ts`,
+`path-service.test.ts`, `rate-limit.test.ts`, `retention.test.ts`,
+`retention-route.test.ts`, `stage2-git.test.ts` — gegen eine echte, separate
 PostgreSQL-Testdatenbank (`TEST_DATABASE_URL`, per Docker-Compose auf
 Port 5433 wie die Entwicklungsdatenbank, eigene Datenbank `aipfad_test`
 innerhalb desselben Containers).
@@ -133,6 +135,50 @@ cutoff` — derselbe Datensatz liefert im Trockenlauf genau einen Kandidaten und
 im anschließenden Ernstfall genau eine Löschung; eine Zeile GENAU auf der
 Grenze bleibt stehen (`lt`, nicht `lte`, unverändert aus der
 Vorgängerfassung übernommen).
+
+### Auditgrundlage (E07)
+
+`tests/unit/audit-actions.test.ts` hält das Verzeichnis der prüfpflichtigen
+Vorgänge zusammen: genau siebzehn, jede Bezeichnung nur einmal, zu jeder
+genau ein Eigentümerpunkt, und keine Bezeichnung mit Eigentümer „E07" — E07
+liefert die Grundlage, nicht die Ereignisse. Geprüft wird außerdem, dass
+geerbte Eigenschaften (`toString`, `constructor`) nicht als gültige Vorgänge
+durchgehen; dafür steht `Object.hasOwn` statt `in`.
+
+`tests/unit/audit-redaction.test.ts` prüft die Schwärzung. Der Kern jeder
+Prüfung ist derselbe: Der ursprüngliche Wert darf im Ergebnis nirgends mehr
+vorkommen — deshalb wird gegen die serialisierte Ausgabe geprüft und nicht
+nur gegen einzelne Felder; ein Feldvergleich übersähe eine Kopie an anderer
+Stelle. Abgedeckt sind verschachtelte Objekte, Objekte innerhalb von Arrays,
+Groß- und Kleinschreibung, jedes einzelne der dreizehn verbotenen Felder,
+sehr tiefe Verschachtelung, ein zyklischer Wert (die Funktion terminiert)
+und Werte, die kein gültiges JSON sind.
+
+`tests/integration/audit.test.ts` prüft gegen echte Zeilen, was sich nur
+dort zeigt. Die wichtigste Prüfung ist die Kontolöschung: Ein Konto wird
+angelegt, eine Auditzeile mit seiner Akteurskennung geschrieben, das Konto
+gelöscht — und die Zeile lebt weiter, mit unveränderter Kennung. Das belegt
+die fehlende Kaskade, auf der E04C später aufsetzt. Daneben: Anfügen und
+Lesen, Filter nach Akteur, Organisation und Vorgangsart, die
+Organisationskennung als undurchsichtiges Abbild ohne Fremdschlüssel, und
+dass Metadaten **gespeichert** geschwärzt sind — gelesen wird dafür direkt
+an der Tabelle, am Dienst vorbei, denn entscheidend ist, was in der
+Datenbank steht, nicht was der Rückgabewert zeigt. Eine erfundene
+Vorgangsbezeichnung wird abgewiesen, und in der Zeile stehen weder Name noch
+Adresse, nur die Kennung.
+
+Die Auditaufbewahrung wird gegen denselben Rahmen geprüft wie die
+Versuchsdaten: Trockenlauf zählt und löscht nichts, der Ernstfall trifft
+genau die zu alte Zeile, ein zweiter Ernstfall löscht nichts mehr. Zwei
+weitere Prüfungen sind E07-eigen: dass ein Auditlauf keine `Attempt`-Zeile
+anfasst (zwei Datenarten, zwei Fristen, zwei Variablen), und dass eine
+scheiternde Auditregel die Attempt-Semantik gegen echte Zeilen nicht
+verändert. Der allgemeine Teilfehlerfall selbst steht weiterhin im
+Unit-Test und wird hier nicht wiederholt.
+
+Dass die produktive Regelliste seit E07 genau `ATTEMPT_RETENTION` und
+`AUDIT_RETENTION` enthält, hält `tests/integration/retention.test.ts` fest —
+dort stand bis E07 `['ATTEMPT_RETENTION']`.
 
 `tests/integration/retention-route.test.ts` prüft die Route: ohne Kopfzeile
 401 und nichts gelöscht, falsches Geheimnis 401 und nichts gelöscht,

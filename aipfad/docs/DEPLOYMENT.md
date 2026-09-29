@@ -33,11 +33,26 @@ Anfragen annimmt.
 
 ## Umgebungsvariablen
 
-Siehe `.env.example`. Notwendig: `DATABASE_URL`, `DEPLOYMENT_ID` und seit
-E04A `CRON_SECRET`. `APP_URL` hat lokal den Standard `http://localhost:3000`;
-in Produktion muss sie auf die echte HTTPS-Adresse gesetzt werden. Optional:
-`ATTEMPT_RETENTION_DAYS`, `RETENTION_MODE` (Vorgabe `dry-run`),
-`SEED_DEMO_USERS`.
+Siehe `.env.example`. Notwendig: `DATABASE_URL`, `DEPLOYMENT_ID`, seit
+E04A `CRON_SECRET` und seit E07 `AUDIT_RETENTION_DAYS`. `APP_URL` hat lokal
+den Standard `http://localhost:3000`; in Produktion muss sie auf die echte
+HTTPS-Adresse gesetzt werden. Optional: `ATTEMPT_RETENTION_DAYS`,
+`RETENTION_MODE` (Vorgabe `dry-run`), `SEED_DEMO_USERS`.
+
+`AUDIT_RETENTION_DAYS` ist Pflicht, ohne Vorgabewert und **größer als 0**.
+Der Grund liegt in der Datenart: Für `AuditEvent` ist die altersbasierte
+Aufbewahrung der einzige Löschweg — es gibt keinen fachlichen Pfad, der eine
+Auditzeile entfernt. Ein stiller Vorgabewert oder eine 0 (im Rahmen:
+„abgeschaltet") hieße deshalb, Auditzeilen für immer zu behalten; das wäre
+eine Aufbewahrungsentscheidung, die niemand getroffen hat. Deshalb bricht
+der Start ab, statt etwas anzunehmen.
+
+Welche Frist richtig ist, entscheidet die Bereitstellung. `.env.example`
+zeigt `365` als **technischen Beispielwert**; das ist ausdrücklich keine
+rechtliche Empfehlung, und dieses Dokument trifft keine rechtliche
+Einordnung. Wie `ATTEMPT_RETENTION_DAYS` unterliegt die Variable dem
+Bereitstellungszyklus: Eine Änderung wirkt erst in einer neuen
+Bereitstellung.
 
 `CRON_SECRET` ist Pflicht, weil die Anwendung seit E04A einen Zeitplan hat,
 der eine Route mit Löschwirkung aufruft. Ohne Geheimnis wäre entweder die

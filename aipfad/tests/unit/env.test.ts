@@ -5,6 +5,7 @@ const GEPRUEFTE_VARIABLEN = [
   'APP_URL',
   'DEPLOYMENT_ID',
   'ATTEMPT_RETENTION_DAYS',
+  'AUDIT_RETENTION_DAYS',
   'CRON_SECRET',
   'RETENTION_MODE',
   'AUTH_SECRET',
@@ -20,6 +21,7 @@ function gueltigeUmgebung(): void {
   process.env.APP_URL = 'http://127.0.0.1:3101';
   process.env.DEPLOYMENT_ID = 'unit-test-build';
   process.env.ATTEMPT_RETENTION_DAYS = '365';
+  process.env.AUDIT_RETENTION_DAYS = '365';
   // Kein echtes Geheimnis, nur ein hinreichend langer Testwert.
   process.env.CRON_SECRET = 'testgeheimnis-nur-fuer-unit-tests';
   process.env.RETENTION_MODE = 'dry-run';

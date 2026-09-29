@@ -97,7 +97,22 @@ in `src/proxy.ts` nur gesetzt, wenn `APP_URL` tatsächlich auf `https` zeigt.
   usw.) und anonyme Produktanalyse (`AnalyticsEvent`) sind strikt getrennt;
   `AnalyticsEvent` hat keinen Fremdschlüssel auf `User`.
 - Jeder Fremdschlüssel auf `User` hat `onDelete: Cascade` – ein einziges
-  `prisma.user.delete()` entfernt sämtliche personenbezogenen Daten.
+  `prisma.user.delete()` entfernt die **nutzereigenen** Zeilen.
+- **Seit E07 heißt das nicht mehr „sämtliche personenbezogenen Daten".**
+  `AuditEvent` ist plattformeigen und trägt absichtlich keinen
+  Fremdschlüssel auf `User`: Sein Akteursabdruck (`actorUserId`, eine
+  Kennung, kein Name und keine Adresse) überdauert die Kontolöschung. Ohne
+  diese Eigenschaft löschte eine Kontolöschung die Spur ihrer selbst.
+  Solche Zeilen verschwinden allein über die Auditfrist
+  (`AUDIT_RETENTION_DAYS`); einen fachlichen Löschpfad für eine einzelne
+  Zeile gibt es nicht. Wer also nach einer Kontolöschung fragt, bekommt die
+  genaue Antwort: nutzereigene Daten sind weg, der minimale Akteursabdruck
+  bleibt bis zum Ablauf seiner Frist. Dieses Dokument trifft dazu keine
+  rechtliche Einordnung.
+- Personenbezug und Lebenszyklus sind **zwei Achsen**. `AuditEvent` ist
+  zugleich plattformeigen (Lebenszyklus) und personenbezogen, sobald der
+  Abdruck eine Person benennt. `AnalyticsEvent` bleibt anonym und wird
+  **nicht** mit Personen in Beziehung gesetzt.
 - Aufbewahrungsfristen werden seit E04A von einem geplanten Lauf ausgeführt,
   nicht mehr nur beschrieben. Einzelheiten unten unter "Geplante
   Aufbewahrung".
@@ -168,10 +183,71 @@ gilt für die Antwort der Route: Sie nennt Zahlen, nicht wessen Daten
 betroffen waren.
 
 **Grenze dieser Ausbaustufe.** Das hier ist ein technischer
-Aufbewahrungsmechanismus für eine Datenart. Datenauskunft (E04B) und
-Kontolöschung auf Verlangen (E04C) fehlen weiterhin; ENT-B04, ENT-B05 und
-ENT-B06 sind offen. Aus E04A folgt keine Aussage über rechtliche
-Anforderungen.
+Aufbewahrungsmechanismus. Seit E07 laufen darin **zwei** Datenarten:
+`ATTEMPT_RETENTION` und `AUDIT_RETENTION`. Datenauskunft (E04B) und
+Kontolöschung auf Verlangen (E04C) fehlen weiterhin; ENT-B04 und ENT-B05
+sind offen. Aus E04A folgt keine Aussage über rechtliche Anforderungen.
+
+## Auditgrundlage (E07)
+
+Seit E07 gibt es `AuditEvent`. E07 liefert ausdrücklich nur die
+**Grundlage**: Modell, Dienst, Verzeichnis der Vorgangsbezeichnungen,
+Schwärzungsregel, Aufbewahrung. Es gibt zum Zeitpunkt dieser Auslieferung
+**null** fachliche Ereigniserzeuger, und das ist kein Versäumnis: Jeder
+prüfpflichtige Vorgang bringt seinen Erzeuger in derselben Änderung mit, in
+der er selbst entsteht (E04B den Export, E04C die Kontolöschung, E08B die
+Organisationsvorgänge). Hier steht deshalb **nicht**, dass fachliche
+Vorgänge protokolliert werden — heute wird keiner protokolliert, weil es
+keinen gibt.
+
+**Nur Anfügen und Lesen — auf Ebene der Anwendungsschnittstelle.**
+`src/server/audit/service.ts` exportiert `appendAuditEvent` und
+`readAuditEvents`, sonst nichts: kein Ändern, kein Löschen, kein
+Prisma-Delegate nach außen. Das ist eine Eigenschaft der **Schnittstelle**.
+
+**Ausdrücklich nicht zugesichert: Manipulationssicherheit auf
+Datenbankebene.** Es gibt keine eigene Datenbankrolle, kein `REVOKE`, keinen
+Anfügeauslöser und keinen manipulationsgeschützten Speicher. Wer
+Schreibrechte auf der Datenbank hat, kann Auditzeilen ändern oder löschen.
+Wer „nur anfügbar" liest, muss „in der Anwendung" mitlesen.
+
+**Abbildsemantik.** `actorUserId` und `organizationId` sind Kennungen ohne
+Fremdschlüssel. Sie überdauern eine Kontolöschung beziehungsweise eine
+künftige Organisationslöschung — genau dafür gibt es sie. Gespeichert wird
+**nur** die Kennung: kein Name, keine Adresse, kein lesbares Etikett. Für
+die belegten Zwecke (E04B ordnet Zeilen der angemeldeten Person zu, E04C und
+E13B überdauern eine Löschung) genügt die Kennung; ein lesbares Etikett wäre
+zusätzlicher Personenbezug ohne gezeigten Bedarf.
+
+**Metadaten.** Ein Objekt mit knappen betrieblichen Tatsachen — etwa
+`previousRole`, `newRole`, `reasonCode`, `source`. Ausdrücklich **kein**
+Dokumentenspeicher, keine Anfrageinhalte, keine Lernendenantworten, keine
+Profilabbilder, keine Geheimnisse. Vor dem Schreiben läuft eine feste,
+**rekursive** Schwärzungsregel (`src/server/audit/redaction.ts`) über die
+Felder `email`, `name`, `password`, `passwordHash`, `token`, `tokenHash`,
+`csrfSecret`, `authorization`, `cookie`, `secret`, `apiKey`,
+`submittedAnswer`, `solutionNotes` — ohne Rücksicht auf Groß- und
+Kleinschreibung, auch in verschachtelten Objekten und in Objekten innerhalb
+von Arrays. Der Wert wird durch `[entfernt]` ersetzt; der ursprüngliche Wert
+wird weder zurückgegeben noch protokolliert noch in eine Fehlermeldung
+aufgenommen. Die Regel ist die zweite Verteidigungslinie: `metadata: {
+...requestBody }` bleibt falsch, auch wenn sie darin etwas schwärzt.
+
+Sie ist bewusst **nicht** die Regel des Loggers. Der Logger schwärzt nur die
+oberste Ebene, was für flache Logfelder genügt; Metadaten sind JSON und
+dürfen verschachtelt sein.
+
+**Aufbewahrung.** `AUDIT_RETENTION_DAYS` ist **Pflicht**, ohne Vorgabewert
+und strikt größer als 0. Für Auditzeilen ist die altersbasierte Aufbewahrung
+der **einzige** Löschweg; eine 0 hieße im Rahmen „abgeschaltet" und damit
+„nie löschen" — eine Aufbewahrungsentscheidung, die niemand getroffen hätte.
+Der Wert in `.env.example` ist ein technischer Beispielwert und **keine**
+rechtliche Empfehlung. Die Regel läuft im Rahmen aus E04A mit, über
+denselben Cron und denselben Lauf; ein zweiter Zeitplan entsteht nicht.
+
+**Kein Ersatz für Logs.** Auditzeilen sind nicht der Logstrom und umgekehrt.
+Es wird nichts automatisch aus dem Logger in `AuditEvent` gespiegelt: andere
+Zwecke, andere Aufbewahrung.
 
 ## Gemeinsame Ratenbegrenzung (E03)
 

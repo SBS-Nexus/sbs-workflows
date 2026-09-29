@@ -30,6 +30,10 @@ process.env.RETENTION_MODE ??= 'dry-run';
 // wird hier fest gepinnt, damit eine lokale .env den Test nicht semantisch
 // verändert.
 process.env.ATTEMPT_RETENTION_DAYS = '365';
+// AUDIT_RETENTION_DAYS ist Pflicht (E07) und hat keinen Vorgabewert. Fest
+// gepinnt aus demselben Grund wie oben: Eine lokale .env darf die
+// Testsemantik nicht verändern.
+process.env.AUDIT_RETENTION_DAYS = '365';
 
 beforeAll(() => {
   execSync('npx prisma migrate deploy', {
