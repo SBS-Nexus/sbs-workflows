@@ -53,6 +53,20 @@ async function regelAusfuehren(
   try {
     retentionDays = rule.retentionDays();
 
+    // Eine negative Frist ergäbe eine Grenze in der ZUKUNFT — und damit eine
+    // Bedingung, auf die jede Zeile passt. Heute kann das nicht auftreten,
+    // weil `ATTEMPT_RETENTION_DAYS` über `env.ts` als `int().min(0)` geprüft
+    // wird. Diese Zusicherung gehört aber der Variablen, nicht dem Rahmen:
+    // `RetentionRule.retentionDays()` darf jede Zahl liefern, und eine
+    // spätere Regel muss ihre Frist nicht aus `env.ts` beziehen. Deshalb
+    // steht die Prüfung hier, wo die Grenze entsteht, und nicht nur dort, wo
+    // heute zufällig ihr einziger Wert herkommt. Nicht ganzzahlige Werte
+    // fallen mit heraus: Sie sind kein Sicherheitsproblem, aber die
+    // Schnittstelle sagt Tage, und ein Bruchteil eines Tages ist keine.
+    if (!Number.isInteger(retentionDays) || retentionDays < 0) {
+      throw new RangeError('Aufbewahrungsfrist muss eine ganze Zahl >= 0 sein.');
+    }
+
     // Frist 0 heißt ABGESCHALTET, nicht "alles löschen, was älter als jetzt
     // ist". Die Unterscheidung steht auch im Protokoll: `skipped-disabled`
     // ist etwas anderes als "gelaufen, nichts gefunden".

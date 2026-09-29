@@ -94,9 +94,18 @@ Zeitpunkt ist nicht auf die Sekunde zugesichert. Vercel wiederholt einen
 fehlgeschlagenen Aufruf nicht automatisch — die Wiederholung ist der nächste
 planmäßige Lauf, der die liegengebliebenen Daten mit erfasst.
 
-**Rücknahme.** Zum Anhalten genügt `RETENTION_MODE=dry-run`: Der Lauf zählt
-dann weiter, löscht aber nichts. Dauerhaft abschalten heißt, den Eintrag aus
+**Rücknahme.** Zum Anhalten `RETENTION_MODE=dry-run` setzen **und erneut
+bereitstellen** — genau wie in Schritt 6 und 7 oben. Die Umgebungsvariable
+allein wirkt nicht: Sie greift erst in einer neuen Bereitstellung, und
+`getEnv()` hält das geprüfte Ergebnis zusätzlich je Prozess fest, sodass eine
+bereits laufende, warme Instanz ihren alten Modus behält. Danach zählt der
+Lauf weiter und löscht nichts. Dauerhaft abschalten heißt, den Eintrag aus
 `crons` zu entfernen oder eine frühere `vercel.json` bereitzustellen.
+
+Soll sofort nichts mehr gelöscht werden und ist die Zeit für eine
+Bereitstellung zu knapp, ist `ATTEMPT_RETENTION_DAYS=0` kein schnellerer Weg —
+es ist dieselbe Variable mit derselben Bedingung. Schnell wirkt nur, den
+Cron-Eintrag zu entfernen oder die Bereitstellung anzuhalten.
 
 Was eine Rücknahme NICHT leistet: Bereits gelöschte Zeilen kommen dadurch
 nicht zurück. Weder ein Code-Rückbau noch das Umschalten auf `dry-run` stellt

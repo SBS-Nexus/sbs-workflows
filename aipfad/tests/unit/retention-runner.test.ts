@@ -265,7 +265,7 @@ describe('Aufbewahrungslauf', () => {
     expect(gemeldet.map((e) => e.ruleId)).toEqual(['A', 'B']);
   });
 
-  it('trägt Kennung, Modus und Dauer in den Bericht', async () => {
+  it('trägt Kennung und Modus in den Bericht', async () => {
     const bericht = await runRetention({
       rules: [testregel('A')],
       mode: 'dry-run',
@@ -275,8 +275,64 @@ describe('Aufbewahrungslauf', () => {
 
     expect(bericht.runId).toBe('lauf-11');
     expect(bericht.mode).toBe('dry-run');
-    expect(bericht.durationMs).toBeGreaterThanOrEqual(0);
     expect(Date.parse(bericht.startedAt)).not.toBeNaN();
     expect(Date.parse(bericht.finishedAt)).not.toBeNaN();
+  });
+
+  it('misst die Dauer des Laufs, statt sie nur zu behaupten', async () => {
+    // `durationMs >= 0` wäre keine Prüfung: Eine Differenz zweier
+    // nacheinander gelesener Uhrstände ist das ohnehin, und eine fest
+    // verdrahtete 0 käme damit durch. Deshalb braucht der Lauf hier eine
+    // Regel, die messbar Zeit kostet — sonst lägen Start und Ende in
+    // derselben Millisekunde und auch die Gleichheit unten wäre 0 === 0.
+    const VERZOEGERUNG = 30;
+    const langsam = testregel('LANGSAM');
+    langsam.countCandidates = async () => {
+      await new Promise((fertig) => setTimeout(fertig, VERZOEGERUNG));
+      return 0;
+    };
+
+    const bericht = await runRetention({
+      rules: [langsam],
+      mode: 'dry-run',
+      now: JETZT,
+      runId: 'lauf-12',
+    });
+
+    // Abstand zur Verzögerung, damit die Prüfung nicht an der Taktung der
+    // Zeitgeber hängt; sie soll die Rechnung festnageln, nicht die Uhr.
+    expect(bericht.durationMs).toBeGreaterThanOrEqual(VERZOEGERUNG - 5);
+    expect(bericht.durationMs).toBe(Date.parse(bericht.finishedAt) - Date.parse(bericht.startedAt));
+  });
+
+  it('weist unbrauchbare Fristen ab, ohne die übrigen Regeln aufzuhalten', async () => {
+    // Eine negative Frist ergäbe eine Grenze in der Zukunft — eine Bedingung,
+    // auf die JEDE Zeile passt. Das ist der teuerste denkbare Fehler dieses
+    // Rahmens, deshalb darf er nicht erst beim Löschen auffallen.
+    const negativ: RegelProtokoll = { gezaehlt: [], geloescht: [] };
+    const bruch: RegelProtokoll = { gezaehlt: [], geloescht: [] };
+
+    const bericht = await runRetention({
+      rules: [
+        testregel('NEGATIV', { days: -1, candidates: 99, deleted: 99, protokoll: negativ }),
+        testregel('BRUCH', { days: 1.5, candidates: 99, deleted: 99, protokoll: bruch }),
+        testregel('GESUND', { days: 30, candidates: 2, deleted: 2 }),
+      ],
+      mode: 'execute',
+      now: JETZT,
+      runId: 'lauf-13',
+    });
+
+    expect(bericht.rules.map((r) => r.status)).toEqual(['failed', 'failed', 'success']);
+    expect(bericht.rules[0]?.errorType).toBe('RangeError');
+    expect(bericht.rules[1]?.errorType).toBe('RangeError');
+    // Die Grenze entsteht gar nicht erst: weder gezählt noch gelöscht.
+    expect(negativ.gezaehlt).toHaveLength(0);
+    expect(negativ.geloescht).toHaveLength(0);
+    expect(bruch.gezaehlt).toHaveLength(0);
+    expect(bericht.rules[0]?.cutoff).toBeUndefined();
+    // Die gesunde Regel läuft trotzdem.
+    expect(bericht.totalDeletedCount).toBe(2);
+    expect(bericht.status).toBe('partial-failure');
   });
 });

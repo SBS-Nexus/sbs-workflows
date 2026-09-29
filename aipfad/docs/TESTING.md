@@ -13,7 +13,7 @@ npm run perf:rate-limit    # Zusatzaufwand der Ratenbegrenzung, gegen echte Date
 npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 498 bestehen
+### Unit-Tests — 500 bestehen
 
 `tests/unit/` (17 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
 `retention-runner.test.ts`, `cron-auth.test.ts`,
@@ -108,6 +108,15 @@ das Ergebnis der ersten zu berühren; dass nach einem Regelfehler die
 nachfolgenden Regeln weiterlaufen, der Lauf aber `partial-failure` meldet;
 und dass bei einem erst im Löschschritt auftretenden Fehler die bereits
 bekannten Frist-, Grenz- und Kandidatenwerte im Bericht erhalten bleiben.
+
+Zwei Prüfungen richten sich gegen Fehler, die der Rahmen selbst machen
+könnte. Eine negative oder nicht ganzzahlige Frist wird abgewiesen, bevor
+eine Grenze entsteht: Negativ hieße eine Grenze in der Zukunft, auf die jede
+Zeile passt, und der Rahmen darf sich dabei nicht darauf verlassen, dass
+`env.ts` das schon abfängt — `retentionDays()` gehört der Regel, nicht der
+Umgebung. Und `durationMs` wird gegen einen Lauf geprüft, der messbar Zeit
+kostet; die frühere Prüfung `>= 0` traf auf jede Differenz zweier Uhrstände
+zu und blieb auch dann grün, wenn der Wert fest auf 0 verdrahtet wurde.
 
 Die Regeln sind eingeschleust, weil beides anders kaum zu zeigen wäre: Einen
 Teilfehler mit echten Tabellen verlässlich herbeizuführen ist schwer, und
