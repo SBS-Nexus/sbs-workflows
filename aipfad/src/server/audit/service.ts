@@ -225,7 +225,12 @@ export async function appendAuditEventInTransaction(
   // ein interaktiver TransactionClient nicht. Ohne diese Prüfung könnte ein
   // Cast die Auditzeile außerhalb des fachlichen Transaktionskontexts
   // festschreiben.
-  if ('$connect' in tx) {
+  //
+  // Der zweite Vergleich fängt eine Hülle um das Delegate des globalen
+  // Clients (`{ auditEvent: prisma.auditEvent }`): Sie hat kein `$connect`
+  // und erfüllt den Typ, schriebe aber ebenfalls außerhalb der Transaktion.
+  // Das Delegate ist pro Client stabil, das von `tx` ein anderes.
+  if ('$connect' in tx || tx.auditEvent === prisma.auditEvent) {
     throw new TypeError(
       'appendAuditEventInTransaction erwartet einen Prisma-Transaktionsclient, nicht den globalen Prisma-Client.',
     );
@@ -249,6 +254,61 @@ export async function appendAuditEventMitZeitpunktFuerTests(
   return schreiben(prisma, eingabe, occurredAt);
 }
 
+/** Die Filter, die eine Abfrage auf Akteur, Organisation oder Vorgangsart einschränken. */
+const KENNUNGSFILTER = ['actorUserId', 'organizationId', 'action'] as const;
+
+/**
+ * Prüft die Lesefilter an der Dienstgrenze und baut daraus die Bedingung.
+ *
+ * Die Regel: Ein Filter fehlt, oder er ist gültig. Einen dritten Zustand gibt
+ * es nicht. Ein gesetzter Schlüssel, dessen Wert keine Zeichenkette ist —
+ * `undefined` aus `session?.userId`, ein Prisma-Operator wie `{ not: 'x' }`
+ * aus einem Anfragekörper —, weitete die Abfrage sonst still auf fremde
+ * Zeilen aus. Er wirft deshalb, statt als „kein Filter" zu gelten. Eine leere
+ * Zeichenkette ist gültig und findet nichts.
+ *
+ * Dieselbe Begründung wie beim Anfügen: TypeScript hilft hier nicht, ein
+ * Aufrufer kann casten. Die Meldung nennt nur das Feld, nie den Wert.
+ */
+function pruefeLesefilter(query: AuditEventQuery): Prisma.AuditEventWhereInput {
+  const where: Prisma.AuditEventWhereInput = {};
+
+  for (const feld of KENNUNGSFILTER) {
+    if (!Object.hasOwn(query, feld)) continue;
+    const wert: unknown = query[feld];
+    if (typeof wert !== 'string') {
+      throw new TypeError(`Auditfilter ${feld} ist gesetzt, aber keine Zeichenkette.`);
+    }
+    where[feld] = wert;
+  }
+
+  const gte = zeitgrenze(query, 'occurredFrom');
+  const lt = zeitgrenze(query, 'occurredBefore');
+  if (gte || lt) {
+    where.occurredAt = { ...(gte ? { gte } : {}), ...(lt ? { lt } : {}) };
+  }
+
+  return where;
+}
+
+/**
+ * Eine Zeitgrenze fehlt, oder sie ist ein gültiges `Date`. Ein ungültiges
+ * Datum (`new Date('abc')`) ist wahr und erreichte sonst Prisma, dessen
+ * Fehlermeldung den absoluten Quellpfad enthält — derselbe Fall wie `NaN`
+ * bei `take`.
+ */
+function zeitgrenze(
+  query: AuditEventQuery,
+  feld: 'occurredFrom' | 'occurredBefore',
+): Date | undefined {
+  if (!Object.hasOwn(query, feld)) return undefined;
+  const wert: unknown = query[feld];
+  if (!(wert instanceof Date) || !Number.isFinite(wert.getTime())) {
+    throw new TypeError(`Auditfilter ${feld} ist gesetzt, aber kein gültiges Datum.`);
+  }
+  return new Date(wert.getTime());
+}
+
 /**
  * Liest Auditzeilen, neueste zuerst.
  *
@@ -264,21 +324,8 @@ export async function readAuditEvents(query: AuditEventQuery = {}): Promise<Audi
   const gewuenscht = Number.isFinite(query.take) ? Number(query.take) : STANDARD_LIMIT;
   const take = Math.min(Math.max(Math.trunc(gewuenscht), 1), HOECHSTES_LIMIT);
 
-  const occurredAt =
-    query.occurredFrom || query.occurredBefore
-      ? {
-          ...(query.occurredFrom ? { gte: new Date(query.occurredFrom.getTime()) } : {}),
-          ...(query.occurredBefore ? { lt: new Date(query.occurredBefore.getTime()) } : {}),
-        }
-      : undefined;
-
   const zeilen = await prisma.auditEvent.findMany({
-    where: {
-      ...(query.actorUserId !== undefined ? { actorUserId: query.actorUserId } : {}),
-      ...(query.organizationId !== undefined ? { organizationId: query.organizationId } : {}),
-      ...(query.action !== undefined ? { action: query.action } : {}),
-      ...(occurredAt ? { occurredAt } : {}),
-    },
+    where: pruefeLesefilter(query),
     orderBy: { occurredAt: 'desc' },
     take,
   });

@@ -122,12 +122,55 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     await appendAuditEvent({
       action: 'ACCOUNT_DELETED',
       actorUserId: userId,
+      organizationId: ORG,
       targetType: 'IntegrationstestZiel',
     });
 
     // Vor der Korrektur wurde '' wegen der Truthiness-Prüfung verworfen.
     // Damit wurde aus einem einschränkenden Filter eine ungefilterte Abfrage.
+    // Alle drei Kennungsfilter, nicht nur der Akteur.
     await expect(readAuditEvents({ actorUserId: '' })).resolves.toEqual([]);
+    await expect(readAuditEvents({ organizationId: '' })).resolves.toEqual([]);
+    await expect(readAuditEvents({ action: '' as never })).resolves.toEqual([]);
+  });
+
+  it('weist einen gesetzten, aber ungültigen Filter ab, statt ihn wegzulassen', async () => {
+    const userId = await nutzerAnlegen('ungueltiger-filter');
+    await appendAuditEvent({
+      action: 'ACCOUNT_DELETED',
+      actorUserId: userId,
+      organizationId: ORG,
+      targetType: 'IntegrationstestZiel',
+    });
+
+    // `undefined` aus `session?.userId`: Als „kein Filter" gelesen, läse die
+    // Abfrage die Zeilen ALLER Akteure. Der Aufruf ist typkorrekt.
+    const ohneSitzung: { userId?: string } = {};
+    await expect(readAuditEvents({ actorUserId: ohneSitzung.userId })).rejects.toThrow(
+      'Auditfilter actorUserId ist gesetzt, aber keine Zeichenkette',
+    );
+    await expect(readAuditEvents({ organizationId: undefined })).rejects.toThrow(TypeError);
+    await expect(readAuditEvents({ action: undefined })).rejects.toThrow(TypeError);
+
+    // Ein Prisma-Operator aus einem Anfragekörper, per Cast durchgereicht:
+    // `{ not: … }` läse die Zeilen fremder Organisationen.
+    await expect(readAuditEvents({ organizationId: { not: 'x' } as never })).rejects.toThrow(
+      'Auditfilter organizationId ist gesetzt, aber keine Zeichenkette',
+    );
+
+    // Ein ungültiges Datum ist wahr und erreichte sonst Prisma, dessen
+    // Fehlermeldung den absoluten Quellpfad enthält.
+    await expect(readAuditEvents({ occurredFrom: new Date('keine-zeit') })).rejects.toThrow(
+      'Auditfilter occurredFrom ist gesetzt, aber kein gültiges Datum',
+    );
+    await expect(readAuditEvents({ occurredBefore: '2026-01-01' as never })).rejects.toThrow(
+      'Auditfilter occurredBefore ist gesetzt, aber kein gültiges Datum',
+    );
+
+    // Die Meldung nennt nur das Feld, nie den Wert.
+    await expect(
+      readAuditEvents({ organizationId: { geheim: GEHEIM } as never }),
+    ).rejects.not.toThrow(GEHEIM);
   });
 
   it('speichert die Organisationskennung als undurchsichtiges Abbild', async () => {
@@ -300,6 +343,16 @@ describe('Anfügen in der Transaktion des Aufrufers (Integration mit echter Date
         action: 'ACCOUNT_DELETED',
         targetType: 'IntegrationstestZiel',
       }),
+    ).rejects.toThrow('nicht den globalen Prisma-Client');
+
+    // Eine Hülle um das Delegate des globalen Clients hat kein `$connect` und
+    // erfüllt den Typ ohne Cast — sie schriebe trotzdem außerhalb jeder
+    // Transaktion.
+    await expect(
+      appendAuditEventInTransaction(
+        { auditEvent: prisma.auditEvent },
+        { action: 'ACCOUNT_DELETED', targetType: 'IntegrationstestZiel' },
+      ),
     ).rejects.toThrow('nicht den globalen Prisma-Client');
 
     expect(await prisma.auditEvent.count({ where: { targetType: 'IntegrationstestZiel' } })).toBe(

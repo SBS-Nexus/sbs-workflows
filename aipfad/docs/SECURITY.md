@@ -221,13 +221,22 @@ Größengrenzen, derselbe serverseitige Zeitpunkt:
   interaktiver `Prisma.TransactionClient` nicht. Das hält den falschen
   Client beim Typecheck ab; dieselbe Eigenschaft wird zur Laufzeit geprüft,
   damit auch ein Cast die Auditzeile nicht unbemerkt außerhalb des fachlichen
-  Transaktionskontexts festschreibt. Scheitert die Prüfung der Auditeingabe,
-  rollt das auch den fachlichen Vorgang zurück.
+  Transaktionskontexts festschreibt. Zur Laufzeit wird außerdem eine Hülle um
+  das Delegate des globalen Clients (`{ auditEvent: prisma.auditEvent }`)
+  abgewiesen — sie hat kein `$connect` und erfüllt den Typ ohne Cast. Nicht
+  abgedeckt ist eine Hülle um das Delegate eines **zweiten**, eigens
+  erzeugten `PrismaClient`; die Anwendung hat genau einen. Scheitert die
+  Prüfung der Auditeingabe, rollt das auch den fachlichen Vorgang zurück.
 
-Beim Lesen ist „Filter fehlt" außerdem etwas anderes als „Filter ist leer".
-Ein explizit gesetzter leerer Akteurs-, Organisations- oder Vorgangsfilter
-wird nicht verworfen und kann deshalb nicht versehentlich zu einer
-ungefilterten Abfrage werden.
+Beim Lesen gilt: **Ein Filter fehlt, oder er ist gültig.** Ein gesetzter
+Akteurs-, Organisations- oder Vorgangsfilter muss eine Zeichenkette sein; eine
+leere Zeichenkette ist gültig und findet nichts. Ein gesetzter Schlüssel mit
+anderem Wert — `undefined` aus `session?.userId`, ein Prisma-Operator wie
+`{ not: 'x' }` aus einem Anfragekörper — wirft einen `TypeError`, statt als
+„kein Filter" zu gelten und die Abfrage auf fremde Zeilen auszuweiten. Eine
+gesetzte Zeitgrenze muss ein gültiges `Date` sein. Die Meldung nennt nur das
+Feld, nie den Wert. Ein Aufruf ganz **ohne** Filter liest weiterhin über
+Akteure hinweg; diese Grenze zieht die spätere Route.
 
 Daneben gibt es `appendAuditEventMitZeitpunktFuerTests`, das ausdrücklich
 benannte Anfügen mit gewähltem Zeitpunkt. Es existiert nur für die

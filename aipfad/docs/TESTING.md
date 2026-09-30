@@ -29,7 +29,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 130 bestehen
+### Integrationstests — 131 bestehen
 
 `tests/integration/`: `auth.test.ts`, `audit.test.ts`,
 `content-publication.test.ts`, `exercise-service.test.ts`,
@@ -182,17 +182,22 @@ noch nicht. Gelingt die Transaktion, sind beide festgeschrieben, mit
 serverseitigem Zeitpunkt und geschwärzt gespeicherten Metadaten. Und eine
 ungültige Auditeingabe rollt die Löschung mit zurück. Eine vierte Regression
 weist den globalen Prisma-Client selbst dann zur Laufzeit ab, wenn der
-Typecheck absichtlich umgangen wird; zusätzlich hält eine
+Typecheck absichtlich umgangen wird, ebenso eine Hülle um sein Delegate
+(`{ auditEvent: prisma.auditEvent }`), die den Typ ohne Cast erfüllt;
+zusätzlich hält eine
 `@ts-expect-error`-Zuweisung fest, dass derselbe Aufruf schon statisch
 unzulässig ist. Gegenprobe beim Schreiben: Schreibt der Dienst dort über den
 globalen Client statt über `tx`, scheitert die Abbruchprüfung.
 
-Fünf Prüfungen sichern die Grenzen des Dienstes selbst: dass eine überlange
+Sechs Prüfungen sichern die Grenzen des Dienstes selbst: dass eine überlange
 Vorgangsbezeichnung in der Fehlermeldung gekürzt wird (die Meldung kann in
 einem Log landen), dass die Metadatengröße und die Länge der Kennungsfelder
 begrenzt sind — der Vertrag „knappe betriebliche Tatsachen" stand bis dahin
-nur in der Prosa —, dass ein explizit leerer Filter nicht als fehlend
-behandelt wird, und dass die gelesene Menge auch bei unbrauchbarem Limit
+nur in der Prosa —, dass ein explizit leerer Filter bei allen drei
+Kennungsfiltern nichts findet statt alles, dass ein gesetzter, aber
+ungültiger Filter (`undefined`, ein Prisma-Operator wie `{ not: 'x' }`, ein
+ungültiges Datum) einen Fehler wirft, statt die Abfrage still auf fremde
+Zeilen auszuweiten, und dass die gelesene Menge auch bei unbrauchbarem Limit
 gedeckelt bleibt; `Number('keine-zahl')` ist genau der Wert, den
 `Number(searchParams.get('take'))` liefert.
 
