@@ -257,11 +257,20 @@ export async function appendAuditEventMitZeitpunktFuerTests(
 /** Die Filter, die eine Abfrage auf Akteur, Organisation oder Vorgangsart einschränken. */
 const KENNUNGSFILTER = ['actorUserId', 'organizationId', 'action'] as const;
 
+/** Alle Schlüssel, die `AuditEventQuery` kennt. Jeder andere ist ein Fehler. */
+const ERLAUBTE_ABFRAGESCHLUESSEL: ReadonlySet<string> = new Set([
+  ...KENNUNGSFILTER,
+  'occurredFrom',
+  'occurredBefore',
+  'take',
+]);
+
 /**
  * Prüft die Lesefilter an der Dienstgrenze und baut daraus die Bedingung.
  *
  * Die Regel: Ein Filter fehlt, oder er ist gültig. Einen dritten Zustand gibt
- * es nicht. Ein gesetzter Schlüssel, dessen Wert keine Zeichenkette ist —
+ * es nicht. Unbekannte Schlüssel werden abgewiesen, und „gesetzt" heißt
+ * vorhanden, auch über den Prototyp oder einen Getter. Ein gesetzter Schlüssel, dessen Wert keine Zeichenkette ist —
  * `undefined` aus `session?.userId`, ein Prisma-Operator wie `{ not: 'x' }`
  * aus einem Anfragekörper —, weitete die Abfrage sonst still auf fremde
  * Zeilen aus. Er wirft deshalb, statt als „kein Filter" zu gelten. Eine leere
@@ -271,10 +280,21 @@ const KENNUNGSFILTER = ['actorUserId', 'organizationId', 'action'] as const;
  * Aufrufer kann casten. Die Meldung nennt nur das Feld, nie den Wert.
  */
 function pruefeLesefilter(query: AuditEventQuery): Prisma.AuditEventWhereInput {
+  // Ein unbekannter Schlüssel — Tippfehler (`actorId`) oder ein nicht
+  // unterstütztes Feld (`targetId`) — fiele sonst still weg, und aus der
+  // gemeinten Einschränkung würde eine ungefilterte Abfrage.
+  for (const schluessel of Object.keys(query)) {
+    if (!ERLAUBTE_ABFRAGESCHLUESSEL.has(schluessel)) {
+      throw new TypeError(`Unbekannter Auditfilter: ${fuerMeldung(schluessel)}`);
+    }
+  }
+
   const where: Prisma.AuditEventWhereInput = {};
 
   for (const feld of KENNUNGSFILTER) {
-    if (!Object.hasOwn(query, feld)) continue;
+    // `in`, nicht `Object.hasOwn`: Ein Filter über den Prototyp oder einen
+    // Getter ist ebenso gesetzt und muss ebenso einschränken.
+    if (!(feld in query)) continue;
     const wert: unknown = query[feld];
     if (typeof wert !== 'string') {
       throw new TypeError(`Auditfilter ${feld} ist gesetzt, aber keine Zeichenkette.`);
@@ -301,7 +321,7 @@ function zeitgrenze(
   query: AuditEventQuery,
   feld: 'occurredFrom' | 'occurredBefore',
 ): Date | undefined {
-  if (!Object.hasOwn(query, feld)) return undefined;
+  if (!(feld in query)) return undefined;
   const wert: unknown = query[feld];
   if (!(wert instanceof Date) || !Number.isFinite(wert.getTime())) {
     throw new TypeError(`Auditfilter ${feld} ist gesetzt, aber kein gültiges Datum.`);

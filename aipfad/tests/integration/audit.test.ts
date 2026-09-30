@@ -167,6 +167,26 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
       'Auditfilter occurredBefore ist gesetzt, aber kein gültiges Datum',
     );
 
+    // Ein Filter, der über den Prototyp oder einen Getter kommt, ist gesetzt
+    // — auch wenn er keine eigene Eigenschaft ist. Er muss einschränken, statt
+    // übersehen zu werden.
+    class SitzungsAbfrage {
+      get actorUserId(): string {
+        return 'jemand-anderes';
+      }
+    }
+    await expect(readAuditEvents(new SitzungsAbfrage())).resolves.toEqual([]);
+
+    // Ein unbekannter Schlüssel — Tippfehler oder nicht unterstütztes Feld,
+    // per Cast aus einem Anfragekörper — fiele sonst weg und hinterließe eine
+    // ungefilterte Abfrage.
+    await expect(readAuditEvents({ actorId: userId } as never)).rejects.toThrow(
+      'Unbekannter Auditfilter: actorId',
+    );
+    await expect(readAuditEvents({ targetId: userId } as never)).rejects.toThrow(
+      'Unbekannter Auditfilter: targetId',
+    );
+
     // Die Meldung nennt nur das Feld, nie den Wert.
     await expect(
       readAuditEvents({ organizationId: { geheim: GEHEIM } as never }),

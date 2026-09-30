@@ -223,9 +223,14 @@ Größengrenzen, derselbe serverseitige Zeitpunkt:
   damit auch ein Cast die Auditzeile nicht unbemerkt außerhalb des fachlichen
   Transaktionskontexts festschreibt. Zur Laufzeit wird außerdem eine Hülle um
   das Delegate des globalen Clients (`{ auditEvent: prisma.auditEvent }`)
-  abgewiesen — sie hat kein `$connect` und erfüllt den Typ ohne Cast. Nicht
-  abgedeckt ist eine Hülle um das Delegate eines **zweiten**, eigens
-  erzeugten `PrismaClient`; die Anwendung hat genau einen. Scheitert die
+  abgewiesen — sie hat kein `$connect` und erfüllt den Typ ohne Cast.
+  **Diese Grenze fängt Versehen, keinen Vorsatz.** Eine eigens gebaute
+  Weiterleitung (`{ auditEvent: { create: (a) => prisma.auditEvent.create(a) } }`)
+  oder das Delegate eines zweiten, eigens erzeugten `PrismaClient` kommt
+  durch; das lässt sich zur Laufzeit nicht allgemein erkennen. Es ist aber
+  auch keine neue Fähigkeit: Wer so baut, könnte ebenso direkt
+  `prisma.auditEvent.create` aufrufen — dieselbe Grenze wie „nur anfügbar"
+  oben, eine Eigenschaft der Schnittstelle, keine Durchsetzung. Scheitert die
   Prüfung der Auditeingabe, rollt das auch den fachlichen Vorgang zurück.
 
 Beim Lesen gilt: **Ein Filter fehlt, oder er ist gültig.** Ein gesetzter
@@ -233,9 +238,11 @@ Akteurs-, Organisations- oder Vorgangsfilter muss eine Zeichenkette sein; eine
 leere Zeichenkette ist gültig und findet nichts. Ein gesetzter Schlüssel mit
 anderem Wert — `undefined` aus `session?.userId`, ein Prisma-Operator wie
 `{ not: 'x' }` aus einem Anfragekörper — wirft einen `TypeError`, statt als
-„kein Filter" zu gelten und die Abfrage auf fremde Zeilen auszuweiten. Eine
-gesetzte Zeitgrenze muss ein gültiges `Date` sein. Die Meldung nennt nur das
-Feld, nie den Wert. Ein Aufruf ganz **ohne** Filter liest weiterhin über
+„kein Filter" zu gelten und die Abfrage auf fremde Zeilen auszuweiten. „Gesetzt"
+heißt vorhanden, auch über den Prototyp oder einen Getter. Ein unbekannter
+Schlüssel (`actorId`, `targetId`) wird ebenso abgewiesen, statt still
+wegzufallen. Eine gesetzte Zeitgrenze muss ein gültiges `Date` sein. Die
+Meldung nennt nur das Feld, nie den Wert. Ein Aufruf ganz **ohne** Filter liest weiterhin über
 Akteure hinweg; diese Grenze zieht die spätere Route.
 
 Daneben gibt es `appendAuditEventMitZeitpunktFuerTests`, das ausdrücklich

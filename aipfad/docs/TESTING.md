@@ -196,7 +196,8 @@ begrenzt sind — der Vertrag „knappe betriebliche Tatsachen" stand bis dahin
 nur in der Prosa —, dass ein explizit leerer Filter bei allen drei
 Kennungsfiltern nichts findet statt alles, dass ein gesetzter, aber
 ungültiger Filter (`undefined`, ein Prisma-Operator wie `{ not: 'x' }`, ein
-ungültiges Datum) einen Fehler wirft, statt die Abfrage still auf fremde
+ungültiges Datum, ein unbekannter Schlüssel) einen Fehler wirft und ein
+Filter über einen Getter einschränkt, statt die Abfrage still auf fremde
 Zeilen auszuweiten, und dass die gelesene Menge auch bei unbrauchbarem Limit
 gedeckelt bleibt; `Number('keine-zahl')` ist genau der Wert, den
 `Number(searchParams.get('take'))` liefert.
