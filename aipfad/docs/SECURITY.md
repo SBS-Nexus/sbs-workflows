@@ -217,7 +217,7 @@ Größengrenzen, derselbe serverseitige Zeitpunkt:
   und Spur werden dann gemeinsam festgeschrieben oder gemeinsam verworfen.
   Der Parameter ist bewusst schmal (`AuditAppendTransaction`: als
   Schreibfähigkeit nur `auditEvent.create`). Der globale Prisma-Client ist
-  zusätzlich negativ ausgeschlossen: Er besitzt `$transaction`, ein
+  zusätzlich negativ ausgeschlossen: Er besitzt `$connect`, ein
   interaktiver `Prisma.TransactionClient` nicht. Das hält den falschen
   Client beim Typecheck ab; dieselbe Eigenschaft wird zur Laufzeit geprüft,
   damit auch ein Cast die Auditzeile nicht unbemerkt außerhalb des fachlichen

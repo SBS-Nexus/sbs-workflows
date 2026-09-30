@@ -157,13 +157,13 @@ interface AuditAppendWriter {
 /**
  * Öffentliche Typgrenze für den Transaktionspfad.
  *
- * Ein echter `Prisma.TransactionClient` hat keine eigene `$transaction`-
+ * Ein echter `Prisma.TransactionClient` hat keine eigene `$connect`-
  * Methode; der globale `PrismaClient` schon. Die negative Eigenschaft hält
  * den globalen Client deshalb bereits beim Typecheck aus dieser Schnittstelle
  * heraus, ohne dem Dienst weitere Datenbankfähigkeiten zu geben.
  */
 export interface AuditAppendTransaction extends AuditAppendWriter {
-  $transaction?: never;
+  $connect?: never;
 }
 
 /**
@@ -221,11 +221,11 @@ export async function appendAuditEventInTransaction(
   eingabe: AppendAuditEventInput,
 ): Promise<AuditEventRecord> {
   // TypeScript kann absichtlich umgangen werden. Deshalb dieselbe Grenze
-  // zusätzlich zur Laufzeit: Der globale PrismaClient besitzt
-  // `$transaction`, ein interaktiver TransactionClient nicht. Ohne diese
-  // Prüfung könnte ein Cast die Auditzeile außerhalb des fachlichen
-  // Transaktionskontexts festschreiben.
-  if ('$transaction' in tx) {
+  // zusätzlich zur Laufzeit: Der globale PrismaClient besitzt `$connect`,
+  // ein interaktiver TransactionClient nicht. Ohne diese Prüfung könnte ein
+  // Cast die Auditzeile außerhalb des fachlichen Transaktionskontexts
+  // festschreiben.
+  if ('$connect' in tx) {
     throw new TypeError(
       'appendAuditEventInTransaction erwartet einen Prisma-Transaktionsclient, nicht den globalen Prisma-Client.',
     );
