@@ -131,7 +131,27 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     // Alle drei Kennungsfilter, nicht nur der Akteur.
     await expect(readAuditEvents({ actorUserId: '' })).resolves.toEqual([]);
     await expect(readAuditEvents({ organizationId: '' })).resolves.toEqual([]);
-    await expect(readAuditEvents({ action: '' as never })).resolves.toEqual([]);
+    // Die Vorgangsart ist keine freie Kennung: Eine unbekannte Bezeichnung —
+    // auch '' — wird abgewiesen, wie beim Anfügen.
+    await expect(readAuditEvents({ action: '' as never })).rejects.toThrow(
+      'Auditfilter action ist keine bekannte Vorgangsbezeichnung',
+    );
+  });
+
+  it('weist einen falsch geschriebenen Vorgangsfilter ab, statt nichts zu finden', async () => {
+    const userId = await nutzerAnlegen('vorgangsfilter');
+    await appendAuditEvent({
+      action: 'ACCOUNT_DELETED',
+      actorUserId: userId,
+      targetType: 'IntegrationstestZiel',
+    });
+
+    // Ein leeres Ergebnis hieße für die prüfende Person „keine Löschung" —
+    // ein falsches Negativ in der Prüfspur.
+    await expect(readAuditEvents({ action: 'ACCOUNT_DELETE' as never })).rejects.toThrow(
+      'Auditfilter action ist keine bekannte Vorgangsbezeichnung',
+    );
+    await expect(readAuditEvents({ action: 'ACCOUNT_DELETED' })).resolves.toHaveLength(1);
   });
 
   it('weist einen gesetzten, aber ungültigen Filter ab, statt ihn wegzulassen', async () => {
@@ -200,6 +220,27 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     };
     await expect(readAuditEvents(mitGetter)).resolves.toEqual([]);
     expect(lesungen).toBe(1);
+
+    // Ein Proxy, dessen `has` anderes meldet als `ownKeys`: Anwesenheit
+    // entscheidet die bereits geprüfte Schlüsselliste, nicht `in`.
+    const widerspruechlich = new Proxy({ actorUserId: 'jemand-anderes' }, { has: () => false });
+    await expect(readAuditEvents(widerspruechlich)).resolves.toEqual([]);
+
+    // Eine Zeitgrenze, deren `getTime` beim zweiten Aufruf `NaN` liefert,
+    // erreichte sonst Prisma. Gelesen wird der innere Wert, genau einmal.
+    const tueckischesDatum = new Date('2020-01-01T00:00:00.000Z');
+    let zeitLesungen = 0;
+    Object.defineProperty(tueckischesDatum, 'getTime', {
+      value: () => (++zeitLesungen === 1 ? 0 : Number.NaN),
+    });
+    await expect(
+      readAuditEvents({ actorUserId: userId, occurredFrom: tueckischesDatum }),
+    ).resolves.toHaveLength(1);
+
+    // Keine Abfrage, sondern `null`: die eigene Meldung, nicht die der Laufzeit.
+    await expect(readAuditEvents(null as never)).rejects.toThrow(
+      'Auditabfrage muss ein einfaches Objekt sein',
+    );
 
     // `take` wird ebenfalls nur einmal gelesen: Ein zweiter Zugriff, der
     // `NaN` liefert, erreichte sonst Prisma.
@@ -356,6 +397,29 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     await expect(
       appendAuditEvent({ action: 'ACCOUNT_DELETED', targetType: 42 as never }),
     ).rejects.toThrow('targetType ist gesetzt, aber keine Zeichenkette');
+
+    expect(await prisma.auditEvent.count({ where: { targetType: 'IntegrationstestZiel' } })).toBe(
+      0,
+    );
+  });
+
+  it('weist ein unbekanntes Eingabefeld ab, statt die Zuordnung still zu verlieren', async () => {
+    // Überzählige Eigenschaften aus einem Spread meldet TypeScript nicht.
+    // Ohne Prüfung würde `actorId` still verworfen und die Zeile ohne Akteur
+    // geschrieben — genau die Spur einer Kontolöschung verlöre ihre Zuordnung.
+    const kontext = { actorId: 'nutzer-aus-der-sitzung' };
+    await expect(
+      appendAuditEvent({
+        ...kontext,
+        action: 'ACCOUNT_DELETED',
+        targetType: 'IntegrationstestZiel',
+      }),
+    ).rejects.toThrow('Unbekanntes Auditfeld: actorId');
+
+    // Ein fehlendes Pflichtfeld heißt „fehlt", nicht „gesetzt, aber falsch".
+    await expect(appendAuditEvent({ action: 'ACCOUNT_DELETED' } as never)).rejects.toThrow(
+      'targetType fehlt',
+    );
 
     expect(await prisma.auditEvent.count({ where: { targetType: 'IntegrationstestZiel' } })).toBe(
       0,

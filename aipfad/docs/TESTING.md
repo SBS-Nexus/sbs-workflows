@@ -29,7 +29,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 133 bestehen
+### Integrationstests — 135 bestehen
 
 `tests/integration/`: `auth.test.ts`, `audit.test.ts`,
 `content-publication.test.ts`, `exercise-service.test.ts`,
@@ -189,21 +189,27 @@ zusätzlich hält eine
 unzulässig ist. Gegenprobe beim Schreiben: Schreibt der Dienst dort über den
 globalen Client statt über `tx`, scheitert die Abbruchprüfung.
 
-Acht Prüfungen sichern die Grenzen des Dienstes selbst: dass eine überlange
+Zehn Prüfungen sichern die Grenzen des Dienstes selbst: dass eine überlange
 Vorgangsbezeichnung in der Fehlermeldung gekürzt wird (die Meldung kann in
 einem Log landen), dass die Metadatengröße und die Länge der Kennungsfelder
 begrenzt sind — der Vertrag „knappe betriebliche Tatsachen" stand bis dahin
 nur in der Prosa —, dass ein gesetztes, aber ungültiges Kennungsfeld beim
 Anfügen abgewiesen wird (`actorUserId: undefined` würde sonst still zu „kein
-Akteur"), dass die Vorgangsbezeichnung genau einmal gelesen wird (ein Getter
-mit wechselndem Wert schriebe sonst eine ungeprüfte), dass ein explizit
-leerer Filter bei allen drei Kennungsfiltern nichts findet statt alles, dass
-ein gesetzter, aber ungültiger Filter (`undefined`, ein Prisma-Operator wie
-`{ not: 'x' }`, ein ungültiges Datum, ein unbekannter — auch nicht
-aufzählbarer — Schlüssel, eine Klasseninstanz statt eines einfachen Objekts)
-einen Fehler wirft, statt die Abfrage still auf fremde Zeilen auszuweiten,
-dass ein eigener Getter einschränkt und wie `take` genau einmal gelesen wird,
-und dass die gelesene Menge auch bei unbrauchbarem Limit
+Akteur"), dass ein unbekanntes Eingabefeld (`actorId` aus einem Spread)
+abgewiesen wird und ein fehlendes `targetType` als „fehlt" gemeldet wird, dass
+die Vorgangsbezeichnung genau einmal gelesen wird (ein Getter mit wechselndem
+Wert schriebe sonst eine ungeprüfte), dass ein explizit leerer Akteurs- oder
+Organisationsfilter nichts findet statt alles, dass ein unbekannter
+Vorgangsfilter (`ACCOUNT_DELETE`, auch `''`) abgewiesen wird statt ein
+falsches Negativ zu liefern, dass ein gesetzter, aber ungültiger Filter
+(`undefined`, ein Prisma-Operator wie `{ not: 'x' }`, ein ungültiges Datum,
+ein unbekannter — auch nicht aufzählbarer — Schlüssel, eine Klasseninstanz
+oder `null` statt eines einfachen Objekts) einen Fehler wirft, statt die
+Abfrage still auf fremde Zeilen auszuweiten, dass ein eigener Getter
+einschränkt und wie `take` und eine Zeitgrenze mit überschriebenem `getTime`
+genau einmal gelesen wird, dass ein Proxy mit widersprüchlichem `has` die
+geprüfte Schlüsselliste nicht umgeht, und dass die gelesene Menge auch bei
+unbrauchbarem Limit
 gedeckelt bleibt; `Number('keine-zahl')` ist genau der Wert, den
 `Number(searchParams.get('take'))` liefert.
 

@@ -72,6 +72,53 @@ function fuerMeldung(wert: unknown): string {
     : `${text.slice(0, HOECHSTE_MELDUNGSLAENGE)}… (${text.length} Zeichen)`;
 }
 
+/**
+ * Prüft die Form eines Objekts an der Dienstgrenze und liefert seine
+ * vorhandenen Schlüssel.
+ *
+ * Nur ein einfaches Objekt: Bei einer Klasseninstanz lägen Schlüssel auf dem
+ * Prototyp, wo keine Schlüsselprüfung sie sieht. Jeder eigene Schlüssel —
+ * `Reflect.ownKeys`, also auch nicht aufzählbare und Symbole — muss auf der
+ * Positivliste stehen: Ein unbekannter (`actorId` statt `actorUserId`, etwa
+ * aus einem Spread, den TypeScript nicht meldet) fiele sonst still weg.
+ *
+ * Die zurückgegebene Menge entscheidet danach über „vorhanden". Eine zweite
+ * Frage an das Objekt (`in`) könnte bei einem Proxy anders ausfallen als die
+ * hier geprüfte Liste.
+ */
+function vorhandeneSchluessel(
+  wert: unknown,
+  erlaubt: ReadonlySet<string>,
+  art: 'Auditabfrage' | 'Auditeingabe',
+  unbekannt: string,
+): ReadonlySet<string> {
+  if (typeof wert !== 'object' || wert === null) {
+    throw new TypeError(`${art} muss ein einfaches Objekt sein.`);
+  }
+  const prototyp: unknown = Object.getPrototypeOf(wert);
+  if (prototyp !== Object.prototype && prototyp !== null) {
+    throw new TypeError(`${art} muss ein einfaches Objekt sein.`);
+  }
+  const schluessel = new Set<string>();
+  for (const eintrag of Reflect.ownKeys(wert)) {
+    if (typeof eintrag !== 'string' || !erlaubt.has(eintrag)) {
+      throw new TypeError(`${unbekannt}: ${fuerMeldung(String(eintrag))}`);
+    }
+    schluessel.add(eintrag);
+  }
+  return schluessel;
+}
+
+/** Alle Felder, die `AppendAuditEventInput` kennt. Jedes andere ist ein Fehler. */
+const ERLAUBTE_EINGABEFELDER: ReadonlySet<string> = new Set([
+  'action',
+  'actorUserId',
+  'organizationId',
+  'targetType',
+  'targetId',
+  'metadata',
+]);
+
 function pflichtfeld(wert: unknown, feld: string): string {
   if (typeof wert !== 'string') {
     throw new TypeError(`${feld} ist gesetzt, aber keine Zeichenkette.`);
@@ -96,10 +143,22 @@ function pflichtfeld(wert: unknown, feld: string): string {
  */
 function freiwilligesFeld(
   eingabe: AppendAuditEventInput,
+  vorhanden: ReadonlySet<string>,
   feld: 'actorUserId' | 'organizationId' | 'targetId',
 ): string | null {
-  if (!(feld in eingabe)) return null;
+  if (!vorhanden.has(feld)) return null;
   return pflichtfeld(eingabe[feld], feld);
+}
+
+/** `targetType` ist Pflicht: Fehlt es, heißt die Meldung „fehlt", nicht „falsch". */
+function pflichtfeldVorhanden(
+  eingabe: AppendAuditEventInput,
+  vorhanden: ReadonlySet<string>,
+): string {
+  if (!vorhanden.has('targetType')) {
+    throw new TypeError('targetType fehlt.');
+  }
+  return pflichtfeld(eingabe.targetType, 'targetType');
 }
 
 /**
@@ -118,6 +177,13 @@ function pruefeEingabe(eingabe: AppendAuditEventInput): {
   targetId: string | null;
   metadata: AuditMetadata;
 } {
+  const vorhanden = vorhandeneSchluessel(
+    eingabe,
+    ERLAUBTE_EINGABEFELDER,
+    'Auditeingabe',
+    'Unbekanntes Auditfeld',
+  );
+
   // Genau EIN Lesezugriff: Geprüft und geschrieben wird derselbe Wert. Ein
   // Getter, der beim zweiten Lesen etwas anderes liefert, schriebe sonst eine
   // ungeprüfte Bezeichnung.
@@ -130,7 +196,7 @@ function pruefeEingabe(eingabe: AppendAuditEventInput): {
     throw new TypeError(`Unbekannte Auditvorgangsbezeichnung: ${fuerMeldung(action)}`);
   }
 
-  const metadata = eingabe.metadata ?? {};
+  const metadata = (vorhanden.has('metadata') ? eingabe.metadata : undefined) ?? {};
   if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) {
     throw new TypeError('Auditmetadaten müssen ein Objekt sein.');
   }
@@ -149,10 +215,10 @@ function pruefeEingabe(eingabe: AppendAuditEventInput): {
 
   return {
     action,
-    actorUserId: freiwilligesFeld(eingabe, 'actorUserId'),
-    organizationId: freiwilligesFeld(eingabe, 'organizationId'),
-    targetType: pflichtfeld(eingabe.targetType, 'targetType'),
-    targetId: freiwilligesFeld(eingabe, 'targetId'),
+    actorUserId: freiwilligesFeld(eingabe, vorhanden, 'actorUserId'),
+    organizationId: freiwilligesFeld(eingabe, vorhanden, 'organizationId'),
+    targetType: pflichtfeldVorhanden(eingabe, vorhanden),
+    targetId: freiwilligesFeld(eingabe, vorhanden, 'targetId'),
     metadata: geschwaerzt,
   };
 }
@@ -285,8 +351,8 @@ const ERLAUBTE_ABFRAGESCHLUESSEL: ReadonlySet<string> = new Set([
  * Prüft die Lesefilter an der Dienstgrenze und baut daraus die Bedingung.
  *
  * Die Regel: Ein Filter fehlt, oder er ist gültig. Einen dritten Zustand gibt
- * es nicht. Die Abfrage muss ein einfaches Objekt sein, jeder eigene Schlüssel
- * steht auf der Positivliste, und jeder Wert wird genau einmal gelesen. Ein
+ * es nicht. Die Form (einfaches Objekt, Positivliste) prüft
+ * `vorhandeneSchluessel` vorher; hier wird jeder Wert genau einmal gelesen. Ein
  * gesetzter Schlüssel, dessen Wert keine Zeichenkette ist —
  * `undefined` aus `session?.userId`, ein Prisma-Operator wie `{ not: 'x' }`
  * aus einem Anfragekörper —, weitete die Abfrage sonst still auf fremde
@@ -296,41 +362,31 @@ const ERLAUBTE_ABFRAGESCHLUESSEL: ReadonlySet<string> = new Set([
  * Dieselbe Begründung wie beim Anfügen: TypeScript hilft hier nicht, ein
  * Aufrufer kann casten. Die Meldung nennt nur das Feld, nie den Wert.
  */
-function pruefeLesefilter(query: AuditEventQuery): Prisma.AuditEventWhereInput {
-  // Nur ein einfaches Objekt. Bei einer Klasseninstanz oder einem Objekt mit
-  // eigenem Prototyp lägen Schlüssel auf dem Prototyp, wo keine
-  // Schlüsselprüfung sie sieht — ein falsch geschriebener Getter (`actorId`)
-  // fiele still weg. Die Klasseninstanz ist dabei typkorrekt.
-  const prototyp: unknown = Object.getPrototypeOf(query);
-  if (prototyp !== Object.prototype && prototyp !== null) {
-    throw new TypeError('Auditabfrage muss ein einfaches Objekt sein.');
-  }
-
-  // Ein unbekannter Schlüssel — Tippfehler (`actorId`) oder ein nicht
-  // unterstütztes Feld (`targetId`) — fiele sonst still weg, und aus der
-  // gemeinten Einschränkung würde eine ungefilterte Abfrage. `Reflect.ownKeys`
-  // statt `Object.keys`: auch nicht aufzählbare Schlüssel und Symbole zählen.
-  for (const schluessel of Reflect.ownKeys(query)) {
-    if (typeof schluessel !== 'string' || !ERLAUBTE_ABFRAGESCHLUESSEL.has(schluessel)) {
-      throw new TypeError(`Unbekannter Auditfilter: ${fuerMeldung(String(schluessel))}`);
-    }
-  }
-
+function pruefeLesefilter(
+  query: AuditEventQuery,
+  vorhanden: ReadonlySet<string>,
+): Prisma.AuditEventWhereInput {
   const where: Prisma.AuditEventWhereInput = {};
 
   for (const feld of KENNUNGSFILTER) {
     // Ein eigener Getter ist ebenso gesetzt wie ein Datenfeld; sein Wert wird
-    // unten genau einmal gelesen.
-    if (!(feld in query)) continue;
+    // genau einmal gelesen.
+    if (!vorhanden.has(feld)) continue;
     const wert: unknown = query[feld];
     if (typeof wert !== 'string') {
       throw new TypeError(`Auditfilter ${feld} ist gesetzt, aber keine Zeichenkette.`);
     }
+    // Die Vorgangsart ist keine freie Kennung. Ein falsch geschriebener
+    // Vorgang (`ACCOUNT_DELETE`) fände sonst nichts — und ein leeres Ergebnis
+    // hieße für die prüfende Person „kein solcher Vorgang".
+    if (feld === 'action' && !istAuditAction(wert)) {
+      throw new TypeError('Auditfilter action ist keine bekannte Vorgangsbezeichnung.');
+    }
     where[feld] = wert;
   }
 
-  const gte = zeitgrenze(query, 'occurredFrom');
-  const lt = zeitgrenze(query, 'occurredBefore');
+  const gte = zeitgrenze(query, vorhanden, 'occurredFrom');
+  const lt = zeitgrenze(query, vorhanden, 'occurredBefore');
   if (gte || lt) {
     where.occurredAt = { ...(gte ? { gte } : {}), ...(lt ? { lt } : {}) };
   }
@@ -346,14 +402,21 @@ function pruefeLesefilter(query: AuditEventQuery): Prisma.AuditEventWhereInput {
  */
 function zeitgrenze(
   query: AuditEventQuery,
+  vorhanden: ReadonlySet<string>,
   feld: 'occurredFrom' | 'occurredBefore',
 ): Date | undefined {
-  if (!(feld in query)) return undefined;
+  if (!vorhanden.has(feld)) return undefined;
   const wert: unknown = query[feld];
-  if (!(wert instanceof Date) || !Number.isFinite(wert.getTime())) {
+  if (!(wert instanceof Date)) {
     throw new TypeError(`Auditfilter ${feld} ist gesetzt, aber kein gültiges Datum.`);
   }
-  return new Date(wert.getTime());
+  // Der innere Zeitwert, genau einmal gelesen: Ein überschriebenes `getTime`
+  // könnte sonst beim Prüfen etwas anderes liefern als beim Übernehmen.
+  const zeit: number = Date.prototype.getTime.call(wert);
+  if (!Number.isFinite(zeit)) {
+    throw new TypeError(`Auditfilter ${feld} ist gesetzt, aber kein gültiges Datum.`);
+  }
+  return new Date(zeit);
 }
 
 /**
@@ -364,6 +427,16 @@ function zeitgrenze(
  * Weg, die Tabelle in einer Antwort auszuleeren.
  */
 export async function readAuditEvents(query: AuditEventQuery = {}): Promise<AuditEventRecord[]> {
+  // Die Form wird ZUERST geprüft: Kein Getter einer Abfrage, die ohnehin
+  // abgewiesen wird, soll vorher laufen.
+  const vorhanden = vorhandeneSchluessel(
+    query,
+    ERLAUBTE_ABFRAGESCHLUESSEL,
+    'Auditabfrage',
+    'Unbekannter Auditfilter',
+  );
+  const where = pruefeLesefilter(query, vorhanden);
+
   // `Number.isFinite` zuerst: `Math.min(Math.max(NaN, 1), 500)` ist `NaN`,
   // und ein `NaN` reichte bis zu Prisma durch, dessen Fehlermeldung den
   // absoluten Quellpfad und einen Codeausschnitt enthält. Ein `take`, das
@@ -371,12 +444,12 @@ export async function readAuditEvents(query: AuditEventQuery = {}): Promise<Audi
   //
   // Genau EIN Lesezugriff: Ein Getter, der beim zweiten Lesen `NaN` liefert,
   // käme sonst an der Prüfung vorbei.
-  const rohesTake: unknown = query.take;
+  const rohesTake: unknown = vorhanden.has('take') ? query.take : undefined;
   const gewuenscht = Number.isFinite(rohesTake) ? Number(rohesTake) : STANDARD_LIMIT;
   const take = Math.min(Math.max(Math.trunc(gewuenscht), 1), HOECHSTES_LIMIT);
 
   const zeilen = await prisma.auditEvent.findMany({
-    where: pruefeLesefilter(query),
+    where,
     orderBy: { occurredAt: 'desc' },
     take,
   });

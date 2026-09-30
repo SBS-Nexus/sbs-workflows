@@ -234,8 +234,11 @@ Größengrenzen, derselbe serverseitige Zeitpunkt:
   Prüfung der Auditeingabe, rollt das auch den fachlichen Vorgang zurück.
 
 Beim Lesen gilt: **Ein Filter fehlt, oder er ist gültig.** Ein gesetzter
-Akteurs-, Organisations- oder Vorgangsfilter muss eine Zeichenkette sein; eine
-leere Zeichenkette ist gültig und findet nichts. Ein gesetzter Schlüssel mit
+Akteurs- oder Organisationsfilter muss eine Zeichenkette sein; eine leere
+Zeichenkette ist gültig und findet nichts. Ein gesetzter Vorgangsfilter muss
+eine **bekannte** Vorgangsbezeichnung sein: Ein falsch geschriebener
+(`ACCOUNT_DELETE`) fände sonst nichts, und ein leeres Ergebnis hieße für die
+prüfende Person „kein solcher Vorgang" — ein falsches Negativ. Ein gesetzter Schlüssel mit
 anderem Wert — `undefined` aus `session?.userId`, ein Prisma-Operator wie
 `{ not: 'x' }` aus einem Anfragekörper — wirft einen `TypeError`, statt als
 „kein Filter" zu gelten und die Abfrage auf fremde Zeilen auszuweiten. Die
@@ -244,8 +247,11 @@ Getter auf dem Prototyp, wo keine Schlüsselprüfung sie sieht, und ein falsch
 geschriebener (`actorId`) fiele still weg — typkorrekt. Jeder eigene Schlüssel,
 auch ein nicht aufzählbarer, muss auf der Positivliste stehen; ein unbekannter
 (`actorId`, `targetId`) wird abgewiesen. Eine gesetzte Zeitgrenze muss ein
-gültiges `Date` sein. Jeder Wert wird genau einmal gelesen, damit ein Getter
-nicht beim zweiten Zugriff etwas anderes liefert als geprüft. Die Meldung nennt
+gültiges `Date` sein; gelesen wird ihr innerer Zeitwert, nicht ein
+überschreibbares `getTime`. Jeder Wert wird genau einmal gelesen, damit ein
+Getter nicht beim zweiten Zugriff etwas anderes liefert als geprüft, und über
+„vorhanden" entscheidet die geprüfte Schlüsselliste, nicht eine zweite Frage an
+das Objekt. Die Form wird geprüft, bevor irgendein Wert gelesen wird. Die Meldung nennt
 nur das Feld, nie den Wert. Ein Aufruf ganz **ohne** Filter liest weiterhin
 über Akteure hinweg; diese Grenze zieht die spätere Route.
 
@@ -253,9 +259,12 @@ Dieselbe Regel gilt beim **Anfügen**: `actorUserId`, `organizationId` und
 `targetId` fehlen, oder sie sind gültige Zeichenketten. Ein gesetztes
 `undefined` — `actorUserId: session?.userId` nach einer gescheiterten
 Sitzungssuche — wird abgewiesen, statt still als „kein Akteur" geschrieben zu
-werden; sonst verlöre gerade die Spur einer Kontolöschung ihre Zuordnung. Die
-Vorgangsbezeichnung wird genau einmal gelesen: Geprüft und geschrieben wird
-derselbe Wert.
+werden; sonst verlöre gerade die Spur einer Kontolöschung ihre Zuordnung. Auch
+die Eingabe muss ein einfaches Objekt mit bekannten Feldern sein: Ein
+unbekanntes (`actorId` statt `actorUserId`, etwa aus einem Spread, den
+TypeScript nicht meldet) wird abgewiesen, statt still zu entfallen und dieselbe
+Zuordnung zu kosten. Die Vorgangsbezeichnung wird genau einmal gelesen:
+Geprüft und geschrieben wird derselbe Wert.
 
 Daneben gibt es `appendAuditEventMitZeitpunktFuerTests`, das ausdrücklich
 benannte Anfügen mit gewähltem Zeitpunkt. Es existiert nur für die
