@@ -242,6 +242,13 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
       'Auditabfrage muss ein einfaches Objekt sein',
     );
 
+    // Ebenso `undefined`: `readAuditEvents(bauAbfrage(sitzung))` ohne Sitzung
+    // fiele sonst auf einen Vorgabewert zurück und läse über ALLE Akteure.
+    // Wer ungefiltert lesen will, schreibt das ausdrücklich: `{}`.
+    await expect(readAuditEvents(undefined as never)).rejects.toThrow(
+      'Auditabfrage muss ein einfaches Objekt sein',
+    );
+
     // `take` wird ebenfalls nur einmal gelesen: Ein zweiter Zugriff, der
     // `NaN` liefert, erreichte sonst Prisma.
     let takeLesungen = 0;
@@ -424,6 +431,62 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     expect(await prisma.auditEvent.count({ where: { targetType: 'IntegrationstestZiel' } })).toBe(
       0,
     );
+  });
+
+  it('weist fehlende Vorgangsbezeichnung und gesetzte, aber leere Metadaten ab', async () => {
+    // Die Vorgangsbezeichnung fehlt: „fehlt", nicht „unbekannt: undefined".
+    await expect(appendAuditEvent({ targetType: 'IntegrationstestZiel' } as never)).rejects.toThrow(
+      'action fehlt',
+    );
+
+    // Auch ein geerbter Wert zählt nicht als gesetzt — über „vorhanden"
+    // entscheidet die geprüfte Schlüsselliste, nicht der Prototyp.
+    const prototyp = Object.prototype as Record<string, unknown>;
+    prototyp.action = 'ACCOUNT_DELETED';
+    try {
+      await expect(
+        appendAuditEvent({ targetType: 'IntegrationstestZiel' } as never),
+      ).rejects.toThrow('action fehlt');
+    } finally {
+      delete prototyp.action;
+    }
+
+    // `metadata: diff ?? null` nach einem Fehler: still als `{}` geschrieben,
+    // verlöre die Zeile ihre Tatsachen.
+    for (const leer of [null, undefined]) {
+      await expect(
+        appendAuditEvent({
+          action: 'ACCOUNT_DELETED',
+          targetType: 'IntegrationstestZiel',
+          metadata: leer as never,
+        }),
+      ).rejects.toThrow('Auditmetadaten müssen ein Objekt sein');
+    }
+
+    expect(await prisma.auditEvent.count({ where: { targetType: 'IntegrationstestZiel' } })).toBe(
+      0,
+    );
+  });
+
+  it('zeigt eine unbekannte Vorgangsbezeichnung, die keine Zeichenkette ist, nur als Art', async () => {
+    // Die Meldung kann in einem Log landen: kein `String()` über fremde
+    // Werte, das Inhalte (etwa eine Adresse) in die Meldung zöge.
+    const fehler = await appendAuditEvent({
+      action: ['ACCOUNT_DELETED', GEHEIM] as never,
+      targetType: 'IntegrationstestZiel',
+    }).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(TypeError);
+    expect((fehler as Error).message).toContain('Unbekannte Auditvorgangsbezeichnung');
+    expect((fehler as Error).message).not.toContain(GEHEIM);
+
+    // Ein Objekt ohne Prototyp ließe `String()` selbst werfen und verdrängte
+    // die Meldung des Dienstes.
+    await expect(
+      appendAuditEvent({
+        action: Object.create(null) as never,
+        targetType: 'IntegrationstestZiel',
+      }),
+    ).rejects.toThrow('Unbekannte Auditvorgangsbezeichnung');
   });
 
   it('liest die Vorgangsbezeichnung genau einmal', async () => {

@@ -66,7 +66,12 @@ const HOECHSTE_MELDUNGSLAENGE = 80;
  * Logstrom zum Ablageort für beliebigen fremden Text.
  */
 function fuerMeldung(wert: unknown): string {
-  const text = typeof wert === 'string' ? wert : String(wert);
+  // Keine Zeichenkette: nur die Art. `String()` über einen fremden Wert zöge
+  // dessen Inhalt in die Meldung (ein Array mit einer Adresse) oder führte
+  // fremden Code aus (`toString`) — bei einem Objekt ohne Prototyp würfe es
+  // sogar selbst und verdrängte diese Meldung.
+  if (typeof wert !== 'string') return `(${wert === null ? 'null' : typeof wert})`;
+  const text = wert;
   return text.length <= HOECHSTE_MELDUNGSLAENGE
     ? text
     : `${text.slice(0, HOECHSTE_MELDUNGSLAENGE)}… (${text.length} Zeichen)`;
@@ -187,6 +192,9 @@ function pruefeEingabe(eingabe: AppendAuditEventInput): {
   // Genau EIN Lesezugriff: Geprüft und geschrieben wird derselbe Wert. Ein
   // Getter, der beim zweiten Lesen etwas anderes liefert, schriebe sonst eine
   // ungeprüfte Bezeichnung.
+  if (!vorhanden.has('action')) {
+    throw new TypeError('action fehlt.');
+  }
   const action: unknown = eingabe.action;
   if (!istAuditAction(action)) {
     // Nur die Bezeichnung, nie die übrigen Felder: Die Meldung kann in einem
@@ -196,12 +204,15 @@ function pruefeEingabe(eingabe: AppendAuditEventInput): {
     throw new TypeError(`Unbekannte Auditvorgangsbezeichnung: ${fuerMeldung(action)}`);
   }
 
-  const metadata = (vorhanden.has('metadata') ? eingabe.metadata : undefined) ?? {};
+  // Fehlt `metadata`, ist es `{}`. Ist es gesetzt, muss es ein Objekt sein —
+  // auch `null` oder `undefined` (`diff ?? null` nach einem Fehler) werden
+  // abgewiesen, statt still als leere Tatsachen geschrieben zu werden.
+  const metadata: unknown = vorhanden.has('metadata') ? eingabe.metadata : {};
   if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) {
     throw new TypeError('Auditmetadaten müssen ein Objekt sein.');
   }
 
-  const geschwaerzt = redactMetadata(metadata);
+  const geschwaerzt = redactMetadata(metadata as Record<string, unknown>);
   // Nach der Schwärzung gemessen: Was zählt, ist die Größe dessen, was
   // WIRKLICH in die Zeile geht. Vor der Schwärzung gemessen wäre die Grenze
   // strenger als nötig, wenn ein langer Wert ohnehin ersetzt wird.
@@ -422,11 +433,15 @@ function zeitgrenze(
 /**
  * Liest Auditzeilen, neueste zuerst.
  *
+ * Die Abfrage ist Pflicht. Ein Vorgabewert machte aus `undefined` —
+ * `readAuditEvents(bauAbfrage(sitzung))` ohne Sitzung — still eine Abfrage
+ * über alle Akteure. Wer ungefiltert lesen will, schreibt `{}`.
+ *
  * Ohne Filter liefert sie die neuesten `STANDARD_LIMIT` Zeilen. Das Limit
  * ist immer gedeckelt: Eine Auditabfrage ohne Obergrenze wäre der leichteste
  * Weg, die Tabelle in einer Antwort auszuleeren.
  */
-export async function readAuditEvents(query: AuditEventQuery = {}): Promise<AuditEventRecord[]> {
+export async function readAuditEvents(query: AuditEventQuery): Promise<AuditEventRecord[]> {
   // Die Form wird ZUERST geprüft: Kein Getter einer Abfrage, die ohnehin
   // abgewiesen wird, soll vorher laufen.
   const vorhanden = vorhandeneSchluessel(

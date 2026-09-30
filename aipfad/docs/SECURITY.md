@@ -252,8 +252,13 @@ gültiges `Date` sein; gelesen wird ihr innerer Zeitwert, nicht ein
 Getter nicht beim zweiten Zugriff etwas anderes liefert als geprüft, und über
 „vorhanden" entscheidet die geprüfte Schlüsselliste, nicht eine zweite Frage an
 das Objekt. Die Form wird geprüft, bevor irgendein Wert gelesen wird. Die Meldung nennt
-nur das Feld, nie den Wert. Ein Aufruf ganz **ohne** Filter liest weiterhin
-über Akteure hinweg; diese Grenze zieht die spätere Route.
+nur das Feld, nie den Wert; ein fremder Wert, der keine Zeichenkette ist,
+erscheint nur als seine Art (`(object)`), nie über `String()`. Die Abfrage
+selbst ist **Pflicht**: `readAuditEvents(undefined)` — etwa
+`readAuditEvents(bauAbfrage(sitzung))` ohne Sitzung — wird abgewiesen, statt
+über einen Vorgabewert zu einer Abfrage über alle Akteure zu werden. Wer
+ungefiltert lesen will, schreibt `{}` ausdrücklich; ein solcher Aufruf liest
+über Akteure hinweg, und diese Grenze zieht die spätere Route.
 
 Dieselbe Regel gilt beim **Anfügen**: `actorUserId`, `organizationId` und
 `targetId` fehlen, oder sie sind gültige Zeichenketten. Ein gesetztes
@@ -263,8 +268,12 @@ werden; sonst verlöre gerade die Spur einer Kontolöschung ihre Zuordnung. Auch
 die Eingabe muss ein einfaches Objekt mit bekannten Feldern sein: Ein
 unbekanntes (`actorId` statt `actorUserId`, etwa aus einem Spread, den
 TypeScript nicht meldet) wird abgewiesen, statt still zu entfallen und dieselbe
-Zuordnung zu kosten. Die Vorgangsbezeichnung wird genau einmal gelesen:
-Geprüft und geschrieben wird derselbe Wert.
+Zuordnung zu kosten. Über „vorhanden" entscheidet auch hier die geprüfte
+Schlüsselliste, nie ein geerbter Wert; eine fehlende Vorgangsbezeichnung heißt
+„fehlt". Die Vorgangsbezeichnung wird genau einmal gelesen: Geprüft und
+geschrieben wird derselbe Wert. Fehlt `metadata`, ist es `{}`; ist es gesetzt,
+muss es ein Objekt sein — `metadata: diff ?? null` wird abgewiesen, statt still
+als leere Tatsachen geschrieben zu werden.
 
 Daneben gibt es `appendAuditEventMitZeitpunktFuerTests`, das ausdrücklich
 benannte Anfügen mit gewähltem Zeitpunkt. Es existiert nur für die

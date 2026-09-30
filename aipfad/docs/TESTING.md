@@ -29,7 +29,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 135 bestehen
+### Integrationstests — 137 bestehen
 
 `tests/integration/`: `auth.test.ts`, `audit.test.ts`,
 `content-publication.test.ts`, `exercise-service.test.ts`,
@@ -189,9 +189,13 @@ zusätzlich hält eine
 unzulässig ist. Gegenprobe beim Schreiben: Schreibt der Dienst dort über den
 globalen Client statt über `tx`, scheitert die Abbruchprüfung.
 
-Zehn Prüfungen sichern die Grenzen des Dienstes selbst: dass eine überlange
+Zwölf Prüfungen sichern die Grenzen des Dienstes selbst: dass eine überlange
 Vorgangsbezeichnung in der Fehlermeldung gekürzt wird (die Meldung kann in
-einem Log landen), dass die Metadatengröße und die Länge der Kennungsfelder
+einem Log landen) und eine, die keine Zeichenkette ist, nur als ihre Art
+erscheint (kein `String()` über fremde Inhalte), dass eine fehlende
+Vorgangsbezeichnung „fehlt" heißt — auch bei einem geerbten Wert auf
+`Object.prototype` — und gesetzte, aber leere Metadaten (`null`, `undefined`)
+abgewiesen werden, dass die Metadatengröße und die Länge der Kennungsfelder
 begrenzt sind — der Vertrag „knappe betriebliche Tatsachen" stand bis dahin
 nur in der Prosa —, dass ein gesetztes, aber ungültiges Kennungsfeld beim
 Anfügen abgewiesen wird (`actorUserId: undefined` würde sonst still zu „kein
@@ -204,7 +208,7 @@ Vorgangsfilter (`ACCOUNT_DELETE`, auch `''`) abgewiesen wird statt ein
 falsches Negativ zu liefern, dass ein gesetzter, aber ungültiger Filter
 (`undefined`, ein Prisma-Operator wie `{ not: 'x' }`, ein ungültiges Datum,
 ein unbekannter — auch nicht aufzählbarer — Schlüssel, eine Klasseninstanz
-oder `null` statt eines einfachen Objekts) einen Fehler wirft, statt die
+oder `null`/`undefined` statt eines einfachen Objekts) einen Fehler wirft, statt die
 Abfrage still auf fremde Zeilen auszuweiten, dass ein eigener Getter
 einschränkt und wie `take` und eine Zeitgrenze mit überschriebenem `getTime`
 genau einmal gelesen wird, dass ein Proxy mit widersprüchlichem `has` die
