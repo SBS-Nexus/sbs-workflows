@@ -33,6 +33,15 @@ const JETZT = new Date('2026-06-15T12:00:00.000Z');
 const TAG = 24 * 60 * 60 * 1000;
 const GEHEIM = 'SUPERGEHEIM-KANARIENVOGEL';
 
+/**
+ * Statische Regression: Der globale PrismaClient darf den Parameter des
+ * Transaktionspfads nicht erfüllen. Wird die negative Typgrenze später
+ * entfernt, macht die dann überflüssige Direktive den Typecheck rot.
+ */
+// @ts-expect-error Der globale PrismaClient ist kein interaktiver TransactionClient.
+const GLOBALER_CLIENT_IST_KEIN_TX: Parameters<typeof appendAuditEventInTransaction>[0] = prisma;
+void GLOBALER_CLIENT_IST_KEIN_TX;
+
 /** Nur die eigenen Zeilen entfernen, keine fremden (docs/TESTING.md). */
 async function eigeneZeilenEntfernen(): Promise<void> {
   await prisma.user.deleteMany({ where: { email: { contains: PRAEFIX } } });
@@ -106,6 +115,19 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     const nachVorgang = await readAuditEvents({ action: 'PERSONAL_DATA_EXPORTED' });
     expect(nachVorgang.every((e) => e.action === 'PERSONAL_DATA_EXPORTED')).toBe(true);
     expect(nachVorgang.length).toBeGreaterThan(0);
+  });
+
+  it('behandelt einen explizit leeren Filter nicht wie einen fehlenden Filter', async () => {
+    const userId = await nutzerAnlegen('leerer-filter');
+    await appendAuditEvent({
+      action: 'ACCOUNT_DELETED',
+      actorUserId: userId,
+      targetType: 'IntegrationstestZiel',
+    });
+
+    // Vor der Korrektur wurde '' wegen der Truthiness-Prüfung verworfen.
+    // Damit wurde aus einem einschränkenden Filter eine ungefilterte Abfrage.
+    await expect(readAuditEvents({ actorUserId: '' })).resolves.toEqual([]);
   });
 
   it('speichert die Organisationskennung als undurchsichtiges Abbild', async () => {
@@ -271,6 +293,19 @@ describe('Anfügen in der Transaktion des Aufrufers (Integration mit echter Date
   // Das Muster, das E04C braucht: fachliche Löschung und `ACCOUNT_DELETED`
   // in EINER Transaktion. Geprüft wird der DIENST (`appendAuditEventInTransaction`),
   // nicht ein direktes `tx.auditEvent.create`. E04C selbst ist das nicht.
+
+  it('weist den globalen Prisma-Client auch bei umgangenem Typcheck zur Laufzeit ab', async () => {
+    await expect(
+      appendAuditEventInTransaction(prisma as never, {
+        action: 'ACCOUNT_DELETED',
+        targetType: 'IntegrationstestZiel',
+      }),
+    ).rejects.toThrow('nicht den globalen Prisma-Client');
+
+    expect(await prisma.auditEvent.count({ where: { targetType: 'IntegrationstestZiel' } })).toBe(
+      0,
+    );
+  });
 
   it('verwirft Löschung und Auditzeile gemeinsam, wenn die Transaktion scheitert', async () => {
     const userId = await nutzerAnlegen('tx-rollback');

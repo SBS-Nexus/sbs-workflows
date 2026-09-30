@@ -215,9 +215,19 @@ Größengrenzen, derselbe serverseitige Zeitpunkt:
   nicht ohne ihn bestehen darf — E04C löscht ein Konto und schreibt
   `ACCOUNT_DELETED` —, übergibt sein `tx` aus `prisma.$transaction`; Vorgang
   und Spur werden dann gemeinsam festgeschrieben oder gemeinsam verworfen.
-  Der Parameter ist bewusst schmal (`AuditAppendTransaction`: nur
-  `auditEvent.create`). Scheitert die Prüfung der Auditeingabe, rollt das
-  auch den fachlichen Vorgang zurück.
+  Der Parameter ist bewusst schmal (`AuditAppendTransaction`: als
+  Schreibfähigkeit nur `auditEvent.create`). Der globale Prisma-Client ist
+  zusätzlich negativ ausgeschlossen: Er besitzt `$transaction`, ein
+  interaktiver `Prisma.TransactionClient` nicht. Das hält den falschen
+  Client beim Typecheck ab; dieselbe Eigenschaft wird zur Laufzeit geprüft,
+  damit auch ein Cast die Auditzeile nicht unbemerkt außerhalb des fachlichen
+  Transaktionskontexts festschreibt. Scheitert die Prüfung der Auditeingabe,
+  rollt das auch den fachlichen Vorgang zurück.
+
+Beim Lesen ist „Filter fehlt" außerdem etwas anderes als „Filter ist leer".
+Ein explizit gesetzter leerer Akteurs-, Organisations- oder Vorgangsfilter
+wird nicht verworfen und kann deshalb nicht versehentlich zu einer
+ungefilterten Abfrage werden.
 
 Daneben gibt es `appendAuditEventMitZeitpunktFuerTests`, das ausdrücklich
 benannte Anfügen mit gewähltem Zeitpunkt. Es existiert nur für die

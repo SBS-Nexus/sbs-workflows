@@ -29,7 +29,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 128 bestehen
+### Integrationstests — 130 bestehen
 
 `tests/integration/`: `auth.test.ts`, `audit.test.ts`,
 `content-publication.test.ts`, `exercise-service.test.ts`,
@@ -162,7 +162,8 @@ dort zeigt. Die wichtigste Prüfung ist die Kontolöschung: Ein Konto wird
 angelegt, eine Auditzeile mit seiner Akteurskennung geschrieben, das Konto
 gelöscht — und die Zeile lebt weiter, mit unveränderter Kennung. Das belegt
 die fehlende Kaskade, auf der E04C später aufsetzt. Daneben: Anfügen und
-Lesen, Filter nach Akteur, Organisation und Vorgangsart, die
+Lesen, Filter nach Akteur, Organisation und Vorgangsart sowie die Regression,
+dass ein explizit leerer Filter nicht zu „kein Filter" wird, die
 Organisationskennung als undurchsichtiges Abbild ohne Fremdschlüssel, und
 dass Metadaten **gespeichert** geschwärzt sind — gelesen wird dafür direkt
 an der Tabelle, am Dienst vorbei, denn entscheidend ist, was in der
@@ -170,7 +171,7 @@ Datenbank steht, nicht was der Rückgabewert zeigt. Eine erfundene
 Vorgangsbezeichnung wird abgewiesen, und in der Zeile stehen weder Name noch
 Adresse, nur die Kennung.
 
-Drei Prüfungen belegen das Anfügen in der Transaktion des Aufrufers — über
+Vier Prüfungen belegen das Anfügen in der Transaktion des Aufrufers — über
 den Dienst (`appendAuditEventInTransaction`), nicht über ein direktes
 `tx.auditEvent.create`. Das Muster ist das, das E04C braucht: In einer
 Transaktion wird ein Konto gelöscht und `ACCOUNT_DELETED` angefügt. Wird die
@@ -179,15 +180,19 @@ weder die Löschung noch die Auditzeile; dass die Zeile wirklich in dieser
 Transaktion lag, zeigt sie selbst — innen sichtbar, über den globalen Client
 noch nicht. Gelingt die Transaktion, sind beide festgeschrieben, mit
 serverseitigem Zeitpunkt und geschwärzt gespeicherten Metadaten. Und eine
-ungültige Auditeingabe rollt die Löschung mit zurück. Gegenprobe beim
-Schreiben: Schreibt der Dienst dort über den globalen Client statt über
-`tx`, scheitert die Abbruchprüfung.
+ungültige Auditeingabe rollt die Löschung mit zurück. Eine vierte Regression
+weist den globalen Prisma-Client selbst dann zur Laufzeit ab, wenn der
+Typecheck absichtlich umgangen wird; zusätzlich hält eine
+`@ts-expect-error`-Zuweisung fest, dass derselbe Aufruf schon statisch
+unzulässig ist. Gegenprobe beim Schreiben: Schreibt der Dienst dort über den
+globalen Client statt über `tx`, scheitert die Abbruchprüfung.
 
-Vier Prüfungen sichern die Grenzen des Dienstes selbst: dass eine überlange
+Fünf Prüfungen sichern die Grenzen des Dienstes selbst: dass eine überlange
 Vorgangsbezeichnung in der Fehlermeldung gekürzt wird (die Meldung kann in
 einem Log landen), dass die Metadatengröße und die Länge der Kennungsfelder
 begrenzt sind — der Vertrag „knappe betriebliche Tatsachen" stand bis dahin
-nur in der Prosa —, und dass die gelesene Menge auch bei unbrauchbarem Limit
+nur in der Prosa —, dass ein explizit leerer Filter nicht als fehlend
+behandelt wird, und dass die gelesene Menge auch bei unbrauchbarem Limit
 gedeckelt bleibt; `Number('keine-zahl')` ist genau der Wert, den
 `Number(searchParams.get('take'))` liefert.
 

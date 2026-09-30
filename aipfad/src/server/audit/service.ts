@@ -150,8 +150,20 @@ function pruefeEingabe(eingabe: AppendAuditEventInput): {
  * sieht der Dienst über diesen Parameter kein anderes Modell und keine andere
  * Operation — insbesondere kein Ändern und kein Löschen.
  */
-export interface AuditAppendTransaction {
+interface AuditAppendWriter {
   auditEvent: Pick<Prisma.TransactionClient['auditEvent'], 'create'>;
+}
+
+/**
+ * Öffentliche Typgrenze für den Transaktionspfad.
+ *
+ * Ein echter `Prisma.TransactionClient` hat keine eigene `$transaction`-
+ * Methode; der globale `PrismaClient` schon. Die negative Eigenschaft hält
+ * den globalen Client deshalb bereits beim Typecheck aus dieser Schnittstelle
+ * heraus, ohne dem Dienst weitere Datenbankfähigkeiten zu geben.
+ */
+export interface AuditAppendTransaction extends AuditAppendWriter {
+  $transaction?: never;
 }
 
 /**
@@ -164,7 +176,7 @@ export interface AuditAppendTransaction {
  * prüfpflichtiger Vorgang ohne gültige Spur findet nicht statt.
  */
 async function schreiben(
-  db: AuditAppendTransaction,
+  db: AuditAppendWriter,
   eingabe: AppendAuditEventInput,
   occurredAt: Date,
 ): Promise<AuditEventRecord> {
@@ -208,6 +220,17 @@ export async function appendAuditEventInTransaction(
   tx: AuditAppendTransaction,
   eingabe: AppendAuditEventInput,
 ): Promise<AuditEventRecord> {
+  // TypeScript kann absichtlich umgangen werden. Deshalb dieselbe Grenze
+  // zusätzlich zur Laufzeit: Der globale PrismaClient besitzt
+  // `$transaction`, ein interaktiver TransactionClient nicht. Ohne diese
+  // Prüfung könnte ein Cast die Auditzeile außerhalb des fachlichen
+  // Transaktionskontexts festschreiben.
+  if ('$transaction' in tx) {
+    throw new TypeError(
+      'appendAuditEventInTransaction erwartet einen Prisma-Transaktionsclient, nicht den globalen Prisma-Client.',
+    );
+  }
+
   return schreiben(tx, eingabe, new Date());
 }
 
@@ -251,9 +274,9 @@ export async function readAuditEvents(query: AuditEventQuery = {}): Promise<Audi
 
   const zeilen = await prisma.auditEvent.findMany({
     where: {
-      ...(query.actorUserId ? { actorUserId: query.actorUserId } : {}),
-      ...(query.organizationId ? { organizationId: query.organizationId } : {}),
-      ...(query.action ? { action: query.action } : {}),
+      ...(query.actorUserId !== undefined ? { actorUserId: query.actorUserId } : {}),
+      ...(query.organizationId !== undefined ? { organizationId: query.organizationId } : {}),
+      ...(query.action !== undefined ? { action: query.action } : {}),
       ...(occurredAt ? { occurredAt } : {}),
     },
     orderBy: { occurredAt: 'desc' },
