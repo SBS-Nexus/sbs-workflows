@@ -190,21 +190,25 @@ unzulässig ist. Gegenprobe beim Schreiben: Schreibt der Dienst dort über den
 globalen Client statt über `tx`, scheitert die Abbruchprüfung.
 
 Siebzehn Prüfungen sichern die Grenzen des Dienstes selbst: dass ein
-fehlendes oder falsches `tx` (`undefined`, `null`, eine Kennung) mit eigener
+fehlendes oder falsches `tx` (`undefined`, `null`, eine Kennung, `{}`, der
+Kontext des Aufrufers) mit eigener
 Meldung statt eines Laufzeitfehlers samt Wert abgewiesen wird, dass
-Fehlermeldungen einzeilig und speicherbar bleiben (kein Zeilenumbruch aus
+Fehlermeldungen einzeilig und speicherbar bleiben (kein Zeilenumbruch —
+auch kein U+2028/U+2029 oder NEL — aus
 fremdem Text, kein beim Kürzen halbiertes Ersatzpaar), dass ein Lesefilter
 wie beim Schreiben höchstens 200 Zeichen lang ist, dass eine
 überlange Vorgangsbezeichnung in der Fehlermeldung gekürzt wird (die Meldung
 kann in einem Log landen) und eine, die keine Zeichenkette ist, nur als ihre
 Art erscheint (kein `String()` über fremde Inhalte; ebenso ein
 Symbolschlüssel), dass Metadaten, die kein einfaches Objekt sind (`Map`,
-Klasseninstanz), abgewiesen werden, dass Zeichen, die PostgreSQL nicht
+Klasseninstanz, nicht aufzählbarer oder Symbolschlüssel), abgewiesen werden,
+dass Zeichen, die PostgreSQL nicht
 speichern kann (Nullzeichen, einzelnes Ersatzzeichen), in Kennungsfeldern,
 Metadaten und Lesefiltern mit eigener Meldung abgewiesen werden — ein gültiges
-Ersatzpaar nicht —, dass eine Zeitgrenze außerhalb der Jahre 1 bis 9999
+Ersatzpaar nicht —, dass ein leeres oder vertauschtes Zeitfenster abgewiesen
+wird statt ein falsches Negativ zu liefern, dass eine Zeitgrenze außerhalb der Jahre 1 bis 9999
 abgewiesen wird, dass gespeicherte Metadaten, die kein Objekt sind, beim Lesen
-auffallen, dass eine fehlende
+auffallen und deren Kennung nur bereinigt in der Meldung erscheint, dass eine fehlende
 Vorgangsbezeichnung „fehlt" heißt — auch bei einem geerbten Wert auf
 `Object.prototype` — und gesetzte, aber leere Metadaten (`null`, `undefined`)
 abgewiesen werden, dass die Metadatengröße und die Länge der Kennungsfelder

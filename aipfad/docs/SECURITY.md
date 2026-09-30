@@ -224,7 +224,9 @@ Größengrenzen, derselbe serverseitige Zeitpunkt:
   Muster hier) nimmt den globalen Client typkorrekt an, weil jener Typ
   `$connect` gar nicht kennt; die Information geht beim Aufrufer verloren.
   Deshalb wird dieselbe Eigenschaft zur Laufzeit geprüft — auch gegen einen
-  Cast, ein fehlendes oder ein falsches `tx` (etwa eine Kennung). Die
+  Cast, ein fehlendes oder ein falsches `tx` (etwa eine Kennung oder der
+  Kontext des Aufrufers statt seines `tx` — verlangt wird ein
+  `auditEvent.create`). Die
   Laufzeitprüfung schlägt laut fehl, kann aber fachliche Schreibvorgänge nicht
   zurücknehmen, die vorher außerhalb einer Transaktion liefen. **Empfehlung
   für Erzeuger:** im Transaktionsrumpf zuerst anfügen, dann ändern. Beides wird
@@ -255,7 +257,9 @@ Getter auf dem Prototyp, wo keine Schlüsselprüfung sie sieht, und ein falsch
 geschriebener (`actorId`) fiele still weg — typkorrekt. Jeder eigene Schlüssel,
 auch ein nicht aufzählbarer, muss auf der Positivliste stehen; ein unbekannter
 (`actorId`, `targetId`) wird abgewiesen. Eine gesetzte Zeitgrenze muss ein
-gültiges `Date` zwischen den Jahren 1 und 9999 sein; gelesen wird ihr innerer
+gültiges `Date` zwischen den Jahren 1 und 9999 sein, und ein Fenster aus beiden
+Grenzen darf nicht leer oder vertauscht sein — es fände nichts, und „nichts"
+hieße „kein Vorgang im Zeitraum"; gelesen wird ihr innerer
 Zeitwert, nicht ein überschreibbares `getTime`. Ein Kennungsfilter darf kein
 Zeichen enthalten, das PostgreSQL nicht speichern kann (Nullzeichen, einzelnes
 Ersatzzeichen) — ein `%00` aus einer Adresse ließe sonst Prisma mit absolutem
@@ -267,9 +271,10 @@ das Objekt. Die Form wird geprüft, bevor irgendein Wert gelesen wird. Die Meldu
 nur das Feld, nie den Wert; ein fremder Wert, der keine Zeichenkette ist,
 erscheint nur als seine Art (`(object)`), nie über `String()` — ebenso ein
 Symbolschlüssel, dessen Beschreibung fremder Text ist. Fremder Text in einer
-Meldung ist gekürzt, einzeilig (Steuerzeichen ersetzt; ein Zeilenumbruch
-täuschte sonst eine eigene Logzeile vor) und speicherbar (kein beim Kürzen
-halbiertes Ersatzpaar). Die Abfrage
+Meldung — auch die Kennung einer an der Anwendung vorbei geschriebenen Zeile —
+ist gekürzt, einzeilig (C0- und C1-Steuerzeichen sowie U+2028/U+2029 ersetzt;
+ein Umbruch täuschte sonst eine eigene Logzeile vor) und speicherbar (kein beim
+Kürzen halbiertes Ersatzpaar). Die Abfrage
 selbst ist **Pflicht**: `readAuditEvents(undefined)` — etwa
 `readAuditEvents(bauAbfrage(sitzung))` ohne Sitzung — wird abgewiesen, statt
 über einen Vorgabewert zu einer Abfrage über alle Akteure zu werden. Wer
@@ -289,7 +294,8 @@ Schlüsselliste, nie ein geerbter Wert; eine fehlende Vorgangsbezeichnung heißt
 „fehlt". Die Vorgangsbezeichnung wird genau einmal gelesen: Geprüft und
 geschrieben wird derselbe Wert. Fehlt `metadata`, ist es `{}`; ist es gesetzt,
 muss es ein **einfaches** Objekt sein — `metadata: diff ?? null` wird
-abgewiesen, statt still als leere Tatsachen geschrieben zu werden, und ebenso
+abgewiesen, statt still als leere Tatsachen geschrieben zu werden, ebenso ein
+nicht aufzählbarer oder Symbolschlüssel, den die Schwärzung nicht sähe, und ebenso
 eine `Map` oder Klasseninstanz, die die Schwärzung auf `{}` reduzierte. Weder
 Kennungsfelder noch Metadaten (Schlüssel wie Werte, auch verschachtelt) dürfen
 Zeichen enthalten, die PostgreSQL nicht speichern kann; der Dienst meldet das

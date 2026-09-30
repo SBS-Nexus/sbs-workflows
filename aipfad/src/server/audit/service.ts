@@ -69,6 +69,15 @@ const HOECHSTE_MELDUNGSLAENGE = 80;
  */
 const EINZELNES_ERSATZZEICHEN =
   /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
+const EINZELNE_ERSATZZEICHEN_ALLE = new RegExp(EINZELNES_ERSATZZEICHEN.source, 'g');
+
+/**
+ * Was eine Meldung mehrzeilig machen oder unsichtbar steuern könnte: C0- und
+ * C1-Steuerzeichen (darunter NEL, U+0085) und die Unicode-Zeilen- und
+ * Absatztrenner U+2028/U+2029, die manche Logbetrachter als Umbruch zeigen.
+ */
+// eslint-disable-next-line no-control-regex -- genau diese Zeichen sind gemeint
+const STEUERZEICHEN = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
 
 /**
  * Kann PostgreSQL diese Zeichenkette speichern? Nicht mit einem Nullzeichen
@@ -118,9 +127,8 @@ function fuerMeldung(wert: unknown): string {
   const gekuerzt =
     wert.length <= HOECHSTE_MELDUNGSLAENGE ? wert : wert.slice(0, HOECHSTE_MELDUNGSLAENGE);
   const bereinigt = gekuerzt
-    // eslint-disable-next-line no-control-regex -- genau diese Zeichen sind gemeint
-    .replace(/[\u0000-\u001f\u007f]/g, '\ufffd')
-    .replace(new RegExp(EINZELNES_ERSATZZEICHEN.source, 'g'), '\ufffd');
+    .replace(STEUERZEICHEN, '\ufffd')
+    .replace(EINZELNE_ERSATZZEICHEN_ALLE, '\ufffd');
   return wert.length <= HOECHSTE_MELDUNGSLAENGE
     ? bereinigt
     : `${bereinigt}… (${wert.length} Zeichen)`;
@@ -178,13 +186,14 @@ function pflichtfeld(wert: unknown, feld: string): string {
   if (getrimmt.length === 0) {
     throw new TypeError(`${feld} darf nicht leer sein.`);
   }
-  if (!speicherbar(getrimmt)) {
-    throw new TypeError(`${feld} enthält ein Zeichen, das nicht gespeichert werden kann.`);
-  }
+  // Die Länge zuerst: Sie ist billig, die Zeichenprüfung liest den ganzen Wert.
   if (getrimmt.length > HOECHSTE_KENNUNGSLAENGE) {
     throw new TypeError(
       `${feld} darf höchstens ${HOECHSTE_KENNUNGSLAENGE} Zeichen lang sein (war ${getrimmt.length}).`,
     );
+  }
+  if (!speicherbar(getrimmt)) {
+    throw new TypeError(`${feld} enthält ein Zeichen, das nicht gespeichert werden kann.`);
   }
   return getrimmt;
 }
@@ -262,6 +271,18 @@ function pruefeEingabe(eingabe: AppendAuditEventInput): {
   const metadata: unknown = vorhanden.has('metadata') ? eingabe.metadata : {};
   if (!istEinfachesObjekt(metadata)) {
     throw new TypeError('Auditmetadaten müssen ein einfaches Objekt sein.');
+  }
+  // Die Schwärzung liest mit `Object.entries`. Ein nicht aufzählbarer oder
+  // Symbolschlüssel fiele dort still weg — mitsamt seiner Tatsache.
+  for (const schluessel of Reflect.ownKeys(metadata)) {
+    if (
+      typeof schluessel !== 'string' ||
+      !Object.prototype.propertyIsEnumerable.call(metadata, schluessel)
+    ) {
+      throw new TypeError(
+        'Auditmetadaten müssen ein einfaches Objekt sein (nur aufzählbare Zeichenkettenschlüssel).',
+      );
+    }
   }
 
   const geschwaerzt = redactMetadata(metadata);
@@ -386,11 +407,16 @@ export async function appendAuditEventInTransaction(
   // Zuerst: Ist `tx` überhaupt ein Objekt? Sonst würfe `in` einen eigenen
   // Laufzeitfehler, der den Wert in die Meldung zieht (`ctx.tx` noch
   // undefiniert, versehentlich eine Kennung).
+  //
+  // Und hat es überhaupt ein `auditEvent.create`? Sonst käme ein falsches
+  // Objekt (der Kontext des Aufrufers statt seines `tx`) bis zum Schreiben
+  // durch und scheiterte dort mit einer Meldung, die das Problem nicht nennt.
   const kandidat: unknown = tx;
   if (
     typeof kandidat !== 'object' ||
     kandidat === null ||
     '$connect' in kandidat ||
+    typeof (kandidat as { auditEvent?: { create?: unknown } }).auditEvent?.create !== 'function' ||
     tx.auditEvent === prisma.auditEvent
   ) {
     throw new TypeError(
@@ -456,16 +482,17 @@ function pruefeLesefilter(
     if (typeof wert !== 'string') {
       throw new TypeError(`Auditfilter ${feld} ist gesetzt, aber keine Zeichenkette.`);
     }
-    if (!speicherbar(wert)) {
-      throw new TypeError(
-        `Auditfilter ${feld} enthält ein Zeichen, das nicht gespeichert werden kann.`,
-      );
-    }
     // Dieselbe Obergrenze wie beim Schreiben: Ein längerer Wert kann nichts
-    // finden und wäre bei jeder Anfrage nur Last für die Datenbank.
+    // finden und wäre bei jeder Anfrage nur Last für die Datenbank. Zuerst
+    // geprüft, weil die Zeichenprüfung den ganzen Wert liest.
     if (wert.length > HOECHSTE_KENNUNGSLAENGE) {
       throw new TypeError(
         `Auditfilter ${feld} darf höchstens ${HOECHSTE_KENNUNGSLAENGE} Zeichen lang sein.`,
+      );
+    }
+    if (!speicherbar(wert)) {
+      throw new TypeError(
+        `Auditfilter ${feld} enthält ein Zeichen, das nicht gespeichert werden kann.`,
       );
     }
     // Die Vorgangsart ist keine freie Kennung. Ein falsch geschriebener
@@ -479,6 +506,12 @@ function pruefeLesefilter(
 
   const gte = zeitgrenze(query, vorhanden, 'occurredFrom');
   const lt = zeitgrenze(query, vorhanden, 'occurredBefore');
+  // Ein leeres oder vertauschtes Fenster fände nichts — und „nichts" hieße für
+  // die prüfende Person „kein Vorgang im Zeitraum". Dasselbe falsche Negativ
+  // wie bei einem falsch geschriebenen Vorgangsfilter.
+  if (gte && lt && gte.getTime() >= lt.getTime()) {
+    throw new TypeError('Auditfilter occurredFrom muss vor occurredBefore liegen.');
+  }
   if (gte || lt) {
     where.occurredAt = { ...(gte ? { gte } : {}), ...(lt ? { lt } : {}) };
   }
@@ -569,16 +602,18 @@ function alsRecord(zeile: {
   metadata: unknown;
   occurredAt: Date;
 }): AuditEventRecord {
+  // Die Kennung einer solchen Zeile ist selbst fremder Text — deshalb auch
+  // sie nur über `fuerMeldung`: gekürzt, einzeilig, speicherbar.
   if (!istAuditAction(zeile.action)) {
     // Kann nur entstehen, wenn jemand an der Anwendung vorbei geschrieben
     // hat. Genau der Fall, den die Datenbank NICHT verhindert — deshalb
     // fällt er hier auf, statt als scheinbar gültiger Wert weiterzulaufen.
-    throw new TypeError(`Auditzeile mit unbekannter Vorgangsbezeichnung: ${zeile.id}`);
+    throw new TypeError(`Auditzeile mit unbekannter Vorgangsbezeichnung: ${fuerMeldung(zeile.id)}`);
   }
   // Derselbe Fall für die Metadaten: Die Spalte ist JSONB und nimmt an der
   // Anwendung vorbei auch ein Array oder eine Zeichenkette an.
   if (!istEinfachesObjekt(zeile.metadata)) {
-    throw new TypeError(`Auditzeile mit ungültigen Metadaten: ${zeile.id}`);
+    throw new TypeError(`Auditzeile mit ungültigen Metadaten: ${fuerMeldung(zeile.id)}`);
   }
 
   return {

@@ -260,6 +260,22 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     expect((symbolFehler as Error).message).toContain('Unbekannter Auditfilter: (symbol)');
     expect((symbolFehler as Error).message).not.toContain(GEHEIM);
 
+    // Ein leeres oder vertauschtes Zeitfenster fände nichts — und ein leeres
+    // Ergebnis hieße „kein solcher Vorgang im Zeitraum". Abgewiesen wie ein
+    // falsch geschriebener Vorgangsfilter.
+    await expect(
+      readAuditEvents({
+        occurredFrom: new Date('2026-09-01T00:00:00.000Z'),
+        occurredBefore: new Date('2026-08-01T00:00:00.000Z'),
+      }),
+    ).rejects.toThrow('occurredFrom muss vor occurredBefore liegen');
+    await expect(
+      readAuditEvents({
+        occurredFrom: new Date('2026-09-01T00:00:00.000Z'),
+        occurredBefore: new Date('2026-09-01T00:00:00.000Z'),
+      }),
+    ).rejects.toThrow('occurredFrom muss vor occurredBefore liegen');
+
     // Keine Abfrage, sondern `null`: die eigene Meldung, nicht die der Laufzeit.
     await expect(readAuditEvents(null as never)).rejects.toThrow(
       'Auditabfrage muss ein einfaches Objekt sein',
@@ -520,7 +536,17 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
         return 'USER_REQUEST';
       }
     }
-    for (const metadata of [new Map([['reasonCode', 'USER_REQUEST']]), new Tatsachen()]) {
+    // Ebenso ein einfaches Objekt, dessen Schlüssel die Schwärzung nicht
+    // sähe: nicht aufzählbar oder ein Symbol.
+    const versteckt = {};
+    Object.defineProperty(versteckt, 'reasonCode', { value: 'GDPR_REQUEST' });
+    const mitSymbol = { [Symbol('reasonCode')]: 'GDPR_REQUEST' };
+    for (const metadata of [
+      new Map([['reasonCode', 'USER_REQUEST']]),
+      new Tatsachen(),
+      versteckt,
+      mitSymbol,
+    ]) {
       await expect(
         appendAuditEvent({
           action: 'ACCOUNT_DELETED',
@@ -620,6 +646,18 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     } as never).catch((e: unknown) => e);
     expect((gefaelscht as Error).message).toContain('Unbekannter Auditfilter');
     expect((gefaelscht as Error).message).not.toContain('\n');
+
+    // Auch Unicode-Zeilenumbrüche (U+2028, U+2029) und C1-Steuerzeichen wie
+    // NEL (U+0085): Ein Logbetrachter, der sie beachtet, zeigte sonst eine
+    // vorgetäuschte zweite Zeile.
+    for (const umbruch of ['\u2028', '\u2029', '\u0085']) {
+      const fehler = await appendAuditEvent({
+        action: `X${umbruch}[INFO] gefaelscht` as never,
+        targetType: 'IntegrationstestZiel',
+      }).catch((e: unknown) => e);
+      expect((fehler as Error).message).toContain('Unbekannte Auditvorgangsbezeichnung');
+      expect((fehler as Error).message).not.toContain(umbruch);
+    }
   });
 
   it('begrenzt die Länge der Kennungsfelder', async () => {
@@ -665,6 +703,25 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     await expect(readAuditEvents({ actorUserId: userId })).rejects.toThrow(
       'Auditzeile mit ungültigen Metadaten',
     );
+
+    // Auch die Kennung einer solchen Zeile ist fremder Text: gekürzt und
+    // einzeilig in der Meldung, nie roh.
+    const fremdeKennung = `x\n{"level":"info","message":"gefaelscht"}${'A'.repeat(500)}`;
+    await prisma.auditEvent.create({
+      data: {
+        id: fremdeKennung,
+        action: 'GIBT_ES_NICHT',
+        actorUserId: `${userId}-fremd`,
+        targetType: 'IntegrationstestZiel',
+        occurredAt: new Date(),
+      },
+    });
+    const fehler = await readAuditEvents({ actorUserId: `${userId}-fremd` }).catch(
+      (e: unknown) => e,
+    );
+    expect((fehler as Error).message).toContain('Auditzeile mit unbekannter Vorgangsbezeichnung');
+    expect((fehler as Error).message).not.toContain('\n');
+    expect((fehler as Error).message.length).toBeLessThan(200);
   });
 
   it('überdauert die Löschung des Kontos, auf das der Akteursabdruck zeigt', async () => {
@@ -724,7 +781,9 @@ describe('Anfügen in der Transaktion des Aufrufers (Integration mit echter Date
   it('weist ein fehlendes oder falsches `tx` mit eigener Meldung ab', async () => {
     // `ctx.tx` noch undefiniert oder versehentlich eine Kennung: Sonst warf
     // die Laufzeit ihren eigenen `in`-Fehler und zog den Wert in die Meldung.
-    for (const falsch of [undefined, null, `kennung-${GEHEIM}`]) {
+    // Ebenso ein Objekt, das kein Transaktionsclient ist — etwa der Kontext
+    // des Aufrufers statt seines `tx`, oder `{}`.
+    for (const falsch of [undefined, null, `kennung-${GEHEIM}`, {}, { tx: {}, userId: 'u1' }]) {
       const fehler = await appendAuditEventInTransaction(falsch as never, {
         action: 'ACCOUNT_DELETED',
         targetType: 'IntegrationstestZiel',
