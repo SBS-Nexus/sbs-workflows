@@ -219,9 +219,17 @@ Größengrenzen, derselbe serverseitige Zeitpunkt:
   Schreibfähigkeit nur `auditEvent.create`). Der globale Prisma-Client ist
   zusätzlich negativ ausgeschlossen: Er besitzt `$connect`, ein
   interaktiver `Prisma.TransactionClient` nicht. Das hält den falschen
-  Client beim Typecheck ab; dieselbe Eigenschaft wird zur Laufzeit geprüft,
-  damit auch ein Cast die Auditzeile nicht unbemerkt außerhalb des fachlichen
-  Transaktionskontexts festschreibt. Zur Laufzeit wird außerdem eine Hülle um
+  Client beim Typecheck ab — aber **nur, wenn `prisma` direkt übergeben
+  wird**. Eine Hilfsfunktion mit `db: Prisma.TransactionClient` (das übliche
+  Muster hier) nimmt den globalen Client typkorrekt an, weil jener Typ
+  `$connect` gar nicht kennt; die Information geht beim Aufrufer verloren.
+  Deshalb wird dieselbe Eigenschaft zur Laufzeit geprüft — auch gegen einen
+  Cast, ein fehlendes oder ein falsches `tx` (etwa eine Kennung). Die
+  Laufzeitprüfung schlägt laut fehl, kann aber fachliche Schreibvorgänge nicht
+  zurücknehmen, die vorher außerhalb einer Transaktion liefen. **Empfehlung
+  für Erzeuger:** im Transaktionsrumpf zuerst anfügen, dann ändern. Beides wird
+  ohnehin gemeinsam festgeschrieben; ein falscher Client scheitert dann aber,
+  bevor irgendein fachlicher Schreibvorgang stattfand. Zur Laufzeit wird außerdem eine Hülle um
   das Delegate des globalen Clients (`{ auditEvent: prisma.auditEvent }`)
   abgewiesen — sie hat kein `$connect` und erfüllt den Typ ohne Cast.
   **Diese Grenze fängt Versehen, keinen Vorsatz.** Eine eigens gebaute
@@ -251,13 +259,17 @@ gültiges `Date` zwischen den Jahren 1 und 9999 sein; gelesen wird ihr innerer
 Zeitwert, nicht ein überschreibbares `getTime`. Ein Kennungsfilter darf kein
 Zeichen enthalten, das PostgreSQL nicht speichern kann (Nullzeichen, einzelnes
 Ersatzzeichen) — ein `%00` aus einer Adresse ließe sonst Prisma mit absolutem
-Quellpfad scheitern. Jeder Wert wird genau einmal gelesen, damit ein
+Quellpfad scheitern — und ist wie beim Schreiben höchstens 200 Zeichen lang;
+ein längerer kann nichts finden und wäre nur Last. Jeder Wert wird genau einmal gelesen, damit ein
 Getter nicht beim zweiten Zugriff etwas anderes liefert als geprüft, und über
 „vorhanden" entscheidet die geprüfte Schlüsselliste, nicht eine zweite Frage an
 das Objekt. Die Form wird geprüft, bevor irgendein Wert gelesen wird. Die Meldung nennt
 nur das Feld, nie den Wert; ein fremder Wert, der keine Zeichenkette ist,
 erscheint nur als seine Art (`(object)`), nie über `String()` — ebenso ein
-Symbolschlüssel, dessen Beschreibung fremder Text ist. Die Abfrage
+Symbolschlüssel, dessen Beschreibung fremder Text ist. Fremder Text in einer
+Meldung ist gekürzt, einzeilig (Steuerzeichen ersetzt; ein Zeilenumbruch
+täuschte sonst eine eigene Logzeile vor) und speicherbar (kein beim Kürzen
+halbiertes Ersatzpaar). Die Abfrage
 selbst ist **Pflicht**: `readAuditEvents(undefined)` — etwa
 `readAuditEvents(bauAbfrage(sitzung))` ohne Sitzung — wird abgewiesen, statt
 über einen Vorgabewert zu einer Abfrage über alle Akteure zu werden. Wer

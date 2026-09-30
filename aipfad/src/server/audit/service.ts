@@ -64,12 +64,6 @@ const HOECHSTE_METADATENGROESSE = 4096;
 const HOECHSTE_MELDUNGSLAENGE = 80;
 
 /**
- * Kürzt einen nicht vertrauenswürdigen Wert für eine Fehlermeldung.
- *
- * Die Meldung kann in einem Log landen; eine ungekürzte Eingabe machte den
- * Logstrom zum Ablageort für beliebigen fremden Text.
- */
-/**
  * Ein einzelnes Ersatzzeichen (ohne Partner). PostgreSQL speichert es weder
  * als TEXT noch in JSONB.
  */
@@ -106,16 +100,30 @@ function istEinfachesObjekt(wert: unknown): wert is Record<string, unknown> {
   return prototyp === Object.prototype || prototyp === null;
 }
 
+/**
+ * Kürzt einen nicht vertrauenswürdigen Wert für eine Fehlermeldung.
+ *
+ * Die Meldung kann in einem Log landen; eine ungekürzte Eingabe machte den
+ * Logstrom zum Ablageort für beliebigen fremden Text. Aus demselben Grund
+ * bleibt sie einzeilig und speicherbar: Steuerzeichen (ein Zeilenumbruch
+ * täuschte eine eigene Logzeile vor) und einzelne Ersatzzeichen — auch eines,
+ * das erst das Kürzen mitten in einem Paar erzeugt — werden ersetzt.
+ */
 function fuerMeldung(wert: unknown): string {
   // Keine Zeichenkette: nur die Art. `String()` über einen fremden Wert zöge
   // dessen Inhalt in die Meldung (ein Array mit einer Adresse) oder führte
   // fremden Code aus (`toString`) — bei einem Objekt ohne Prototyp würfe es
   // sogar selbst und verdrängte diese Meldung.
   if (typeof wert !== 'string') return `(${wert === null ? 'null' : typeof wert})`;
-  const text = wert;
-  return text.length <= HOECHSTE_MELDUNGSLAENGE
-    ? text
-    : `${text.slice(0, HOECHSTE_MELDUNGSLAENGE)}… (${text.length} Zeichen)`;
+  const gekuerzt =
+    wert.length <= HOECHSTE_MELDUNGSLAENGE ? wert : wert.slice(0, HOECHSTE_MELDUNGSLAENGE);
+  const bereinigt = gekuerzt
+    // eslint-disable-next-line no-control-regex -- genau diese Zeichen sind gemeint
+    .replace(/[\u0000-\u001f\u007f]/g, '\ufffd')
+    .replace(new RegExp(EINZELNES_ERSATZZEICHEN.source, 'g'), '\ufffd');
+  return wert.length <= HOECHSTE_MELDUNGSLAENGE
+    ? bereinigt
+    : `${bereinigt}… (${wert.length} Zeichen)`;
 }
 
 /**
@@ -347,9 +355,13 @@ export async function appendAuditEvent(eingabe: AppendAuditEventInput): Promise<
  * Fügt eine Auditzeile INNERHALB der Transaktion des Aufrufers an.
  *
  *     await prisma.$transaction(async (tx) => {
- *       await tx.user.delete({ where: { id } });
  *       await appendAuditEventInTransaction(tx, { action: 'ACCOUNT_DELETED', … });
+ *       await tx.user.delete({ where: { id } });
  *     });
+ *
+ * Zuerst anfügen, dann ändern: Festgeschrieben wird beides ohnehin gemeinsam,
+ * aber ein falscher Client (siehe unten) scheitert so, bevor irgendein
+ * fachlicher Schreibvorgang stattfand.
  *
  * Fachlicher Vorgang und Spur werden gemeinsam festgeschrieben oder gemeinsam
  * verworfen. Es entsteht keine zweite Transaktion; der Dienst schreibt über
@@ -370,7 +382,17 @@ export async function appendAuditEventInTransaction(
   // Clients (`{ auditEvent: prisma.auditEvent }`): Sie hat kein `$connect`
   // und erfüllt den Typ, schriebe aber ebenfalls außerhalb der Transaktion.
   // Das Delegate ist pro Client stabil, das von `tx` ein anderes.
-  if ('$connect' in tx || tx.auditEvent === prisma.auditEvent) {
+  //
+  // Zuerst: Ist `tx` überhaupt ein Objekt? Sonst würfe `in` einen eigenen
+  // Laufzeitfehler, der den Wert in die Meldung zieht (`ctx.tx` noch
+  // undefiniert, versehentlich eine Kennung).
+  const kandidat: unknown = tx;
+  if (
+    typeof kandidat !== 'object' ||
+    kandidat === null ||
+    '$connect' in kandidat ||
+    tx.auditEvent === prisma.auditEvent
+  ) {
     throw new TypeError(
       'appendAuditEventInTransaction erwartet einen Prisma-Transaktionsclient, nicht den globalen Prisma-Client.',
     );
@@ -437,6 +459,13 @@ function pruefeLesefilter(
     if (!speicherbar(wert)) {
       throw new TypeError(
         `Auditfilter ${feld} enthält ein Zeichen, das nicht gespeichert werden kann.`,
+      );
+    }
+    // Dieselbe Obergrenze wie beim Schreiben: Ein längerer Wert kann nichts
+    // finden und wäre bei jeder Anfrage nur Last für die Datenbank.
+    if (wert.length > HOECHSTE_KENNUNGSLAENGE) {
+      throw new TypeError(
+        `Auditfilter ${feld} darf höchstens ${HOECHSTE_KENNUNGSLAENGE} Zeichen lang sein.`,
       );
     }
     // Die Vorgangsart ist keine freie Kennung. Ein falsch geschriebener

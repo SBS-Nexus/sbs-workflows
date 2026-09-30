@@ -247,6 +247,12 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
       'Auditfilter occurredFrom ist gesetzt, aber kein gültiges Datum',
     );
 
+    // Ein Kennungsfilter ist wie beim Schreiben höchstens 200 Zeichen lang:
+    // Ein längerer kann nichts finden und wäre nur Last für die Datenbank.
+    await expect(readAuditEvents({ organizationId: 'x'.repeat(201) })).rejects.toThrow(
+      'Auditfilter organizationId darf höchstens 200 Zeichen lang sein',
+    );
+
     // Ein Symbolschlüssel erscheint nur als Art, nie mit seiner Beschreibung.
     const symbolFehler = await readAuditEvents({ [Symbol(GEHEIM)]: 1 } as never).catch(
       (e: unknown) => e,
@@ -593,6 +599,29 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     await expect(readAuditEvents({ actorUserId: userId })).resolves.toHaveLength(1);
   });
 
+  it('hält Fehlermeldungen speicherbar und einzeilig', async () => {
+    // Gekürzt wird nicht mitten in einem Ersatzpaar: Die Meldung selbst darf
+    // kein Zeichen enthalten, das der Dienst anderswo als nicht speicherbar
+    // abweist.
+    const langeBezeichnung = `${'A'.repeat(79)}\ud83d\ude00${'B'.repeat(10)}`;
+    const gekuerzt = await appendAuditEvent({
+      action: langeBezeichnung as never,
+      targetType: 'IntegrationstestZiel',
+    }).catch((e: unknown) => e);
+    expect((gekuerzt as Error).message).toContain('Unbekannte Auditvorgangsbezeichnung');
+    expect((gekuerzt as Error).message).not.toMatch(
+      /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/,
+    );
+
+    // Ein Zeilenumbruch in fremdem Text könnte im Log eine eigene Zeile
+    // vortäuschen.
+    const gefaelscht = await readAuditEvents({
+      'x\n[INFO] gefaelscht': 1,
+    } as never).catch((e: unknown) => e);
+    expect((gefaelscht as Error).message).toContain('Unbekannter Auditfilter');
+    expect((gefaelscht as Error).message).not.toContain('\n');
+  });
+
   it('begrenzt die Länge der Kennungsfelder', async () => {
     await expect(
       appendAuditEvent({
@@ -690,6 +719,20 @@ describe('Anfügen in der Transaktion des Aufrufers (Integration mit echter Date
     expect(await prisma.auditEvent.count({ where: { targetType: 'IntegrationstestZiel' } })).toBe(
       0,
     );
+  });
+
+  it('weist ein fehlendes oder falsches `tx` mit eigener Meldung ab', async () => {
+    // `ctx.tx` noch undefiniert oder versehentlich eine Kennung: Sonst warf
+    // die Laufzeit ihren eigenen `in`-Fehler und zog den Wert in die Meldung.
+    for (const falsch of [undefined, null, `kennung-${GEHEIM}`]) {
+      const fehler = await appendAuditEventInTransaction(falsch as never, {
+        action: 'ACCOUNT_DELETED',
+        targetType: 'IntegrationstestZiel',
+      }).catch((e: unknown) => e);
+      expect(fehler).toBeInstanceOf(TypeError);
+      expect((fehler as Error).message).toContain('erwartet einen Prisma-Transaktionsclient');
+      expect((fehler as Error).message).not.toContain(GEHEIM);
+    }
   });
 
   it('verwirft Löschung und Auditzeile gemeinsam, wenn die Transaktion scheitert', async () => {

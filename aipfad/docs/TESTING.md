@@ -29,7 +29,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 140 bestehen
+### Integrationstests — 142 bestehen
 
 `tests/integration/`: `auth.test.ts`, `audit.test.ts`,
 `content-publication.test.ts`, `exercise-service.test.ts`,
@@ -189,7 +189,12 @@ zusätzlich hält eine
 unzulässig ist. Gegenprobe beim Schreiben: Schreibt der Dienst dort über den
 globalen Client statt über `tx`, scheitert die Abbruchprüfung.
 
-Fünfzehn Prüfungen sichern die Grenzen des Dienstes selbst: dass eine
+Siebzehn Prüfungen sichern die Grenzen des Dienstes selbst: dass ein
+fehlendes oder falsches `tx` (`undefined`, `null`, eine Kennung) mit eigener
+Meldung statt eines Laufzeitfehlers samt Wert abgewiesen wird, dass
+Fehlermeldungen einzeilig und speicherbar bleiben (kein Zeilenumbruch aus
+fremdem Text, kein beim Kürzen halbiertes Ersatzpaar), dass ein Lesefilter
+wie beim Schreiben höchstens 200 Zeichen lang ist, dass eine
 überlange Vorgangsbezeichnung in der Fehlermeldung gekürzt wird (die Meldung
 kann in einem Log landen) und eine, die keine Zeichenkette ist, nur als ihre
 Art erscheint (kein `String()` über fremde Inhalte; ebenso ein
