@@ -2,7 +2,11 @@ import 'server-only';
 import { prisma } from '@/server/db/prisma';
 import type { Prisma } from '@/generated/prisma/client';
 import { istAuditAction } from '@/server/audit/actions';
-import { redactMetadata, type AuditMetadata } from '@/server/audit/redaction';
+import {
+  redactMetadata,
+  type AuditMetadata,
+  type AuditMetadataWert,
+} from '@/server/audit/redaction';
 import type {
   AppendAuditEventInput,
   AuditEventQuery,
@@ -65,6 +69,43 @@ const HOECHSTE_MELDUNGSLAENGE = 80;
  * Die Meldung kann in einem Log landen; eine ungekürzte Eingabe machte den
  * Logstrom zum Ablageort für beliebigen fremden Text.
  */
+/**
+ * Ein einzelnes Ersatzzeichen (ohne Partner). PostgreSQL speichert es weder
+ * als TEXT noch in JSONB.
+ */
+const EINZELNES_ERSATZZEICHEN =
+  /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
+
+/**
+ * Kann PostgreSQL diese Zeichenkette speichern? Nicht mit einem Nullzeichen
+ * und nicht mit einem einzelnen Ersatzzeichen. Ohne diese Prüfung scheiterte
+ * erst die Datenbank — mit einer Prisma-Meldung samt absolutem Quellpfad, und
+ * im Transaktionspfad zusammen mit dem fachlichen Vorgang, ohne dass die
+ * Meldung das Feld nennt.
+ */
+function speicherbar(text: string): boolean {
+  return !text.includes('\u0000') && !EINZELNES_ERSATZZEICHEN.test(text);
+}
+
+/** Sind alle Schlüssel und Zeichenketten der (geschwärzten) Metadaten speicherbar? */
+function metadatenSpeicherbar(wert: AuditMetadataWert): boolean {
+  if (typeof wert === 'string') return speicherbar(wert);
+  if (Array.isArray(wert)) return wert.every(metadatenSpeicherbar);
+  if (typeof wert === 'object' && wert !== null) {
+    return Object.entries(wert).every(
+      ([schluessel, eintrag]) => speicherbar(schluessel) && metadatenSpeicherbar(eintrag),
+    );
+  }
+  return true;
+}
+
+/** Ein einfaches Objekt: kein Array, kein `null`, Prototyp `Object.prototype` oder keiner. */
+function istEinfachesObjekt(wert: unknown): wert is Record<string, unknown> {
+  if (typeof wert !== 'object' || wert === null) return false;
+  const prototyp: unknown = Object.getPrototypeOf(wert);
+  return prototyp === Object.prototype || prototyp === null;
+}
+
 function fuerMeldung(wert: unknown): string {
   // Keine Zeichenkette: nur die Art. `String()` über einen fremden Wert zöge
   // dessen Inhalt in die Meldung (ein Array mit einer Adresse) oder führte
@@ -97,17 +138,14 @@ function vorhandeneSchluessel(
   art: 'Auditabfrage' | 'Auditeingabe',
   unbekannt: string,
 ): ReadonlySet<string> {
-  if (typeof wert !== 'object' || wert === null) {
-    throw new TypeError(`${art} muss ein einfaches Objekt sein.`);
-  }
-  const prototyp: unknown = Object.getPrototypeOf(wert);
-  if (prototyp !== Object.prototype && prototyp !== null) {
+  if (!istEinfachesObjekt(wert)) {
     throw new TypeError(`${art} muss ein einfaches Objekt sein.`);
   }
   const schluessel = new Set<string>();
   for (const eintrag of Reflect.ownKeys(wert)) {
+    // Ein Symbol nur als Art: Seine Beschreibung ist fremder Text.
     if (typeof eintrag !== 'string' || !erlaubt.has(eintrag)) {
-      throw new TypeError(`${unbekannt}: ${fuerMeldung(String(eintrag))}`);
+      throw new TypeError(`${unbekannt}: ${fuerMeldung(eintrag)}`);
     }
     schluessel.add(eintrag);
   }
@@ -131,6 +169,9 @@ function pflichtfeld(wert: unknown, feld: string): string {
   const getrimmt = wert.trim();
   if (getrimmt.length === 0) {
     throw new TypeError(`${feld} darf nicht leer sein.`);
+  }
+  if (!speicherbar(getrimmt)) {
+    throw new TypeError(`${feld} enthält ein Zeichen, das nicht gespeichert werden kann.`);
   }
   if (getrimmt.length > HOECHSTE_KENNUNGSLAENGE) {
     throw new TypeError(
@@ -207,12 +248,18 @@ function pruefeEingabe(eingabe: AppendAuditEventInput): {
   // Fehlt `metadata`, ist es `{}`. Ist es gesetzt, muss es ein Objekt sein —
   // auch `null` oder `undefined` (`diff ?? null` nach einem Fehler) werden
   // abgewiesen, statt still als leere Tatsachen geschrieben zu werden.
+  //
+  // Ein EINFACHES Objekt: Eine Map oder Klasseninstanz würde von der
+  // Schwärzung auf `{}` bzw. ihre eigenen aufzählbaren Felder reduziert.
   const metadata: unknown = vorhanden.has('metadata') ? eingabe.metadata : {};
-  if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) {
-    throw new TypeError('Auditmetadaten müssen ein Objekt sein.');
+  if (!istEinfachesObjekt(metadata)) {
+    throw new TypeError('Auditmetadaten müssen ein einfaches Objekt sein.');
   }
 
-  const geschwaerzt = redactMetadata(metadata as Record<string, unknown>);
+  const geschwaerzt = redactMetadata(metadata);
+  if (!metadatenSpeicherbar(geschwaerzt)) {
+    throw new TypeError('Auditmetadaten enthalten ein Zeichen, das nicht gespeichert werden kann.');
+  }
   // Nach der Schwärzung gemessen: Was zählt, ist die Größe dessen, was
   // WIRKLICH in die Zeile geht. Vor der Schwärzung gemessen wäre die Grenze
   // strenger als nötig, wenn ein langer Wert ohnehin ersetzt wird.
@@ -387,6 +434,11 @@ function pruefeLesefilter(
     if (typeof wert !== 'string') {
       throw new TypeError(`Auditfilter ${feld} ist gesetzt, aber keine Zeichenkette.`);
     }
+    if (!speicherbar(wert)) {
+      throw new TypeError(
+        `Auditfilter ${feld} enthält ein Zeichen, das nicht gespeichert werden kann.`,
+      );
+    }
     // Die Vorgangsart ist keine freie Kennung. Ein falsch geschriebener
     // Vorgang (`ACCOUNT_DELETE`) fände sonst nichts — und ein leeres Ergebnis
     // hieße für die prüfende Person „kein solcher Vorgang".
@@ -404,6 +456,10 @@ function pruefeLesefilter(
 
   return where;
 }
+
+/** Der Bereich, in dem eine Zeitgrenze liegen muss — großzügig innerhalb dessen, was PostgreSQL kann. */
+const FRUEHESTE_ZEIT = Date.parse('0001-01-01T00:00:00.000Z');
+const SPAETESTE_ZEIT = Date.parse('9999-12-31T23:59:59.999Z');
 
 /**
  * Eine Zeitgrenze fehlt, oder sie ist ein gültiges `Date`. Ein ungültiges
@@ -424,7 +480,9 @@ function zeitgrenze(
   // Der innere Zeitwert, genau einmal gelesen: Ein überschriebenes `getTime`
   // könnte sonst beim Prüfen etwas anderes liefern als beim Übernehmen.
   const zeit: number = Date.prototype.getTime.call(wert);
-  if (!Number.isFinite(zeit)) {
+  // Endlich genügt nicht: `new Date(-8.64e15)` liegt im Jahr -271821, weit
+  // unter dem, was PostgreSQL als Zeitpunkt speichert.
+  if (!Number.isFinite(zeit) || zeit < FRUEHESTE_ZEIT || zeit > SPAETESTE_ZEIT) {
     throw new TypeError(`Auditfilter ${feld} ist gesetzt, aber kein gültiges Datum.`);
   }
   return new Date(zeit);
@@ -488,6 +546,11 @@ function alsRecord(zeile: {
     // fällt er hier auf, statt als scheinbar gültiger Wert weiterzulaufen.
     throw new TypeError(`Auditzeile mit unbekannter Vorgangsbezeichnung: ${zeile.id}`);
   }
+  // Derselbe Fall für die Metadaten: Die Spalte ist JSONB und nimmt an der
+  // Anwendung vorbei auch ein Array oder eine Zeichenkette an.
+  if (!istEinfachesObjekt(zeile.metadata)) {
+    throw new TypeError(`Auditzeile mit ungültigen Metadaten: ${zeile.id}`);
+  }
 
   return {
     id: zeile.id,
@@ -496,7 +559,7 @@ function alsRecord(zeile: {
     organizationId: zeile.organizationId,
     targetType: zeile.targetType,
     targetId: zeile.targetId,
-    metadata: (zeile.metadata ?? {}) as AuditMetadata,
+    metadata: zeile.metadata as AuditMetadata,
     occurredAt: zeile.occurredAt,
   };
 }

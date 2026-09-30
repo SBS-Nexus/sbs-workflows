@@ -247,13 +247,17 @@ Getter auf dem Prototyp, wo keine Schlüsselprüfung sie sieht, und ein falsch
 geschriebener (`actorId`) fiele still weg — typkorrekt. Jeder eigene Schlüssel,
 auch ein nicht aufzählbarer, muss auf der Positivliste stehen; ein unbekannter
 (`actorId`, `targetId`) wird abgewiesen. Eine gesetzte Zeitgrenze muss ein
-gültiges `Date` sein; gelesen wird ihr innerer Zeitwert, nicht ein
-überschreibbares `getTime`. Jeder Wert wird genau einmal gelesen, damit ein
+gültiges `Date` zwischen den Jahren 1 und 9999 sein; gelesen wird ihr innerer
+Zeitwert, nicht ein überschreibbares `getTime`. Ein Kennungsfilter darf kein
+Zeichen enthalten, das PostgreSQL nicht speichern kann (Nullzeichen, einzelnes
+Ersatzzeichen) — ein `%00` aus einer Adresse ließe sonst Prisma mit absolutem
+Quellpfad scheitern. Jeder Wert wird genau einmal gelesen, damit ein
 Getter nicht beim zweiten Zugriff etwas anderes liefert als geprüft, und über
 „vorhanden" entscheidet die geprüfte Schlüsselliste, nicht eine zweite Frage an
 das Objekt. Die Form wird geprüft, bevor irgendein Wert gelesen wird. Die Meldung nennt
 nur das Feld, nie den Wert; ein fremder Wert, der keine Zeichenkette ist,
-erscheint nur als seine Art (`(object)`), nie über `String()`. Die Abfrage
+erscheint nur als seine Art (`(object)`), nie über `String()` — ebenso ein
+Symbolschlüssel, dessen Beschreibung fremder Text ist. Die Abfrage
 selbst ist **Pflicht**: `readAuditEvents(undefined)` — etwa
 `readAuditEvents(bauAbfrage(sitzung))` ohne Sitzung — wird abgewiesen, statt
 über einen Vorgabewert zu einer Abfrage über alle Akteure zu werden. Wer
@@ -272,8 +276,17 @@ Zuordnung zu kosten. Über „vorhanden" entscheidet auch hier die geprüfte
 Schlüsselliste, nie ein geerbter Wert; eine fehlende Vorgangsbezeichnung heißt
 „fehlt". Die Vorgangsbezeichnung wird genau einmal gelesen: Geprüft und
 geschrieben wird derselbe Wert. Fehlt `metadata`, ist es `{}`; ist es gesetzt,
-muss es ein Objekt sein — `metadata: diff ?? null` wird abgewiesen, statt still
-als leere Tatsachen geschrieben zu werden.
+muss es ein **einfaches** Objekt sein — `metadata: diff ?? null` wird
+abgewiesen, statt still als leere Tatsachen geschrieben zu werden, und ebenso
+eine `Map` oder Klasseninstanz, die die Schwärzung auf `{}` reduzierte. Weder
+Kennungsfelder noch Metadaten (Schlüssel wie Werte, auch verschachtelt) dürfen
+Zeichen enthalten, die PostgreSQL nicht speichern kann; der Dienst meldet das
+Feld selbst, statt die Datenbank mit Quellpfad scheitern und im
+Transaktionspfad den fachlichen Vorgang ohne Begründung zurückrollen zu lassen.
+
+Beim Lesen gespeicherter Zeilen fällt nicht nur eine unbekannte
+Vorgangsbezeichnung auf, sondern auch Metadaten, die kein Objekt sind — beides
+kann nur an der Anwendung vorbei entstehen.
 
 Daneben gibt es `appendAuditEventMitZeitpunktFuerTests`, das ausdrücklich
 benannte Anfügen mit gewähltem Zeitpunkt. Es existiert nur für die

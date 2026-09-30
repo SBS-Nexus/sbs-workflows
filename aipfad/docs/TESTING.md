@@ -29,7 +29,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 137 bestehen
+### Integrationstests — 140 bestehen
 
 `tests/integration/`: `auth.test.ts`, `audit.test.ts`,
 `content-publication.test.ts`, `exercise-service.test.ts`,
@@ -189,10 +189,17 @@ zusätzlich hält eine
 unzulässig ist. Gegenprobe beim Schreiben: Schreibt der Dienst dort über den
 globalen Client statt über `tx`, scheitert die Abbruchprüfung.
 
-Zwölf Prüfungen sichern die Grenzen des Dienstes selbst: dass eine überlange
-Vorgangsbezeichnung in der Fehlermeldung gekürzt wird (die Meldung kann in
-einem Log landen) und eine, die keine Zeichenkette ist, nur als ihre Art
-erscheint (kein `String()` über fremde Inhalte), dass eine fehlende
+Fünfzehn Prüfungen sichern die Grenzen des Dienstes selbst: dass eine
+überlange Vorgangsbezeichnung in der Fehlermeldung gekürzt wird (die Meldung
+kann in einem Log landen) und eine, die keine Zeichenkette ist, nur als ihre
+Art erscheint (kein `String()` über fremde Inhalte; ebenso ein
+Symbolschlüssel), dass Metadaten, die kein einfaches Objekt sind (`Map`,
+Klasseninstanz), abgewiesen werden, dass Zeichen, die PostgreSQL nicht
+speichern kann (Nullzeichen, einzelnes Ersatzzeichen), in Kennungsfeldern,
+Metadaten und Lesefiltern mit eigener Meldung abgewiesen werden — ein gültiges
+Ersatzpaar nicht —, dass eine Zeitgrenze außerhalb der Jahre 1 bis 9999
+abgewiesen wird, dass gespeicherte Metadaten, die kein Objekt sind, beim Lesen
+auffallen, dass eine fehlende
 Vorgangsbezeichnung „fehlt" heißt — auch bei einem geerbten Wert auf
 `Object.prototype` — und gesetzte, aber leere Metadaten (`null`, `undefined`)
 abgewiesen werden, dass die Metadatengröße und die Länge der Kennungsfelder

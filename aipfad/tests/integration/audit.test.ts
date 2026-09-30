@@ -237,6 +237,23 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
       readAuditEvents({ actorUserId: userId, occurredFrom: tueckischesDatum }),
     ).resolves.toHaveLength(1);
 
+    // Ein Nullzeichen im Filter (`%00` aus einer Adresse) oder ein Datum
+    // außerhalb dessen, was PostgreSQL speichert, ließe sonst Prisma mit
+    // absolutem Quellpfad scheitern.
+    await expect(readAuditEvents({ organizationId: 'org\u0000' })).rejects.toThrow(
+      'Auditfilter organizationId enthält ein Zeichen, das nicht gespeichert werden kann',
+    );
+    await expect(readAuditEvents({ occurredFrom: new Date(-8.64e15) })).rejects.toThrow(
+      'Auditfilter occurredFrom ist gesetzt, aber kein gültiges Datum',
+    );
+
+    // Ein Symbolschlüssel erscheint nur als Art, nie mit seiner Beschreibung.
+    const symbolFehler = await readAuditEvents({ [Symbol(GEHEIM)]: 1 } as never).catch(
+      (e: unknown) => e,
+    );
+    expect((symbolFehler as Error).message).toContain('Unbekannter Auditfilter: (symbol)');
+    expect((symbolFehler as Error).message).not.toContain(GEHEIM);
+
     // Keine Abfrage, sondern `null`: die eigene Meldung, nicht die der Laufzeit.
     await expect(readAuditEvents(null as never)).rejects.toThrow(
       'Auditabfrage muss ein einfaches Objekt sein',
@@ -460,7 +477,7 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
           targetType: 'IntegrationstestZiel',
           metadata: leer as never,
         }),
-      ).rejects.toThrow('Auditmetadaten müssen ein Objekt sein');
+      ).rejects.toThrow('Auditmetadaten müssen ein einfaches Objekt sein');
     }
 
     expect(await prisma.auditEvent.count({ where: { targetType: 'IntegrationstestZiel' } })).toBe(
@@ -487,6 +504,72 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
         targetType: 'IntegrationstestZiel',
       }),
     ).rejects.toThrow('Unbekannte Auditvorgangsbezeichnung');
+  });
+
+  it('weist Metadaten ab, die kein einfaches Objekt sind', async () => {
+    // Eine Map oder Klasseninstanz würde von der Schwärzung auf `{}` bzw. ihre
+    // eigenen aufzählbaren Felder reduziert — die Tatsachen verschwänden still.
+    class Tatsachen {
+      get reasonCode(): string {
+        return 'USER_REQUEST';
+      }
+    }
+    for (const metadata of [new Map([['reasonCode', 'USER_REQUEST']]), new Tatsachen()]) {
+      await expect(
+        appendAuditEvent({
+          action: 'ACCOUNT_DELETED',
+          targetType: 'IntegrationstestZiel',
+          metadata: metadata as never,
+        }),
+      ).rejects.toThrow('Auditmetadaten müssen ein einfaches Objekt sein');
+    }
+    expect(await prisma.auditEvent.count({ where: { targetType: 'IntegrationstestZiel' } })).toBe(
+      0,
+    );
+  });
+
+  it('weist Zeichen ab, die PostgreSQL nicht speichern kann, mit eigener Meldung', async () => {
+    // Ein Nullzeichen oder ein einzelnes Ersatzzeichen ließe erst die
+    // Datenbank scheitern — mit einer Prisma-Meldung samt absolutem
+    // Quellpfad, und im Transaktionspfad mit dem fachlichen Vorgang.
+    const faelle: Array<[Record<string, unknown>, string]> = [
+      [{ targetId: 'u1\u0000' }, 'targetId enthält ein Zeichen, das nicht gespeichert werden kann'],
+      [
+        { actorUserId: '\ud800' },
+        'actorUserId enthält ein Zeichen, das nicht gespeichert werden kann',
+      ],
+      [
+        { metadata: { reasonCode: 'a\u0000b' } },
+        'Auditmetadaten enthalten ein Zeichen, das nicht gespeichert werden kann',
+      ],
+      [
+        { metadata: { tief: [{ wert: '\udc00' }] } },
+        'Auditmetadaten enthalten ein Zeichen, das nicht gespeichert werden kann',
+      ],
+      [
+        { metadata: { 'schl\u0000ssel': 1 } },
+        'Auditmetadaten enthalten ein Zeichen, das nicht gespeichert werden kann',
+      ],
+    ];
+    for (const [zusatz, meldung] of faelle) {
+      const fehler = await appendAuditEvent({
+        action: 'ACCOUNT_DELETED',
+        targetType: 'IntegrationstestZiel',
+        ...zusatz,
+      } as never).catch((e: unknown) => e);
+      expect(fehler).toBeInstanceOf(TypeError);
+      expect((fehler as Error).message).toContain(meldung);
+      expect((fehler as Error).message).not.toContain('prisma');
+    }
+
+    // Ein gültiges Ersatzpaar (ein Emoji) ist dagegen erlaubt.
+    await expect(
+      appendAuditEvent({
+        action: 'ACCOUNT_DELETED',
+        targetType: 'IntegrationstestZiel',
+        metadata: { hinweis: 'ok \ud83d\ude00' },
+      }),
+    ).resolves.toBeTruthy();
   });
 
   it('liest die Vorgangsbezeichnung genau einmal', async () => {
@@ -535,6 +618,24 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     ).resolves.toHaveLength(1);
     await expect(readAuditEvents({ actorUserId: userId, take: -5 })).resolves.toHaveLength(1);
     await expect(readAuditEvents({ actorUserId: userId, take: 1e9 })).resolves.toHaveLength(1);
+  });
+
+  it('fällt beim Lesen auf, wenn gespeicherte Metadaten kein Objekt sind', async () => {
+    // Nur an der Anwendung vorbei möglich — derselbe Fall, den die Prüfung
+    // der Vorgangsbezeichnung beim Lesen abfängt.
+    const userId = await nutzerAnlegen('metadaten-form');
+    await prisma.auditEvent.create({
+      data: {
+        action: 'ACCOUNT_DELETED',
+        actorUserId: userId,
+        targetType: 'IntegrationstestZiel',
+        metadata: [1, 2],
+        occurredAt: new Date(),
+      },
+    });
+    await expect(readAuditEvents({ actorUserId: userId })).rejects.toThrow(
+      'Auditzeile mit ungültigen Metadaten',
+    );
   });
 
   it('überdauert die Löschung des Kontos, auf das der Akteursabdruck zeigt', async () => {
