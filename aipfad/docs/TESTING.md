@@ -29,7 +29,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 125 bestehen
+### Integrationstests — 128 bestehen
 
 `tests/integration/`: `auth.test.ts`, `audit.test.ts`,
 `content-publication.test.ts`, `exercise-service.test.ts`,
@@ -169,6 +169,19 @@ an der Tabelle, am Dienst vorbei, denn entscheidend ist, was in der
 Datenbank steht, nicht was der Rückgabewert zeigt. Eine erfundene
 Vorgangsbezeichnung wird abgewiesen, und in der Zeile stehen weder Name noch
 Adresse, nur die Kennung.
+
+Drei Prüfungen belegen das Anfügen in der Transaktion des Aufrufers — über
+den Dienst (`appendAuditEventInTransaction`), nicht über ein direktes
+`tx.auditEvent.create`. Das Muster ist das, das E04C braucht: In einer
+Transaktion wird ein Konto gelöscht und `ACCOUNT_DELETED` angefügt. Wird die
+Transaktion nach beiden Schreibvorgängen absichtlich abgebrochen, bleibt
+weder die Löschung noch die Auditzeile; dass die Zeile wirklich in dieser
+Transaktion lag, zeigt sie selbst — innen sichtbar, über den globalen Client
+noch nicht. Gelingt die Transaktion, sind beide festgeschrieben, mit
+serverseitigem Zeitpunkt und geschwärzt gespeicherten Metadaten. Und eine
+ungültige Auditeingabe rollt die Löschung mit zurück. Gegenprobe beim
+Schreiben: Schreibt der Dienst dort über den globalen Client statt über
+`tx`, scheitert die Abbruchprüfung.
 
 Vier Prüfungen sichern die Grenzen des Dienstes selbst: dass eine überlange
 Vorgangsbezeichnung in der Fehlermeldung gekürzt wird (die Meldung kann in

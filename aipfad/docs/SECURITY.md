@@ -201,9 +201,27 @@ Vorgänge protokolliert werden — heute wird keiner protokolliert, weil es
 keinen gibt.
 
 **Nur Anfügen und Lesen — auf Ebene der Anwendungsschnittstelle.**
-`src/server/audit/service.ts` exportiert `appendAuditEvent` und
-`readAuditEvents`, sonst nichts: kein Ändern, kein Löschen, kein
+`src/server/audit/service.ts` bietet der Anwendung genau zwei Fähigkeiten:
+Anfügen und Lesen. Es gibt kein Ändern, kein Löschen und kein
 Prisma-Delegate nach außen. Das ist eine Eigenschaft der **Schnittstelle**.
+
+Anfügen gibt es in zwei Formen über **denselben** Schreibweg — dieselbe
+Prüfung der Vorgangsbezeichnung, dieselbe Schwärzung, dieselben
+Größengrenzen, derselbe serverseitige Zeitpunkt:
+
+- `appendAuditEvent(eingabe)` schreibt über den globalen Client.
+- `appendAuditEventInTransaction(tx, eingabe)` schreibt über die Transaktion
+  des Aufrufers und öffnet selbst keine. Ein fachlicher Vorgang, dessen Spur
+  nicht ohne ihn bestehen darf — E04C löscht ein Konto und schreibt
+  `ACCOUNT_DELETED` —, übergibt sein `tx` aus `prisma.$transaction`; Vorgang
+  und Spur werden dann gemeinsam festgeschrieben oder gemeinsam verworfen.
+  Der Parameter ist bewusst schmal (`AuditAppendTransaction`: nur
+  `auditEvent.create`). Scheitert die Prüfung der Auditeingabe, rollt das
+  auch den fachlichen Vorgang zurück.
+
+Daneben gibt es `appendAuditEventMitZeitpunktFuerTests`, das ausdrücklich
+benannte Anfügen mit gewähltem Zeitpunkt. Es existiert nur für die
+Aufbewahrungsprüfungen und hat im Anwendungscode nichts zu suchen.
 
 **Ausdrücklich nicht zugesichert: Manipulationssicherheit auf
 Datenbankebene.** Es gibt keine eigene Datenbankrolle, kein `REVOKE`, keinen

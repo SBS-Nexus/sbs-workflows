@@ -4,6 +4,7 @@ import { prisma } from '@/server/db/prisma';
 import { hashPassword } from '@/server/auth/password';
 import {
   appendAuditEvent,
+  appendAuditEventInTransaction,
   appendAuditEventMitZeitpunktFuerTests,
   readAuditEvents,
 } from '@/server/audit/service';
@@ -257,6 +258,101 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     const danach = await prisma.auditEvent.findUnique({ where: { id: ereignis.id } });
     expect(danach).not.toBeNull();
     expect(danach?.actorUserId).toBe(userId);
+  });
+});
+
+/** Absichtlicher Abbruch nach beiden Schreibvorgängen. */
+class AbsichtlicherAbbruch extends Error {}
+
+describe('Anfügen in der Transaktion des Aufrufers (Integration mit echter Datenbank)', () => {
+  beforeEach(eigeneZeilenEntfernen);
+  afterAll(eigeneZeilenEntfernen);
+
+  // Das Muster, das E04C braucht: fachliche Löschung und `ACCOUNT_DELETED`
+  // in EINER Transaktion. Geprüft wird der DIENST (`appendAuditEventInTransaction`),
+  // nicht ein direktes `tx.auditEvent.create`. E04C selbst ist das nicht.
+
+  it('verwirft Löschung und Auditzeile gemeinsam, wenn die Transaktion scheitert', async () => {
+    const userId = await nutzerAnlegen('tx-rollback');
+    let angelegteId: string | undefined;
+
+    await expect(
+      prisma.$transaction(async (tx) => {
+        await tx.user.delete({ where: { id: userId } });
+        const ereignis = await appendAuditEventInTransaction(tx, {
+          action: 'ACCOUNT_DELETED',
+          actorUserId: userId,
+          targetType: 'IntegrationstestZiel',
+          targetId: userId,
+        });
+        angelegteId = ereignis.id;
+
+        // Beweis, dass die Zeile in DIESER Transaktion liegt und nicht
+        // nebenher festgeschrieben wurde: innen sichtbar, außen noch nicht.
+        expect(await tx.auditEvent.count({ where: { id: ereignis.id } })).toBe(1);
+        expect(await prisma.auditEvent.count({ where: { id: ereignis.id } })).toBe(0);
+
+        throw new AbsichtlicherAbbruch('nach beiden Schreibvorgängen');
+      }),
+    ).rejects.toBeInstanceOf(AbsichtlicherAbbruch);
+
+    expect(angelegteId).toBeTruthy();
+    // Weder die fachliche Änderung noch die Spur ist geblieben.
+    expect(await prisma.user.findUnique({ where: { id: userId } })).not.toBeNull();
+    expect(await prisma.auditEvent.count({ where: { id: angelegteId } })).toBe(0);
+    expect(await readAuditEvents({ actorUserId: userId })).toHaveLength(0);
+  });
+
+  it('schreibt Löschung und Auditzeile gemeinsam fest, wenn die Transaktion gelingt', async () => {
+    const userId = await nutzerAnlegen('tx-commit');
+    const vorher = new Date();
+
+    const ereignis = await prisma.$transaction(async (tx) => {
+      await tx.user.delete({ where: { id: userId } });
+      return appendAuditEventInTransaction(tx, {
+        action: 'ACCOUNT_DELETED',
+        actorUserId: userId,
+        targetType: 'IntegrationstestZiel',
+        targetId: userId,
+        metadata: { reasonCode: 'TEST', email: GEHEIM },
+      });
+    });
+    const nachher = new Date();
+
+    expect(await prisma.user.findUnique({ where: { id: userId } })).toBeNull();
+
+    const gelesen = await readAuditEvents({ actorUserId: userId });
+    expect(gelesen).toHaveLength(1);
+    expect(gelesen[0]?.id).toBe(ereignis.id);
+    expect(gelesen[0]?.action).toBe('ACCOUNT_DELETED');
+
+    // Derselbe kanonische Weg wie beim normalen Anfügen: Zeitpunkt vom
+    // Server, Metadaten geschwärzt GESPEICHERT.
+    const roh = await prisma.auditEvent.findUniqueOrThrow({ where: { id: ereignis.id } });
+    expect(roh.occurredAt.getTime()).toBeGreaterThanOrEqual(vorher.getTime());
+    expect(roh.occurredAt.getTime()).toBeLessThanOrEqual(nachher.getTime());
+    expect(JSON.stringify(roh)).not.toContain(GEHEIM);
+    expect((roh.metadata as Record<string, unknown>).email).toBe(SCHWAERZUNG);
+    expect((roh.metadata as Record<string, unknown>).reasonCode).toBe('TEST');
+  });
+
+  it('lässt eine ungültige Auditeingabe den fachlichen Vorgang mit zurückrollen', async () => {
+    const userId = await nutzerAnlegen('tx-ungueltig');
+
+    await expect(
+      prisma.$transaction(async (tx) => {
+        await tx.user.delete({ where: { id: userId } });
+        await appendAuditEventInTransaction(tx, {
+          action: 'GIBT_ES_NICHT' as never,
+          actorUserId: userId,
+          targetType: 'IntegrationstestZiel',
+        });
+      }),
+    ).rejects.toThrow('Unbekannte Auditvorgangsbezeichnung');
+
+    // Ein prüfpflichtiger Vorgang ohne gültige Spur findet nicht statt.
+    expect(await prisma.user.findUnique({ where: { id: userId } })).not.toBeNull();
+    expect(await prisma.auditEvent.count({ where: { actorUserId: userId } })).toBe(0);
   });
 });
 

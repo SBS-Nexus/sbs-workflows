@@ -1,5 +1,6 @@
 import 'server-only';
 import { prisma } from '@/server/db/prisma';
+import type { Prisma } from '@/generated/prisma/client';
 import { istAuditAction } from '@/server/audit/actions';
 import { redactMetadata, type AuditMetadata } from '@/server/audit/redaction';
 import type {
@@ -16,6 +17,13 @@ import type {
  * Ändern, kein Löschen, kein `deleteMany` und auch nicht das
  * Prisma-Delegate: Was nicht exportiert wird, kann kein Aufrufer
  * versehentlich verwenden.
+ *
+ * Anfügen gibt es in zwei Formen mit DERSELBEN Prüfung, Schwärzung und
+ * Zeitvergabe: `appendAuditEvent` schreibt über den globalen Client,
+ * `appendAuditEventInTransaction` über die Transaktion des Aufrufers. Die
+ * zweite braucht jeder fachliche Vorgang, dessen Spur nicht ohne ihn
+ * bestehen darf und er nicht ohne seine Spur — E04C löscht ein Konto und
+ * schreibt `ACCOUNT_DELETED` in EINER Transaktion.
  *
  * Die eine Ausnahme ist kein Widerspruch, sondern die Grenze des Satzes:
  * Die Aufbewahrung löscht nach ALTER über den Rahmen aus E04A
@@ -133,13 +141,36 @@ function pruefeEingabe(eingabe: AppendAuditEventInput): {
   };
 }
 
+/**
+ * Die kleinste Datenbankfähigkeit, die das Anfügen braucht: genau
+ * `auditEvent.create`, sonst nichts.
+ *
+ * Ein `Prisma.TransactionClient` aus `prisma.$transaction(async (tx) => …)`
+ * erfüllt diesen Typ, ohne dass der Aufrufer etwas umwandeln muss. Umgekehrt
+ * sieht der Dienst über diesen Parameter kein anderes Modell und keine andere
+ * Operation — insbesondere kein Ändern und kein Löschen.
+ */
+export interface AuditAppendTransaction {
+  auditEvent: Pick<Prisma.TransactionClient['auditEvent'], 'create'>;
+}
+
+/**
+ * Der EINE Schreibweg. Beide öffentlichen Formen des Anfügens landen hier;
+ * Prüfung, Schwärzung und Größengrenzen gibt es deshalb nur einmal.
+ *
+ * Öffnet selbst keine Transaktion. Scheitert die Prüfung, wirft sie, bevor
+ * geschrieben wird — innerhalb einer Transaktion des Aufrufers rollt dieser
+ * Fehler dann auch den fachlichen Vorgang zurück. Das ist gewollt: Ein
+ * prüfpflichtiger Vorgang ohne gültige Spur findet nicht statt.
+ */
 async function schreiben(
+  db: AuditAppendTransaction,
   eingabe: AppendAuditEventInput,
   occurredAt: Date,
 ): Promise<AuditEventRecord> {
   const geprueft = pruefeEingabe(eingabe);
 
-  const zeile = await prisma.auditEvent.create({
+  const zeile = await db.auditEvent.create({
     data: { ...geprueft, occurredAt: new Date(occurredAt.getTime()) },
   });
 
@@ -157,7 +188,27 @@ async function schreiben(
  * ausschließt.
  */
 export async function appendAuditEvent(eingabe: AppendAuditEventInput): Promise<AuditEventRecord> {
-  return schreiben(eingabe, new Date());
+  return schreiben(prisma, eingabe, new Date());
+}
+
+/**
+ * Fügt eine Auditzeile INNERHALB der Transaktion des Aufrufers an.
+ *
+ *     await prisma.$transaction(async (tx) => {
+ *       await tx.user.delete({ where: { id } });
+ *       await appendAuditEventInTransaction(tx, { action: 'ACCOUNT_DELETED', … });
+ *     });
+ *
+ * Fachlicher Vorgang und Spur werden gemeinsam festgeschrieben oder gemeinsam
+ * verworfen. Es entsteht keine zweite Transaktion; der Dienst schreibt über
+ * genau das `tx`, das er bekommt. Prüfung, Schwärzung und serverseitiger
+ * Zeitpunkt sind dieselben wie bei `appendAuditEvent`.
+ */
+export async function appendAuditEventInTransaction(
+  tx: AuditAppendTransaction,
+  eingabe: AppendAuditEventInput,
+): Promise<AuditEventRecord> {
+  return schreiben(tx, eingabe, new Date());
 }
 
 /**
@@ -172,7 +223,7 @@ export async function appendAuditEventMitZeitpunktFuerTests(
   eingabe: AppendAuditEventInput,
   occurredAt: Date,
 ): Promise<AuditEventRecord> {
-  return schreiben(eingabe, occurredAt);
+  return schreiben(prisma, eingabe, occurredAt);
 }
 
 /**
