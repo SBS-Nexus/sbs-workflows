@@ -167,15 +167,51 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
       'Auditfilter occurredBefore ist gesetzt, aber kein gültiges Datum',
     );
 
-    // Ein Filter, der über den Prototyp oder einen Getter kommt, ist gesetzt
-    // — auch wenn er keine eigene Eigenschaft ist. Er muss einschränken, statt
-    // übersehen zu werden.
-    class SitzungsAbfrage {
-      get actorUserId(): string {
-        return 'jemand-anderes';
+    // Die Abfrage muss ein einfaches Objekt sein. Eine Klasseninstanz ist
+    // typkorrekt, ihre Getter liegen aber auf dem Prototyp — ein falsch
+    // geschriebener (`actorId`) fiele durch jede Schlüsselprüfung und
+    // hinterließe eine ungefilterte Abfrage.
+    class Abfrage {
+      take = 50;
+      get actorId(): string {
+        return userId;
       }
     }
-    await expect(readAuditEvents(new SitzungsAbfrage())).resolves.toEqual([]);
+    await expect(readAuditEvents(new Abfrage())).rejects.toThrow(
+      'Auditabfrage muss ein einfaches Objekt sein',
+    );
+    await expect(readAuditEvents(Object.create({ actorUserId: userId }))).rejects.toThrow(
+      'Auditabfrage muss ein einfaches Objekt sein',
+    );
+
+    // Ein nicht aufzählbarer unbekannter Schlüssel zählt ebenfalls.
+    const versteckt = {};
+    Object.defineProperty(versteckt, 'actorId', { value: userId, enumerable: false });
+    await expect(readAuditEvents(versteckt)).rejects.toThrow('Unbekannter Auditfilter: actorId');
+
+    // Ein eigener Getter mit richtigem Schlüssel schränkt ein, und er wird
+    // genau einmal gelesen.
+    let lesungen = 0;
+    const mitGetter = {
+      get actorUserId(): string {
+        lesungen += 1;
+        return 'jemand-anderes';
+      },
+    };
+    await expect(readAuditEvents(mitGetter)).resolves.toEqual([]);
+    expect(lesungen).toBe(1);
+
+    // `take` wird ebenfalls nur einmal gelesen: Ein zweiter Zugriff, der
+    // `NaN` liefert, erreichte sonst Prisma.
+    let takeLesungen = 0;
+    const wechselndesTake = {
+      actorUserId: userId,
+      get take(): number {
+        takeLesungen += 1;
+        return takeLesungen === 1 ? 10 : Number.NaN;
+      },
+    };
+    await expect(readAuditEvents(wechselndesTake)).resolves.toHaveLength(1);
 
     // Ein unbekannter Schlüssel — Tippfehler oder nicht unterstütztes Feld,
     // per Cast aus einem Anfragekörper — fiele sonst weg und hinterließe eine
@@ -297,6 +333,54 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     expect(await prisma.auditEvent.count({ where: { targetType: 'IntegrationstestZiel' } })).toBe(
       0,
     );
+  });
+
+  it('weist ein gesetztes, aber ungültiges Kennungsfeld beim Anfügen ab', async () => {
+    // `actorUserId: session?.userId` nach einer gescheiterten Sitzungssuche:
+    // Still als „kein Akteur" geschrieben, verlöre die Spur ihre Zuordnung.
+    const ohneSitzung: { userId?: string } = {};
+    await expect(
+      appendAuditEvent({
+        action: 'ACCOUNT_DELETED',
+        actorUserId: ohneSitzung.userId,
+        targetType: 'IntegrationstestZiel',
+      }),
+    ).rejects.toThrow('actorUserId ist gesetzt, aber keine Zeichenkette');
+    await expect(
+      appendAuditEvent({
+        action: 'ACCOUNT_DELETED',
+        organizationId: null as never,
+        targetType: 'IntegrationstestZiel',
+      }),
+    ).rejects.toThrow('organizationId ist gesetzt, aber keine Zeichenkette');
+    await expect(
+      appendAuditEvent({ action: 'ACCOUNT_DELETED', targetType: 42 as never }),
+    ).rejects.toThrow('targetType ist gesetzt, aber keine Zeichenkette');
+
+    expect(await prisma.auditEvent.count({ where: { targetType: 'IntegrationstestZiel' } })).toBe(
+      0,
+    );
+  });
+
+  it('liest die Vorgangsbezeichnung genau einmal', async () => {
+    // Geprüft und geschrieben wird DERSELBE Wert. Ein Getter, der beim
+    // zweiten Lesen etwas anderes liefert, schriebe sonst eine erfundene
+    // Bezeichnung — und jede spätere Leseabfrage über diese Zeile würfe.
+    const userId = await nutzerAnlegen('einmal-lesen');
+    let lesungen = 0;
+    const eingabe = {
+      get action(): string {
+        lesungen += 1;
+        return lesungen === 1 ? 'ACCOUNT_DELETED' : 'FREI_ERFUNDEN';
+      },
+      actorUserId: userId,
+      targetType: 'IntegrationstestZiel',
+    };
+
+    const angelegt = await appendAuditEvent(eingabe as never);
+    expect(angelegt.action).toBe('ACCOUNT_DELETED');
+    expect(lesungen).toBe(1);
+    await expect(readAuditEvents({ actorUserId: userId })).resolves.toHaveLength(1);
   });
 
   it('begrenzt die Länge der Kennungsfelder', async () => {

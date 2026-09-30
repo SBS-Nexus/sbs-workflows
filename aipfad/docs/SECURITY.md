@@ -238,12 +238,24 @@ Akteurs-, Organisations- oder Vorgangsfilter muss eine Zeichenkette sein; eine
 leere Zeichenkette ist gültig und findet nichts. Ein gesetzter Schlüssel mit
 anderem Wert — `undefined` aus `session?.userId`, ein Prisma-Operator wie
 `{ not: 'x' }` aus einem Anfragekörper — wirft einen `TypeError`, statt als
-„kein Filter" zu gelten und die Abfrage auf fremde Zeilen auszuweiten. „Gesetzt"
-heißt vorhanden, auch über den Prototyp oder einen Getter. Ein unbekannter
-Schlüssel (`actorId`, `targetId`) wird ebenso abgewiesen, statt still
-wegzufallen. Eine gesetzte Zeitgrenze muss ein gültiges `Date` sein. Die
-Meldung nennt nur das Feld, nie den Wert. Ein Aufruf ganz **ohne** Filter liest weiterhin über
-Akteure hinweg; diese Grenze zieht die spätere Route.
+„kein Filter" zu gelten und die Abfrage auf fremde Zeilen auszuweiten. Die
+Abfrage muss ein **einfaches Objekt** sein: Bei einer Klasseninstanz lägen
+Getter auf dem Prototyp, wo keine Schlüsselprüfung sie sieht, und ein falsch
+geschriebener (`actorId`) fiele still weg — typkorrekt. Jeder eigene Schlüssel,
+auch ein nicht aufzählbarer, muss auf der Positivliste stehen; ein unbekannter
+(`actorId`, `targetId`) wird abgewiesen. Eine gesetzte Zeitgrenze muss ein
+gültiges `Date` sein. Jeder Wert wird genau einmal gelesen, damit ein Getter
+nicht beim zweiten Zugriff etwas anderes liefert als geprüft. Die Meldung nennt
+nur das Feld, nie den Wert. Ein Aufruf ganz **ohne** Filter liest weiterhin
+über Akteure hinweg; diese Grenze zieht die spätere Route.
+
+Dieselbe Regel gilt beim **Anfügen**: `actorUserId`, `organizationId` und
+`targetId` fehlen, oder sie sind gültige Zeichenketten. Ein gesetztes
+`undefined` — `actorUserId: session?.userId` nach einer gescheiterten
+Sitzungssuche — wird abgewiesen, statt still als „kein Akteur" geschrieben zu
+werden; sonst verlöre gerade die Spur einer Kontolöschung ihre Zuordnung. Die
+Vorgangsbezeichnung wird genau einmal gelesen: Geprüft und geschrieben wird
+derselbe Wert.
 
 Daneben gibt es `appendAuditEventMitZeitpunktFuerTests`, das ausdrücklich
 benannte Anfügen mit gewähltem Zeitpunkt. Es existiert nur für die

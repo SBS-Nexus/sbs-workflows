@@ -72,7 +72,10 @@ function fuerMeldung(wert: unknown): string {
     : `${text.slice(0, HOECHSTE_MELDUNGSLAENGE)}… (${text.length} Zeichen)`;
 }
 
-function pflichtfeld(wert: string, feld: string): string {
+function pflichtfeld(wert: unknown, feld: string): string {
+  if (typeof wert !== 'string') {
+    throw new TypeError(`${feld} ist gesetzt, aber keine Zeichenkette.`);
+  }
   const getrimmt = wert.trim();
   if (getrimmt.length === 0) {
     throw new TypeError(`${feld} darf nicht leer sein.`);
@@ -85,9 +88,18 @@ function pflichtfeld(wert: string, feld: string): string {
   return getrimmt;
 }
 
-function freiwilligesFeld(wert: string | undefined, feld: string): string | undefined {
-  if (wert === undefined) return undefined;
-  return pflichtfeld(wert, feld);
+/**
+ * Ein freiwilliges Kennungsfeld fehlt, oder es ist gültig — dieselbe Regel
+ * wie bei den Lesefiltern. Ein gesetztes `undefined` (`session?.userId` nach
+ * einer gescheiterten Sitzungssuche) würde sonst still zu „kein Akteur", und
+ * die Spur verlöre ihre Zuordnung.
+ */
+function freiwilligesFeld(
+  eingabe: AppendAuditEventInput,
+  feld: 'actorUserId' | 'organizationId' | 'targetId',
+): string | null {
+  if (!(feld in eingabe)) return null;
+  return pflichtfeld(eingabe[feld], feld);
 }
 
 /**
@@ -106,12 +118,16 @@ function pruefeEingabe(eingabe: AppendAuditEventInput): {
   targetId: string | null;
   metadata: AuditMetadata;
 } {
-  if (!istAuditAction(eingabe.action)) {
+  // Genau EIN Lesezugriff: Geprüft und geschrieben wird derselbe Wert. Ein
+  // Getter, der beim zweiten Lesen etwas anderes liefert, schriebe sonst eine
+  // ungeprüfte Bezeichnung.
+  const action: unknown = eingabe.action;
+  if (!istAuditAction(action)) {
     // Nur die Bezeichnung, nie die übrigen Felder: Die Meldung kann in einem
     // Log landen, die Felder gehören dort nicht hin. Und auch die
     // Bezeichnung nur gekürzt — sie kommt von außen und kann beliebig lang
     // sein; sonst widerspräche dieser Satz sich selbst.
-    throw new TypeError(`Unbekannte Auditvorgangsbezeichnung: ${fuerMeldung(eingabe.action)}`);
+    throw new TypeError(`Unbekannte Auditvorgangsbezeichnung: ${fuerMeldung(action)}`);
   }
 
   const metadata = eingabe.metadata ?? {};
@@ -132,11 +148,11 @@ function pruefeEingabe(eingabe: AppendAuditEventInput): {
   }
 
   return {
-    action: eingabe.action,
-    actorUserId: freiwilligesFeld(eingabe.actorUserId, 'actorUserId') ?? null,
-    organizationId: freiwilligesFeld(eingabe.organizationId, 'organizationId') ?? null,
+    action,
+    actorUserId: freiwilligesFeld(eingabe, 'actorUserId'),
+    organizationId: freiwilligesFeld(eingabe, 'organizationId'),
     targetType: pflichtfeld(eingabe.targetType, 'targetType'),
-    targetId: freiwilligesFeld(eingabe.targetId, 'targetId') ?? null,
+    targetId: freiwilligesFeld(eingabe, 'targetId'),
     metadata: geschwaerzt,
   };
 }
@@ -269,8 +285,9 @@ const ERLAUBTE_ABFRAGESCHLUESSEL: ReadonlySet<string> = new Set([
  * Prüft die Lesefilter an der Dienstgrenze und baut daraus die Bedingung.
  *
  * Die Regel: Ein Filter fehlt, oder er ist gültig. Einen dritten Zustand gibt
- * es nicht. Unbekannte Schlüssel werden abgewiesen, und „gesetzt" heißt
- * vorhanden, auch über den Prototyp oder einen Getter. Ein gesetzter Schlüssel, dessen Wert keine Zeichenkette ist —
+ * es nicht. Die Abfrage muss ein einfaches Objekt sein, jeder eigene Schlüssel
+ * steht auf der Positivliste, und jeder Wert wird genau einmal gelesen. Ein
+ * gesetzter Schlüssel, dessen Wert keine Zeichenkette ist —
  * `undefined` aus `session?.userId`, ein Prisma-Operator wie `{ not: 'x' }`
  * aus einem Anfragekörper —, weitete die Abfrage sonst still auf fremde
  * Zeilen aus. Er wirft deshalb, statt als „kein Filter" zu gelten. Eine leere
@@ -280,20 +297,30 @@ const ERLAUBTE_ABFRAGESCHLUESSEL: ReadonlySet<string> = new Set([
  * Aufrufer kann casten. Die Meldung nennt nur das Feld, nie den Wert.
  */
 function pruefeLesefilter(query: AuditEventQuery): Prisma.AuditEventWhereInput {
+  // Nur ein einfaches Objekt. Bei einer Klasseninstanz oder einem Objekt mit
+  // eigenem Prototyp lägen Schlüssel auf dem Prototyp, wo keine
+  // Schlüsselprüfung sie sieht — ein falsch geschriebener Getter (`actorId`)
+  // fiele still weg. Die Klasseninstanz ist dabei typkorrekt.
+  const prototyp: unknown = Object.getPrototypeOf(query);
+  if (prototyp !== Object.prototype && prototyp !== null) {
+    throw new TypeError('Auditabfrage muss ein einfaches Objekt sein.');
+  }
+
   // Ein unbekannter Schlüssel — Tippfehler (`actorId`) oder ein nicht
   // unterstütztes Feld (`targetId`) — fiele sonst still weg, und aus der
-  // gemeinten Einschränkung würde eine ungefilterte Abfrage.
-  for (const schluessel of Object.keys(query)) {
-    if (!ERLAUBTE_ABFRAGESCHLUESSEL.has(schluessel)) {
-      throw new TypeError(`Unbekannter Auditfilter: ${fuerMeldung(schluessel)}`);
+  // gemeinten Einschränkung würde eine ungefilterte Abfrage. `Reflect.ownKeys`
+  // statt `Object.keys`: auch nicht aufzählbare Schlüssel und Symbole zählen.
+  for (const schluessel of Reflect.ownKeys(query)) {
+    if (typeof schluessel !== 'string' || !ERLAUBTE_ABFRAGESCHLUESSEL.has(schluessel)) {
+      throw new TypeError(`Unbekannter Auditfilter: ${fuerMeldung(String(schluessel))}`);
     }
   }
 
   const where: Prisma.AuditEventWhereInput = {};
 
   for (const feld of KENNUNGSFILTER) {
-    // `in`, nicht `Object.hasOwn`: Ein Filter über den Prototyp oder einen
-    // Getter ist ebenso gesetzt und muss ebenso einschränken.
+    // Ein eigener Getter ist ebenso gesetzt wie ein Datenfeld; sein Wert wird
+    // unten genau einmal gelesen.
     if (!(feld in query)) continue;
     const wert: unknown = query[feld];
     if (typeof wert !== 'string') {
@@ -341,7 +368,11 @@ export async function readAuditEvents(query: AuditEventQuery = {}): Promise<Audi
   // und ein `NaN` reichte bis zu Prisma durch, dessen Fehlermeldung den
   // absoluten Quellpfad und einen Codeausschnitt enthält. Ein `take`, das
   // aus `Number(searchParams.get(...))` stammt, ist genau dieser Fall.
-  const gewuenscht = Number.isFinite(query.take) ? Number(query.take) : STANDARD_LIMIT;
+  //
+  // Genau EIN Lesezugriff: Ein Getter, der beim zweiten Lesen `NaN` liefert,
+  // käme sonst an der Prüfung vorbei.
+  const rohesTake: unknown = query.take;
+  const gewuenscht = Number.isFinite(rohesTake) ? Number(rohesTake) : STANDARD_LIMIT;
   const take = Math.min(Math.max(Math.trunc(gewuenscht), 1), HOECHSTES_LIMIT);
 
   const zeilen = await prisma.auditEvent.findMany({
