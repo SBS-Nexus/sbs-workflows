@@ -324,6 +324,8 @@ lernen zu müssen.
 
 ## LP-05 — Review Adapter für bestehende Apps
 
+Status: **LP-05A CONTRACT IMPLEMENTIERT — Live-Adapter und Integration folgen in LP-05B**
+
 Priorität: **P0**
 
 ### Ziel
@@ -817,10 +819,28 @@ Danach:
 
 ## LP-05A — Review Adapter Design
 
-- bestehende Review-Modelle der drei Apps vergleichen
-- kleinsten verlustfreien Adaptervertrag festlegen
-- Fixtures statt Produktion migrieren
-- erst danach Persistenzentscheidung treffen
+Status: **UMGESETZT IM GESTAPELTEN LP-05A-SLICE**
+
+- bestehende Review-Modelle der drei Apps verglichen
+- Exercise-, Concept- und Term-Einheiten getrennt erhalten
+- kleinsten verlustfreien Adaptervertrag festgelegt
+- Runtime-Validierung fail-closed
+- `userId` im Transportvertrag verboten
+- relative Launch-Pfade statt fremder URLs
+- Fixtures/Unit-Tests statt Produktion migriert
+- keine Persistenzentscheidung vorgezogen
+
+Danach:
+
+## LP-05B — Read-only Source Adapter
+
+- je Quell-App session-scoped Adapter implementieren
+- Python/AIPfad: `ReviewQueueItem`
+- SQL: `ConceptMastery.nextReviewAt` + gewählte Activity
+- Hub aggregiert zunächst nur Summaries
+- Launch zurück in die jeweilige Quell-App
+- keine zentrale Completion / kein Writeback
+- Integrationstests pro Quelle
 
 ---
 
