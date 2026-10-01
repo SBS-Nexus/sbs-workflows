@@ -3,7 +3,8 @@ type LearningPlatformBarProps = {
 };
 
 export function LearningPlatformBar({ current }: LearningPlatformBarProps): React.ReactElement {
-  const hubUrl = process.env.NEXT_PUBLIC_LEARNING_HUB_URL?.trim();
+  const configuredHubUrl = process.env.NEXT_PUBLIC_LEARNING_HUB_URL?.trim();
+  const hubUrl = configuredHubUrl?.replace(/\/$/, '');
 
   return (
     <div className="border-b border-white/10 bg-[#111827] text-white">
@@ -22,17 +23,25 @@ export function LearningPlatformBar({ current }: LearningPlatformBarProps): Reac
           <span aria-hidden="true" className="text-white/35">
             /
           </span>
-          <span className="truncate text-white/65">{current}</span>
+          <span className="truncate text-white/70">{current}</span>
         </div>
 
         {hubUrl ? (
-          <a
-            href={hubUrl}
-            className="shrink-0 font-semibold text-white/65 no-underline hover:text-white"
-          >
-            Alle Pfade
-            <span aria-hidden="true"> →</span>
-          </a>
+          <nav aria-label="Lernpfade Schnellzugriff" className="flex shrink-0 items-center gap-3">
+            <a
+              href={hubUrl + '/wiederholen'}
+              className="font-semibold text-white/75 no-underline hover:text-white"
+            >
+              Daily 5
+            </a>
+            <a
+              href={hubUrl}
+              className="hidden font-semibold text-white/75 no-underline hover:text-white sm:inline"
+            >
+              Alle Pfade
+              <span aria-hidden="true"> →</span>
+            </a>
+          </nav>
         ) : (
           <span className="hidden text-white/70 sm:inline">Gemeinsame Lernplattform</span>
         )}
