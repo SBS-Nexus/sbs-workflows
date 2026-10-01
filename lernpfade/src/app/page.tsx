@@ -56,6 +56,7 @@ export default function Home(): React.ReactElement {
           </a>
           <nav aria-label="Seitennavigation">
             <a href="#pfade">Pfade</a>
+            <a href="/wiederholen">Wiederholen</a>
             <a href="#zukunft">Roadmap</a>
             <a href="#lernmodell">Lernmodell</a>
           </nav>
@@ -196,6 +197,9 @@ export default function Home(): React.ReactElement {
                 könnte später gleichzeitig Englisch-Vokabeln, SQL-Begriffe und AI-Terminologie
                 wiederholen.
               </p>
+              <a className="button button-primary vocab-cta" href="/wiederholen">
+                Daily Review ausprobieren <ArrowIcon />
+              </a>
             </div>
             <div className="vocab-stack" aria-label="Beispielkarten">
               <div className="vocab-card">
