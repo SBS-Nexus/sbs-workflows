@@ -2,9 +2,7 @@ type LearningPlatformBarProps = {
   current: string;
 };
 
-export function LearningPlatformBar({
-  current,
-}: LearningPlatformBarProps): React.ReactElement {
+export function LearningPlatformBar({ current }: LearningPlatformBarProps): React.ReactElement {
   const hubUrl = process.env.NEXT_PUBLIC_LEARNING_HUB_URL?.trim();
 
   return (
