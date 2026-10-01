@@ -20,7 +20,9 @@ function optionalUrl(name: string): string | undefined {
 const pythonUrl = optionalUrl('NEXT_PUBLIC_PYTHONPFAD_URL');
 const sqlUrl = optionalUrl('NEXT_PUBLIC_SQLPFAD_URL');
 const aiUrl = optionalUrl('NEXT_PUBLIC_AIPFAD_URL');
-const gitUrl = optionalUrl('NEXT_PUBLIC_GITPFAD_URL') ?? aiUrl;
+const gitUrl =
+  optionalUrl('NEXT_PUBLIC_GITPFAD_URL') ??
+  (aiUrl ? `${aiUrl}/lektion/warum-versionsverwaltung/1` : undefined);
 
 export const CORE_PATHS: readonly LearningPath[] = [
   {
