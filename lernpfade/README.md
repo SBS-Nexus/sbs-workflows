@@ -11,7 +11,8 @@ Lernende aber wie Module einer Plattform wirken. Dieser Hub übernimmt:
 - Auswahl der verfügbaren Lernpfade
 - sichtbare Roadmap künftiger Pfade
 - ein gemeinsames Lernmodell
-- Einstieg für einen späteren pfadübergreifenden Wiederholungs-/Vokabelmotor
+- den ersten pfadübergreifenden Wiederholungsmotor unter `/wiederholen`
+- Einstieg für den späteren VokabelPfad
 
 ## Lokaler Start
 
@@ -45,3 +46,16 @@ schrittweise vereinheitlicht wird:
 Die Inhaltsdarstellung darf fachlich unterschiedlich bleiben. Ein SQL-Editor
 soll kein Python-Editor-Mock sein; Homogenität heißt gemeinsames Produktmodell,
 nicht identische Fachkomponenten.
+
+## Daily 5
+
+`/wiederholen` ist der erste gemeinsame Review-Core. Die aktuelle Version
+speichert Fälligkeiten ausschließlich im Browser und mischt Begriffe aus
+Python, SQL, Git/GitHub und AI. Das langfristige serverseitige Review-Modell
+ist in `../roadmap.md` beschrieben.
+
+## Roadmap
+
+Die kanonische Produkt- und Engineering-Roadmap liegt in
+`../roadmap.md`. Der detaillierte UI-/Plattformvertrag liegt in
+`../docs/LEARNING-PLATFORM.md`.
