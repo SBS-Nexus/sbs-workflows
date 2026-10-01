@@ -178,6 +178,49 @@ describe('Schwärzung der Auditmetadaten', () => {
     }
   });
 
+  it('weist nicht-endliche Zahlen fail-closed ab', () => {
+    for (const wert of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      expect(() => redactMetadata({ metric: wert })).toThrow(
+        'Auditmetadaten dürfen nur endliche Zahlen enthalten.',
+      );
+      expect(() => redactMetadata({ nested: { metric: wert } })).toThrow(
+        'Auditmetadaten dürfen nur endliche Zahlen enthalten.',
+      );
+      expect(() => redactMetadata({ values: [wert] })).toThrow(
+        'Auditmetadaten dürfen nur endliche Zahlen enthalten.',
+      );
+    }
+  });
+
+  it('weist verlustbehaftete Arrayformen fail-closed ab', () => {
+    const sparse = new Array<unknown>(2);
+    sparse[1] = 'vorhanden';
+
+    const erweitert: unknown[] = ['wert'];
+    (erweitert as unknown as Record<PropertyKey, unknown>).extra = 'verloren';
+
+    const mitSymbol: unknown[] = ['wert'];
+    (mitSymbol as unknown as Record<PropertyKey, unknown>)[Symbol('intern')] = 'verloren';
+
+    const nichtAufzaehlbar: unknown[] = ['wert'];
+    Object.defineProperty(nichtAufzaehlbar, '0', {
+      value: 'wert',
+      enumerable: false,
+      writable: true,
+      configurable: true,
+    });
+
+    class SonderArray<T> extends Array<T> {}
+    const unterklasse = new SonderArray<string>();
+    unterklasse.push('wert');
+
+    for (const wert of [sparse, erweitert, mitSymbol, nichtAufzaehlbar, unterklasse]) {
+      expect(() => redactMetadata({ values: wert })).toThrow(
+        'Auditmetadaten dürfen Arrays nur als dichte Standard-Arrays ohne zusätzliche Eigenschaften enthalten.',
+      );
+    }
+  });
+
   it('schwärzt einen verbotenen Schlüssel samt seines ganzen Teilbaums', () => {
     const ergebnis = redactMetadata({ secret: { tief: { tiefer: GEHEIM } } });
     expect(ergebnis.secret).toBe(SCHWAERZUNG);

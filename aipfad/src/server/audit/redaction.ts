@@ -94,11 +94,20 @@ function schwaerzeWert(wert: unknown, tiefe: number): AuditMetadataWert {
   if (tiefe >= HOECHSTE_TIEFE) return SCHWAERZUNG;
 
   if (wert === null) return null;
-  if (typeof wert === 'string' || typeof wert === 'number' || typeof wert === 'boolean') {
+  if (typeof wert === 'string' || typeof wert === 'boolean') {
+    return wert;
+  }
+  if (typeof wert === 'number') {
+    // JSON kennt weder NaN noch ±Infinity: JSON.stringify würde diese Werte
+    // zu null machen. Eine Auditspur darf eine akzeptierte Zahl nicht still
+    // in eine andere Tatsache umdeuten.
+    if (!Number.isFinite(wert)) {
+      throw new TypeError('Auditmetadaten dürfen nur endliche Zahlen enthalten.');
+    }
     return wert;
   }
   if (Array.isArray(wert)) {
-    return wert.map((eintrag) => schwaerzeWert(eintrag, tiefe + 1));
+    return schwaerzeArray(wert, tiefe + 1);
   }
   if (typeof wert === 'object') {
     return schwaerzeObjekt(wert as Record<string, unknown>, tiefe + 1);
@@ -107,6 +116,52 @@ function schwaerzeWert(wert: unknown, tiefe: number): AuditMetadataWert {
   // `undefined`, Funktionen, Symbole, BigInt: nichts davon ist gültiges JSON.
   // Sie verschwinden, statt die Zeile unschreibbar zu machen.
   return SCHWAERZUNG;
+}
+
+function schwaerzeArray(eingabe: unknown[], tiefe: number): AuditMetadataWert[] {
+  // Nur das Standard-Array ist eine verlustfreie JSON-Struktur. Eine
+  // Unterklasse könnte eigene Semantik tragen; Löcher werden von JSON zu
+  // null, zusätzliche Eigenschaften werden von JSON ganz verworfen.
+  if (Object.getPrototypeOf(eingabe) !== Array.prototype) {
+    throw new TypeError(
+      'Auditmetadaten dürfen Arrays nur als dichte Standard-Arrays ohne zusätzliche Eigenschaften enthalten.',
+    );
+  }
+
+  for (let index = 0; index < eingabe.length; index += 1) {
+    const schluessel = String(index);
+    if (
+      !Object.hasOwn(eingabe, schluessel) ||
+      !Object.prototype.propertyIsEnumerable.call(eingabe, schluessel)
+    ) {
+      throw new TypeError(
+        'Auditmetadaten dürfen Arrays nur als dichte Standard-Arrays ohne zusätzliche Eigenschaften enthalten.',
+      );
+    }
+  }
+
+  for (const schluessel of Reflect.ownKeys(eingabe)) {
+    if (schluessel === 'length') continue;
+    if (typeof schluessel !== 'string') {
+      throw new TypeError(
+        'Auditmetadaten dürfen Arrays nur als dichte Standard-Arrays ohne zusätzliche Eigenschaften enthalten.',
+      );
+    }
+    const index = Number(schluessel);
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= eingabe.length ||
+      String(index) !== schluessel ||
+      !Object.prototype.propertyIsEnumerable.call(eingabe, schluessel)
+    ) {
+      throw new TypeError(
+        'Auditmetadaten dürfen Arrays nur als dichte Standard-Arrays ohne zusätzliche Eigenschaften enthalten.',
+      );
+    }
+  }
+
+  return eingabe.map((eintrag) => schwaerzeWert(eintrag, tiefe));
 }
 
 function schwaerzeObjekt(eingabe: Record<string, unknown>, tiefe: number): AuditMetadata {

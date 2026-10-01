@@ -308,7 +308,11 @@ Formregel gilt **rekursiv**: Auch verschachtelte Objekte und Objekte in Arrays
 müssen einfache Objekte mit ausschließlich aufzählbaren Zeichenkettenschlüsseln
 sein. `Date`, `Map`, Klasseninstanzen sowie unsichtbare oder Symbolschlüssel
 werden dort fail-closed abgewiesen, statt als `{}` oder verkürzte Tatsachen in
-der Auditspur zu landen. Weder Kennungsfelder noch Metadaten (Schlüssel wie Werte, auch verschachtelt) dürfen
+der Auditspur zu landen. Zahlen müssen endlich sein; `NaN` und
+`±Infinity` werden abgewiesen, bevor JSON sie zu `null` umdeuten kann.
+Arrays müssen dichte Standard-Arrays ohne Löcher, Unterklassen oder zusätzliche
+eigene Eigenschaften sein; sonst würden JSON und `Array.map` akzeptierte
+Informationen verlieren. Weder Kennungsfelder noch Metadaten (Schlüssel wie Werte, auch verschachtelt) dürfen
 Zeichen enthalten, die PostgreSQL nicht speichern kann; der Dienst meldet das
 Feld selbst, statt die Datenbank mit Quellpfad scheitern und im
 Transaktionspfad den fachlichen Vorgang ohne Begründung zurückrollen zu lassen.

@@ -388,6 +388,35 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     expect(await prisma.auditEvent.count({ where: { actorUserId: userId } })).toBe(0);
   });
 
+  it('weist nicht-endliche Zahlen und verlustbehaftete Arrays ab, ohne eine Zeile zu schreiben', async () => {
+    const userId = await nutzerAnlegen('json-verlust');
+
+    const sparse = new Array<unknown>(2);
+    sparse[1] = 'vorhanden';
+
+    await expect(
+      appendAuditEvent({
+        action: 'ACCOUNT_DELETED',
+        actorUserId: userId,
+        targetType: 'IntegrationstestZiel',
+        metadata: { metric: Number.NaN } as never,
+      }),
+    ).rejects.toThrow('Auditmetadaten dürfen nur endliche Zahlen enthalten.');
+
+    await expect(
+      appendAuditEvent({
+        action: 'ACCOUNT_DELETED',
+        actorUserId: userId,
+        targetType: 'IntegrationstestZiel',
+        metadata: { values: sparse } as never,
+      }),
+    ).rejects.toThrow(
+      'Auditmetadaten dürfen Arrays nur als dichte Standard-Arrays ohne zusätzliche Eigenschaften enthalten.',
+    );
+
+    expect(await prisma.auditEvent.count({ where: { actorUserId: userId } })).toBe(0);
+  });
+
   it('speichert weder Name noch Adresse des Akteurs, nur die Kennung', async () => {
     const userId = await nutzerAnlegen('sparsamkeit');
     const nutzer = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
