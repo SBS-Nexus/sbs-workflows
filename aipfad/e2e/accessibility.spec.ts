@@ -67,7 +67,9 @@ test('Lektionsschritt: keine serious/critical Verstöße', async ({ page }) => {
 test('Git-Pfad: keine serious/critical Verstöße', async ({ page }) => {
   await page.goto('/git');
   await expect(
-    page.getByRole('heading', { name: 'Git & GitHub verstehen, bevor du AI damit arbeiten lässt.' }),
+    page.getByRole('heading', {
+      name: 'Git & GitHub verstehen, bevor du AI damit arbeiten lässt.',
+    }),
   ).toBeVisible();
   await expectNoSeriousViolations(page);
 });
