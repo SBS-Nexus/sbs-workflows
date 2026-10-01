@@ -34,7 +34,7 @@ export function AppHeader({ userName }: { userName: string }): React.ReactElemen
     pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <header className="sticky top-9 z-30 border-b border-[var(--border)] bg-[var(--bg-raised)]">
+    <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--bg-raised)]">
       <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
         <Link href="/pfad" className="flex shrink-0 items-center gap-2 font-bold no-underline">
           <span
