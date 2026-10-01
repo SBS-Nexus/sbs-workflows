@@ -105,15 +105,19 @@ function schwaerzeWert(wert: unknown, tiefe: number): AuditMetadataWert {
 function schwaerzeObjekt(eingabe: Record<string, unknown>, tiefe: number): AuditMetadata {
   const ausgabe: AuditMetadata = {};
   for (const [schluessel, wert] of Object.entries(eingabe)) {
+    // Dieser reservierte Schlüssel ist über den heutigen Prisma-JSON-Pfad
+    // nicht verlustfrei speicherbar. Akzeptieren und später still verlieren
+    // wäre für eine Auditspur falsch, daher hier rekursiv fail-closed.
+    if (schluessel === '__proto__') {
+      throw new TypeError('Auditmetadaten enthalten einen reservierten Schlüssel.');
+    }
+
     // Der verbotene Schlüssel wird NICHT entfernt, sondern sein Wert ersetzt.
     // Dass das Feld da war, ist selbst eine betriebliche Tatsache; sein
     // Inhalt ist es nicht.
     //
-    // Bewusst per Datenproperty statt `ausgabe[schluessel] = …`: Für einen
-    // eigenen `__proto__`-Schlüssel aus JSON würde die Zuweisung auf einem
-    // normalen Objekt sonst den historischen Prototype-Setter aufrufen. Der
-    // Schlüssel verschwände aus Object.entries/JSON.stringify und der
-    // Ausgabewert bekäme stattdessen einen fremden Prototyp.
+    // Bewusst per Datenproperty statt `ausgabe[schluessel] = …`, damit der
+    // Ausgabepfad unabhängig von geerbten Settern bleibt.
     Object.defineProperty(ausgabe, schluessel, {
       value: istVerboten(schluessel) ? SCHWAERZUNG : schwaerzeWert(wert, tiefe),
       enumerable: true,
