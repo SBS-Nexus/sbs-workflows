@@ -97,7 +97,22 @@ in `src/proxy.ts` nur gesetzt, wenn `APP_URL` tatsächlich auf `https` zeigt.
   usw.) und anonyme Produktanalyse (`AnalyticsEvent`) sind strikt getrennt;
   `AnalyticsEvent` hat keinen Fremdschlüssel auf `User`.
 - Jeder Fremdschlüssel auf `User` hat `onDelete: Cascade` – ein einziges
-  `prisma.user.delete()` entfernt sämtliche personenbezogenen Daten.
+  `prisma.user.delete()` entfernt die **nutzereigenen** Zeilen.
+- **Seit E07 heißt das nicht mehr „sämtliche personenbezogenen Daten".**
+  `AuditEvent` ist plattformeigen und trägt absichtlich keinen
+  Fremdschlüssel auf `User`: Sein Akteursabdruck (`actorUserId`, eine
+  Kennung, kein Name und keine Adresse) überdauert die Kontolöschung. Ohne
+  diese Eigenschaft löschte eine Kontolöschung die Spur ihrer selbst.
+  Solche Zeilen verschwinden allein über die Auditfrist
+  (`AUDIT_RETENTION_DAYS`); einen fachlichen Löschpfad für eine einzelne
+  Zeile gibt es nicht. Wer also nach einer Kontolöschung fragt, bekommt die
+  genaue Antwort: nutzereigene Daten sind weg, der minimale Akteursabdruck
+  bleibt bis zum Ablauf seiner Frist. Dieses Dokument trifft dazu keine
+  rechtliche Einordnung.
+- Personenbezug und Lebenszyklus sind **zwei Achsen**. `AuditEvent` ist
+  zugleich plattformeigen (Lebenszyklus) und personenbezogen, sobald der
+  Abdruck eine Person benennt. `AnalyticsEvent` bleibt anonym und wird
+  **nicht** mit Personen in Beziehung gesetzt.
 - Aufbewahrungsfristen werden seit E04A von einem geplanten Lauf ausgeführt,
   nicht mehr nur beschrieben. Einzelheiten unten unter "Geplante
   Aufbewahrung".
@@ -115,12 +130,19 @@ sie auf.
 Der genaue Zeitpunkt ist nicht zugesichert — die Plattform startet den Lauf
 innerhalb des Zeitfensters, nicht auf die Sekunde.
 
-**Was aufgeräumt wird.** Heute eine Datenart: `Attempt`, Frist aus
-`ATTEMPT_RETENTION_DAYS` (Vorgabe 365). Gelöscht wird, was `createdAt <
-jetzt − Frist` erfüllt; auf der Grenze bleibt eine Zeile stehen. **Frist 0
-schaltet die Regel ab** — es heißt ausdrücklich nicht "alles löschen, was
-älter als jetzt ist". Das Protokoll unterscheidet beides:
-`skipped-disabled` ist etwas anderes als "gelaufen, nichts gefunden".
+**Was aufgeräumt wird.** Seit E07 laufen zwei Datenarten mit getrennten
+Fristen. Für `Attempt` kommt die Frist aus `ATTEMPT_RETENTION_DAYS`
+(Vorgabe 365); gelöscht wird, was `createdAt < jetzt − Frist` erfüllt.
+**Frist 0 schaltet nur diese Attempt-Regel ab** — es heißt ausdrücklich
+nicht "alles löschen, was älter als jetzt ist". Für `AuditEvent` kommt die
+Frist aus dem verpflichtenden `AUDIT_RETENTION_DAYS` (ohne Vorgabewert,
+größer als 0); gelöscht wird, was `occurredAt < jetzt − Frist` erfüllt.
+Auf der jeweiligen Grenze bleibt eine Zeile stehen. Für Auditzeilen bedeutet
+`0` ausdrücklich **nicht** "aus": Der Konfigurationsvertrag lehnt den Wert
+ab und die Anwendung startet damit nicht. In `RETENTION_MODE=execute`
+können beide Regeln ihre abgelaufenen Zeilen unwiderruflich löschen. Das
+Protokoll unterscheidet bei der Attempt-Regel `skipped-disabled` von
+"gelaufen, nichts gefunden".
 
 Die Liste der Regeln steht an genau einer Stelle
 (`src/server/retention/rules.ts`). Eine weitere Datenart meldet dort ihre
@@ -168,10 +190,200 @@ gilt für die Antwort der Route: Sie nennt Zahlen, nicht wessen Daten
 betroffen waren.
 
 **Grenze dieser Ausbaustufe.** Das hier ist ein technischer
-Aufbewahrungsmechanismus für eine Datenart. Datenauskunft (E04B) und
-Kontolöschung auf Verlangen (E04C) fehlen weiterhin; ENT-B04, ENT-B05 und
-ENT-B06 sind offen. Aus E04A folgt keine Aussage über rechtliche
-Anforderungen.
+Aufbewahrungsmechanismus. Seit E07 laufen darin **zwei** Datenarten:
+`ATTEMPT_RETENTION` und `AUDIT_RETENTION`. Datenauskunft (E04B) und
+Kontolöschung auf Verlangen (E04C) fehlen weiterhin; ENT-B04 und ENT-B05
+sind offen. Aus E04A folgt keine Aussage über rechtliche Anforderungen.
+
+## Auditgrundlage (E07)
+
+Seit E07 gibt es `AuditEvent`. E07 liefert ausdrücklich nur die
+**Grundlage**: Modell, Dienst, Verzeichnis der Vorgangsbezeichnungen,
+Schwärzungsregel, Aufbewahrung. Es gibt zum Zeitpunkt dieser Auslieferung
+**null** fachliche Ereigniserzeuger, und das ist kein Versäumnis: Jeder
+prüfpflichtige Vorgang bringt seinen Erzeuger in derselben Änderung mit, in
+der er selbst entsteht (E04B den Export, E04C die Kontolöschung, E08B die
+Organisationsvorgänge). Hier steht deshalb **nicht**, dass fachliche
+Vorgänge protokolliert werden — heute wird keiner protokolliert, weil es
+keinen gibt.
+
+**Nur Anfügen und Lesen — auf Ebene der Anwendungsschnittstelle.**
+`src/server/audit/service.ts` bietet der Anwendung genau zwei Fähigkeiten:
+Anfügen und Lesen. Es gibt kein Ändern, kein Löschen und kein
+Prisma-Delegate nach außen. Das ist eine Eigenschaft der **Schnittstelle**.
+
+Anfügen gibt es in zwei Formen über **denselben** Schreibweg — dieselbe
+Prüfung der Vorgangsbezeichnung, dieselbe Schwärzung, dieselben
+Größengrenzen, derselbe serverseitige Zeitpunkt:
+
+- `appendAuditEvent(eingabe)` schreibt über den globalen Client.
+- `appendAuditEventInTransaction(tx, eingabe)` schreibt über die Transaktion
+  des Aufrufers und öffnet selbst keine. Ein fachlicher Vorgang, dessen Spur
+  nicht ohne ihn bestehen darf — E04C löscht ein Konto und schreibt
+  `ACCOUNT_DELETED` —, übergibt sein `tx` aus `prisma.$transaction`; Vorgang
+  und Spur werden dann gemeinsam festgeschrieben oder gemeinsam verworfen.
+  Der Parameter ist bewusst schmal (`AuditAppendTransaction`: als
+  Schreibfähigkeit nur `auditEvent.create`). Der globale Prisma-Client ist
+  zusätzlich negativ ausgeschlossen: Er besitzt `$connect`, ein
+  interaktiver `Prisma.TransactionClient` nicht. Das hält den falschen
+  Client beim Typecheck ab — aber **nur, wenn `prisma` direkt übergeben
+  wird**. Eine Hilfsfunktion mit `db: Prisma.TransactionClient` (das übliche
+  Muster hier) nimmt den globalen Client typkorrekt an, weil jener Typ
+  `$connect` gar nicht kennt; die Information geht beim Aufrufer verloren.
+  Deshalb wird dieselbe Eigenschaft zur Laufzeit geprüft — auch gegen einen
+  Cast, ein fehlendes oder ein falsches `tx` (etwa eine Kennung oder der
+  Kontext des Aufrufers statt seines `tx` — verlangt wird ein
+  `auditEvent.create`). Die
+  Laufzeitprüfung schlägt laut fehl, kann aber fachliche Schreibvorgänge nicht
+  zurücknehmen, die vorher außerhalb einer Transaktion liefen. **Empfehlung
+  für Erzeuger:** im Transaktionsrumpf zuerst anfügen, dann ändern. Beides wird
+  ohnehin gemeinsam festgeschrieben; ein falscher Client scheitert dann aber,
+  bevor irgendein fachlicher Schreibvorgang stattfand. Zur Laufzeit wird außerdem eine Hülle um
+  das Delegate des globalen Clients (`{ auditEvent: prisma.auditEvent }`)
+  abgewiesen — sie hat kein `$connect` und erfüllt den Typ ohne Cast.
+  **Diese Grenze fängt Versehen, keinen Vorsatz.** Eine eigens gebaute
+  Weiterleitung (`{ auditEvent: { create: (a) => prisma.auditEvent.create(a) } }`)
+  oder das Delegate eines zweiten, eigens erzeugten `PrismaClient` kommt
+  durch; das lässt sich zur Laufzeit nicht allgemein erkennen. Es ist aber
+  auch keine neue Fähigkeit: Wer so baut, könnte ebenso direkt
+  `prisma.auditEvent.create` aufrufen — dieselbe Grenze wie „nur anfügbar"
+  oben, eine Eigenschaft der Schnittstelle, keine Durchsetzung. Scheitert die
+  Prüfung der Auditeingabe, rollt das auch den fachlichen Vorgang zurück.
+
+Beim Lesen gilt: **Ein Filter fehlt, oder er ist gültig.** Ein gesetzter
+Akteurs- oder Organisationsfilter muss eine Zeichenkette sein; eine leere
+Zeichenkette ist gültig und findet nichts. Ein gesetzter Vorgangsfilter muss
+eine **bekannte** Vorgangsbezeichnung sein: Ein falsch geschriebener
+(`ACCOUNT_DELETE`) fände sonst nichts, und ein leeres Ergebnis hieße für die
+prüfende Person „kein solcher Vorgang" — ein falsches Negativ. Ein gesetzter Schlüssel mit
+anderem Wert — `undefined` aus `session?.userId`, ein Prisma-Operator wie
+`{ not: 'x' }` aus einem Anfragekörper — wirft einen `TypeError`, statt als
+„kein Filter" zu gelten und die Abfrage auf fremde Zeilen auszuweiten. Die
+Abfrage muss ein **einfaches Objekt** sein: Bei einer Klasseninstanz lägen
+Getter auf dem Prototyp, wo keine Schlüsselprüfung sie sieht, und ein falsch
+geschriebener (`actorId`) fiele still weg — typkorrekt. Jeder eigene Schlüssel,
+auch ein nicht aufzählbarer, muss auf der Positivliste stehen; ein unbekannter
+(`actorId`, `targetId`) wird abgewiesen. Eine gesetzte Zeitgrenze muss ein
+gültiges `Date` zwischen den Jahren 1 und 9999 sein, und ein Fenster aus beiden
+Grenzen darf nicht leer oder vertauscht sein — es fände nichts, und „nichts"
+hieße „kein Vorgang im Zeitraum"; gelesen wird ihr innerer
+Zeitwert, nicht ein überschreibbares `getTime`. Ein Kennungsfilter darf kein
+Zeichen enthalten, das PostgreSQL nicht speichern kann (Nullzeichen, einzelnes
+Ersatzzeichen) — ein `%00` aus einer Adresse ließe sonst Prisma mit absolutem
+Quellpfad scheitern — und ist wie beim Schreiben höchstens 200 Zeichen lang;
+ein längerer kann nichts finden und wäre nur Last. Jeder Wert wird genau einmal gelesen, damit ein
+Getter nicht beim zweiten Zugriff etwas anderes liefert als geprüft, und über
+„vorhanden" entscheidet die geprüfte Schlüsselliste, nicht eine zweite Frage an
+das Objekt. Die Form wird geprüft, bevor irgendein Wert gelesen wird. Die Meldung nennt
+nur das Feld, nie den Wert; ein fremder Wert, der keine Zeichenkette ist,
+erscheint nur als seine Art (`(object)`), nie über `String()` — ebenso ein
+Symbolschlüssel, dessen Beschreibung fremder Text ist. Fremder Text in einer
+Meldung — auch die Kennung einer an der Anwendung vorbei geschriebenen Zeile —
+ist gekürzt, einzeilig (C0- und C1-Steuerzeichen sowie U+2028/U+2029 ersetzt;
+ein Umbruch täuschte sonst eine eigene Logzeile vor) und speicherbar (kein beim
+Kürzen halbiertes Ersatzpaar). Die Abfrage
+selbst ist **Pflicht**: `readAuditEvents(undefined)` — etwa
+`readAuditEvents(bauAbfrage(sitzung))` ohne Sitzung — wird abgewiesen, statt
+über einen Vorgabewert zu einer Abfrage über alle Akteure zu werden. Wer
+ungefiltert lesen will, schreibt `{}` ausdrücklich; ein solcher Aufruf liest
+über Akteure hinweg, und diese Grenze zieht die spätere Route.
+
+Dieselbe Regel gilt beim **Anfügen**: `actorUserId`, `organizationId` und
+`targetId` fehlen, oder sie sind gültige Zeichenketten. Ein gesetztes
+`undefined` — `actorUserId: session?.userId` nach einer gescheiterten
+Sitzungssuche — wird abgewiesen, statt still als „kein Akteur" geschrieben zu
+werden; sonst verlöre gerade die Spur einer Kontolöschung ihre Zuordnung. Auch
+die Eingabe muss ein einfaches Objekt mit bekannten Feldern sein: Ein
+unbekanntes (`actorId` statt `actorUserId`, etwa aus einem Spread, den
+TypeScript nicht meldet) wird abgewiesen, statt still zu entfallen und dieselbe
+Zuordnung zu kosten. Über „vorhanden" entscheidet auch hier die geprüfte
+Schlüsselliste, nie ein geerbter Wert; eine fehlende Vorgangsbezeichnung heißt
+„fehlt". Die Vorgangsbezeichnung wird genau einmal gelesen: Geprüft und
+geschrieben wird derselbe Wert. Fehlt `metadata`, ist es `{}`; ist es gesetzt,
+muss es ein **einfaches** Objekt sein — `metadata: diff ?? null` wird
+abgewiesen, statt still als leere Tatsachen geschrieben zu werden, ebenso ein
+nicht aufzählbarer oder Symbolschlüssel, den die Schwärzung nicht sähe, und ebenso
+eine `Map` oder Klasseninstanz, die die Schwärzung auf `{}` reduzierte. Diese
+Formregel gilt **rekursiv**: Auch verschachtelte Objekte und Objekte in Arrays
+müssen einfache Objekte mit ausschließlich aufzählbaren Zeichenkettenschlüsseln
+sein. `Date`, `Map`, Klasseninstanzen sowie unsichtbare oder Symbolschlüssel
+werden dort fail-closed abgewiesen, statt als `{}` oder verkürzte Tatsachen in
+der Auditspur zu landen. Zahlen müssen endlich sein; `NaN` und
+`±Infinity` werden abgewiesen, bevor JSON sie zu `null` umdeuten kann.
+Auch `-0` wird abgewiesen, weil JSON daraus `0` machen würde
+(`Object.is(-0, 0)` ist falsch). Arrays müssen dichte Standard-Arrays ohne Löcher, Unterklassen oder zusätzliche
+eigene Eigenschaften sein; sonst würden JSON und `Array.map` akzeptierte
+Informationen verlieren. Weder Kennungsfelder noch Metadaten (Schlüssel wie Werte, auch verschachtelt) dürfen
+Zeichen enthalten, die PostgreSQL nicht speichern kann; der Dienst meldet das
+Feld selbst, statt die Datenbank mit Quellpfad scheitern und im
+Transaktionspfad den fachlichen Vorgang ohne Begründung zurückrollen zu lassen.
+
+Beim Lesen gespeicherter Zeilen fällt nicht nur eine unbekannte
+Vorgangsbezeichnung auf, sondern auch Metadaten, die kein Objekt sind — beides
+kann nur an der Anwendung vorbei entstehen.
+
+Daneben gibt es `appendAuditEventMitZeitpunktFuerTests`, das ausdrücklich
+benannte Anfügen mit gewähltem Zeitpunkt. Es existiert nur für die
+Aufbewahrungsprüfungen und hat im Anwendungscode nichts zu suchen.
+
+**Ausdrücklich nicht zugesichert: Manipulationssicherheit auf
+Datenbankebene.** Es gibt keine eigene Datenbankrolle, kein `REVOKE`, keinen
+Anfügeauslöser und keinen manipulationsgeschützten Speicher. Wer
+Schreibrechte auf der Datenbank hat, kann Auditzeilen ändern oder löschen.
+Wer „nur anfügbar" liest, muss „in der Anwendung" mitlesen.
+
+**Abbildsemantik.** `actorUserId` und `organizationId` sind Kennungen ohne
+Fremdschlüssel. Sie überdauern eine Kontolöschung beziehungsweise eine
+künftige Organisationslöschung — genau dafür gibt es sie. Gespeichert wird
+**nur** die Kennung: kein Name, keine Adresse, kein lesbares Etikett. Für
+die belegten Zwecke (E04B ordnet Zeilen der angemeldeten Person zu, E04C und
+E13B überdauern eine Löschung) genügt die Kennung; ein lesbares Etikett wäre
+zusätzlicher Personenbezug ohne gezeigten Bedarf.
+
+**Metadaten.** Ein Objekt mit knappen betrieblichen Tatsachen — etwa
+`previousRole`, `newRole`, `reasonCode`, `source`. Ausdrücklich **kein**
+Dokumentenspeicher, keine Anfrageinhalte, keine Lernendenantworten, keine
+Profilabbilder, keine Geheimnisse. Vor dem Schreiben läuft eine feste,
+**rekursive** Schwärzungsregel (`src/server/audit/redaction.ts`) über die
+Felder `email`, `name`, `password`, `passwordHash`, `token`, `tokenHash`,
+`csrfSecret`, `authorization`, `cookie`, `secret`, `apiKey`,
+`submittedAnswer`, `solutionNotes` sowie die deutsche Schreibweise
+`passwort` — vierzehn Namen, ohne Rücksicht auf Groß- und Kleinschreibung,
+auch in verschachtelten Objekten und in Objekten innerhalb von Arrays.
+
+**Verglichen wird der ganze Feldname, nicht ein Namensbestandteil.**
+`userEmail`, `accessToken`, `emailAddress`, `user_email` und `api_key` werden
+deshalb **nicht** geschwärzt. Das ist Absicht: Eine Teilstringsuche träfe auch
+harmlose Namen — `name` steckt in `hostname`, `filename`, `courseName` — und
+gäbe eine Sicherheit vor, die sie nicht hat. Wer einen Ereigniserzeuger
+schreibt, kann sich also nicht darauf verlassen, dass eine ungünstig benannte
+Kopie abgefangen wird. Der Wert wird durch `[entfernt]` ersetzt; der ursprüngliche Wert
+wird weder zurückgegeben noch protokolliert noch in eine Fehlermeldung
+aufgenommen. Die Regel ist die zweite Verteidigungslinie: `metadata: {
+...requestBody }` bleibt falsch, auch wenn sie darin etwas schwärzt.
+
+Sie ist bewusst **nicht** die Regel des Loggers. Der Logger schwärzt nur die
+oberste Ebene, was für flache Logfelder genügt; Metadaten sind JSON und
+dürfen verschachtelt sein.
+
+**Aufbewahrung.** `AUDIT_RETENTION_DAYS` ist **Pflicht**, ohne Vorgabewert
+und strikt größer als 0. Für Auditzeilen ist die altersbasierte Aufbewahrung
+der **einzige** Löschweg; eine 0 hieße im Rahmen „abgeschaltet" und damit
+„nie löschen" — eine Aufbewahrungsentscheidung, die niemand getroffen hätte.
+Der Wert in `.env.example` ist ein technischer Beispielwert und **keine**
+rechtliche Empfehlung. Die Regel läuft im Rahmen aus E04A mit, über
+denselben Cron und denselben Lauf; ein zweiter Zeitplan entsteht nicht.
+
+**Die Frist allein löscht noch nichts.** Sie ist notwendig, nicht
+hinreichend: Der Rahmen löscht nur bei `RETENTION_MODE=execute`, und die
+Vorgabe ist `dry-run`. Eine Bereitstellung, die den Modus nie umstellt,
+zählt Auditzeilen dauerhaft nur — sie behält sie also, obwohl eine Frist
+gesetzt ist. Das ist für eine unwiderrufliche Löschung die richtige Vorgabe,
+aber wer die Frist für wirksam hält, ohne den Modus zu prüfen, irrt.
+
+**Kein Ersatz für Logs.** Auditzeilen sind nicht der Logstrom und umgekehrt.
+Es wird nichts automatisch aus dem Logger in `AuditEvent` gespiegelt: andere
+Zwecke, andere Aufbewahrung.
 
 ## Gemeinsame Ratenbegrenzung (E03)
 

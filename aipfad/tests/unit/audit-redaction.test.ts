@@ -1,0 +1,288 @@
+import { describe, expect, it } from 'vitest';
+import { redactMetadata, SCHWAERZUNG } from '@/server/audit/redaction';
+
+/**
+ * Die Schwärzungsregel für Auditmetadaten (E07/ENT-B06).
+ *
+ * Der Kern jeder Prüfung hier ist derselbe: Der ursprüngliche Wert darf im
+ * Ergebnis NIRGENDS mehr vorkommen — auch nicht tief verschachtelt, auch
+ * nicht in einem Array. Deshalb prüfen mehrere Fälle zusätzlich gegen die
+ * serialisierte Ausgabe, statt nur einzelne Felder zu vergleichen: Ein
+ * Feldvergleich übersieht eine Kopie an anderer Stelle.
+ */
+
+const GEHEIM = 'SUPERGEHEIM-KANARIENVOGEL';
+
+describe('Schwärzung der Auditmetadaten', () => {
+  it('lässt unverfängliche betriebliche Tatsachen unverändert', () => {
+    const eingabe = { previousRole: 'MEMBER', newRole: 'ADMIN', source: 'ui', count: 3, ok: true };
+    expect(redactMetadata(eingabe)).toEqual(eingabe);
+  });
+
+  it('schwärzt verbotene Felder auf oberster Ebene', () => {
+    const ergebnis = redactMetadata({ email: GEHEIM, password: GEHEIM, reasonCode: 'R1' });
+    expect(ergebnis.email).toBe(SCHWAERZUNG);
+    expect(ergebnis.password).toBe(SCHWAERZUNG);
+    expect(ergebnis.reasonCode).toBe('R1');
+  });
+
+  it('steigt in verschachtelte Objekte ab', () => {
+    const ergebnis = redactMetadata({
+      actor: { id: 'u1', email: GEHEIM, profil: { name: GEHEIM, stufe: 2 } },
+    });
+    expect(JSON.stringify(ergebnis)).not.toContain(GEHEIM);
+    const actor = ergebnis.actor as Record<string, unknown>;
+    expect(actor.id).toBe('u1');
+    expect((actor.profil as Record<string, unknown>).stufe).toBe(2);
+  });
+
+  it('schwärzt auch in Objekten innerhalb von Arrays', () => {
+    const ergebnis = redactMetadata({
+      mitglieder: [
+        { id: 'a', email: GEHEIM },
+        { id: 'b', token: GEHEIM },
+      ],
+    });
+    expect(JSON.stringify(ergebnis)).not.toContain(GEHEIM);
+    const liste = ergebnis.mitglieder as Record<string, unknown>[];
+    expect(liste[0]?.id).toBe('a');
+    expect(liste[1]?.id).toBe('b');
+  });
+
+  it('vergleicht Feldnamen ohne Rücksicht auf Groß- und Kleinschreibung', () => {
+    const ergebnis = redactMetadata({
+      EMAIL: GEHEIM,
+      PasswordHash: GEHEIM,
+      apiKey: GEHEIM,
+      ApiKey: GEHEIM,
+      AUTHORIZATION: GEHEIM,
+      Cookie: GEHEIM,
+    });
+    expect(JSON.stringify(ergebnis)).not.toContain(GEHEIM);
+  });
+
+  it('deckt jedes im Vertrag genannte Feld ab', () => {
+    // Die Liste aus docs/SECURITY.md, einzeln geprüft — damit ein späteres
+    // Entfernen eines Eintrags aus der Regel hier auffällt und nicht erst,
+    // wenn ein echter Wert in einer Auditzeile steht.
+    const felder = [
+      'email',
+      'name',
+      'password',
+      // Die deutsche Schreibweise steht ebenfalls in der Regel; sie fehlte
+      // hier, und ihr Entfernen aus dem Code blieb dadurch unbemerkt.
+      'passwort',
+      'passwordHash',
+      'token',
+      'tokenHash',
+      'csrfSecret',
+      'authorization',
+      'cookie',
+      'secret',
+      'apiKey',
+      'submittedAnswer',
+      'solutionNotes',
+    ];
+    for (const feld of felder) {
+      const ergebnis = redactMetadata({ [feld]: GEHEIM });
+      expect(ergebnis[feld], `${feld} wurde nicht geschwärzt`).toBe(SCHWAERZUNG);
+    }
+  });
+
+  it('vergleicht den GANZEN Feldnamen, nicht einen Namensbestandteil', () => {
+    // Festgehalten, weil es die wichtigste Grenze der Regel ist und jeder
+    // spätere Ereigniserzeuger (E04B, E04C, E08B) sie kennen muss:
+    // Zusammengesetzte Namen sind NICHT abgedeckt. Eine Teilstringsuche
+    // träfe auch `hostname`, `filename` oder `courseName` und gäbe eine
+    // Sicherheit vor, die sie nicht hat. Schlägt diese Prüfung fehl, weil
+    // jemand auf Teilstrings umgestellt hat, ist das eine bewusste
+    // Entscheidung — und die Dokumentation muss mit.
+    const zusammengesetzt = ['userEmail', 'accessToken', 'emailAddress', 'user_email', 'api_key'];
+    for (const feld of zusammengesetzt) {
+      const ergebnis = redactMetadata({ [feld]: GEHEIM });
+      expect(ergebnis[feld], `${feld} verhält sich anders als dokumentiert`).toBe(GEHEIM);
+    }
+  });
+
+  it('zählt vierzehn verbotene Felder, nicht dreizehn', () => {
+    // Die Regel deckt eines mehr ab, als Dokumentation und Vertrag lange
+    // nannten (`passwort`). Diese Prüfung hält Zahl und Liste zusammen.
+    const alle = [
+      'email',
+      'name',
+      'password',
+      'passwort',
+      'passwordHash',
+      'token',
+      'tokenHash',
+      'csrfSecret',
+      'authorization',
+      'cookie',
+      'secret',
+      'apiKey',
+      'submittedAnswer',
+      'solutionNotes',
+    ];
+    expect(alle).toHaveLength(14);
+    const geschwaerzt = alle.filter((f) => redactMetadata({ [f]: GEHEIM })[f] === SCHWAERZUNG);
+    expect(geschwaerzt).toHaveLength(14);
+  });
+
+  it('behält den Schlüssel und ersetzt nur den Wert', () => {
+    // Dass ein Feld da war, ist eine betriebliche Tatsache; sein Inhalt
+    // nicht. Ein entfernter Schlüssel verlöre die erste Information.
+    const ergebnis = redactMetadata({ email: GEHEIM });
+    expect(Object.keys(ergebnis)).toEqual(['email']);
+  });
+
+  it('weist __proto__ aus JSON auch verschachtelt fail-closed ab', () => {
+    // Der aktuelle Prisma-JSON-Pfad verliert diesen eigenen Schlüssel vor
+    // JSONB. Akzeptieren und später verlieren wäre für eine Auditspur falsch.
+    const oben = JSON.parse('{"__proto__":{"marker":"X"}}') as Record<string, unknown>;
+    const tief = JSON.parse('{"nested":{"__proto__":{"marker":"X"}}}') as Record<string, unknown>;
+
+    expect(() => redactMetadata(oben)).toThrow(
+      'Auditmetadaten enthalten einen reservierten Schlüssel.',
+    );
+    expect(() => redactMetadata(tief)).toThrow(
+      'Auditmetadaten enthalten einen reservierten Schlüssel.',
+    );
+  });
+
+  it('weist verschachtelte nicht-einfache Objekte und unsichtbare Schlüssel fail-closed ab', () => {
+    class Fremdwert {
+      marker = 'X';
+    }
+
+    const nichtAufzaehlbar: Record<string, unknown> = { sichtbar: 'ok' };
+    Object.defineProperty(nichtAufzaehlbar, 'unsichtbar', {
+      value: 'X',
+      enumerable: false,
+    });
+    const mitSymbol: Record<string, unknown> = { sichtbar: 'ok' };
+    (mitSymbol as Record<PropertyKey, unknown>)[Symbol('intern')] = 'X';
+
+    const faelle: Record<string, unknown>[] = [
+      { occurred: new Date('2026-01-01T00:00:00.000Z') },
+      { details: new Map([['status', 'ok']]) },
+      { actor: new Fremdwert() },
+      { liste: [new Date('2026-01-01T00:00:00.000Z')] },
+      { nested: nichtAufzaehlbar },
+      { nested: mitSymbol },
+    ];
+
+    for (const metadata of faelle) {
+      expect(() => redactMetadata(metadata)).toThrow(
+        'Auditmetadaten dürfen verschachtelt nur einfache Objekte und Arrays mit aufzählbaren Zeichenkettenschlüsseln enthalten.',
+      );
+    }
+  });
+
+  it('weist nicht-endliche Zahlen fail-closed ab', () => {
+    for (const wert of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      expect(() => redactMetadata({ metric: wert })).toThrow(
+        'Auditmetadaten dürfen nur endliche Zahlen enthalten.',
+      );
+      expect(() => redactMetadata({ nested: { metric: wert } })).toThrow(
+        'Auditmetadaten dürfen nur endliche Zahlen enthalten.',
+      );
+      expect(() => redactMetadata({ values: [wert] })).toThrow(
+        'Auditmetadaten dürfen nur endliche Zahlen enthalten.',
+      );
+    }
+  });
+
+  it('weist negatives Nullzeichen fail-closed ab, bevor JSON es zu 0 macht', () => {
+    expect(() => redactMetadata({ delta: -0 })).toThrow(
+      'Auditmetadaten dürfen kein negatives Nullzeichen (-0) enthalten.',
+    );
+    expect(() => redactMetadata({ nested: { delta: -0 } })).toThrow(
+      'Auditmetadaten dürfen kein negatives Nullzeichen (-0) enthalten.',
+    );
+    expect(() => redactMetadata({ values: [-0] })).toThrow(
+      'Auditmetadaten dürfen kein negatives Nullzeichen (-0) enthalten.',
+    );
+  });
+
+  it('weist verlustbehaftete Arrayformen fail-closed ab', () => {
+    const sparse = new Array<unknown>(2);
+    sparse[1] = 'vorhanden';
+
+    const erweitert: unknown[] = ['wert'];
+    (erweitert as unknown as Record<PropertyKey, unknown>).extra = 'verloren';
+
+    const mitSymbol: unknown[] = ['wert'];
+    (mitSymbol as unknown as Record<PropertyKey, unknown>)[Symbol('intern')] = 'verloren';
+
+    const nichtAufzaehlbar: unknown[] = ['wert'];
+    Object.defineProperty(nichtAufzaehlbar, '0', {
+      value: 'wert',
+      enumerable: false,
+      writable: true,
+      configurable: true,
+    });
+
+    class SonderArray<T> extends Array<T> {}
+    const unterklasse = new SonderArray<string>();
+    unterklasse.push('wert');
+
+    for (const wert of [sparse, erweitert, mitSymbol, nichtAufzaehlbar, unterklasse]) {
+      expect(() => redactMetadata({ values: wert })).toThrow(
+        'Auditmetadaten dürfen Arrays nur als dichte Standard-Arrays ohne zusätzliche Eigenschaften enthalten.',
+      );
+    }
+  });
+
+  it('schwärzt einen verbotenen Schlüssel samt seines ganzen Teilbaums', () => {
+    const ergebnis = redactMetadata({ secret: { tief: { tiefer: GEHEIM } } });
+    expect(ergebnis.secret).toBe(SCHWAERZUNG);
+    expect(JSON.stringify(ergebnis)).not.toContain(GEHEIM);
+  });
+
+  it('bricht sehr tiefe Verschachtelung ab, statt endlos abzusteigen', () => {
+    // Konstruiert 20 Ebenen; ab der Grenze steht die Markierung. Wichtig ist
+    // nicht die genaue Tiefe, sondern dass die Funktion terminiert und nichts
+    // Ungeprüftes durchlässt.
+    let tief: Record<string, unknown> = { email: GEHEIM };
+    for (let i = 0; i < 20; i += 1) tief = { ebene: tief };
+
+    const ergebnis = redactMetadata(tief);
+    expect(JSON.stringify(ergebnis)).not.toContain(GEHEIM);
+  });
+
+  it('überlebt einen zyklischen Wert, ohne zu hängen', () => {
+    const zyklus: Record<string, unknown> = { id: 'x' };
+    zyklus.selbst = zyklus;
+    const ergebnis = redactMetadata(zyklus);
+    // Terminiert und ist serialisierbar — beides wäre ohne Tiefengrenze nicht so.
+    expect(() => JSON.stringify(ergebnis)).not.toThrow();
+  });
+
+  it('ersetzt Werte, die kein gültiges JSON sind', () => {
+    const ergebnis = redactMetadata({
+      fn: () => GEHEIM,
+      sym: Symbol(GEHEIM),
+      leer: undefined,
+      echt: 'bleibt',
+    });
+    expect(ergebnis.fn).toBe(SCHWAERZUNG);
+    expect(ergebnis.sym).toBe(SCHWAERZUNG);
+    expect(ergebnis.leer).toBe(SCHWAERZUNG);
+    expect(ergebnis.echt).toBe('bleibt');
+    expect(JSON.stringify(ergebnis)).not.toContain(GEHEIM);
+  });
+
+  it('verändert die Eingabe nicht', () => {
+    const eingabe = { email: GEHEIM, tief: { token: GEHEIM } };
+    redactMetadata(eingabe);
+    // Der Aufrufer hält sein Objekt möglicherweise noch; die Regel darf es
+    // ihm nicht unter der Hand umschreiben.
+    expect(eingabe.email).toBe(GEHEIM);
+    expect(eingabe.tief.token).toBe(GEHEIM);
+  });
+
+  it('lässt null und leere Objekte unangetastet', () => {
+    expect(redactMetadata({})).toEqual({});
+    expect(redactMetadata({ leer: null })).toEqual({ leer: null });
+  });
+});

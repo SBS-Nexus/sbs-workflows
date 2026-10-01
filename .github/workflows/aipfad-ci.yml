@@ -57,6 +57,8 @@ jobs:
       # Server samt Konfigurationsprüfung.
       CRON_SECRET: 'ci-testgeheimnis-kein-echtes-geheimnis'
       RETENTION_MODE: 'dry-run'
+      # E07: Pflichtvariable ohne Vorgabewert. Testwert, kein Geheimnis.
+      AUDIT_RETENTION_DAYS: '365'
       SEED_DEMO_USERS: 'false'
 
     steps:

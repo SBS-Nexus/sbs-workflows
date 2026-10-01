@@ -199,6 +199,13 @@ berühren.
 
 ### E04B — Datenauskunft · `ENT-B04`
 
+**VORAUSSETZUNG E07.** Dieser Punkt setzt die Auditgrundlage voraus, nicht
+nur E04C tut das: Der Export enthält `AuditEvent`-Zeilen, und ein gelungener
+Export schreibt `PERSONAL_DATA_EXPORTED`. Beides braucht das Modell aus E07.
+E04B legt `AuditEvent` deshalb **nicht selbst** an — es bringt nur seinen
+eigenen Erzeuger mit. Seit E07 steht das Modell bereit; der Erzeuger fehlt
+noch und gehört hierher.
+
 **UMFANG** Selbstexport für die angemeldete Person; vollständiges
 Verzeichnis der personenbezogenen Daten; festes Ausgabeschema.
 **PERSONENBEZUG IST EINE ZWEITE ACHSE.** Der Lebenszyklus sagt, wann etwas
@@ -407,7 +414,22 @@ arbeiten könnte. E04A kann also nicht behaupten, Auditzeilen zu löschen,
 solange E07 nicht da ist — und E07 hat trotzdem einen Ausführenden, statt
 einer Frist ohne Lauf, wie `ENT-B03` sie festhält.
 
-**REIHENFOLGE** E07 vor E04C. E04C kann keine Zeile schreiben, deren Tabelle
+**REIHENFOLGE — E07 vor E04B UND vor E04C.** Die vorige Fassung nannte nur
+E04C. Das war zu wenig: E04B braucht `AuditEvent` gleich zweifach — der
+Export enthält die Auditzeilen, deren Akteursabdruck die anfragende Person
+benennt, und ein gelungener Export schreibt `PERSONAL_DATA_EXPORTED`. Beides
+setzt das Modell aus E07 voraus. Die Reihenfolge lautet also:
+
+**E07 → E04B → E04C**
+
+Die Eigentümerschaft ändert sich dadurch nicht: E07 liefert die
+**Grundlage** (Modell, Dienst, Verzeichnis, Schwärzung, Frist), E04B den
+Erzeuger `PERSONAL_DATA_EXPORTED`, E04C den Erzeuger `ACCOUNT_DELETED`. E07
+löst diese Abhängigkeit ausdrücklich **nicht**, indem es die Erzeuger
+vorwegnimmt, und E04B löst sie nicht, indem es `AuditEvent` selbst anlegt —
+dann stünde das Modell im Punkt der Auskunft statt im Punkt der Prüfspur.
+
+E04C kann keine Zeile schreiben, deren Tabelle
 es noch nicht gibt; E07 kann dafür bei seiner Auslieferung leer bleiben.
 **NICHT-UMFANG** `AnalyticsEvent` wird **nicht** umgewidmet.
 

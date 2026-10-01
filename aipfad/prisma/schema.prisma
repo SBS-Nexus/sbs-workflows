@@ -8,8 +8,12 @@
 //  * Personenbezogene Lerndaten und anonyme Produktanalyse liegen in
 //    getrennten Tabellen (Attempt vs. AnalyticsEvent). AnalyticsEvent enthält
 //    bewusst keine Fremdschlüssel auf User.
-//  * Jeder Fremdschlüssel hat eine explizite Löschregel, damit
-//    "Konto löschen" vollständig und ohne Restdaten funktioniert.
+//  * Jeder Fremdschlüssel auf User hat eine explizite Löschregel, damit
+//    "Konto löschen" die nutzereigenen Zeilen mitnimmt. Seit E07 heißt das
+//    NICHT mehr "ohne Restdaten": `AuditEvent` ist plattformeigen, trägt
+//    absichtlich keinen Fremdschlüssel auf User und überdauert die Löschung
+//    mit seinem Akteursabdruck. Es verfällt allein über seine eigene Frist
+//    (`AUDIT_RETENTION_DAYS`). Siehe docs/SECURITY.md.
 //
 // Diese erste Ausbaustufe deckt Stufe 0 (Orientierung), Stufe 1 (Technischer
 // Arbeitsplatz, kompakt), Stufe 4 (LLM-Grundlagen) und Stufe 5 (Prompting)
@@ -176,17 +180,17 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  currentPath     LearningPath?      @relation("UserCurrentPath", fields: [currentPathId], references: [id], onDelete: SetNull)
-  sessions        AuthSession[]
-  paths           LearningPath[]     @relation("UserPaths")
-  attempts        Attempt[]
-  mastery         ConceptMastery[]
-  lessonProgress  LessonProgress[]
+  currentPath      LearningPath?     @relation("UserCurrentPath", fields: [currentPathId], references: [id], onDelete: SetNull)
+  sessions         AuthSession[]
+  paths            LearningPath[]    @relation("UserPaths")
+  attempts         Attempt[]
+  mastery          ConceptMastery[]
+  lessonProgress   LessonProgress[]
   learningSessions LearningSession[]
-  reviewItems     ReviewQueueItem[]
-  milestoneAwards MilestoneAward[]
-  labAttempts     LabAttempt[]
-  hintReveals     HintReveal[]
+  reviewItems      ReviewQueueItem[]
+  milestoneAwards  MilestoneAward[]
+  labAttempts      LabAttempt[]
+  hintReveals      HintReveal[]
 
   @@index([role])
   @@map("users")
@@ -283,7 +287,7 @@ model Lesson {
   /// Mentales Modell / Analogie.
   mentalModel            String
   /// Durchgerechnetes Beispiel mit Zeilenkommentaren (JSON).
-  workedExample           Json
+  workedExample          Json
   /// Reflexionsfragen. Der Text der Antwort wird nicht gespeichert.
   reflectionPrompts      String[]
   /// Häufige Denkfehler mit Richtigstellung (JSON-Liste).
@@ -419,18 +423,18 @@ model ExerciseConcept {
 /// Ein Lab: eine interaktive, deterministische Visualisierung/Simulation
 /// (Terminal, Tokenizer, Context Window, Prompt Repair).
 model Lab {
-  id               String        @id @default(cuid())
-  slug             String        @unique
-  kind             LabKind
-  title            String
-  summary          String
+  id                String        @id @default(cuid())
+  slug              String        @unique
+  kind              LabKind
+  title             String
+  summary           String
   /// Aufgabenstellung, dargestellt bevor das Lab startet.
-  instructions     String
+  instructions      String
   /// Deterministische Konfiguration/Szenariodaten für die Visualisierung.
-  config           Json
-  estimatedMinutes Int           @default(10)
-  status           ContentStatus @default(PUBLISHED)
-  relatedConceptIds String[]     @default([])
+  config            Json
+  estimatedMinutes  Int           @default(10)
+  status            ContentStatus @default(PUBLISHED)
+  relatedConceptIds String[]      @default([])
 
   concepts Concept[]
   attempts LabAttempt[]
@@ -659,4 +663,64 @@ model RateLimitBucket {
 
   @@index([expiresAt])
   @@map("rate_limit_buckets")
+}
+
+/// Auditgrundlage (E07/ENT-B06): eine Zeile je prüfpflichtigem Vorgang.
+///
+/// PLATTFORMEIGEN — und trotzdem möglicherweise PERSONENBEZOGEN. Das sind
+/// zwei verschiedene Achsen, und diese Tabelle ist der Grund, warum eine
+/// nicht reicht: Der Lebenszyklus sagt, wann eine Zeile verschwindet; er
+/// sagt nicht, ob Personenbezug darin steckt. Sobald `actorUserId` eine
+/// Person benennt, ist die Zeile personenbezogen, bleibt aber der Plattform
+/// zugeordnet und überdauert das Konto.
+///
+/// Deshalb hat diese Tabelle als einzige neben `AnalyticsEvent` KEINEN
+/// Fremdschlüssel auf `User` — aus dem entgegengesetzten Grund: Bei
+/// `AnalyticsEvent` fehlt er, damit gar kein Bezug entsteht; hier fehlt er,
+/// damit der Bezug eine Kaskade ÜBERLEBT. Mit `onDelete: Cascade` löschte
+/// E04C die Spur der eigenen Löschung.
+///
+/// Der einzige Löschweg ist die Aufbewahrung nach Alter
+/// (`AUDIT_RETENTION_DAYS`, ausgeführt über den Rahmen aus E04A). Es gibt
+/// keinen fachlichen Pfad, der eine einzelne Zeile entfernt.
+model AuditEvent {
+  id             String   @id @default(cuid())
+  /// Vorgangsbezeichnung aus dem kanonischen Verzeichnis in
+  /// `src/server/audit/actions.ts`. Bewusst `String` und KEIN Prisma-Enum:
+  /// Das Verzeichnis ist ohnehin in TypeScript maßgeblich, und ein Enum
+  /// wäre eine zweite Liste, die bei jedem künftigen Vorgang per Migration
+  /// nachgezogen werden müsste. Die zulässige Menge erzwingt der Dienst.
+  action         String
+  /// Abbild der Akteurskennung, KEIN Fremdschlüssel. Nullbar, weil ein
+  /// Vorgang auch ohne angemeldete Person entstehen kann (etwa ein
+  /// geplanter Lauf). Absichtlich nur die Kennung: kein Name, keine
+  /// Adresse — siehe Datensparsamkeit in docs/SECURITY.md.
+  actorUserId    String?
+  /// Abbild der Organisationskennung, KEIN Fremdschlüssel. Es gibt in
+  /// dieser Ausbaustufe noch kein Organisationsmodell (E08); die Spalte
+  /// nimmt die Kennung als undurchsichtiges Abbild auf, damit E13B eine
+  /// gelöschte Organisation nicht mit aus der Spur nimmt.
+  organizationId String?
+  /// Art des betroffenen Gegenstands, etwa `User` oder `Organization`.
+  targetType     String
+  /// Kennung des betroffenen Gegenstands, sofern es eine gibt.
+  targetId       String?
+  /// Knappe betriebliche Tatsachen, NIE Anfrageinhalte, Lernendenantworten
+  /// oder Geheimnisse. Der Dienst schwärzt verbotene Felder rekursiv,
+  /// bevor geschrieben wird.
+  metadata       Json     @default("{}")
+  /// Serverseitig vergeben. `timestamp` OHNE Zeitzone wie überall in diesem
+  /// Schema; Vergleiche laufen gegen Zeitpunkte aus der Anwendung, nie
+  /// gegen `now()` der Datenbank (Begründung bei `RateLimitBucket`).
+  occurredAt     DateTime @default(now())
+
+  /// Aufbewahrung: `occurredAt < cutoff` über die ganze Tabelle.
+  @@index([occurredAt])
+  /// E04B: die Auditzeilen der angemeldeten Person, neueste zuerst.
+  @@index([actorUserId, occurredAt])
+  /// Spätere Organisationsprüfung: die Zeilen einer Organisation.
+  @@index([organizationId, occurredAt])
+  /// Prüfung nach Vorgangsart über einen Zeitraum.
+  @@index([action, occurredAt])
+  @@map("audit_events")
 }

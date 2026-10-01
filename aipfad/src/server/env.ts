@@ -32,6 +32,32 @@ const envSchema = z.object({
     .max(200, 'DEPLOYMENT_ID darf höchstens 200 Zeichen lang sein.'),
   ATTEMPT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(365),
   /**
+   * Aufbewahrungsfrist für Auditzeilen (E07/ENT-B06).
+   *
+   * Anders als `ATTEMPT_RETENTION_DAYS` ist diese Frist PFLICHT, ohne
+   * Vorgabewert und strikt größer als 0. Der Grund liegt in der Datenart:
+   * Für `AuditEvent` ist die altersbasierte Aufbewahrung der EINZIGE
+   * Löschweg — es gibt keinen fachlichen Pfad, der eine Zeile entfernt.
+   * Ein stiller Vorgabewert oder eine 0 (im Rahmen: „abgeschaltet") hieße
+   * deshalb: Auditzeilen bleiben für immer. Das wäre eine
+   * Aufbewahrungsentscheidung, die niemand getroffen hat.
+   *
+   * Hier steht ausdrücklich KEINE gesetzliche Frist. Welche Dauer richtig
+   * ist, entscheidet die Bereitstellung; `.env.example` zeigt nur einen
+   * technischen Beispielwert.
+   */
+  AUDIT_RETENTION_DAYS: z.coerce
+    .number({
+      // Gilt für „fehlt" UND für „steht da, ist aber keine Zahl": `z.coerce`
+      // macht aus beidem `NaN`. Deshalb nennt die Meldung beide Fälle — eine
+      // Meldung „fehlt" wäre für `AUDIT_RETENTION_DAYS=abc` schlicht falsch
+      // und schickte den Betrieb an die falsche Stelle.
+      error: 'AUDIT_RETENTION_DAYS fehlt oder ist keine Zahl. Vorlage: .env.example',
+    })
+    .int('AUDIT_RETENTION_DAYS muss eine ganze Zahl sein.')
+    .min(1, 'AUDIT_RETENTION_DAYS muss größer als 0 sein; 0 wäre "nie löschen".')
+    .max(3650, 'AUDIT_RETENTION_DAYS darf höchstens 3650 betragen.'),
+  /**
    * Geheimnis für den geplanten Aufbewahrungslauf (E04A).
    *
    * Bewusst PFLICHT und ohne Vorgabewert: Die Anwendung hat seit E04A einen
