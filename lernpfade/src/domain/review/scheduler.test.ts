@@ -1,46 +1,45 @@
-import { describe, expect, it } from 'vitest';
-import { initialReviewState, isDue, scheduleReview } from './scheduler';
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { initialReviewState, isDue, scheduleReview } from './scheduler.ts';
 
 const NOW = new Date('2026-10-01T12:00:00.000Z');
 
-describe('review scheduler', () => {
-  it('starts due immediately', () => {
-    const state = initialReviewState('x', NOW);
-    expect(isDue(state, NOW)).toBe(true);
-  });
+test('starts due immediately', () => {
+  const state = initialReviewState('x', NOW);
+  assert.equal(isDue(state, NOW), true);
+});
 
-  it('schedules a good first answer for one day', () => {
-    const result = scheduleReview(initialReviewState('x', NOW), 'good', NOW);
-    expect(result.state.intervalDays).toBe(1);
-    expect(result.state.repetitions).toBe(1);
-    expect(result.nextDueLabel).toBe('morgen');
-  });
+test('schedules a good first answer for one day', () => {
+  const result = scheduleReview(initialReviewState('x', NOW), 'good', NOW);
+  assert.equal(result.state.intervalDays, 1);
+  assert.equal(result.state.repetitions, 1);
+  assert.equal(result.nextDueLabel, 'morgen');
+});
 
-  it('resets repetitions after again and lowers ease', () => {
-    const initial = {
-      ...initialReviewState('x', NOW),
-      repetitions: 4,
-      intervalDays: 20,
-      ease: 2.2,
-    };
-    const result = scheduleReview(initial, 'again', NOW);
-    expect(result.state.repetitions).toBe(0);
-    expect(result.state.intervalDays).toBe(1);
-    expect(result.state.ease).toBe(2);
-  });
+test('resets repetitions after again and lowers ease', () => {
+  const initial = {
+    ...initialReviewState('x', NOW),
+    repetitions: 4,
+    intervalDays: 20,
+    ease: 2.2,
+  };
+  const result = scheduleReview(initial, 'again', NOW);
+  assert.equal(result.state.repetitions, 0);
+  assert.equal(result.state.intervalDays, 1);
+  assert.equal(result.state.ease, 2);
+});
 
-  it('never lets hard reviews push ease below 1.3', () => {
-    const initial = {
-      ...initialReviewState('x', NOW),
-      repetitions: 5,
-      intervalDays: 10,
-      ease: 1.3,
-    };
-    expect(scheduleReview(initial, 'hard', NOW).state.ease).toBe(1.3);
-  });
+test('never lets hard reviews push ease below 1.3', () => {
+  const initial = {
+    ...initialReviewState('x', NOW),
+    repetitions: 5,
+    intervalDays: 10,
+    ease: 1.3,
+  };
+  assert.equal(scheduleReview(initial, 'hard', NOW).state.ease, 1.3);
+});
 
-  it('rejects invalid persisted state instead of silently scheduling it', () => {
-    const invalid = { ...initialReviewState('x', NOW), ease: Number.NaN };
-    expect(() => scheduleReview(invalid, 'good', NOW)).toThrow(TypeError);
-  });
+test('rejects invalid persisted state instead of silently scheduling it', () => {
+  const invalid = { ...initialReviewState('x', NOW), ease: Number.NaN };
+  assert.throws(() => scheduleReview(invalid, 'good', NOW), TypeError);
 });
