@@ -13,7 +13,7 @@ npm run perf:rate-limit    # Zusatzaufwand der Ratenbegrenzung, gegen echte Date
 npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 528 bestehen
+### Unit-Tests — 529 bestehen
 
 `tests/unit/` (19 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
 `retention-runner.test.ts`, `cron-auth.test.ts`, `env.test.ts`,
@@ -29,7 +29,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 142 bestehen
+### Integrationstests — 143 bestehen
 
 `tests/integration/`: `auth.test.ts`, `audit.test.ts`,
 `content-publication.test.ts`, `exercise-service.test.ts`,
@@ -154,8 +154,10 @@ Groß- und Kleinschreibung, jedes einzelne der vierzehn verbotenen Felder
 (einschließlich der deutschen Schreibweise `passwort`, die lange in Regel und
 Prosa auseinanderliefen), die Grenze des Namensvergleichs — `userEmail` und
 `accessToken` werden bewusst NICHT geschwärzt —,
-sehr tiefe Verschachtelung, ein zyklischer Wert (die Funktion terminiert)
-und Werte, die kein gültiges JSON sind.
+sehr tiefe Verschachtelung, ein zyklischer Wert (die Funktion terminiert),
+Werte, die kein gültiges JSON sind, und einen eigenen `__proto__`-Schlüssel
+aus JSON: Er bleibt eine normale, serialisierbare Datenproperty und verändert
+nicht den Prototyp des Ausgabewerts.
 
 `tests/integration/audit.test.ts` prüft gegen echte Zeilen, was sich nur
 dort zeigt. Die wichtigste Prüfung ist die Kontolöschung: Ein Konto wird
@@ -167,7 +169,9 @@ dass ein explizit leerer Filter nicht zu „kein Filter" wird, die
 Organisationskennung als undurchsichtiges Abbild ohne Fremdschlüssel, und
 dass Metadaten **gespeichert** geschwärzt sind — gelesen wird dafür direkt
 an der Tabelle, am Dienst vorbei, denn entscheidend ist, was in der
-Datenbank steht, nicht was der Rückgabewert zeigt. Eine erfundene
+Datenbank steht, nicht was der Rückgabewert zeigt —, und dass ein eigener
+`__proto__`-Metadatenschlüssel den JSONB-Rundlauf als Datenfeld überlebt,
+statt beim Redactieren still zu verschwinden. Eine erfundene
 Vorgangsbezeichnung wird abgewiesen, und in der Zeile stehen weder Name noch
 Adresse, nur die Kennung.
 

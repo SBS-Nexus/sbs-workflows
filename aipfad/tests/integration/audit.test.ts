@@ -350,6 +350,29 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     expect(metadata.reasonCode).toBe('BEHALTEN');
   });
 
+  it('speichert __proto__ als JSON-Datenfeld statt es still zu verlieren', async () => {
+    const userId = await nutzerAnlegen('proto-metadaten');
+    const metadata = JSON.parse(
+      '{"__proto__":{"marker":"BEHALTEN"},"reasonCode":"R1"}',
+    ) as Record<string, unknown>;
+
+    await appendAuditEvent({
+      action: 'ACCOUNT_DELETED',
+      actorUserId: userId,
+      targetType: 'IntegrationstestZiel',
+      metadata,
+    });
+
+    // Direkt aus JSONB lesen: Der Dienst darf einen akzeptierten Metadaten-
+    // schlüssel nicht während der Schwärzung verlieren.
+    const roh = await prisma.auditEvent.findFirstOrThrow({ where: { actorUserId: userId } });
+    const gespeichert = roh.metadata as Record<string, unknown>;
+    expect(Object.hasOwn(gespeichert, '__proto__')).toBe(true);
+    expect((gespeichert['__proto__'] as Record<string, unknown>).marker).toBe('BEHALTEN');
+    expect(gespeichert.reasonCode).toBe('R1');
+    expect(JSON.stringify(gespeichert)).toContain('"__proto__"');
+  });
+
   it('speichert weder Name noch Adresse des Akteurs, nur die Kennung', async () => {
     const userId = await nutzerAnlegen('sparsamkeit');
     const nutzer = await prisma.user.findUniqueOrThrow({ where: { id: userId } });

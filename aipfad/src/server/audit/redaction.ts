@@ -108,7 +108,18 @@ function schwaerzeObjekt(eingabe: Record<string, unknown>, tiefe: number): Audit
     // Der verbotene Schlüssel wird NICHT entfernt, sondern sein Wert ersetzt.
     // Dass das Feld da war, ist selbst eine betriebliche Tatsache; sein
     // Inhalt ist es nicht.
-    ausgabe[schluessel] = istVerboten(schluessel) ? SCHWAERZUNG : schwaerzeWert(wert, tiefe);
+    //
+    // Bewusst per Datenproperty statt `ausgabe[schluessel] = …`: Für einen
+    // eigenen `__proto__`-Schlüssel aus JSON würde die Zuweisung auf einem
+    // normalen Objekt sonst den historischen Prototype-Setter aufrufen. Der
+    // Schlüssel verschwände aus Object.entries/JSON.stringify und der
+    // Ausgabewert bekäme stattdessen einen fremden Prototyp.
+    Object.defineProperty(ausgabe, schluessel, {
+      value: istVerboten(schluessel) ? SCHWAERZUNG : schwaerzeWert(wert, tiefe),
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
   }
   return ausgabe;
 }
