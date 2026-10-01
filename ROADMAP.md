@@ -201,6 +201,8 @@ Er entscheidet ausdrücklich **noch nicht**:
 
 ## LP-03 — Design System Contract
 
+Status: **IN ARBEIT — Plattform-Chrome-Tokens und Shell-Vertrag umgesetzt; weitere Fachkomponenten folgen separat**
+
 Priorität: **P0**
 
 ### Ziel
@@ -281,6 +283,8 @@ Kein pixelidentisches Fachinterface.
 ---
 
 ## LP-04 — Gemeinsame Informationsarchitektur
+
+Status: **IN ARBEIT — Desktop/Mobile-Shell von SQLPfad und AIPfad an PythonPfad-Vertrag angeglichen**
 
 Priorität: **P0**
 
@@ -794,6 +798,8 @@ Ein eigener Pfad braucht:
 # 6. Nächster konkreter Slice nach PR #41
 
 ## LP-03A — Shared Design Tokens + Navigation Contract
+
+Status: **UMGESETZT IM GESTAPELTEN LP-03/LP-04-SLICE; VALIDIERUNG AUSSTEHEND**
 
 Nach Merge von PR #41:
 

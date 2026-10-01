@@ -51,7 +51,7 @@ export default async function LessonStepPage({
   return (
     <>
       <AppHeader userName={user.name} />
-      <main id="hauptinhalt" className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+      <main id="hauptinhalt" className="mx-auto max-w-2xl px-4 pb-24 pt-10 sm:px-6 sm:py-10">
         <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-signal-600 dark:text-signal-300">
           {lesson.module.title}
         </p>
