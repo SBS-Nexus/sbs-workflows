@@ -34,7 +34,7 @@ export function LearningPlatformBar({ current }: LearningPlatformBarProps): Reac
             <span aria-hidden="true"> →</span>
           </a>
         ) : (
-          <span className="hidden text-white/40 sm:inline">Gemeinsame Lernplattform</span>
+          <span className="hidden text-white/70 sm:inline">Gemeinsame Lernplattform</span>
         )}
       </div>
     </div>
