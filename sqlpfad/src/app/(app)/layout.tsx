@@ -33,11 +33,10 @@ export default async function AppLayout({
       where: { id: user.id },
       select: { theme: true, reduceMotion: true },
     }),
-    prisma.reviewQueueItem.count({
+    prisma.conceptMastery.count({
       where: {
         userId: user.id,
-        dueAt: { lte: new Date() },
-        completedAt: null,
+        nextReviewAt: { not: null, lte: new Date() },
       },
     }),
   ]);
