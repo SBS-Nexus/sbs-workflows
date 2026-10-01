@@ -21,8 +21,7 @@ const pythonUrl = optionalUrl('NEXT_PUBLIC_PYTHONPFAD_URL');
 const sqlUrl = optionalUrl('NEXT_PUBLIC_SQLPFAD_URL');
 const aiUrl = optionalUrl('NEXT_PUBLIC_AIPFAD_URL');
 const gitUrl =
-  optionalUrl('NEXT_PUBLIC_GITPFAD_URL') ??
-  (aiUrl ? `${aiUrl}/lektion/warum-versionsverwaltung/1` : undefined);
+  optionalUrl('NEXT_PUBLIC_GITPFAD_URL') ?? (aiUrl ? aiUrl + '/git' : undefined);
 
 export const CORE_PATHS: readonly LearningPath[] = [
   {
@@ -83,9 +82,10 @@ export const NEXT_PATHS: readonly LearningPath[] = [
     description:
       'Sprachen und Fachbegriffe mit kurzen täglichen Sessions, aktivem Abruf und Spaced Repetition lernen.',
     outcome: 'Ein gemeinsamer Wiederholungsmotor für Sprache und technische Begriffe.',
-    status: 'planned',
+    status: 'building',
+    href: '/wiederholen',
     accent: 'rose',
-    topics: ['Vokabeln', 'Aussprache', 'Sätze', 'Spaced Repetition', 'Daily 5'],
+    topics: ['Daily 5', 'Fachbegriffe', 'Spaced Repetition', 'Vokabeln', 'Abruf'],
   },
   {
     slug: 'typescript',
