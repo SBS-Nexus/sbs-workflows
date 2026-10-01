@@ -1,0 +1,38 @@
+name: TEMP L02 format probe
+
+on:
+  push:
+    branches:
+      - claude/lernpfade-review-core
+    paths:
+      - 'aipfad/src/app/git/page.tsx'
+      - 'aipfad/e2e/accessibility.spec.ts'
+      - '.github/workflows/temp-l02-format.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aipfad
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: aipfad/package-lock.json
+      - run: npm ci --ignore-scripts
+      - name: Print canonical formatting
+        run: |
+          echo 'GIT_PAGE_BASE64_BEGIN'
+          npx prettier src/app/git/page.tsx | base64 -w0
+          echo
+          echo 'GIT_PAGE_BASE64_END'
+          echo 'A11Y_BASE64_BEGIN'
+          npx prettier e2e/accessibility.spec.ts | base64 -w0
+          echo
+          echo 'A11Y_BASE64_END'
