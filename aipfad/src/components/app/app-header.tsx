@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { logoutAction } from '@/server/actions/auth-actions';
 import { Icon, type IconName } from '@/components/ui/icon';
+import { cx } from '@/components/ui/primitives';
 
 const PRIMARY_NAV: ReadonlyArray<{ href: string; label: string; icon: IconName }> = [
   { href: '/pfad', label: 'Überblick', icon: 'layers' },
@@ -30,6 +31,7 @@ const MORE_NAV: ReadonlyArray<{ href: string; label: string }> = [
  */
 export function AppHeader({ userName }: { userName: string }): React.ReactElement {
   const pathname = usePathname();
+
   const isActive = (href: string): boolean =>
     pathname === href || pathname.startsWith(`${href}/`);
 
@@ -55,11 +57,12 @@ export function AppHeader({ userName }: { userName: string }): React.ReactElemen
                   <Link
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
-                    className={
+                    className={cx(
+                      'flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold no-underline',
                       active
-                        ? 'flex items-center gap-2 whitespace-nowrap rounded-lg bg-signal-100 px-3 py-2 text-sm font-semibold text-signal-700 no-underline dark:bg-signal-900 dark:text-signal-200'
-                        : 'flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-[var(--fg-muted)] no-underline hover:bg-ink-100 hover:text-[var(--fg)] dark:hover:bg-ink-800'
-                    }
+                        ? 'bg-signal-100 text-signal-700 dark:bg-signal-900 dark:text-signal-200'
+                        : 'text-[var(--fg-muted)] hover:bg-ink-100 hover:text-[var(--fg)] dark:hover:bg-ink-800',
+                    )}
                   >
                     <Icon name={item.icon} size={17} />
                     {item.label}
