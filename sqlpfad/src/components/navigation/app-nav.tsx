@@ -172,7 +172,13 @@ export function AppNav({
                   >
                     <Icon name={ziel.icon} size={21} />
                     {ziel.href === '/wiederholen' && dueReviews > 0 ? (
-                      <span className="absolute right-1 top-1 size-2 rounded-full bg-[var(--accent)]" />
+                      <>
+                        <span
+                          aria-hidden="true"
+                          className="absolute right-1 top-1 size-2 rounded-full bg-[var(--accent)]"
+                        />
+                        <span className="sr-only">{dueReviews} fällige Wiederholungen</span>
+                      </>
                     ) : null}
                   </span>
                   <span>{ziel.label}</span>
