@@ -132,6 +132,7 @@ export function AppHeader({ userName }: { userName: string }): React.ReactElemen
           })}
         </ul>
       </nav>
+      <div aria-hidden="true" className="h-16 sm:hidden" />
     </>
   );
 }
