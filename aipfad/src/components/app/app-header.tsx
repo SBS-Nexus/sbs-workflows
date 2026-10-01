@@ -32,8 +32,7 @@ const MORE_NAV: ReadonlyArray<{ href: string; label: string }> = [
 export function AppHeader({ userName }: { userName: string }): React.ReactElement {
   const pathname = usePathname();
 
-  const isActive = (href: string): boolean =>
-    pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string): boolean => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--bg-raised)]">
