@@ -99,6 +99,17 @@ export const NEXT_PATHS: readonly LearningPath[] = [
     topics: ['TypeScript', 'React', 'Next.js', 'APIs', 'Testing'],
   },
   {
+    slug: 'data-analytics',
+    eyebrow: 'Daten → AI',
+    title: 'Data & Analytics',
+    description:
+      'Python und SQL zu belastbarer Analyse verbinden: Datenqualität, Statistik, Visualisierung und reproduzierbare Auswertungen.',
+    outcome: 'Die Datengrundlage verstehen, auf der RAG, Evals und AI-Produkte überhaupt aufbauen.',
+    status: 'planned',
+    accent: 'teal',
+    topics: ['pandas', 'Datenqualität', 'Statistik', 'Visualisierung', 'Datasets'],
+  },
+  {
     slug: 'automation',
     eyebrow: 'AI Engineering',
     title: 'Agenten & Automation',
@@ -108,6 +119,17 @@ export const NEXT_PATHS: readonly LearningPath[] = [
     status: 'planned',
     accent: 'violet',
     topics: ['Tools', 'Agents', 'Evals', 'Workflows', 'Governance'],
+  },
+  {
+    slug: 'security',
+    eyebrow: 'Trust & Security',
+    title: 'SecurityPfad',
+    description:
+      'Auth, OAuth/OIDC, Secrets, Berechtigungen und typische Web- und Agentenrisiken anhand echter Systemgrenzen verstehen.',
+    outcome: 'AI- und Websysteme bauen, ohne Sicherheit erst nachträglich anzuschrauben.',
+    status: 'planned',
+    accent: 'amber',
+    topics: ['Auth', 'OAuth/OIDC', 'Secrets', 'Least Privilege', 'Agent Security'],
   },
 ];
 
