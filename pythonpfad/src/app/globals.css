@@ -146,6 +146,12 @@
 }
 
 :root {
+  --lp-platform-bg: #111827;
+  --lp-platform-fg: #ffffff;
+  --lp-platform-muted: #d1d5db;
+  --lp-platform-subtle: #9ca3af;
+  --lp-platform-hover: #c7d2fe;
+  --lp-platform-border: #374151;
   --surface: var(--color-ink-50);
   --surface-raised: #ffffff;
   --surface-sunken: var(--color-ink-100);
