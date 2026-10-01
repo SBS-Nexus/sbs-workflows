@@ -140,9 +140,8 @@ describe('Schwärzung der Auditmetadaten', () => {
     // `__proto__`-Schlüssel. Eine normale Zuweisung auf `{}` würde den
     // historischen Setter auf Object.prototype auslösen: Der Schlüssel
     // verschwände aus der Serialisierung und sein Wert würde zum Prototyp.
-    const eingabe = JSON.parse(
-      '{"__proto__":{"marker":"BEHALTEN"},"reasonCode":"R1"}',
-    ) as Record<string, unknown>;
+    const json = '{"__proto__":{"marker":"BEHALTEN"},"reasonCode":"R1"}';
+    const eingabe = JSON.parse(json) as Record<string, unknown>;
 
     const ergebnis = redactMetadata(eingabe);
     const serialisiert = JSON.stringify(ergebnis);

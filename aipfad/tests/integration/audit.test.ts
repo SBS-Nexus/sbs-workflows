@@ -352,9 +352,8 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
 
   it('speichert __proto__ als JSON-Datenfeld statt es still zu verlieren', async () => {
     const userId = await nutzerAnlegen('proto-metadaten');
-    const metadata = JSON.parse(
-      '{"__proto__":{"marker":"BEHALTEN"},"reasonCode":"R1"}',
-    ) as Record<string, unknown>;
+    const json = '{"__proto__":{"marker":"BEHALTEN"},"reasonCode":"R1"}';
+    const metadata = JSON.parse(json) as Record<string, unknown>;
 
     await appendAuditEvent({
       action: 'ACCOUNT_DELETED',
