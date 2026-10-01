@@ -6,35 +6,35 @@ export function LearningPlatformBar({ current }: LearningPlatformBarProps): Reac
   const hubUrl = process.env.NEXT_PUBLIC_LEARNING_HUB_URL?.trim();
 
   return (
-    <div className="border-b border-white/10 bg-[#111827] text-white">
+    <div className="border-b border-[var(--lp-platform-border)] bg-[var(--lp-platform-bg)] text-[var(--lp-platform-fg)]">
       <div className="mx-auto flex min-h-9 max-w-7xl items-center justify-between gap-4 px-4 text-xs sm:px-6">
         <div className="flex min-w-0 items-center gap-2">
           {hubUrl ? (
             <a
               href={hubUrl}
-              className="font-bold tracking-tight text-white no-underline hover:text-[#c7d2fe]"
+              className="font-bold tracking-tight text-[var(--lp-platform-fg)] no-underline hover:text-[var(--lp-platform-hover)]"
             >
               Lernpfade
             </a>
           ) : (
             <span className="font-bold tracking-tight">Lernpfade</span>
           )}
-          <span aria-hidden="true" className="text-white/35">
+          <span aria-hidden="true" className="text-[var(--lp-platform-subtle)]">
             /
           </span>
-          <span className="truncate text-white/65">{current}</span>
+          <span className="truncate text-[var(--lp-platform-muted)]">{current}</span>
         </div>
 
         {hubUrl ? (
           <a
             href={hubUrl}
-            className="shrink-0 font-semibold text-white/65 no-underline hover:text-white"
+            className="shrink-0 font-semibold text-[var(--lp-platform-muted)] no-underline hover:text-[var(--lp-platform-fg)]"
           >
             Alle Pfade
             <span aria-hidden="true"> →</span>
           </a>
         ) : (
-          <span className="hidden text-white/70 sm:inline">Gemeinsame Lernplattform</span>
+          <span className="hidden text-[var(--lp-platform-muted)] sm:inline">Gemeinsame Lernplattform</span>
         )}
       </div>
     </div>
