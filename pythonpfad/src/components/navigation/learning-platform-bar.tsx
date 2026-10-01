@@ -26,13 +26,21 @@ export function LearningPlatformBar({ current }: LearningPlatformBarProps): Reac
         </div>
 
         {hubUrl ? (
-          <a
-            href={hubUrl}
-            className="shrink-0 font-semibold text-[var(--lp-platform-muted)] no-underline hover:text-[var(--lp-platform-fg)]"
-          >
-            Alle Pfade
-            <span aria-hidden="true"> →</span>
-          </a>
+          <div className="flex shrink-0 items-center gap-3 font-semibold">
+            <a
+              href={`${hubUrl}/wiederholen`}
+              className="hidden text-[var(--lp-platform-muted)] no-underline hover:text-[var(--lp-platform-fg)] sm:inline"
+            >
+              Wiederholen
+            </a>
+            <a
+              href={hubUrl}
+              className="text-[var(--lp-platform-muted)] no-underline hover:text-[var(--lp-platform-fg)]"
+            >
+              Alle Pfade
+              <span aria-hidden="true"> →</span>
+            </a>
+          </div>
         ) : (
           <span className="hidden text-[var(--lp-platform-muted)] sm:inline">Gemeinsame Lernplattform</span>
         )}
