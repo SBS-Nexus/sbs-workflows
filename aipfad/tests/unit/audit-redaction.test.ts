@@ -149,6 +149,35 @@ describe('Schwärzung der Auditmetadaten', () => {
     );
   });
 
+  it('weist verschachtelte nicht-einfache Objekte und unsichtbare Schlüssel fail-closed ab', () => {
+    class Fremdwert {
+      marker = 'X';
+    }
+
+    const nichtAufzaehlbar: Record<string, unknown> = { sichtbar: 'ok' };
+    Object.defineProperty(nichtAufzaehlbar, 'unsichtbar', {
+      value: 'X',
+      enumerable: false,
+    });
+    const mitSymbol: Record<string, unknown> = { sichtbar: 'ok' };
+    (mitSymbol as Record<PropertyKey, unknown>)[Symbol('intern')] = 'X';
+
+    const faelle: Record<string, unknown>[] = [
+      { occurred: new Date('2026-01-01T00:00:00.000Z') },
+      { details: new Map([['status', 'ok']]) },
+      { actor: new Fremdwert() },
+      { liste: [new Date('2026-01-01T00:00:00.000Z')] },
+      { nested: nichtAufzaehlbar },
+      { nested: mitSymbol },
+    ];
+
+    for (const metadata of faelle) {
+      expect(() => redactMetadata(metadata)).toThrow(
+        'Auditmetadaten dürfen verschachtelt nur einfache Objekte und Arrays mit aufzählbaren Zeichenkettenschlüsseln enthalten.',
+      );
+    }
+  });
+
   it('schwärzt einen verbotenen Schlüssel samt seines ganzen Teilbaums', () => {
     const ergebnis = redactMetadata({ secret: { tief: { tiefer: GEHEIM } } });
     expect(ergebnis.secret).toBe(SCHWAERZUNG);

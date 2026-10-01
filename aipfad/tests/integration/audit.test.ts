@@ -369,6 +369,25 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     expect(await prisma.auditEvent.count({ where: { actorUserId: userId } })).toBe(0);
   });
 
+  it('weist verschachtelte nicht-einfache Metadaten ab, statt sie als leeres Objekt zu speichern', async () => {
+    const userId = await nutzerAnlegen('verschachtelte-metadaten');
+
+    await expect(
+      appendAuditEvent({
+        action: 'ACCOUNT_DELETED',
+        actorUserId: userId,
+        targetType: 'IntegrationstestZiel',
+        metadata: { occurred: new Date('2026-01-01T00:00:00.000Z') } as never,
+      }),
+    ).rejects.toThrow(
+      'Auditmetadaten dürfen verschachtelt nur einfache Objekte und Arrays mit aufzählbaren Zeichenkettenschlüsseln enthalten.',
+    );
+
+    // Fail-closed: Der Date-Wert darf nicht still als {} in einer ansonsten
+    // erfolgreichen Auditzeile landen.
+    expect(await prisma.auditEvent.count({ where: { actorUserId: userId } })).toBe(0);
+  });
+
   it('speichert weder Name noch Adresse des Akteurs, nur die Kennung', async () => {
     const userId = await nutzerAnlegen('sparsamkeit');
     const nutzer = await prisma.user.findUniqueOrThrow({ where: { id: userId } });

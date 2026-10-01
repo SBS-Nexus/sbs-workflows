@@ -13,7 +13,7 @@ npm run perf:rate-limit    # Zusatzaufwand der Ratenbegrenzung, gegen echte Date
 npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 529 bestehen
+### Unit-Tests — 530 bestehen
 
 `tests/unit/` (19 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
 `retention-runner.test.ts`, `cron-auth.test.ts`, `env.test.ts`,
@@ -29,7 +29,7 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 143 bestehen
+### Integrationstests — 144 bestehen
 
 `tests/integration/`: `auth.test.ts`, `audit.test.ts`,
 `content-publication.test.ts`, `exercise-service.test.ts`,
@@ -158,7 +158,10 @@ sehr tiefe Verschachtelung, ein zyklischer Wert (die Funktion terminiert),
 Werte, die kein gültiges JSON sind, und einen eigenen `__proto__`-Schlüssel
 aus JSON. Dieser wird auch verschachtelt fail-closed abgewiesen: Der aktuelle
 Prisma-JSON-Pfad verliert ihn vor JSONB, und eine Auditspur darf akzeptierte
-Metadaten nicht still verkürzen.
+Metadaten nicht still verkürzen. Zusätzlich werden verschachtelte `Date`-,
+`Map`- und Klassenwerte sowie nicht aufzählbare oder Symbolschlüssel auch
+unterhalb der Wurzel fail-closed abgewiesen, statt durch `Object.entries`
+unbemerkt zu `{}` oder zu einer informationsärmeren Struktur zu werden.
 
 `tests/integration/audit.test.ts` prüft gegen echte Zeilen, was sich nur
 dort zeigt. Die wichtigste Prüfung ist die Kontolöschung: Ein Konto wird
@@ -172,7 +175,10 @@ dass Metadaten **gespeichert** geschwärzt sind — gelesen wird dafür direkt
 an der Tabelle, am Dienst vorbei, denn entscheidend ist, was in der
 Datenbank steht, nicht was der Rückgabewert zeigt —, und dass ein eigener
 `__proto__`-Metadatenschlüssel mit eigener Meldung abgewiesen wird und
-keine informationsärmere Auditzeile zurücklässt. Eine erfundene
+keine informationsärmere Auditzeile zurücklässt. Eine weitere Regression
+übergibt einen verschachtelten `Date`-Wert und belegt gegen PostgreSQL, dass
+der Dienst ihn abweist und keine Zeile schreibt, statt ihn als `{}` zu
+persistieren. Eine erfundene
 Vorgangsbezeichnung wird abgewiesen, und in der Zeile stehen weder Name noch
 Adresse, nur die Kennung.
 

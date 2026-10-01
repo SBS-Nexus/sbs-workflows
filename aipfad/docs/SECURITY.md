@@ -303,8 +303,12 @@ geschrieben wird derselbe Wert. Fehlt `metadata`, ist es `{}`; ist es gesetzt,
 muss es ein **einfaches** Objekt sein — `metadata: diff ?? null` wird
 abgewiesen, statt still als leere Tatsachen geschrieben zu werden, ebenso ein
 nicht aufzählbarer oder Symbolschlüssel, den die Schwärzung nicht sähe, und ebenso
-eine `Map` oder Klasseninstanz, die die Schwärzung auf `{}` reduzierte. Weder
-Kennungsfelder noch Metadaten (Schlüssel wie Werte, auch verschachtelt) dürfen
+eine `Map` oder Klasseninstanz, die die Schwärzung auf `{}` reduzierte. Diese
+Formregel gilt **rekursiv**: Auch verschachtelte Objekte und Objekte in Arrays
+müssen einfache Objekte mit ausschließlich aufzählbaren Zeichenkettenschlüsseln
+sein. `Date`, `Map`, Klasseninstanzen sowie unsichtbare oder Symbolschlüssel
+werden dort fail-closed abgewiesen, statt als `{}` oder verkürzte Tatsachen in
+der Auditspur zu landen. Weder Kennungsfelder noch Metadaten (Schlüssel wie Werte, auch verschachtelt) dürfen
 Zeichen enthalten, die PostgreSQL nicht speichern kann; der Dienst meldet das
 Feld selbst, statt die Datenbank mit Quellpfad scheitern und im
 Transaktionspfad den fachlichen Vorgang ohne Begründung zurückrollen zu lassen.

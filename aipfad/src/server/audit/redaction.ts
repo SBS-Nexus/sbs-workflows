@@ -83,6 +83,13 @@ function istVerboten(schluessel: string): boolean {
   return VERBOTENE_FELDER.has(schluessel.toLowerCase());
 }
 
+/** Auch verschachtelt sind nur JSON-artige, einfache Objekte zulässig. */
+function istEinfachesObjekt(wert: unknown): wert is Record<string, unknown> {
+  if (typeof wert !== 'object' || wert === null) return false;
+  const prototyp: unknown = Object.getPrototypeOf(wert);
+  return prototyp === Object.prototype || prototyp === null;
+}
+
 function schwaerzeWert(wert: unknown, tiefe: number): AuditMetadataWert {
   if (tiefe >= HOECHSTE_TIEFE) return SCHWAERZUNG;
 
@@ -103,6 +110,26 @@ function schwaerzeWert(wert: unknown, tiefe: number): AuditMetadataWert {
 }
 
 function schwaerzeObjekt(eingabe: Record<string, unknown>, tiefe: number): AuditMetadata {
+  // Dieselbe Formregel gilt auf jeder Ebene. Sonst würde etwa ein Date,
+  // eine Map oder eine Klasseninstanz durch Object.entries() zu {} und die
+  // Auditspur verlöre eine akzeptierte Tatsache still. Ebenso würden
+  // nicht aufzählbare oder Symbolschlüssel verschwinden.
+  if (!istEinfachesObjekt(eingabe)) {
+    throw new TypeError(
+      'Auditmetadaten dürfen verschachtelt nur einfache Objekte und Arrays mit aufzählbaren Zeichenkettenschlüsseln enthalten.',
+    );
+  }
+  for (const schluessel of Reflect.ownKeys(eingabe)) {
+    if (
+      typeof schluessel !== 'string' ||
+      !Object.prototype.propertyIsEnumerable.call(eingabe, schluessel)
+    ) {
+      throw new TypeError(
+        'Auditmetadaten dürfen verschachtelt nur einfache Objekte und Arrays mit aufzählbaren Zeichenkettenschlüsseln enthalten.',
+      );
+    }
+  }
+
   const ausgabe: AuditMetadata = {};
   for (const [schluessel, wert] of Object.entries(eingabe)) {
     // Dieser reservierte Schlüssel ist über den heutigen Prisma-JSON-Pfad
