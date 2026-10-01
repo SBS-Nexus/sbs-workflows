@@ -1,0 +1,42 @@
+name: Lernpfade Hub
+
+on:
+  pull_request:
+    paths:
+      - 'lernpfade/**'
+      - '.github/workflows/lernpfade-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'lernpfade/**'
+      - '.github/workflows/lernpfade-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Typecheck and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lernpfade
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Abhängigkeiten installieren
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Produktionsbuild
+        run: npm run build
