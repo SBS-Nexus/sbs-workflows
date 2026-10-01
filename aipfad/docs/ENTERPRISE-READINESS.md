@@ -61,7 +61,7 @@ es gibt keine Mehrfachzählung.
 | ENT-B03 | Aufbewahrungslöschung wird kontrolliert ausgeführt                                     | DATEN             | `VERIFIZIERT`                   | E04A             |
 | ENT-B04 | Keine Datenauskunft (Selbstexport)                                                     | DATEN             | `FEHLT`                         | E04B             |
 | ENT-B05 | Keine Löschung auf Betroffenenwunsch                                                   | DATEN             | `FEHLT`                         | E04C             |
-| ENT-B06 | Auditgrundlage vorhanden; fachliche Erzeuger folgen je Punkt                           | DATEN             | `VERIFIZIERT`                   | E07              |
+| ENT-B06 | Auditgrundlage vorhanden; fachliche Erzeuger folgen je Punkt                           | DATEN             | `DOKUMENTIERT`                  | E07              |
 | ENT-B07 | Gemeinsame Ratenbegrenzung über PostgreSQL                                             | SICHERHEIT        | `VERIFIZIERT`                   | E03              |
 | ENT-B08 | Ungenutztes CSRF-Verfahren (`DOKUMENTIERT`); `unsafe-inline` in der CSP (`AKZEPTIERT`) | SICHERHEIT        | gemischt                        | E05C, E05D, E05E |
 | ENT-B09 | Kein Leerlauf-Ablauf; Sitzungsentzug ohne Aufrufer                                     | AUTHENTIFIZIERUNG | `DOKUMENTIERT`                  | E05A             |

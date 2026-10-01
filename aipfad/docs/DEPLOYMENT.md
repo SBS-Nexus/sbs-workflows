@@ -88,7 +88,9 @@ Beschreibung eines erfolgten Vorgangs. In dieser Ausbaustufe wurde keine
 Vercel-Einstellung angelegt oder geändert und kein echtes Geheimnis erzeugt.
 
 1. `CRON_SECRET` in der Bereitstellungsumgebung setzen — eigener, zufälliger
-   Wert, mindestens 16 Zeichen, nicht der Platzhalter aus `.env.example`.
+   Wert, mindestens 16 Zeichen, nicht der Platzhalter aus `.env.example` —
+   und `AUDIT_RETENTION_DAYS` auf die für diese Bereitstellung festgelegte
+   positive Frist setzen; `0` ist für Auditzeilen ungültig.
 2. `RETENTION_MODE=dry-run` setzen.
 3. Bereitstellen.
 4. Den nächsten planmäßigen Lauf abwarten oder die Route einmal von Hand mit
@@ -98,6 +100,9 @@ Vercel-Einstellung angelegt oder geändert und kein echtes Geheimnis erzeugt.
    unerwartet hohe Zahl ist der Grund, warum dieser Schritt vor dem nächsten
    steht.
 6. Erst dann `RETENTION_MODE=execute` setzen — ausdrücklich, nicht nebenbei.
+   In diesem Modus löscht derselbe Lauf sowohl abgelaufene `Attempt`- als
+   auch abgelaufene `AuditEvent`-Zeilen nach ihren jeweiligen Fristen;
+   diese Löschungen sind unwiderruflich.
 7. Erneut bereitstellen.
 8. Den nächsten Lauf prüfen: Status `success`, Löschzahlen plausibel.
 9. Weiter beobachten. Ein Lauf mit `partial-failure` oder `failed` antwortet

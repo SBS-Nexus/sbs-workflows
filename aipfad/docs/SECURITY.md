@@ -130,12 +130,19 @@ sie auf.
 Der genaue Zeitpunkt ist nicht zugesichert — die Plattform startet den Lauf
 innerhalb des Zeitfensters, nicht auf die Sekunde.
 
-**Was aufgeräumt wird.** Heute eine Datenart: `Attempt`, Frist aus
-`ATTEMPT_RETENTION_DAYS` (Vorgabe 365). Gelöscht wird, was `createdAt <
-jetzt − Frist` erfüllt; auf der Grenze bleibt eine Zeile stehen. **Frist 0
-schaltet die Regel ab** — es heißt ausdrücklich nicht "alles löschen, was
-älter als jetzt ist". Das Protokoll unterscheidet beides:
-`skipped-disabled` ist etwas anderes als "gelaufen, nichts gefunden".
+**Was aufgeräumt wird.** Seit E07 laufen zwei Datenarten mit getrennten
+Fristen. Für `Attempt` kommt die Frist aus `ATTEMPT_RETENTION_DAYS`
+(Vorgabe 365); gelöscht wird, was `createdAt < jetzt − Frist` erfüllt.
+**Frist 0 schaltet nur diese Attempt-Regel ab** — es heißt ausdrücklich
+nicht "alles löschen, was älter als jetzt ist". Für `AuditEvent` kommt die
+Frist aus dem verpflichtenden `AUDIT_RETENTION_DAYS` (ohne Vorgabewert,
+größer als 0); gelöscht wird, was `occurredAt < jetzt − Frist` erfüllt.
+Auf der jeweiligen Grenze bleibt eine Zeile stehen. Für Auditzeilen bedeutet
+`0` ausdrücklich **nicht** "aus": Der Konfigurationsvertrag lehnt den Wert
+ab und die Anwendung startet damit nicht. In `RETENTION_MODE=execute`
+können beide Regeln ihre abgelaufenen Zeilen unwiderruflich löschen. Das
+Protokoll unterscheidet bei der Attempt-Regel `skipped-disabled` von
+"gelaufen, nichts gefunden".
 
 Die Liste der Regeln steht an genau einer Stelle
 (`src/server/retention/rules.ts`). Eine weitere Datenart meldet dort ihre
