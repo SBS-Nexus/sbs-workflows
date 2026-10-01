@@ -56,6 +56,7 @@ export default function Home(): React.ReactElement {
           </a>
           <nav aria-label="Seitennavigation">
             <a href="#pfade">Pfade</a>
+            <a href="/wiederholen">Daily 5</a>
             <a href="#zukunft">Roadmap</a>
             <a href="#lernmodell">Lernmodell</a>
           </nav>
@@ -80,8 +81,8 @@ export default function Home(): React.ReactElement {
                 <a className="button button-primary" href="#pfade">
                   Lernpfad wählen <ArrowIcon />
                 </a>
-                <a className="button button-secondary" href="#lernmodell">
-                  So funktioniert das Lernen
+                <a className="button button-secondary" href="/wiederholen">
+                  Daily 5 starten
                 </a>
               </div>
             </div>
@@ -192,10 +193,13 @@ export default function Home(): React.ReactElement {
               <p className="eyebrow">VokabelPfad</p>
               <h2>„Vokabeln“ passt sehr gut — aber als gemeinsamer Lernmotor.</h2>
               <p>
-                Das kann klassische Sprachen genauso abdecken wie technische Begriffe. Ein Konto
-                könnte später gleichzeitig Englisch-Vokabeln, SQL-Begriffe und AI-Terminologie
-                wiederholen.
+                Der erste Daily-5-Kern ist bereits nutzbar: Python-, SQL-, Git- und AI-Begriffe
+                werden lokal im Browser nach Fälligkeit wiederholt. Klassische Sprachen hängen
+                später am selben Mechanismus.
               </p>
+              <a className="button button-primary vocab-cta" href="/wiederholen">
+                Daily 5 öffnen
+              </a>
             </div>
             <div className="vocab-stack" aria-label="Beispielkarten">
               <div className="vocab-card">
