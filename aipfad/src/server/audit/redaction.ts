@@ -104,6 +104,9 @@ function schwaerzeWert(wert: unknown, tiefe: number): AuditMetadataWert {
     if (!Number.isFinite(wert)) {
       throw new TypeError('Auditmetadaten dürfen nur endliche Zahlen enthalten.');
     }
+    if (Object.is(wert, -0)) {
+      throw new TypeError('Auditmetadaten dürfen kein negatives Nullzeichen (-0) enthalten.');
+    }
     return wert;
   }
   if (Array.isArray(wert)) {

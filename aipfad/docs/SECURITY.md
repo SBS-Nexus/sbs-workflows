@@ -310,7 +310,8 @@ sein. `Date`, `Map`, Klasseninstanzen sowie unsichtbare oder Symbolschlüssel
 werden dort fail-closed abgewiesen, statt als `{}` oder verkürzte Tatsachen in
 der Auditspur zu landen. Zahlen müssen endlich sein; `NaN` und
 `±Infinity` werden abgewiesen, bevor JSON sie zu `null` umdeuten kann.
-Arrays müssen dichte Standard-Arrays ohne Löcher, Unterklassen oder zusätzliche
+Auch `-0` wird abgewiesen, weil JSON daraus `0` machen würde
+(`Object.is(-0, 0)` ist falsch). Arrays müssen dichte Standard-Arrays ohne Löcher, Unterklassen oder zusätzliche
 eigene Eigenschaften sein; sonst würden JSON und `Array.map` akzeptierte
 Informationen verlieren. Weder Kennungsfelder noch Metadaten (Schlüssel wie Werte, auch verschachtelt) dürfen
 Zeichen enthalten, die PostgreSQL nicht speichern kann; der Dienst meldet das

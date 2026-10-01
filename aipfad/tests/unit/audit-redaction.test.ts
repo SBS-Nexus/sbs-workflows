@@ -192,6 +192,18 @@ describe('Schwärzung der Auditmetadaten', () => {
     }
   });
 
+  it('weist negatives Nullzeichen fail-closed ab, bevor JSON es zu 0 macht', () => {
+    expect(() => redactMetadata({ delta: -0 })).toThrow(
+      'Auditmetadaten dürfen kein negatives Nullzeichen (-0) enthalten.',
+    );
+    expect(() => redactMetadata({ nested: { delta: -0 } })).toThrow(
+      'Auditmetadaten dürfen kein negatives Nullzeichen (-0) enthalten.',
+    );
+    expect(() => redactMetadata({ values: [-0] })).toThrow(
+      'Auditmetadaten dürfen kein negatives Nullzeichen (-0) enthalten.',
+    );
+  });
+
   it('weist verlustbehaftete Arrayformen fail-closed ab', () => {
     const sparse = new Array<unknown>(2);
     sparse[1] = 'vorhanden';

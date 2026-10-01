@@ -13,7 +13,7 @@ npm run perf:rate-limit    # Zusatzaufwand der Ratenbegrenzung, gegen echte Date
 npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 532 bestehen
+### Unit-Tests — 533 bestehen
 
 `tests/unit/` (19 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
 `retention-runner.test.ts`, `cron-auth.test.ts`, `env.test.ts`,
@@ -163,7 +163,7 @@ Metadaten nicht still verkürzen. Zusätzlich werden verschachtelte `Date`-,
 unterhalb der Wurzel fail-closed abgewiesen, statt durch `Object.entries`
 unbemerkt zu `{}` oder zu einer informationsärmeren Struktur zu werden.
 Nicht-endliche Zahlen werden ebenfalls abgewiesen, bevor JSON sie zu `null`
-macht. Für Arrays sichern eigene Regressionen, dass nur dichte Standard-Arrays
+macht; `-0` scheitert, bevor JSON es zu `0` normalisiert. Für Arrays sichern eigene Regressionen, dass nur dichte Standard-Arrays
 ohne zusätzliche Eigenschaften akzeptiert werden; Löcher, Unterklassen,
 Symbolschlüssel und sonstige Zusatzfelder scheitern fail-closed.
 
@@ -182,7 +182,7 @@ Datenbank steht, nicht was der Rückgabewert zeigt —, und dass ein eigener
 keine informationsärmere Auditzeile zurücklässt. Eine weitere Regression
 übergibt einen verschachtelten `Date`-Wert und belegt gegen PostgreSQL, dass
 der Dienst ihn abweist und keine Zeile schreibt, statt ihn als `{}` zu
-persistieren. Dieselbe Datenbankprüfung weist `NaN` und ein sparse Array
+persistieren. Dieselbe Datenbankprüfung weist `NaN`, `-0` und ein sparse Array
 zurück und belegt, dass auch dabei keine informationsärmere Auditzeile
 geschrieben wird. Eine erfundene
 Vorgangsbezeichnung wird abgewiesen, und in der Zeile stehen weder Name noch

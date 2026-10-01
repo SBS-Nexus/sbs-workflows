@@ -408,6 +408,15 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
         action: 'ACCOUNT_DELETED',
         actorUserId: userId,
         targetType: 'IntegrationstestZiel',
+        metadata: { delta: -0 } as never,
+      }),
+    ).rejects.toThrow('Auditmetadaten dürfen kein negatives Nullzeichen (-0) enthalten.');
+
+    await expect(
+      appendAuditEvent({
+        action: 'ACCOUNT_DELETED',
+        actorUserId: userId,
+        targetType: 'IntegrationstestZiel',
         metadata: { values: sparse } as never,
       }),
     ).rejects.toThrow(
