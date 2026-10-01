@@ -6,7 +6,9 @@ export function LearningPlatformBar({ current }: LearningPlatformBarProps): Reac
   const hubUrl = process.env.NEXT_PUBLIC_LEARNING_HUB_URL?.trim();
 
   return (
-    <div className="border-b border-[var(--lp-platform-border)] bg-[var(--lp-platform-bg)] text-[var(--lp-platform-fg)]">
+    <div
+      className="border-b border-[var(--lp-platform-border)] bg-[var(--lp-platform-bg)] text-[var(--lp-platform-fg)]"
+    >
       <div className="mx-auto flex min-h-9 max-w-7xl items-center justify-between gap-4 px-4 text-xs sm:px-6">
         <div className="flex min-w-0 items-center gap-2">
           {hubUrl ? (
@@ -42,7 +44,9 @@ export function LearningPlatformBar({ current }: LearningPlatformBarProps): Reac
             </a>
           </div>
         ) : (
-          <span className="hidden text-[var(--lp-platform-muted)] sm:inline">Gemeinsame Lernplattform</span>
+          <span className="hidden text-[var(--lp-platform-muted)] sm:inline">
+            Gemeinsame Lernplattform
+          </span>
         )}
       </div>
     </div>
