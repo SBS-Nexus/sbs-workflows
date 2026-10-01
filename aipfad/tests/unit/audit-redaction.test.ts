@@ -135,25 +135,18 @@ describe('Schwärzung der Auditmetadaten', () => {
     expect(Object.keys(ergebnis)).toEqual(['email']);
   });
 
-  it('behandelt __proto__ aus JSON als Datenfeld statt als Prototype-Setter', () => {
-    // JSON.parse erzeugt hier einen echten, eigenen und aufzählbaren
-    // `__proto__`-Schlüssel. Eine normale Zuweisung auf `{}` würde den
-    // historischen Setter auf Object.prototype auslösen: Der Schlüssel
-    // verschwände aus der Serialisierung und sein Wert würde zum Prototyp.
-    const json = '{"__proto__":{"marker":"BEHALTEN"},"reasonCode":"R1"}';
-    const eingabe = JSON.parse(json) as Record<string, unknown>;
+  it('weist __proto__ aus JSON auch verschachtelt fail-closed ab', () => {
+    // Der aktuelle Prisma-JSON-Pfad verliert diesen eigenen Schlüssel vor
+    // JSONB. Akzeptieren und später verlieren wäre für eine Auditspur falsch.
+    const oben = JSON.parse('{"__proto__":{"marker":"X"}}') as Record<string, unknown>;
+    const tief = JSON.parse('{"nested":{"__proto__":{"marker":"X"}}}') as Record<string, unknown>;
 
-    const ergebnis = redactMetadata(eingabe);
-    const serialisiert = JSON.stringify(ergebnis);
-
-    expect(Object.hasOwn(ergebnis, '__proto__')).toBe(true);
-    expect(Object.getPrototypeOf(ergebnis)).toBe(Object.prototype);
-    expect(serialisiert).toContain('"__proto__"');
-
-    const rundlauf = JSON.parse(serialisiert) as Record<string, unknown>;
-    expect(Object.hasOwn(rundlauf, '__proto__')).toBe(true);
-    expect((rundlauf['__proto__'] as Record<string, unknown>).marker).toBe('BEHALTEN');
-    expect(rundlauf.reasonCode).toBe('R1');
+    expect(() => redactMetadata(oben)).toThrow(
+      'Auditmetadaten enthalten einen reservierten Schlüssel.',
+    );
+    expect(() => redactMetadata(tief)).toThrow(
+      'Auditmetadaten enthalten einen reservierten Schlüssel.',
+    );
   });
 
   it('schwärzt einen verbotenen Schlüssel samt seines ganzen Teilbaums', () => {
