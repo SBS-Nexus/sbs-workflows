@@ -201,6 +201,8 @@ Er entscheidet ausdrücklich **noch nicht**:
 
 ## LP-03 — Design System Contract
 
+Status: **IMPLEMENTIERT IN PR #41**
+
 Priorität: **P0**
 
 ### Ziel
@@ -282,6 +284,8 @@ Kein pixelidentisches Fachinterface.
 
 ## LP-04 — Gemeinsame Informationsarchitektur
 
+Status: **IMPLEMENTIERT IN PR #41**
+
 Priorität: **P0**
 
 ### Ziel
@@ -319,6 +323,8 @@ lernen zu müssen.
 ---
 
 ## LP-05 — Review Adapter für bestehende Apps
+
+Status: **LP-05A ADAPTER CONTRACT IMPLEMENTIERT IN PR #41; PRODUKTIVE DATENANBINDUNG OFFEN**
 
 Priorität: **P0**
 
