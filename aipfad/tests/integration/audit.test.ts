@@ -350,26 +350,23 @@ describe('Auditgrundlage (Integration mit echter Datenbank)', () => {
     expect(metadata.reasonCode).toBe('BEHALTEN');
   });
 
-  it('speichert __proto__ als JSON-Datenfeld statt es still zu verlieren', async () => {
+  it('weist __proto__ ab, statt den Schlüssel auf dem Weg zu JSONB still zu verlieren', async () => {
     const userId = await nutzerAnlegen('proto-metadaten');
     const json = '{"__proto__":{"marker":"BEHALTEN"},"reasonCode":"R1"}';
     const metadata = JSON.parse(json) as Record<string, unknown>;
 
-    await appendAuditEvent({
-      action: 'ACCOUNT_DELETED',
-      actorUserId: userId,
-      targetType: 'IntegrationstestZiel',
-      metadata,
-    });
+    await expect(
+      appendAuditEvent({
+        action: 'ACCOUNT_DELETED',
+        actorUserId: userId,
+        targetType: 'IntegrationstestZiel',
+        metadata,
+      }),
+    ).rejects.toThrow('Auditmetadaten enthalten einen reservierten Schlüssel.');
 
-    // Direkt aus JSONB lesen: Der Dienst darf einen akzeptierten Metadaten-
-    // schlüssel nicht während der Schwärzung verlieren.
-    const roh = await prisma.auditEvent.findFirstOrThrow({ where: { actorUserId: userId } });
-    const gespeichert = roh.metadata as Record<string, unknown>;
-    expect(Object.hasOwn(gespeichert, '__proto__')).toBe(true);
-    expect((gespeichert['__proto__'] as Record<string, unknown>).marker).toBe('BEHALTEN');
-    expect(gespeichert.reasonCode).toBe('R1');
-    expect(JSON.stringify(gespeichert)).toContain('"__proto__"');
+    // Fail-closed: Es bleibt auch keine teilweise oder informationsärmere
+    // Auditzeile zurück.
+    expect(await prisma.auditEvent.count({ where: { actorUserId: userId } })).toBe(0);
   });
 
   it('speichert weder Name noch Adresse des Akteurs, nur die Kennung', async () => {
