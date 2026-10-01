@@ -150,3 +150,20 @@ test('rejects objects with a custom prototype', () => {
 
   assert.throws(() => parseReviewSourceItem(value), /plain object/);
 });
+
+test('rejects source-unit combinations outside contract version 1', () => {
+  assert.throws(
+    () =>
+      parseReviewSourceItem({
+        contractVersion: 1,
+        source: 'sql',
+        sourceUnit: 'exercise',
+        sourceItemId: 'exercise:left-join',
+        pathSlug: 'sql',
+        prompt: 'Prompt',
+        dueAt: DUE.toISOString(),
+        repetition: 0,
+      }),
+    /sourceUnit exercise is not valid for source sql/,
+  );
+});
