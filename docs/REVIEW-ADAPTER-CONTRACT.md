@@ -119,6 +119,19 @@ Erlaubt:
 - `concept`
 - `term`
 
+Contract Version 1 erlaubt bewusst nur diese Kombinationen:
+
+| Source | Unit |
+|---|---|
+| python | exercise |
+| sql | concept |
+| git | exercise |
+| ai | exercise |
+| language | term |
+
+Andere Kombinationen werden fail-closed abgelehnt und benötigen bei einem
+späteren fachlichen Bedarf eine explizite Contract-Version.
+
 ## 3. Stabile Identität
 
 Ein globaler Schlüssel wird aus drei Werten gebildet:
