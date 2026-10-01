@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import './globals.css';
 import { BRAND } from '@/lib/brand';
 import { siteUrl } from '@/server/site';
+import { LearningPlatformBar } from '@/components/navigation/learning-platform-bar';
 
 /*
  * Schriften.
@@ -130,6 +131,7 @@ export default function RootLayout({
         <a href="#hauptinhalt" className="skip-link">
           Direkt zum Hauptinhalt springen
         </a>
+        <LearningPlatformBar current="SQLPfad" />
         {children}
       </body>
     </html>
