@@ -14,21 +14,55 @@ type ReviewState = {
 
 type ReviewStore = Record<string, ReviewState>;
 
+type LoadedStore = {
+  store: ReviewStore;
+  persistenceAvailable: boolean;
+};
+
 const STORAGE_KEY = 'lernpfade-review-v1';
 const SESSION_SIZE = 5;
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
 
-function loadStore(): ReviewStore {
+function loadStore(): LoadedStore {
+  let raw: string | null;
+
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    return parsed as ReviewStore;
+    raw = window.localStorage.getItem(STORAGE_KEY);
   } catch {
-    return {};
+    return { store: {}, persistenceAvailable: false };
   }
+
+  if (!raw) return { store: {}, persistenceAvailable: true };
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { store: {}, persistenceAvailable: true };
+    }
+    return { store: parsed as ReviewStore, persistenceAvailable: true };
+  } catch {
+    return { store: {}, persistenceAvailable: true };
+  }
+}
+
+function selectSessionIds(store: ReviewStore, now: number): readonly string[] {
+  const unseen = REVIEW_ITEMS.filter((item) => !store[item.id]);
+
+  const seenAndDue = REVIEW_ITEMS.filter((item) => {
+    const state = store[item.id];
+    return state && state.dueAt <= now;
+  }).sort((left, right) => {
+    const leftDue = store[left.id]?.dueAt ?? Number.MAX_SAFE_INTEGER;
+    const rightDue = store[right.id]?.dueAt ?? Number.MAX_SAFE_INTEGER;
+    return leftDue - rightDue;
+  });
+
+  return [...unseen, ...seenAndDue].slice(0, SESSION_SIZE).map((item) => item.id);
+}
+
+function countDue(store: ReviewStore, now: number): number {
+  return REVIEW_ITEMS.filter((item) => !store[item.id] || store[item.id].dueAt <= now).length;
 }
 
 function nextState(previous: ReviewState | undefined, rating: Rating): ReviewState {
@@ -70,20 +104,16 @@ function domainClass(item: ReviewItem): string {
 export function ReviewSession(): React.ReactElement {
   const [store, setStore] = useState<ReviewStore>({});
   const [ready, setReady] = useState(false);
+  const [persistenceAvailable, setPersistenceAvailable] = useState(true);
   const [sessionIds, setSessionIds] = useState<readonly string[]>([]);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
     const loaded = loadStore();
-    setStore(loaded);
-
-    const now = Date.now();
-    const due = REVIEW_ITEMS.filter((item) => !loaded[item.id] || loaded[item.id].dueAt <= now)
-      .slice(0, SESSION_SIZE)
-      .map((item) => item.id);
-
-    setSessionIds(due);
+    setStore(loaded.store);
+    setPersistenceAvailable(loaded.persistenceAvailable);
+    setSessionIds(selectSessionIds(loaded.store, Date.now()));
     setReady(true);
   }, []);
 
@@ -93,10 +123,17 @@ export function ReviewSession(): React.ReactElement {
   );
 
   const current = sessionIds[index] ? itemById.get(sessionIds[index]) : undefined;
-  const dueCount = REVIEW_ITEMS.filter(
-    (item) => !store[item.id] || store[item.id].dueAt <= Date.now(),
-  ).length;
+  const dueCount = countDue(store, Date.now());
   const completed = Math.min(index, sessionIds.length);
+
+  function persist(next: ReviewStore): void {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      setPersistenceAvailable(true);
+    } catch {
+      setPersistenceAvailable(false);
+    }
+  }
 
   function rate(rating: Rating): void {
     if (!current) return;
@@ -107,18 +144,13 @@ export function ReviewSession(): React.ReactElement {
     };
 
     setStore(next);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    persist(next);
     setIndex((value) => value + 1);
     setRevealed(false);
   }
 
   function startFreshFive(): void {
-    const now = Date.now();
-    const due = REVIEW_ITEMS.filter((item) => !store[item.id] || store[item.id].dueAt <= now)
-      .slice(0, SESSION_SIZE)
-      .map((item) => item.id);
-
-    setSessionIds(due);
+    setSessionIds(selectSessionIds(store, Date.now()));
     setIndex(0);
     setRevealed(false);
   }
@@ -140,8 +172,8 @@ export function ReviewSession(): React.ReactElement {
         <p className="eyebrow">Für heute erledigt</p>
         <h2>Aktuell ist nichts fällig.</h2>
         <p className="review-muted">
-          Neue Karten werden automatisch wieder fällig. Unsichere Begriffe kommen früher zurück als
-          sichere.
+          Neue Karten werden automatisch wieder fällig. Ungesehene Karten haben Vorrang; danach
+          kommen die am längsten fälligen Begriffe zuerst.
         </p>
         <button className="button button-secondary" type="button" onClick={startFreshFive}>
           Fälligkeit erneut prüfen
@@ -159,8 +191,9 @@ export function ReviewSession(): React.ReactElement {
         <p className="eyebrow">Daily 5 abgeschlossen</p>
         <h2>{sessionIds.length} Begriffe aktiv abgerufen.</h2>
         <p className="review-muted">
-          Dein Browser merkt sich die nächsten Fälligkeiten. Später wandert derselbe Mechanismus in
-          das gemeinsame Lernkonto.
+          {persistenceAvailable
+            ? 'Dein Browser merkt sich die nächsten Fälligkeiten. Später wandert derselbe Mechanismus in das gemeinsame Lernkonto.'
+            : 'Der Browser-Speicher ist nicht verfügbar. Die Session funktioniert weiter, aber nach einem Neuladen gehen die Fälligkeiten verloren.'}
         </p>
         <div className="review-summary">
           <span>
@@ -245,9 +278,10 @@ export function ReviewSession(): React.ReactElement {
         ) : null}
       </article>
 
-      <p className="review-footnote">
-        Diese erste Version speichert ausschließlich Fälligkeiten im Browser. Keine Übertragung,
-        keine AI-Auswertung, kein Konto-Zwang.
+      <p className="review-footnote" aria-live="polite">
+        {persistenceAvailable
+          ? 'Diese erste Version speichert ausschließlich Fälligkeiten im Browser. Keine Übertragung, keine AI-Auswertung, kein Konto-Zwang.'
+          : 'Browser-Speicher nicht verfügbar: Die aktuelle Session läuft weiter, wird aber nicht dauerhaft gespeichert.'}
       </p>
     </section>
   );
