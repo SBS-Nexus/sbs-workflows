@@ -41,7 +41,7 @@ export default async function LabPage({ params }: LabPageProps): Promise<React.R
   return (
     <>
       <AppHeader userName={user.name} />
-      <main id="hauptinhalt" className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
+      <main id="hauptinhalt" className="mx-auto max-w-2xl px-4 pb-24 pt-12 sm:px-6 sm:py-12">
         <SectionHeading eyebrow="Lab" description={lab.summary}>
           {lab.title}
         </SectionHeading>
