@@ -28,18 +28,34 @@ export default async function AppLayout({
    * gilt - sie ist eine Barrierefreiheitseinstellung und gehört zur Person,
    * nicht zum Browser.
    */
-  const darstellung = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { theme: true, reduceMotion: true },
-  });
+  const [darstellung, dueReviews] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { theme: true, reduceMotion: true },
+    }),
+    prisma.reviewQueueItem.count({
+      where: {
+        userId: user.id,
+        dueAt: { lte: new Date() },
+        completedAt: null,
+      },
+    }),
+  ]);
   const theme: Theme =
     darstellung?.theme === 'light' || darstellung?.theme === 'dark' ? darstellung.theme : 'system';
 
   return (
     <div className="min-h-dvh">
       <DarstellungAbgleich theme={theme} reduceMotion={darstellung?.reduceMotion ?? false} />
-      <AppNav istAdmin={user.role === 'ADMIN'} />
-      <main id="hauptinhalt" className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <AppNav
+        userName={user.name}
+        istAdmin={user.role === 'ADMIN'}
+        dueReviews={dueReviews}
+      />
+      <main
+        id="hauptinhalt"
+        className="mx-auto max-w-6xl px-4 pb-24 pt-8 sm:px-6 sm:py-10"
+      >
         {children}
       </main>
     </div>
