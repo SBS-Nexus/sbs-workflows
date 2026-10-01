@@ -52,8 +52,8 @@ export default async function GitPathPage(): Promise<React.ReactElement> {
           </h1>
           <p className="mt-5 max-w-2xl text-lg text-[var(--fg-muted)]">
             Commits, Branches, Remotes und Pull Requests sind das Arbeitsmodell hinter moderner
-            Softwareentwicklung. Wer AI-Coding kontrollieren will, muss diesen Verlauf lesen,
-            prüfen und rückgängig machen können.
+            Softwareentwicklung. Wer AI-Coding kontrollieren will, muss diesen Verlauf lesen, prüfen
+            und rückgängig machen können.
           </p>
 
           <div className="mt-7 flex flex-wrap gap-2">
@@ -83,11 +83,7 @@ export default async function GitPathPage(): Promise<React.ReactElement> {
 
             <div className="mt-8 space-y-6">
               {modules.map((module, moduleIndex) => (
-                <Card
-                  key={module.id}
-                  as="section"
-                  aria-labelledby={'git-module-' + module.slug}
-                >
+                <Card key={module.id} as="section" aria-labelledby={'git-module-' + module.slug}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-signal-600 dark:text-signal-300">
@@ -130,7 +126,9 @@ export default async function GitPathPage(): Promise<React.ReactElement> {
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-signal-600 dark:text-signal-300">
               Warum das für AI wichtig ist
             </p>
-            <h2 className="mt-2 text-xl font-bold">AI erzeugt Änderungen. Git macht sie prüfbar.</h2>
+            <h2 className="mt-2 text-xl font-bold">
+              AI erzeugt Änderungen. Git macht sie prüfbar.
+            </h2>
             <p className="mt-2 text-[var(--fg-muted)]">
               Der spätere AI-Coding-Pfad baut genau darauf auf: kleine Diffs, getrennte Branches,
               automatisierte Checks und Reviews statt blindem Übernehmen großer Änderungen.
