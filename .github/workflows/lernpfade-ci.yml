@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   build:
-    name: Typecheck and build
+    name: Typecheck, tests and build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -37,6 +37,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Unit-Tests
+        run: npm run test
 
       - name: Produktionsbuild
         run: npm run build
