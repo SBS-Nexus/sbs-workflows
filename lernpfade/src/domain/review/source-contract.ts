@@ -6,6 +6,14 @@ export type ReviewSource = (typeof REVIEW_SOURCES)[number];
 export const REVIEW_SOURCE_UNITS = ['exercise', 'concept', 'term'] as const;
 export type ReviewSourceUnit = (typeof REVIEW_SOURCE_UNITS)[number];
 
+const SOURCE_UNIT_COMPATIBILITY: Record<ReviewSource, readonly ReviewSourceUnit[]> = {
+  python: ['exercise'],
+  sql: ['concept'],
+  git: ['exercise'],
+  ai: ['exercise'],
+  language: ['term'],
+};
+
 export type ReviewSourceItem = {
   contractVersion: typeof REVIEW_CONTRACT_VERSION;
   source: ReviewSource;
@@ -138,6 +146,12 @@ export function parseReviewSourceItem(input: unknown): ReviewSourceItem {
     throw new TypeError('sourceUnit is not supported');
   }
 
+  const source = input.source as ReviewSource;
+  const sourceUnit = input.sourceUnit as ReviewSourceUnit;
+  if (!SOURCE_UNIT_COMPATIBILITY[source].includes(sourceUnit)) {
+    throw new TypeError(`sourceUnit ${sourceUnit} is not valid for source ${source}`);
+  }
+
   if (
     typeof input.repetition !== 'number' ||
     !Number.isSafeInteger(input.repetition) ||
@@ -149,8 +163,8 @@ export function parseReviewSourceItem(input: unknown): ReviewSourceItem {
 
   return {
     contractVersion: REVIEW_CONTRACT_VERSION,
-    source: input.source as ReviewSource,
-    sourceUnit: input.sourceUnit as ReviewSourceUnit,
+    source,
+    sourceUnit,
     sourceItemId: readRequiredString(input, 'sourceItemId', 200),
     pathSlug: readRequiredString(input, 'pathSlug', 100),
     conceptId: readOptionalString(input, 'conceptId', 200),
