@@ -178,6 +178,38 @@ describe('SQLPfad-Wiederholungsquelle (LP-05B, echte Datenbank)', () => {
     expect(batch.items).toEqual([]);
   });
 
+  it('nicht übbare Konzepte verdrängen keine übbaren und sind nie „als Nächstes"', async () => {
+    const [kA, kB] = await uebbareKonzepte();
+    if (!kA || !kB) throw new Error('Seed enthält zu wenige übbare Konzepte');
+    const zuordnungen = await prisma.exerciseConcept.findMany({
+      where: { conceptId: { in: [kA, kB] } },
+      select: { exerciseId: true },
+    });
+    await prisma.exercise.updateMany({
+      where: { id: { in: zuordnungen.map((z) => z.exerciseId) } },
+      data: { status: 'DRAFT' },
+    });
+    const [k2, k3] = await uebbareKonzepte();
+    if (!k2 || !k3) throw new Error('Seed enthält zu wenige übbare Konzepte');
+
+    // kA ist am längsten fällig, aber nicht übbar; k2 ist übbar und fällig.
+    // kB hat den frühesten künftigen Termin, ist aber nicht übbar — als
+    // „als Nächstes" zählt deshalb k3.
+    await prisma.conceptMastery.createMany({
+      data: [
+        faellig(anna, kA, new Date(NOW.getTime() - 3 * TAG)),
+        faellig(anna, k2, new Date(NOW.getTime() - TAG)),
+        faellig(anna, kB, new Date(NOW.getTime() + TAG)),
+        faellig(anna, k3, new Date(NOW.getTime() + 2 * TAG)),
+      ],
+    });
+
+    const batch = await readPlatformReviewSource(anna, { limit: 1, now: NOW });
+    expect(batch.items.map((item) => item.sourceItemId)).toEqual([k2]);
+    expect(batch.truncated).toBe(false);
+    expect(batch.nextDueAt).toBe(new Date(NOW.getTime() + 2 * TAG).toISOString());
+  });
+
   it('schreibt nichts und materialisiert keine Warteschlange', async () => {
     const konzepte = (await uebbareKonzepte()).slice(0, 3);
     await prisma.conceptMastery.createMany({

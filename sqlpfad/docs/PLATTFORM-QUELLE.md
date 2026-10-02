@@ -11,7 +11,7 @@ Abschnitt 10.
   über `getCurrentUser()` aus der eigenen Sitzung. Eine `userId` aus der
   Anfrage gibt es nicht; jeder Abfrageparameter außer `limit` wird mit 400
   abgewiesen. Ohne Sitzung: 401. Kein Admin-Durchgriff.
-- **Gelesen wird:** nur eigene Konzepte mit `nextReviewAt <= jetzt`, geordnet nach Fälligkeit und Konzept-ID. Ein fälliges Konzept ohne veröffentlichte Übungsaufgabe wird ausgelassen — wie auf der eigenen Wiederholungsseite.
+- **Gelesen wird:** nur eigene Konzepte mit `nextReviewAt <= jetzt`, geordnet nach Fälligkeit und Konzept-ID. Ein fälliges Konzept ohne veröffentlichte Übungsaufgabe wird ausgelassen — wie auf der eigenen Wiederholungsseite. Diese Bedingung steht in der Abfrage selbst (vor der Obergrenze), damit nicht übbare Konzepte die übbaren nicht verdrängen; `nextDueAt` zählt ebenfalls nur übbare Konzepte.
 - **Keine Musterlösung:** Die Antwortseite ist die öffentliche
   Konzepterklärung (`Concept.description`) — nie Lösung, Lösungsnotizen,
   Hinweise oder Tests.
