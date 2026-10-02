@@ -24,6 +24,16 @@ const gitUrl =
   optionalUrl('NEXT_PUBLIC_GITPFAD_URL') ??
   (aiUrl ? `${aiUrl}/lektion/warum-versionsverwaltung/1` : undefined);
 
+/**
+ * Basisadressen der Apps, die in LP-05B als Wiederholungsquelle angebunden
+ * werden können. `undefined` = nicht konfiguriert.
+ */
+export const REVIEW_SOURCE_APP_URLS: Readonly<Record<'python' | 'sql' | 'ai', string | undefined>> = {
+  python: pythonUrl,
+  sql: sqlUrl,
+  ai: aiUrl,
+};
+
 export const CORE_PATHS: readonly LearningPath[] = [
   {
     slug: 'python',

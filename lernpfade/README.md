@@ -30,6 +30,31 @@ Adresse zeigen wie `NEXT_PUBLIC_AIPFAD_URL`.
 Als eigenes Vercel-Projekt mit Root Directory `lernpfade/`. Keine Datenbank,
 keine Secrets, keine Nutzerkonten. Region: Frankfurt (`fra1`).
 
+## Wiederholen: Live-Quellen (LP-05B)
+
+`/wiederholen` zeigt fällige Wiederholungen aus PythonPfad, SQLPfad und AIPfad
+— **schreibgeschützt**. Die Apps bleiben die Systeme der Wahrheit; bewertet und
+geplant wird dort. Der Hub ruft je App `GET /api/platform/review-source` aus
+dem Browser mit der eigenen Sitzung der App auf; er selbst sieht weder Cookie
+noch Nutzerkennung.
+
+- Opt-in: `NEXT_PUBLIC_REVIEW_FEDERATION_SOURCES=python,sql,ai` plus die
+  jeweilige `NEXT_PUBLIC_*_URL`.
+- Jede App gibt CORS nur für `PLATFORM_HUB_ORIGIN` frei (Vorgabe: aus).
+- Live-Daten setzen voraus, dass Hub und Apps same-site sind (gemeinsame
+  registrierbare Domain). Unter `*.vercel.app` zeigt der Hub „nicht
+  angemeldet".
+- Ohne Freischaltung bleibt es beim klar markierten Demo-Deck
+  (**DEMO · Beispiel**), dessen Bewertungen nur lokal im Browser bleiben.
+
+Architektur und Begründung: `docs/LEARNING-PLATFORM.md`, Abschnitt 10.
+
+```bash
+npm run test       # Review-Domäne: Scheduler, Adapter, Föderation, Abruf
+npm run typecheck
+npm run build
+```
+
 ## UI-Kontrakt für die drei Apps
 
 Der Hub definiert die Produktsprache, die in PythonPfad, SQLPfad und AIPfad
