@@ -1,6 +1,5 @@
 'use client';
 
-import { useActionState, useRef, useState, type FormEvent } from 'react';
 import {
   Button,
   Callout,
@@ -12,61 +11,10 @@ import {
 import {
   createCohortAction,
   createInvitationAction,
-  type ActionState,
 } from '@/server/actions/organisation-actions';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/domain/organisation/permissions';
 
-const INITIAL: ActionState = { ok: false };
-
-type OrganisationAction = (previous: ActionState, data: FormData) => Promise<ActionState>;
-
-/**
- * Das Ergebnis einer erfolgreichen Mutation muss unabhängig vom Router-Update
- * sichtbar werden. Im Produktionsbuild kann die von useActionState verfolgte
- * Transition hängen bleiben, obwohl die Antwort inklusive Einladungslink schon
- * vollständig eingetroffen ist (Issue #51).
- *
- * Mit JavaScript führen wir dieselbe Server Action im Submit-Handler aus und
- * setzen die Rückmeldung als normales State-Update. Die formAction bleibt für
- * die serverseitige Formularverarbeitung ohne JavaScript erhalten.
- */
-function useOrganisationForm(serverAction: OrganisationAction) {
-  const [serverState, formAction, serverPending] = useActionState(serverAction, INITIAL);
-  const [clientState, setClientState] = useState<ActionState | null>(null);
-  const [clientPending, setClientPending] = useState(false);
-  const inFlight = useRef(false);
-  const state = clientState ?? serverState;
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    if (inFlight.current) return;
-
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    inFlight.current = true;
-    setClientPending(true);
-
-    try {
-      const result = await serverAction(state, data);
-      // Eine Sitzungsweiterleitung kann den Aufruf ohne Formulardaten beenden.
-      if (result) {
-        setClientState(result);
-        if (result.ok) form.reset();
-      }
-    } catch {
-      setClientState({
-        ok: false,
-        error:
-          'Die Rückmeldung konnte nicht geladen werden. Bitte prüfe den Stand vor einem erneuten Versuch.',
-      });
-    } finally {
-      inFlight.current = false;
-      setClientPending(false);
-    }
-  }
-
-  return { state, action: formAction, pending: clientPending || serverPending, onSubmit };
-}
+import { useOrganisationForm } from '../use-organisation-form';
 
 export function CohortAndInviteForms({
   organizationSlug,
