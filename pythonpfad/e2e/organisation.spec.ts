@@ -29,6 +29,19 @@ test('legt eine Organisation an, lädt ein und wahrt dabei die Datensparsamkeit'
     await expect(page.getByText('Inhaberin oder Inhaber').first()).toBeVisible();
   });
 
+
+  await test.step('Eine abgelehnte Kohorte lässt sich korrigieren', async () => {
+    const abschnitt = page.getByRole('region', { name: 'Kohorte anlegen' });
+    // Drei Leerzeichen passieren die native minlength-Prüfung, werden aber
+    // serverseitig getrimmt und als ungültiger Name zurückgewiesen.
+    await abschnitt.getByLabel('Name der Kohorte').fill('   ');
+    await abschnitt.getByRole('button', { name: 'Kohorte anlegen' }).click();
+    await expect(
+      abschnitt.getByText('Bitte gib einen Namen mit mindestens zwei Zeichen an.'),
+    ).toBeVisible();
+    await expect(abschnitt.getByRole('button', { name: 'Kohorte anlegen' })).toBeEnabled();
+  });
+
   await test.step('Kohorte anlegen', async () => {
     const abschnitt = page.getByRole('region', { name: 'Kohorte anlegen' });
     await abschnitt.getByLabel('Name der Kohorte').fill('Kurs Herbst 2026');
@@ -61,6 +74,24 @@ test('legt eine Organisation an, lädt ein und wahrt dabei die Datensparsamkeit'
 
     // Der Hinweis muss klarstellen, dass der Link nicht wiederkommt.
     await expect(page.getByText(/nur jetzt angezeigt/)).toBeVisible();
+  });
+
+
+  await test.step('Einladungen funktionieren auch ohne JavaScript', async () => {
+    const kontext = await browser.newContext({
+      storageState: await page.context().storageState(),
+      javaScriptEnabled: false,
+    });
+    try {
+      const ohneJavaScript = await kontext.newPage();
+      await ohneJavaScript.goto(page.url());
+      const abschnitt = ohneJavaScript.getByRole('region', { name: 'Jemanden einladen' });
+      await abschnitt.getByRole('button', { name: 'Einladungslink erstellen' }).click();
+      await expect(abschnitt.getByText(/^\/einladung\//)).toBeVisible();
+      await expect(abschnitt.getByText(/nur jetzt angezeigt/)).toBeVisible();
+    } finally {
+      await kontext.close();
+    }
   });
 
   await test.step('Zweite Person löst die Einladung ein', async () => {
