@@ -16,7 +16,7 @@
   --indigo: #3155d5;
   --teal: #087d72;
   --violet: #6d45c6;
-  --amber: #b86b05;
+  --amber: #975a04; /* 5.56:1 gegen Weiß (WCAG AA für kleine Badges) */
   --sky: #1872a5;
   --rose: #b63c68;
   --green: #147a4b;
