@@ -8,12 +8,8 @@ import {
   SectionHeading,
   inputClass,
 } from '@/components/ui/primitives';
-import {
-  createCohortAction,
-  createInvitationAction,
-} from '@/server/actions/organisation-actions';
+import { createCohortAction, createInvitationAction } from '@/server/actions/organisation-actions';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/domain/organisation/permissions';
-
 import { useOrganisationForm } from '../use-organisation-form';
 
 export function CohortAndInviteForms({
