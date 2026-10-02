@@ -29,7 +29,6 @@ test('legt eine Organisation an, lädt ein und wahrt dabei die Datensparsamkeit'
     await expect(page.getByText('Inhaberin oder Inhaber').first()).toBeVisible();
   });
 
-
   await test.step('Eine abgelehnte Kohorte lässt sich korrigieren', async () => {
     const abschnitt = page.getByRole('region', { name: 'Kohorte anlegen' });
     // Drei Leerzeichen passieren die native minlength-Prüfung, werden aber
@@ -75,7 +74,6 @@ test('legt eine Organisation an, lädt ein und wahrt dabei die Datensparsamkeit'
     // Der Hinweis muss klarstellen, dass der Link nicht wiederkommt.
     await expect(page.getByText(/nur jetzt angezeigt/)).toBeVisible();
   });
-
 
   await test.step('Einladungen funktionieren auch ohne JavaScript', async () => {
     const kontext = await browser.newContext({
