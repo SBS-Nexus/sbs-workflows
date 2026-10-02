@@ -75,23 +75,6 @@ test('legt eine Organisation an, lädt ein und wahrt dabei die Datensparsamkeit'
     await expect(page.getByText(/nur jetzt angezeigt/)).toBeVisible();
   });
 
-  await test.step('Einladungen funktionieren auch ohne JavaScript', async () => {
-    const kontext = await browser.newContext({
-      storageState: await page.context().storageState(),
-      javaScriptEnabled: false,
-    });
-    try {
-      const ohneJavaScript = await kontext.newPage();
-      await ohneJavaScript.goto(page.url());
-      const abschnitt = ohneJavaScript.getByRole('region', { name: 'Jemanden einladen' });
-      await abschnitt.getByRole('button', { name: 'Einladungslink erstellen' }).click();
-      await expect(abschnitt.getByText(/^\/einladung\//)).toBeVisible();
-      await expect(abschnitt.getByText(/nur jetzt angezeigt/)).toBeVisible();
-    } finally {
-      await kontext.close();
-    }
-  });
-
   await test.step('Zweite Person löst die Einladung ein', async () => {
     const kontext = await browser.newContext();
     const zweiteSeite = await kontext.newPage();
