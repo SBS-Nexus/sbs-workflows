@@ -40,7 +40,7 @@ const ITEMS: ReadonlyArray<{
   { href: '/ueben', label: 'Üben', icon: 'ueben', theme: moduleTheme(1) },
   { href: '/projekte', label: 'Projekte', icon: 'projekte', theme: PROJECT_THEME },
   { href: '/wiederholen', label: 'Wiederholen', icon: 'wiederholen', theme: REVIEW_THEME },
-  { href: '/fortschritt', label: 'Fortschritt', icon: 'fortschritt', theme: moduleTheme(3) },
+  { href: '/fortschritt', label: 'Überblick', icon: 'fortschritt', theme: moduleTheme(3) },
   { href: '/profil', label: 'Profil', icon: 'profil', theme: moduleTheme(2) },
 ];
 
