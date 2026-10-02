@@ -52,7 +52,7 @@ jobs:
       - name: Repeat unchanged invitation flow 10 times without retries
         run: |
           set -o pipefail
-          npm run test:e2e -- e2e/organisation.spec.ts --project=desktop-chromium --grep '^legt eine Organisation an' --repeat-each=10 --retries=0 --workers=1 --reporter=list --output=/tmp/issue51-results 2>&1 | tee /tmp/issue51-e2e.log
+          npm run test:e2e -- e2e/organisation.spec.ts --project=desktop-chromium --grep 'legt eine Organisation an' --repeat-each=10 --retries=0 --workers=1 --reporter=list --output=/tmp/issue51-results 2>&1 | tee /tmp/issue51-e2e.log
       - name: Save diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v4
