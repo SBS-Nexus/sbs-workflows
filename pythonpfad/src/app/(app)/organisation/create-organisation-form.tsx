@@ -1,16 +1,15 @@
 'use client';
 
-import { useActionState } from 'react';
 import { Button, Callout, Field, inputClass } from '@/components/ui/primitives';
-import { createOrganisationAction, type ActionState } from '@/server/actions/organisation-actions';
+import { createOrganisationAction } from '@/server/actions/organisation-actions';
 
-const INITIAL: ActionState = { ok: false };
+import { useOrganisationForm } from './use-organisation-form';
 
 export function CreateOrganisationForm(): React.ReactElement {
-  const [state, action, pending] = useActionState(createOrganisationAction, INITIAL);
+  const { state, action, pending, onSubmit } = useOrganisationForm(createOrganisationAction);
 
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} onSubmit={onSubmit} className="space-y-4">
       <Field
         label="Name der Organisation"
         htmlFor="org-name"
