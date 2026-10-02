@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useRef, useState, type FormEvent } from 'react';
 import {
   Button,
   Callout,
@@ -17,6 +17,56 @@ import {
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/domain/organisation/permissions';
 
 const INITIAL: ActionState = { ok: false };
+
+type OrganisationAction = (previous: ActionState, data: FormData) => Promise<ActionState>;
+
+/**
+ * Das Ergebnis einer erfolgreichen Mutation muss unabhängig vom Router-Update
+ * sichtbar werden. Im Produktionsbuild kann die von useActionState verfolgte
+ * Transition hängen bleiben, obwohl die Antwort inklusive Einladungslink schon
+ * vollständig eingetroffen ist (Issue #51).
+ *
+ * Mit JavaScript führen wir dieselbe Server Action im Submit-Handler aus und
+ * setzen die Rückmeldung als normales State-Update. Die formAction bleibt für
+ * die serverseitige Formularverarbeitung ohne JavaScript erhalten.
+ */
+function useOrganisationForm(serverAction: OrganisationAction) {
+  const [serverState, formAction, serverPending] = useActionState(serverAction, INITIAL);
+  const [clientState, setClientState] = useState<ActionState | null>(null);
+  const [clientPending, setClientPending] = useState(false);
+  const inFlight = useRef(false);
+  const state = clientState ?? serverState;
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (inFlight.current) return;
+
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    inFlight.current = true;
+    setClientPending(true);
+
+    try {
+      const result = await serverAction(state, data);
+      // Eine Sitzungsweiterleitung kann den Aufruf ohne Formulardaten beenden.
+      if (result) {
+        setClientState(result);
+        if (result.ok) form.reset();
+      }
+    } catch {
+      setClientState({
+        ok: false,
+        error:
+          'Die Rückmeldung konnte nicht geladen werden. Bitte prüfe den Stand vor einem erneuten Versuch.',
+      });
+    } finally {
+      inFlight.current = false;
+      setClientPending(false);
+    }
+  }
+
+  return { state, action: formAction, pending: clientPending || serverPending, onSubmit };
+}
 
 export function CohortAndInviteForms({
   organizationSlug,
@@ -56,10 +106,10 @@ export function CohortAndInviteForms({
 }
 
 function CohortForm({ organizationSlug }: { organizationSlug: string }): React.ReactElement {
-  const [state, action, pending] = useActionState(createCohortAction, INITIAL);
+  const { state, action, pending, onSubmit } = useOrganisationForm(createCohortAction);
 
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} onSubmit={onSubmit} className="space-y-4">
       <input type="hidden" name="organizationSlug" value={organizationSlug} />
 
       <Field label="Name der Kohorte" htmlFor="kohorte-name" error={state.error}>
@@ -109,14 +159,14 @@ function InviteForm({
   cohorts: Array<{ slug: string; name: string }>;
   mayInviteOwners: boolean;
 }): React.ReactElement {
-  const [state, action, pending] = useActionState(createInvitationAction, INITIAL);
+  const { state, action, pending, onSubmit } = useOrganisationForm(createInvitationAction);
 
   const rollen: Array<'MEMBER' | 'TEACHER' | 'OWNER'> = mayInviteOwners
     ? ['MEMBER', 'TEACHER', 'OWNER']
     : ['MEMBER', 'TEACHER'];
 
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} onSubmit={onSubmit} className="space-y-4">
       <input type="hidden" name="organizationSlug" value={organizationSlug} />
 
       <fieldset>
