@@ -1,0 +1,57 @@
+name: TEMP SQLPfad E2E reproduce
+
+on:
+  push:
+    branches:
+      - claude/lernpfade-sql-e2e-nav-fix
+    paths:
+      - 'sqlpfad/**'
+      - '.github/workflows/temp-sqlpfad-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sqlpfad
+          POSTGRES_PASSWORD: sqlpfad
+          POSTGRES_DB: sqlpfad
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd="pg_isready -U sqlpfad -d sqlpfad"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    defaults:
+      run:
+        working-directory: sqlpfad
+
+    env:
+      DATABASE_URL: postgresql://sqlpfad:sqlpfad@127.0.0.1:5433/sqlpfad
+      AUTH_SECRET: sqlpfad-e2e-secret-abcdefghijklmnopqrstuvwxyz-123456
+      APP_URL: http://127.0.0.1:3100
+      FEATURE_SQL_RUNNER: 'false'
+      ATTEMPT_RETENTION_DAYS: '365'
+      E2E_PORT: '3100'
+      CI: 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: sqlpfad/package-lock.json
+      - run: npm ci
+      - run: npm run db:deploy
+      - run: npm run db:seed
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
