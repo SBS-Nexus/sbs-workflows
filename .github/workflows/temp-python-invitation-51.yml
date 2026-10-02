@@ -49,7 +49,14 @@ jobs:
       - run: npm run db:seed
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - name: Repeat unchanged invitation flow 10 times without retries
+      - name: Add runner-only browser and database observations
+        run: |
+          node --input-type=module <<'DIAGNOSTICS'
+          import fs from 'node:fs';
+          const path = 'e2e/organisation.spec.ts';
+          fs.appendFileSync(path, "\nimport { Client } from 'pg';\nimport { writeFile } from 'node:fs/promises';\n\nconst invitationDiagnostics = new WeakMap<object, { posts: Array<Record<string, unknown>>; consoleErrors: string[]; pageErrors: string[] }>();\n\ntest.beforeEach(async ({ page }) => {\n  const evidence = { posts: [] as Array<Record<string, unknown>>, consoleErrors: [] as string[], pageErrors: [] as string[] };\n  invitationDiagnostics.set(page, evidence);\n  page.on('console', (message) => {\n    if (message.type() === 'error') evidence.consoleErrors.push(message.text().slice(0,500));\n  });\n  page.on('pageerror', (error) => evidence.pageErrors.push(error.message.slice(0,500)));\n  page.on('response', (response) => {\n    const request = response.request();\n    if (request.method() !== 'POST' || !new URL(response.url()).pathname.startsWith('/organisation')) return;\n    const record: Record<string, unknown> = {\n      path: new URL(response.url()).pathname,\n      status: response.status(),\n      at: Date.now(),\n      complete: false,\n    };\n    evidence.posts.push(record);\n    void response.text().then((body) => {\n      Object.assign(record, {\n        complete: true,\n        completedAt: Date.now(),\n        bytes: Buffer.byteLength(body),\n        hasInvitationResult: body.includes('invitationUrl'),\n        hasCreatedCohortResult: body.includes('Kohorte') && body.includes('angelegt'),\n      });\n    }).catch((error: unknown) => {\n      record.bodyReadError = error instanceof Error ? error.message.slice(0,300) : 'unknown';\n    });\n  });\n});\n\ntest.afterEach(async ({ page }, testInfo) => {\n  const evidence: Record<string, unknown> = invitationDiagnostics.get(page) ?? {};\n  evidence.testStatus = testInfo.status;\n  evidence.urlPath = new URL(page.url()).pathname;\n  evidence.title = await page.title().catch(() => 'unavailable');\n  evidence.ui = await page.locator('main').innerText().then(text => ({\n    nonempty: text.trim().length > 0,\n    pendingInvitation: text.includes('Wird erstellt'),\n    pendingCohort: text.includes('Wird angelegt'),\n    visibleInvitation: /\\\\/einladung\\\\//.test(text),\n    hasFrameworkError: /Application error|Internal Server Error/.test(text),\n  })).catch(() => null);\n  evidence.resources = await page.evaluate(() => performance.getEntriesByType('resource')\n    .filter((entry) => new URL(entry.name).pathname.startsWith('/organisation/'))\n    .map((entry) => {\n      const resource = entry as PerformanceResourceTiming;\n      return { path: new URL(entry.name).pathname, startTime: resource.startTime,\n        duration: resource.duration, responseEnd: resource.responseEnd, decodedBodySize: resource.decodedBodySize };\n    }));\n  const slug = new URL(page.url()).pathname.split('/')[2];\n  if (slug) {\n    const client = new Client({ connectionString: process.env.DATABASE_URL });\n    try {\n      await client.connect();\n      const result = await client.query(\n        'SELECT (SELECT count(*)::int FROM invitations i WHERE i.\"organizationId\" = o.id) AS invitations, (SELECT count(*)::int FROM audit_entries a WHERE a.\"organizationId\" = o.id AND a.action = \\'invitation.created\\') AS invitation_audits, (SELECT count(*)::int FROM cohorts c WHERE c.\"organizationId\" = o.id) AS cohorts FROM organizations o WHERE o.slug = $1', [slug],\n      );\n      evidence.database = result.rows;\n    } catch (error) {\n      evidence.databaseReadError = error instanceof Error ? error.message : 'unknown';\n    } finally { await client.end(); }\n  }\n  await writeFile(testInfo.outputPath('invitation-diagnostics.json'), JSON.stringify(evidence,null,2));\n  console.log('[issue51-diagnostics]', JSON.stringify(evidence));\n  await page.screenshot({ path: testInfo.outputPath('final-ui.png'), fullPage: false }).catch(() => {});\n});\n");
+          DIAGNOSTICS
+      - name: Repeat invitation flow with diagnostics and no retries
         run: |
           set -o pipefail
           npm run test:e2e -- e2e/organisation.spec.ts --project=desktop-chromium --grep 'legt eine Organisation an' --repeat-each=10 --retries=0 --workers=1 --reporter=list --output=/tmp/issue51-results 2>&1 | tee /tmp/issue51-e2e.log
@@ -57,7 +64,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: issue51-baseline-8479847
+          name: issue51-diagnostics-8479847
           path: |
             /tmp/issue51-results/
             /tmp/issue51-e2e.log
