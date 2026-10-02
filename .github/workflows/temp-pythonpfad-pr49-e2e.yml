@@ -1,0 +1,71 @@
+name: TEMP PythonPfad PR49 E2E verification
+
+on:
+  push:
+    branches:
+      - codex/verify-python-e2e-pr49-20261002
+    paths:
+      - '.github/workflows/temp-pythonpfad-pr49-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pythonpfad
+          POSTGRES_PASSWORD: pythonpfad
+          POSTGRES_DB: pythonpfad
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U pythonpfad -d pythonpfad"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    defaults:
+      run:
+        working-directory: pythonpfad
+    env:
+      DATABASE_URL: postgresql://pythonpfad:pythonpfad@127.0.0.1:5432/pythonpfad?schema=public
+      AUTH_SECRET: ci-lauf-geheimnis-ohne-jede-bedeutung-0123456789
+      APP_URL: http://127.0.0.1:3100
+      SEED_DEMO_USERS: 'false'
+      E2E_PORT: '3100'
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 6edac14a5171d5ee3c0823760694fdc4e4bbb9a7
+          fetch-depth: 2
+      - name: Verify exact PR head and patch
+        working-directory: .
+        run: |
+          test "$(git rev-parse HEAD)" = "6edac14a5171d5ee3c0823760694fdc4e4bbb9a7"
+          git diff --check c4a5d9d61215516c4b19d41cf702ea89c40f1887 HEAD
+          git diff --stat c4a5d9d61215516c4b19d41cf702ea89c40f1887 HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: pythonpfad/package-lock.json
+      - run: npm ci
+      - run: npm run db:deploy
+      - run: npm run db:seed
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Complete Python E2E suite
+        run: npm run test:e2e -- --reporter=list,html
+      - name: Save Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pythonpfad-pr49-6edac14-playwright
+          path: |
+            pythonpfad/playwright-report/
+            pythonpfad/test-results/
+          retention-days: 7
