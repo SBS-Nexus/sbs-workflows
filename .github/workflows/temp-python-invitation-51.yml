@@ -1,4 +1,4 @@
-name: TEMP PythonPfad invitation issue51 diagnosis
+name: TEMP PythonPfad issue51 controlled isolation
 on:
   push:
     branches: [codex/diagnose-python-invitation-51]
@@ -7,6 +7,11 @@ permissions:
   contents: read
 jobs:
   reproduce:
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [baseline, no-service-worker, no-prefetch]
+    name: isolation (${{ matrix.variant }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -35,12 +40,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: a549d5ba57cbb167ab3ad5ee39b5553585c05e74
+          ref: 847984718445c7ff13f9a286b4ae55858c67ff88
           fetch-depth: 10
       - name: Verify candidate source
         working-directory: .
         run: |
-          test "$(git rev-parse HEAD)" = "a549d5ba57cbb167ab3ad5ee39b5553585c05e74"
+          test "$(git rev-parse HEAD)" = "847984718445c7ff13f9a286b4ae55858c67ff88"
           git diff --check 847984718445c7ff13f9a286b4ae55858c67ff88 HEAD
       - uses: actions/setup-node@v4
         with:
@@ -50,11 +55,32 @@ jobs:
       - run: npm ci
       - run: npm run db:deploy
       - run: npm run db:seed
-      - name: Check formatting, lint and types
+      - name: Apply isolated diagnostic variable
+        env:
+          VARIANT: ${{ matrix.variant }}
         run: |
-          npx prettier --check 'src/app/(app)/organisation/[slug]/cohort-and-invite-forms.tsx' 'src/app/(app)/organisation/use-organisation-form.ts' 'src/app/(app)/organisation/create-organisation-form.tsx' e2e/organisation.spec.ts
-          npm run lint
-          npm run typecheck
+          node --input-type=module <<'DIAG'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          if (process.env.VARIANT === 'no-service-worker') {
+            const file = 'playwright.config.ts';
+            fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('use: {\n', "use: {\n    serviceWorkers: 'block',\n"));
+          }
+          if (process.env.VARIANT === 'no-prefetch') {
+            function visit(dir) {
+              for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+                const file = path.join(dir, item.name);
+                if (item.isDirectory()) visit(file);
+                else if (file.endsWith('.tsx')) {
+                  const original = fs.readFileSync(file, 'utf8');
+                  const changed = original.replace(/<Link\b[^>]*>/g, tag => tag.includes('prefetch=') ? tag.replace(/prefetch=\{[^}]*\}/g, 'prefetch={false}') : tag.replace('<Link', '<Link prefetch={false}'));
+                  if (changed !== original) fs.writeFileSync(file, changed);
+                }
+              }
+            }
+            visit('src');
+          }
+          DIAG
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - name: Add runner-only browser and database observations
@@ -68,16 +94,12 @@ jobs:
       - name: Repeat invitation flow with diagnostics and no retries
         run: |
           set -o pipefail
-          npm run test:e2e -- e2e/organisation.spec.ts --project=desktop-chromium --grep 'legt eine Organisation an' --repeat-each=20 --max-failures=3 --retries=0 --workers=1 --reporter=list --output=/tmp/issue51-results 2>&1 | tee /tmp/issue51-e2e.log
-      - name: Complete Python E2E suite without retries
-        run: |
-          set -o pipefail
-          npm run test:e2e -- --retries=0 --reporter=list --output=/tmp/issue51-full-results 2>&1 | tee /tmp/issue51-full-e2e.log
+          npm run test:e2e -- e2e/organisation.spec.ts --project=desktop-chromium --grep 'legt eine Organisation an' --repeat-each=20 --max-failures=0 --retries=0 --workers=1 --reporter=list --output=/tmp/issue51-results 2>&1 | tee /tmp/issue51-e2e.log
       - name: Save diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: issue51-candidate-a549d5b
+          name: issue51-isolation-${{ matrix.variant }}
           path: |
             /tmp/issue51-results/
             /tmp/issue51-e2e.log
