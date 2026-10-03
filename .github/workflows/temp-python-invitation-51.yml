@@ -35,12 +35,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 8d88a538a6bf04519f4a2eae7e161ea749190bfa
+          ref: 8894f40fc1e9621e7568f5cad7e3b3da5ac6cb82
           fetch-depth: 20
       - name: Verify candidate source
         working-directory: .
         run: |
-          test "$(git rev-parse HEAD)" = "8d88a538a6bf04519f4a2eae7e161ea749190bfa"
+          test "$(git rev-parse HEAD)" = "8894f40fc1e9621e7568f5cad7e3b3da5ac6cb82"
           git diff --check 847984718445c7ff13f9a286b4ae55858c67ff88 HEAD
       - uses: actions/setup-node@v4
         with:
@@ -83,7 +83,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: issue51-upstream-8d88a53
+          name: issue51-upstream-8894f40
           path: |
             /tmp/issue51-results/
             /tmp/issue51-e2e.log
