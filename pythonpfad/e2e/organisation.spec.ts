@@ -21,7 +21,8 @@ test('legt eine Organisation an, lädt ein und wahrt dabei die Datensparsamkeit'
     await page.getByRole('button', { name: 'Organisation anlegen' }).click();
     await expect(page.getByText(/Organisation angelegt/)).toBeVisible();
 
-    await page.reload();
+    // Die Serveransicht muss nach der Mutation selbst nachziehen.
+    // Ein Neuladen würde eine hängen gebliebene Revalidierung verdecken.
     await page.getByRole('link', { name: 'Volkshochschule Beispielstadt' }).click();
     await expect(
       page.getByRole('heading', { name: 'Volkshochschule Beispielstadt' }),
@@ -56,7 +57,6 @@ test('legt eine Organisation an, lädt ein und wahrt dabei die Datensparsamkeit'
 
   let einladungsLink = '';
   await test.step('Einladung erstellen', async () => {
-    await page.reload();
     const abschnitt = page.getByRole('region', { name: 'Jemanden einladen' });
     await abschnitt.getByRole('radio', { name: /Lernende Person/ }).check();
     // Direkt in die Kohorte aufnehmen – sonst gehört die Person zwar zur
@@ -73,6 +73,12 @@ test('legt eine Organisation an, lädt ein und wahrt dabei die Datensparsamkeit'
 
     // Der Hinweis muss klarstellen, dass der Link nicht wiederkommt.
     await expect(page.getByText(/nur jetzt angezeigt/)).toBeVisible();
+    await expect(
+      page
+        .getByRole('region', { name: 'Prüfprotokoll' })
+        .getByText(/Einladung als MEMBER erstellt/),
+    ).toBeVisible();
+    await expect(abschnitt.getByRole('button', { name: 'Einladungslink erstellen' })).toBeEnabled();
   });
 
   await test.step('Zweite Person löst die Einladung ein', async () => {

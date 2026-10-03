@@ -1,5 +1,6 @@
 'use client';
 
+import { useActionState } from 'react';
 import {
   Button,
   Callout,
@@ -8,9 +9,14 @@ import {
   SectionHeading,
   inputClass,
 } from '@/components/ui/primitives';
-import { createCohortAction, createInvitationAction } from '@/server/actions/organisation-actions';
+import {
+  createCohortAction,
+  createInvitationAction,
+  type ActionState,
+} from '@/server/actions/organisation-actions';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/domain/organisation/permissions';
-import { useOrganisationForm } from '../use-organisation-form';
+
+const INITIAL: ActionState = { ok: false };
 
 export function CohortAndInviteForms({
   organizationSlug,
@@ -50,10 +56,10 @@ export function CohortAndInviteForms({
 }
 
 function CohortForm({ organizationSlug }: { organizationSlug: string }): React.ReactElement {
-  const { state, action, pending, onSubmit } = useOrganisationForm(createCohortAction);
+  const [state, action, pending] = useActionState(createCohortAction, INITIAL);
 
   return (
-    <form action={action} onSubmit={onSubmit} className="space-y-4">
+    <form action={action} className="space-y-4">
       <input type="hidden" name="organizationSlug" value={organizationSlug} />
 
       <Field label="Name der Kohorte" htmlFor="kohorte-name" error={state.error}>
@@ -103,14 +109,14 @@ function InviteForm({
   cohorts: Array<{ slug: string; name: string }>;
   mayInviteOwners: boolean;
 }): React.ReactElement {
-  const { state, action, pending, onSubmit } = useOrganisationForm(createInvitationAction);
+  const [state, action, pending] = useActionState(createInvitationAction, INITIAL);
 
   const rollen: Array<'MEMBER' | 'TEACHER' | 'OWNER'> = mayInviteOwners
     ? ['MEMBER', 'TEACHER', 'OWNER']
     : ['MEMBER', 'TEACHER'];
 
   return (
-    <form action={action} onSubmit={onSubmit} className="space-y-4">
+    <form action={action} className="space-y-4">
       <input type="hidden" name="organizationSlug" value={organizationSlug} />
 
       <fieldset>
