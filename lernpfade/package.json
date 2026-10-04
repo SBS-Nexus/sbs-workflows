@@ -12,7 +12,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "verify": "npm run typecheck && npm run test && npm run build",
-    "test": "node --experimental-strip-types --test src/domain/review/*.test.ts"
+    "test": "node --experimental-strip-types --test src/domain/review/*.test.ts src/domain/vocabulary/*.test.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "next": "16.3.3",
@@ -20,9 +21,14 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.62.1",
     "@types/node": "26.1.2",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "typescript": "6.0.3"
+  },
+  "overrides": {
+    "playwright-core": "1.62.1"
   }
 }
