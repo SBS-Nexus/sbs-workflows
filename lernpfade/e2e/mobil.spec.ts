@@ -9,6 +9,7 @@ import {
   expectNoSeriousA11yViolations,
   gotoVocab,
   horizontalOverflow,
+  mockProgressSources,
 } from './helpers';
 
 /**
@@ -80,4 +81,30 @@ test('375 px: alle Ansichten ohne horizontales Scrollen und ohne schwere axe-Bef
 test('200 % Zoom (640 CSS-Pixel): bedienbar ohne horizontales Scrollen', async ({ page }) => {
   await page.setViewportSize({ width: 640, height: 400 });
   await fullFlow(page, 'zoom200');
+});
+
+async function progressViews(page: Page, prefix: string): Promise<void> {
+  await mockProgressSources(page, { python: 'ok', sql: 'ok', ai: 'ok' });
+  await page.goto('/fortschritt');
+  await expect(page.getByRole('article', { name: 'AIPfad' }).getByText('LIVE · AI')).toBeVisible();
+  await expect(page.getByRole('article', { name: 'VokabelPfad' }).getByText('LOKAL · nur in diesem Browser')).toBeVisible();
+  await checkView(page, `${prefix} /fortschritt`);
+  await shot(page, `${prefix}-fortschritt`);
+
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await mockProgressSources(page, { python: 'unauthenticated', sql: 'down', ai: 'ok' });
+  await page.reload();
+  await expect(page.getByRole('article', { name: 'SQLPfad' }).getByText('SQLPfad ist derzeit nicht erreichbar.')).toBeVisible();
+  await checkView(page, `${prefix} /fortschritt Teilausfall`);
+  // Navigation bleibt auch hier erreichbar.
+  await expect(page.getByRole('navigation', { name: 'Seitennavigation' }).getByRole('link', { name: 'Fortschritt' })).toBeVisible();
+}
+
+test('375 px: /fortschritt ohne horizontales Scrollen und ohne schwere axe-Befunde (Quellen: MOCK)', async ({ page }) => {
+  await progressViews(page, 'mobil');
+});
+
+test('200 % Zoom (640 CSS-Pixel): /fortschritt bedienbar ohne horizontales Scrollen (Quellen: MOCK)', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 400 });
+  await progressViews(page, 'zoom200');
 });

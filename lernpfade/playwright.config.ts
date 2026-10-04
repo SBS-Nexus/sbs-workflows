@@ -1,6 +1,12 @@
 import { existsSync } from 'node:fs';
 import { defineConfig } from '@playwright/test';
-import { E2E_PORT, HUB_ORIGIN, MOCK_SOURCE_ORIGINS } from './e2e/config';
+import {
+  E2E_PORT,
+  E2E_PORT_UNCONNECTED,
+  HUB_ORIGIN,
+  HUB_ORIGIN_UNCONNECTED,
+  MOCK_SOURCE_ORIGINS,
+} from './e2e/config';
 
 /**
  * Browser-Tests gegen den echten Produktionsbuild des Hubs (`next build` +
@@ -59,19 +65,38 @@ export default defineConfig({
     },
   ],
 
-  webServer: {
-    command: `npm run build && npm run start -- --port ${E2E_PORT} --hostname 127.0.0.1`,
-    url: `${HUB_ORIGIN}/vokabeln`,
-    reuseExistingServer: false,
-    timeout: 240_000,
-    stdout: 'ignore',
-    stderr: 'pipe',
-    env: {
-      ...(process.env as Record<string, string>),
-      NEXT_PUBLIC_REVIEW_FEDERATION_SOURCES: 'python,sql,ai',
-      NEXT_PUBLIC_PYTHONPFAD_URL: MOCK_SOURCE_ORIGINS.python,
-      NEXT_PUBLIC_SQLPFAD_URL: MOCK_SOURCE_ORIGINS.sql,
-      NEXT_PUBLIC_AIPFAD_URL: MOCK_SOURCE_ORIGINS.ai,
+  // Nacheinander gestartet: erst Build und Hub, dann ein zweiter Prozess desselben Builds.
+  webServer: [
+    {
+      command: `npm run build && npm run start -- --port ${E2E_PORT} --hostname 127.0.0.1`,
+      url: `${HUB_ORIGIN}/vokabeln`,
+      reuseExistingServer: false,
+      timeout: 240_000,
+      stdout: 'ignore',
+      stderr: 'pipe',
+      env: {
+        ...(process.env as Record<string, string>),
+        NEXT_PUBLIC_REVIEW_FEDERATION_SOURCES: 'python,sql,ai',
+        PROGRESS_FEDERATION_SOURCES: 'python,sql,ai',
+        NEXT_PUBLIC_PYTHONPFAD_URL: MOCK_SOURCE_ORIGINS.python,
+        NEXT_PUBLIC_SQLPFAD_URL: MOCK_SOURCE_ORIGINS.sql,
+        NEXT_PUBLIC_AIPFAD_URL: MOCK_SOURCE_ORIGINS.ai,
+      },
     },
-  },
+    {
+      command: `npm run start -- --port ${E2E_PORT_UNCONNECTED} --hostname 127.0.0.1`,
+      url: `${HUB_ORIGIN_UNCONNECTED}/fortschritt`,
+      reuseExistingServer: false,
+      timeout: 60_000,
+      stdout: 'ignore',
+      stderr: 'pipe',
+      env: {
+        ...(process.env as Record<string, string>),
+        PROGRESS_FEDERATION_SOURCES: '',
+        NEXT_PUBLIC_PYTHONPFAD_URL: MOCK_SOURCE_ORIGINS.python,
+        NEXT_PUBLIC_SQLPFAD_URL: MOCK_SOURCE_ORIGINS.sql,
+        NEXT_PUBLIC_AIPFAD_URL: MOCK_SOURCE_ORIGINS.ai,
+      },
+    },
+  ],
 });

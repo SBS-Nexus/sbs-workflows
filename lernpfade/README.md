@@ -55,6 +55,25 @@ npm run typecheck
 npm run build
 ```
 
+## Fortschritt: Plattformfortschritt (LP-07)
+
+`/fortschritt` zeigt deinen Stand in PythonPfad, SQLPfad und AIPfad sowie
+deinen lokalen VokabelPfad — **schreibgeschützt**, ohne gemeinsames Konto. Der
+Browser ruft je App `GET /api/platform/progress-source` mit der eigenen Sitzung
+der App auf (keine Abfrageparameter, nur Aggregate, Schema 1 streng geprüft);
+VokabelPfad wird lokal aus IndexedDB gelesen.
+
+- Opt-in: `PROGRESS_FEDERATION_SOURCES=python,sql,ai` (zur Laufzeit gelesen,
+  Vorgabe leer = aus) plus die jeweilige `NEXT_PUBLIC_*_URL`. Getrennt von
+  der Freischaltung für `/wiederholen`.
+- Kein Gesamtprozent, kein Mastery-Score, keine Lernzeit. „Fällig insgesamt"
+  nur, wenn alle verbundenen Quellen geantwortet haben.
+- Dieselbe Same-Site-Voraussetzung wie LP-05B; unter `*.vercel.app` zeigt der
+  Hub „nicht angemeldet".
+- Domäne: `src/domain/progress/`, Oberfläche: `src/components/progress/`,
+  Route `src/app/fortschritt/`. Vertrag und Semantik:
+  `docs/LEARNING-PLATFORM.md`, Abschnitt 12.
+
 ## VokabelPfad (LP-06, lokaler MVP)
 
 `/vokabeln`: eigene Decks Englisch ↔ Deutsch, Karten mit Satzkontext und Tags,

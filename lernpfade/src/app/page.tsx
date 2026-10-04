@@ -58,6 +58,7 @@ export default function Home(): React.ReactElement {
             <a href="#pfade">Pfade</a>
             <a href="/vokabeln">Vokabeln</a>
             <a href="/wiederholen">Wiederholen</a>
+            <a href="/fortschritt">Fortschritt</a>
             <a href="#zukunft">Roadmap</a>
             <a href="#lernmodell">Lernmodell</a>
           </nav>

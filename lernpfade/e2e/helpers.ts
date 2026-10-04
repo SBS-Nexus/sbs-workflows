@@ -226,3 +226,106 @@ export async function mockLiveSources(
     });
   }
 }
+
+export type ProgressMockMode = 'ok' | 'empty' | 'unauthenticated' | 'down' | 'invalid' | 'hang';
+
+/** Gültige Schema-1-Antworten je Quelle — ausdrücklich MOCKS, keine echte App. */
+export const MOCK_PROGRESS = {
+  python: {
+    schemaVersion: 1,
+    source: 'python',
+    generatedAt: '2026-10-04T10:00:00.000Z',
+    participation: { hasActivity: true },
+    lessons: { completed: 3, total: 12 },
+    reviews: { due: 4 },
+    concepts: { observed: 6, ready: 2, criterion: 'prerequisite-ready' },
+    activity: { lastActiveAt: '2026-10-03T18:30:00.000Z' },
+    projects: { kind: 'accepted', done: 1, total: 5 },
+  },
+  sql: {
+    schemaVersion: 1,
+    source: 'sql',
+    generatedAt: '2026-10-04T10:00:00.000Z',
+    participation: { hasActivity: true },
+    lessons: { completed: 7, total: 20 },
+    reviews: { due: 2 },
+    concepts: { observed: 9, ready: 5, criterion: 'all-assessable-tasks-last-passed' },
+    activity: { lastActiveAt: '2026-10-02T07:05:00.000Z' },
+    projects: { kind: 'submitted', done: 2, total: 4 },
+  },
+  ai: {
+    schemaVersion: 1,
+    source: 'ai',
+    generatedAt: '2026-10-04T10:00:00.000Z',
+    participation: { hasActivity: true },
+    lessons: { completed: 1, total: 30 },
+    reviews: { due: 0 },
+    concepts: { observed: 2, ready: 0, criterion: 'prerequisite-ready' },
+    activity: { lastActiveAt: '2026-09-28T12:00:00.000Z' },
+    projects: { kind: 'unsupported' },
+  },
+} as const;
+
+/**
+ * Beantwortet die LP-07-Fortschrittsquellen als MOCK (`page.route`). Es läuft
+ * keine echte App; geprüft wird nur das Verhalten des Hubs. Auch die Seite
+ * `/fortschritt` der Quell-App wird als MOCK-Seite beantwortet, damit der
+ * Link in die App navigierbar ist.
+ */
+export async function mockProgressSources(
+  page: Page,
+  behaviour: Record<keyof typeof MOCK_SOURCE_ORIGINS, ProgressMockMode>,
+): Promise<void> {
+  for (const source of ['python', 'sql', 'ai'] as const) {
+    const origin = MOCK_SOURCE_ORIGINS[source];
+    await page.route(`${origin}/**`, async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname === '/fortschritt') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'text/html; charset=utf-8',
+          body: `<!doctype html><html lang="de"><title>MOCK ${source}</title><h1>MOCK ${source} Fortschritt</h1></html>`,
+        });
+        return;
+      }
+      if (url.pathname !== '/api/platform/progress-source') {
+        await route.fulfill({ status: 404, body: '' });
+        return;
+      }
+      const headers = {
+        'access-control-allow-origin': HUB_ORIGIN,
+        'access-control-allow-credentials': 'true',
+        'cache-control': 'private, no-store, max-age=0',
+        'content-type': 'application/json; charset=utf-8',
+      };
+      const mode = behaviour[source];
+      if (mode === 'hang') return; // nie beantwortet: der Hub muss selbst abbrechen
+      if (mode === 'down') {
+        await route.fulfill({ status: 500, headers, body: JSON.stringify({ error: 'unavailable' }) });
+        return;
+      }
+      if (mode === 'unauthenticated') {
+        await route.fulfill({ status: 401, headers, body: JSON.stringify({ error: 'unauthenticated' }) });
+        return;
+      }
+      const body =
+        mode === 'invalid'
+          ? { ...MOCK_PROGRESS[source], schemaVersion: 2 }
+          : mode === 'empty'
+            ? {
+                ...MOCK_PROGRESS[source],
+                participation: { hasActivity: false },
+                lessons: { completed: 0, total: MOCK_PROGRESS[source].lessons.total },
+                reviews: { due: 0 },
+                concepts: { ...MOCK_PROGRESS[source].concepts, observed: 0, ready: 0 },
+                activity: { lastActiveAt: null },
+                projects:
+                  MOCK_PROGRESS[source].projects.kind === 'unsupported'
+                    ? MOCK_PROGRESS[source].projects
+                    : { ...MOCK_PROGRESS[source].projects, done: 0 },
+              }
+            : MOCK_PROGRESS[source];
+      await route.fulfill({ status: 200, headers, body: JSON.stringify(body) });
+    });
+  }
+}

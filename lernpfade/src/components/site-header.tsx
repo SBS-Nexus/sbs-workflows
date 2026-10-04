@@ -1,5 +1,5 @@
 /** Kopfzeile der Unterseiten des Hubs mit Rückweg zur Startseite. */
-export function SiteHeader({ current }: { current: 'vokabeln' | 'wiederholen' }): React.ReactElement {
+export function SiteHeader({ current }: { current: 'vokabeln' | 'wiederholen' | 'fortschritt' }): React.ReactElement {
   return (
     <header className="site-header site-header-sub">
       <div className="shell header-inner">
@@ -19,6 +19,9 @@ export function SiteHeader({ current }: { current: 'vokabeln' | 'wiederholen' })
           </a>
           <a href="/wiederholen" aria-current={current === 'wiederholen' ? 'page' : undefined}>
             Wiederholen
+          </a>
+          <a href="/fortschritt" aria-current={current === 'fortschritt' ? 'page' : undefined}>
+            Fortschritt
           </a>
         </nav>
       </div>

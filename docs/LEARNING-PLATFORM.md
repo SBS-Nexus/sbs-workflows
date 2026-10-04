@@ -362,7 +362,7 @@ sie auf genau eine Origin beschränkt und standardmäßig aus ist.
 - **LP-05C** (Abschließen/Bewerten aus dem Hub) braucht eine eigene,
   schreibende Grenze je App (POST, CSRF, Idempotenz) — nicht eine Erweiterung
   dieser GET-Route.
-- **LP-07** kann dasselbe Muster für Fortschritt nutzen; scheitert die
+- **LP-07** nutzt dasselbe Muster für Fortschritt (Abschnitt 12); scheitert die
   Same-Site-Voraussetzung, spricht das für LP-08 (gemeinsame Identität),
   nicht für das Teilen von Cookies.
 
@@ -553,3 +553,204 @@ npm run test:e2e   # Playwright gegen Produktionsbuild: Desktop, 375 px, 200 % Z
 
 Die E2E-Tests beantworten die LP-05B-Quellen mit `page.route`-**Mocks**; sie
 belegen das Verhalten des Hubs, nicht das der echten Apps.
+
+## 12. Plattformfortschritt — read-only Federation (LP-07)
+
+Stand: implementiert auf dem abhängigen Branch `claude/lernpfade-lp07-progress`
+(PR gegen `claude/lernpfade-unified-hub`); **nicht** in `main`, **nicht**
+produktiv aktiviert. Architekturentscheidung: **Option A — Aggregation über
+die bestehenden Apps.**
+
+```text
+Python Progress ─┐
+SQL Progress ────┼──> Browser im Lernpfade-Hub ──> /fortschritt
+AIPfad Progress ─┘
+VokabelPfad local IndexedDB ────────────────┘
+
+Die drei Apps bleiben Systeme der Wahrheit.
+Der Hub liest, validiert, normalisiert und zeigt nur an.
+```
+
+### 12.1 Datenbesitz
+
+PythonPfad, SQLPfad und AIPfad bleiben die **Systeme der Wahrheit** für ihren
+Lernstand; VokabelPfad bleibt lokal im Browser. Der Hub besitzt keine
+Fortschrittsdaten: kein gemeinsames Konto, keine gemeinsame
+Fortschrittsdatenbank, kein SSO, keine Cookie-Freigabe über eine
+Parent-Domain, keine Datenmigration, kein Zurückschreiben. Die bestehenden
+Fortschrittsseiten der Apps bleiben unverändert; LP-07 liest ihre Wahrheiten,
+es ersetzt sie nicht.
+
+### 12.2 Transport, Autorisierung, Cache
+
+Je App eine **eigene** Route `GET /api/platform/progress-source` — bewusst
+nicht eine Erweiterung von `review-source` (Abschnitt 10). Sonst gilt alles
+aus 10.3–10.5:
+
+```text
+request → Origin/CORS prüfen → Sitzung der App prüfen
+        → userId ausschließlich serverseitig ableiten
+        → nur aggregierte eigene Daten lesen → versionierte Antwort
+```
+
+- Der **Browser** ruft jede App mit deren eigener Sitzung auf
+  (`credentials: 'include'`); der Hub-Server sieht weder Cookie noch Kennung.
+- Die Route nimmt **keinen** Abfrageparameter an; jeder — insbesondere
+  `userId`, E-Mail oder Konto-ID — wird mit 400 abgewiesen. Ohne Sitzung 401.
+  Nur GET; andere Methoden 405.
+- CORS nur für genau `PLATFORM_HUB_ORIGIN` (dieselbe Einstellung wie LP-05B,
+  Vorgabe leer = aus). `Cache-Control: private, no-store, max-age=0`,
+  `Vary: Origin, Cookie`, `force-dynamic`. Fehler ohne Meldung, Stack oder
+  Datenbankdetail.
+- `src/server/platform/progress-source-http.ts` ist in allen drei Apps
+  wortgleich.
+- **Freischaltung im Hub:** `PROGRESS_FEDERATION_SOURCES=python,sql,ai`
+  (Vorgabe leer = aus), getrennt von `NEXT_PUBLIC_REVIEW_FEDERATION_SOURCES`,
+  plus die vorhandenen `NEXT_PUBLIC_*_URL`. Der Schalter wird zur Laufzeit
+  auf dem Server gelesen (`/fortschritt` ist dynamisch gerendert, enthält
+  serverseitig aber keine personenbezogenen Daten); Umschalten braucht keinen
+  neuen Build. In diesem Slice wird **kein** Produktionswert gesetzt.
+
+### 12.3 Progress-Contract — Schema 1
+
+```ts
+type PlatformProgressSourceV1 = {
+  schemaVersion: 1
+  source: 'python' | 'sql' | 'ai'
+  generatedAt: string                     // ISO-8601 UTC
+  participation: { hasActivity: boolean }
+  lessons: { completed: number; total: number }
+  reviews: { due: number }
+  concepts: {
+    observed: number
+    ready: number
+    criterion: 'prerequisite-ready' | 'all-assessable-tasks-last-passed'
+  }
+  activity: { lastActiveAt: string | null }
+  projects:
+    | { kind: 'accepted'; done: number; total: number }
+    | { kind: 'submitted'; done: number; total: number }
+    | { kind: 'unsupported' }
+}
+```
+
+Der Hub (`lernpfade/src/domain/progress/contract.ts`) prüft geschlossen:
+genau diese Felder auf jeder Ebene (unbekannte → ungültig), Version 1 (sonst
+ungültig, nie still interpretiert), `source` = angefragte Quelle, endliche
+nichtnegative Ganzzahlen bis 1 000 000, `completed ≤ total`,
+`ready ≤ observed`, `done ≤ total`, echte ISO-Zeitpunkte, und die
+**quellspezifische Semantik**: `criterion` und `projects.kind` sind je Quelle
+fest (siehe 12.4); eine Quelle, die eine fremde Semantik meldet, ist ungültig.
+`hasActivity: false` neben vorhandenen Belegen ist widersprüchlich und
+ungültig. Eine ungültige Antwort macht nur diese Quelle „nicht erreichbar".
+
+### 12.4 Quellspezifische Semantik — bewusst nicht vereinheitlicht
+
+| | PythonPfad | SQLPfad | AIPfad |
+|---|---|---|---|
+| Lektionen | Lektion, Modul, Kurs veröffentlicht; `LessonProgress.state = COMPLETED` — Zähler und Nenner derselbe Bestand | veröffentlichte Lektionen wie im eigenen Überblick; Zähler auf denselben Bestand begrenzt | `veroeffentlichteLektion` für Zähler und Nenner, wie `/fortschritt` der App |
+| Wiederholungen fällig | eigene, offene, fällige `ReviewQueueItem` veröffentlichter Aufgaben — dieselbe Wahrheit wie die Wiederholungsquelle | fällige, übbare Konzepte über `ConceptMastery.nextReviewAt` — dieselbe Bedingung wie die Wiederholungsquelle (je Konzept gezählt) | wie PythonPfad, mit `veroeffentlichteAufgabe` |
+| Konzepte beobachtet | eigene `ConceptMastery`-Belege (entstehen nur durch Bearbeitung), Wert 0–100 gültig | beurteilbare Konzepte mit mindestens einer bearbeiteten Aufgabe (Stand `angefangen`, `wackelig`, `sitzt`) | wie PythonPfad |
+| Konzepte bereit | `meetsPrerequisite` (Voraussetzungsschwelle der App) — `prerequisite-ready` | nur Stand `sitzt` = alle beurteilbaren Aufgaben zuletzt gelöst — `all-assessable-tasks-last-passed` | `meetsPrerequisite` — `prerequisite-ready` |
+| Projekte | `accepted`: veröffentlichte Projekte mit Abgabe `ACCEPTED` | `submitted`: veröffentlichte Projekte mit Abgabe `SUBMITTED` | `unsupported` |
+| Letzte Aktivität | spätester Versuch, Lernsitzungseintrag oder Lektionsabschluss | spätester Versuch, Lernsitzungseintrag (`haltAktivitaetFest`) oder Lektionsabschluss | spätester Aufgabenversuch, Lab-Eintrag oder Lektionsabschluss |
+
+**SQL ist kein Prozentmodell.** SQLPfad leitet den Konzeptstand bei jedem
+Aufruf aus den letzten eigenen Ergebnissen ab (`bewerteKonzept`, dieselbe
+Ableitung wie seine Wissenslandkarte) und nennt ein Wort, keine Zahl.
+`ConceptMastery.masteryScore` schreibt SQLPfad nicht; er wird weder gelesen
+noch weitergegeben und nie als Kompetenz- oder Cross-App-Metrik genutzt.
+Python und AIPfad haben ein Kompetenzmodell mit Wert 0–100; der **Rohwert
+verlässt die App nicht** — nur die Zahl der Konzepte über der
+Voraussetzungsschwelle der jeweiligen App. „Gefestigt" (Python/AI) und
+„sitzt" (SQL) sind verschiedene Kriterien und werden im Hub mit ihrer
+eigenen Bedeutung beschriftet, nicht verrechnet.
+
+**Projekte:** PythonPfad nimmt Abgaben ab (`ACCEPTED`) — angezeigt als
+„abgenommen". SQLPfad markiert eine Abgabe nie automatisch als abgenommen —
+angezeigt als „abgegeben", mit dem Hinweis, dass SQLPfad nicht fachlich
+abnimmt. AIPfad hat keine Projektwahrheit — angezeigt als „AIPfad hat keine
+Projekte", nie als „0 von 0".
+
+**Aktivität:** nur ein ehrlicher letzter Zeitpunkt je Pfad. **Keine** Lernzeit
+und keine Tageswerte über Pfade hinweg, solange Tages-, Zeitzonen- und
+Sitzungssemantik der Apps nicht vereinheitlicht sind. Bloßes Öffnen einer
+Seite ist keine Aktivität.
+
+### 12.5 Privacy-Minimierung
+
+Die Antwort enthält nur Zähler, feste Aufzählungswerte und Zeitstempel —
+keine Namen, E-Mails, Nutzer- oder Sitzungskennungen, keine Lektions- oder
+Konzepttitel, keine Prompts, Antworten, Code, SQL oder Projektinhalte, keine
+Rohwerte. Der strenge Feldabgleich im Hub lässt keinen Platz für zusätzliche
+Felder. Protokolliert wird je App nur Ereignisname und Fehlerart, nie eine
+Antwort.
+
+### 12.6 Teilausfall und Gesamtwerte
+
+- Jede Quelle wird für sich geladen und angezeigt (eigene Zeitgrenze 5 s);
+  eine langsame oder ausgefallene Quelle blockiert weder die anderen noch die
+  lokalen Vokabeln. Die Reihenfolge der Karten ist fest.
+- Zustände je Quelle: `ok`, `unauthenticated`, `unavailable`,
+  `not_configured`. „Nicht angemeldet", „nicht verbunden", „nicht erreichbar"
+  und eine unbekannte Vertragsversion sind **nie** „0 Fortschritt". Eine
+  echte 0 erscheint nur nach erfolgreicher Anmeldung und Prüfung.
+- **Kein** globaler Mastery-Score, **kein** gewichtetes Gesamtprozent, kein
+  Ranking, keine Lernminuten, kein „eingeschrieben" (es gibt keine zentrale
+  Enrollment-Wahrheit). Das Lektionsverhältnis je Pfad heißt
+  „Lektionsfortschritt", nicht Kompetenz.
+- Die einzige Summe, **„Fällig insgesamt"**, zählt fällige Wiederholungen der
+  Apps und fällige Vokabelabfragen, je Quelle ausgewiesen. Fehlt eine
+  verbundene Quelle oder sind die lokalen Vokabeln unlesbar, gibt es **keine**
+  Gesamtzahl, sondern den Hinweis, was fehlt.
+
+### 12.7 VokabelPfad lokal
+
+- Gelesen wird die bestehende IndexedDB über denselben Adapter wie
+  `/vokabeln`; ausgewertet mit derselben Statistik (`vocabStats`): Karten,
+  Decks, fällig je Richtung, heute bewertet. Kein Upload, kein neuer
+  Endpunkt, kein Konto. Kennzeichnung: **LOKAL · nur in diesem Browser**.
+  Gelesen wird nur; gibt es noch keine VokabelPfad-Datenbank, legt der
+  Browser beim Öffnen — wie auf `/vokabeln` — die leere Struktur an, ohne
+  Daten.
+- Beschädigte, künftige oder gesperrte Speicherstände bleiben ein sichtbarer
+  Fehler mit Weg zu `/vokabeln` — nie 0.
+- Das DEMO-Deck aus `/wiederholen` (`localStorage`) zählt weder zum Vokabel-
+  noch zum Plattformfortschritt.
+
+### 12.8 Same-Site-Grenze und Previews
+
+Wie 10.3: Ohne gemeinsame registrierbare Domain schickt der Browser das
+`SameSite=Lax`-Sitzungscookie nicht mit. Unter `*.vercel.app` (Public Suffix)
+antworten die Apps dem Hub deshalb mit 401, und `/fortschritt` zeigt „nicht
+angemeldet". Die Cookie-Attribute werden nicht gelockert; Domain-/DNS-Arbeit
+ist nicht Teil von LP-07. Previews der Apps belegen die Routen, nicht den
+föderierten Browserablauf.
+
+### 12.9 Restrisiko
+
+Wie 10.9: Eine XSS-Lücke in der freigegebenen Hub-Origin könnte die
+Fortschrittsaggregate der angemeldeten Person lesen — nur lesen, nur diese
+Zahlen. Die Antwort enthält bewusst keine Inhalte.
+
+### 12.10 Bewusste Nicht-Ziele
+
+Kein SSO (LP-08), keine gemeinsame Identität, keine gemeinsame
+Fortschrittsdatenbank, keine Prisma-Migration, kein Zurückschreiben oder
+Abschließen aus dem Hub (LP-05C), keine Lernzeit-Aggregation, keine
+Produktionsaktivierung, keine Domain-/DNS-Änderung.
+
+### 12.11 Tests
+
+- Je App: Vertrag und HTTP-Grenze ohne Datenbank
+  (`tests/unit/platform-progress-source-http.test.ts`) und Leser plus Route
+  gegen eine echte PostgreSQL-Datenbank
+  (`tests/integration/platform-progress-source.test.ts`): nur eigene Daten,
+  Veröffentlichung, Zähler/Nenner, Review-Gleichheit mit der
+  Wiederholungsquelle, Konzept- und Projektsemantik, letzte Aktivität,
+  keine Schreibwirkung, 401/400, CORS, Cache.
+- Hub: `src/domain/progress/*.test.ts` (Vertrag, Abruf, Teilausfall,
+  Summenregel, Reihenfolgeunabhängigkeit, Vokabeln lokal) und
+  `e2e/fortschritt.spec.ts` gegen den Produktionsbuild — die Quellen sind dort
+  ausdrücklich `page.route`-**Mocks**. Für „nicht verbunden" startet Playwright
+  einen zweiten Prozess desselben Builds ohne Freischaltung.
