@@ -7,6 +7,7 @@ import {
   isIsoTimestamp,
   isValidId,
   localDayKey,
+  nextLocalDayStart,
   parseReviewKey,
   reviewKey,
   splitTagInput,
@@ -86,4 +87,20 @@ test('the local day follows the given time zone, not UTC', () => {
   assert.equal(localDayKey(lateUtc, 'Europe/Berlin'), '2026-10-05');
   // Und in Los Angeles ist es noch derselbe Tag wie in UTC.
   assert.equal(localDayKey(new Date('2026-10-05T03:00:00.000Z'), 'America/Los_Angeles'), '2026-10-04');
+});
+
+test('next local day start: exact to the second, never early, also across DST changes', () => {
+  const cases: [string, string, string][] = [
+    // [jetzt, erwarteter Tagesbeginn (UTC), Zeitzone]
+    ['2026-10-04T21:59:50.000Z', '2026-10-04T22:00:00.000Z', 'Europe/Berlin'],
+    ['2026-10-25T00:30:00.000Z', '2026-10-25T23:00:00.000Z', 'Europe/Berlin'], // 25-Stunden-Tag
+    ['2027-03-27T23:30:00.000Z', '2027-03-28T22:00:00.000Z', 'Europe/Berlin'], // 23-Stunden-Tag
+    ['2026-10-04T10:00:00.000Z', '2026-10-05T00:00:00.000Z', 'UTC'],
+  ];
+  for (const [now, expected, zone] of cases) {
+    const next = nextLocalDayStart(new Date(now), zone);
+    const offset = next.getTime() - Date.parse(expected);
+    assert.ok(offset >= 0 && offset <= 1000, `${now} ${zone}: ${next.toISOString()}`);
+    assert.notEqual(localDayKey(next, zone), localDayKey(new Date(now), zone));
+  }
 });

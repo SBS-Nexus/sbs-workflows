@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useMemo, useState } from 'react';
-import { exportDecks, exportFileName } from '@/domain/vocabulary/exchange';
+import { formatMiB, prepareExport } from '@/domain/vocabulary/exchange';
 import { DIRECTION_LABELS, LIMITS, type Direction, type VocabStore } from '@/domain/vocabulary/model';
 import { createDeck, deckDeletionImpact, deleteDeck } from '@/domain/vocabulary/operations';
 import { newId } from '@/domain/vocabulary/fields';
@@ -37,16 +37,44 @@ export function VocabOverview({
   focusHeading: boolean;
 }): React.ReactElement {
   const headingRef = useFocusOnMount<HTMLHeadingElement>(focusHeading);
-  const now = new Date();
+  const now = actions.now;
   const stats = vocabStats(store, now, actions.timeZone);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const deckToDelete = store.decks.find((deck) => deck.id === pendingDelete) ?? null;
   const impact = deckToDelete ? deckDeletionImpact(store, deckToDelete.id) : null;
 
+  /**
+   * Gemeinsamer Exportweg für ein Deck und für alle Decks. Erzeugt nur Dateien,
+   * die sich wieder importieren lassen; sonst eine klare Meldung statt Erfolg.
+   */
+  function exportDecksToFile(deckIds: string[] | null, label: string): void {
+    const prepared = prepareExport(store, deckIds, new Date());
+    if (prepared.ok) {
+      downloadText(prepared.value.fileName, prepared.value.text);
+      actions.notify({ tone: 'success', text: `${label} exportiert – ohne Lernfortschritt.` });
+      return;
+    }
+    const { bytes, oversizedDecks } = prepared.error;
+    const what = deckIds ? label : 'Alle Decks zusammen';
+    const parts = [
+      `Nicht exportiert: ${what} ergäbe${deckIds ? '' : 'n'} eine Datei von ${formatMiB(bytes)} – mehr als die Importgrenze von 2 MiB. Sie ließe sich nicht wieder importieren und wird deshalb nicht erzeugt.`,
+    ];
+    if (!deckIds && oversizedDecks.length < store.decks.length) {
+      parts.push('Exportiere die Decks einzeln über „Exportieren" am jeweiligen Deck – jedes davon bleibt für sich importierbar.');
+    }
+    if (deckIds) {
+      parts.push('Kürze lange Texte oder lösche Karten in diesem Deck, um es sichern zu können.');
+    } else if (oversizedDecks.length > 0) {
+      parts.push(
+        `Zu groß für eine einzelne Datei: ${oversizedDecks.map((deck) => `„${deck.name}" (${formatMiB(deck.bytes)})`).join(', ')}. Kürze lange Texte oder lösche Karten darin, um ${oversizedDecks.length === 1 ? 'es' : 'sie'} sichern zu können.`,
+      );
+    }
+    parts.push('Deine Daten in diesem Browser bleiben unverändert.');
+    actions.notify({ tone: 'error', text: parts.join(' ') });
+  }
+
   function exportAll(): void {
-    const file = exportDecks(store, null, new Date());
-    downloadText(exportFileName(file), `${JSON.stringify(file, null, 2)}\n`);
-    actions.notify({ tone: 'success', text: `${plural(file.decks.length, 'Deck', 'Decks')} exportiert – ohne Lernfortschritt.` });
+    exportDecksToFile(null, plural(store.decks.length, 'Deck', 'Decks'));
   }
 
   function confirmDeleteDeck(): void {
@@ -155,11 +183,7 @@ export function VocabOverview({
                       className="button button-secondary"
                       type="button"
                       aria-label={`Exportieren: ${deck.name}`}
-                      onClick={() => {
-                        const file = exportDecks(store, [deck.id], new Date());
-                        downloadText(exportFileName(file), `${JSON.stringify(file, null, 2)}\n`);
-                        actions.notify({ tone: 'success', text: `„${deck.name}" exportiert – ohne Lernfortschritt.` });
-                      }}
+                      onClick={() => exportDecksToFile([deck.id], `„${deck.name}"`)}
                     >
                       Exportieren
                     </button>
@@ -246,7 +270,7 @@ function SessionSetup({ store, actions }: { store: VocabStore; actions: VocabAct
     () => new Set(store.decks.map((deck) => deck.id).filter((id) => !excluded.has(id))),
     [store.decks, excluded],
   );
-  const now = new Date();
+  const now = actions.now;
   const options = { deckIds: selectedDecks, directions: directionsOf(choice), now };
   const dueCount = dueTasks(store, options).length;
   const sessionSize = Math.min(dueCount, LIMITS.sessionSize);

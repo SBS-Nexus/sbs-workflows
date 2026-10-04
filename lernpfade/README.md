@@ -64,6 +64,10 @@ Datenbank `lernpfade-vokabeln`; Revisionsprüfung und Schreiben atomar in einer
 Transaktion, damit kein Tab einen anderen still überschreibt) — kein Konto,
 keine Synchronisation.
 Geplant wird mit dem gemeinsamen Review-Core (`src/domain/review/scheduler.ts`).
+Exporte sind kompaktes JSON und werden nur erzeugt, wenn sie wieder
+importierbar sind (≤ 2 MiB); kein Deck darf darüber hinauswachsen. Statistik
+und Fälligkeiten folgen der Uhr auch bei offener Seite (nächste Fälligkeit,
+Tageswechsel, Rückkehr in den Tab).
 
 - Domäne und Speicher: `src/domain/vocabulary/` (rein, ohne Browser testbar)
 - Oberfläche: `src/components/vocabulary/`, Route `src/app/vokabeln/`

@@ -61,7 +61,7 @@ export function VocabDeckView({
   const tags = deckTags(store, deck.id);
   const activeTag = tag && tags.some((entry) => entry.toLocaleLowerCase('de-DE') === tag.toLocaleLowerCase('de-DE')) ? tag : null;
   const visible = cardsWithTag(cards, activeTag);
-  const counts = deckStats(store, deck.id, new Date());
+  const counts = deckStats(store, deck.id, actions.now);
   const cardToDelete = cards.find((card) => card.id === pendingCardDelete) ?? null;
   const cardImpact = cardToDelete ? cardDeletionImpact(store, cardToDelete.id) : null;
   const deckImpact = deckDeletionImpact(store, deck.id);

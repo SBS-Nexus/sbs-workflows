@@ -7,6 +7,7 @@ import {
   buildQueue,
   currentTask,
   isFinished,
+  nextChangeAt,
   nextDueAt,
   recordResult,
   reveal,
@@ -213,4 +214,28 @@ test('follow-up counts due work in decks the capped session never reached', () =
   for (const task of tasks) store = must(applyRating(store, task, 'good', NOW)).store;
 
   assert.equal(sessionFollowUp(store, selection, NOW).remainingDue, 2, "deck-b's two queries are still due");
+});
+
+test('next change: local midnight first, then the next due time; stats change exactly there', () => {
+  const zone = 'Europe/Berlin';
+  const lateEvening = new Date('2026-10-04T21:59:50.000Z'); // 23:59:50 in Berlin
+  let store = sampleStore();
+  // Neue Karten sind sofort fällig; bis Mitternacht ändert sich nichts.
+  assert.ok(Math.abs(nextChangeAt(store, lateEvening, zone).getTime() - Date.parse('2026-10-04T22:00:00.000Z')) <= 1000);
+
+  for (const task of buildQueue(store, { deckIds: null, directions: ['en-de', 'de-en'], now: lateEvening })) {
+    store = must(applyRating(store, task, 'good', lateEvening, zone)).store;
+  }
+  const before = vocabStats(store, lateEvening, zone);
+  assert.equal(before.ratedToday, 6);
+  assert.deepEqual(before.dueByDirection, { 'en-de': 0, 'de-en': 0 });
+
+  const midnight = nextChangeAt(store, lateEvening, zone);
+  assert.equal(vocabStats(store, midnight, zone).ratedToday, 0, 'neuer Tag');
+
+  // Nach Mitternacht ist die nächste Änderung die Fälligkeit, nicht die nächste Mitternacht.
+  const dueAt = nextChangeAt(store, midnight, zone);
+  assert.equal(dueAt.toISOString(), nextDueAt(store, { deckIds: null, directions: ['en-de', 'de-en'], now: midnight }));
+  assert.deepEqual(vocabStats(store, new Date(dueAt.getTime() - 1), zone).dueByDirection, { 'en-de': 0, 'de-en': 0 });
+  assert.deepEqual(vocabStats(store, dueAt, zone).dueByDirection, { 'en-de': 3, 'de-en': 3 });
 });

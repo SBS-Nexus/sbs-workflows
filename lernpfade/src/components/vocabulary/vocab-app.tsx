@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { VOCAB_CHANNEL, browserBackend } from '@/domain/vocabulary/idb-backend';
 import type { VocabStore } from '@/domain/vocabulary/model';
-import type { ReviewTask, SessionSelection } from '@/domain/vocabulary/session';
+import { nextChangeAt, type ReviewTask, type SessionSelection } from '@/domain/vocabulary/session';
 import {
   loadVocabStorage,
   resetVocabStorage,
@@ -28,7 +28,18 @@ import { VocabSession } from './vocab-session';
  * `domain/vocabulary/storage.ts`). Über einen `BroadcastChannel` melden Tabs
  * einander neue Stände, damit ein veralteter Tab sich sofort sperrt; die
  * eigentliche Sicherung ist die Revisionsprüfung beim Schreiben.
+ *
+ * Zeitbasis: Alle Ansichten rechnen mit demselben `actions.now`. Es wird
+ * aktualisiert, sobald sich Angezeigtes von selbst ändern kann (nächste
+ * Fälligkeit oder lokaler Tageswechsel, siehe `nextChangeAt`), bei der
+ * Rückkehr in den Tab und nach jedem Speichern. Die Aktualisierung liest
+ * und schreibt nichts im Speicher und berührt keine laufende Session.
  */
+
+/** Nie seltener prüfen als so: schützt vor Uhrsprüngen und gedrosselten Timern. */
+const MAX_REFRESH_DELAY_MS = 15 * 60_000;
+/** Kleiner Abstand hinter der Grenze, damit sie sicher überschritten ist. */
+const REFRESH_MARGIN_MS = 250;
 
 type Phase =
   | { kind: 'loading' }
@@ -54,6 +65,8 @@ export type VocabActions = {
   /** Ein Speichervorgang läuft gerade. */
   saving: boolean;
   timeZone: string;
+  /** Gemeinsame, reaktive Zeitbasis für Statistik, Fälligkeiten und Startknopf. */
+  now: Date;
 };
 
 type ChannelMessage = { type: 'saved'; revision: number } | { type: 'reset' };
@@ -94,12 +107,15 @@ export function VocabApp(): React.ReactElement {
   const [confirmReset, setConfirmReset] = useState(false);
   const [timeZone, setTimeZone] = useState('UTC');
   const [navigated, setNavigated] = useState(false);
+  const [now, setNow] = useState(() => new Date());
   // Aktueller Stand auch für Ereignisse, die zwischen zwei Renderdurchläufen eintreffen.
   const storeRef = useRef<VocabStore | null>(null);
   const lockedRef = useRef(false);
   const savingRef = useRef(false);
   const backendRef = useRef<VocabBackend | null>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
+
+  const refreshNow = useCallback(() => setNow(new Date()), []);
 
   const lock = useCallback(() => {
     lockedRef.current = true;
@@ -127,6 +143,7 @@ export function VocabApp(): React.ReactElement {
     }
     setView({ name: 'overview' });
     setNotice(message ?? null);
+    setNow(new Date());
   }, []);
 
   useEffect(() => {
@@ -134,6 +151,30 @@ export function VocabApp(): React.ReactElement {
     setTimeZone(browserTimeZone());
     void load();
   }, [load]);
+
+  // Zeitbasis: zur nächsten Grenze neu rechnen (nicht seltener als alle 15 Minuten).
+  useEffect(() => {
+    if (!store) return;
+    const boundary = nextChangeAt(store, now, timeZone).getTime();
+    const delay = Math.min(Math.max(boundary - Date.now() + REFRESH_MARGIN_MS, REFRESH_MARGIN_MS), MAX_REFRESH_DELAY_MS);
+    const timer = window.setTimeout(refreshNow, delay);
+    return () => window.clearTimeout(timer);
+  }, [store, now, timeZone, refreshNow]);
+
+  // Rückkehr in einen inaktiven Tab oder aus dem Ruhezustand: Timer laufen dort gedrosselt oder gar nicht.
+  useEffect(() => {
+    const onVisible = (): void => {
+      if (document.visibilityState === 'visible') refreshNow();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', refreshNow);
+    window.addEventListener('pageshow', refreshNow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', refreshNow);
+      window.removeEventListener('pageshow', refreshNow);
+    };
+  }, [refreshNow]);
 
   // Konfliktsperre: Meldet ein anderer Tab einen neuen Stand, sperrt sich dieser Tab.
   useEffect(() => {
@@ -182,6 +223,7 @@ export function VocabApp(): React.ReactElement {
         }
         storeRef.current = outcome.store;
         setStore(outcome.store);
+        setNow(new Date());
         setNotice(successMessage ? { tone: 'success', text: successMessage } : null);
         channelRef.current?.postMessage({ type: 'saved', revision: outcome.store.revision } satisfies ChannelMessage);
         return true;
@@ -220,6 +262,7 @@ export function VocabApp(): React.ReactElement {
     locked,
     saving,
     timeZone,
+    now,
   };
 
   async function resetAll(): Promise<void> {

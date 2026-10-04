@@ -1,3 +1,4 @@
+import { checkDeckExportSize } from './exchange.ts';
 import { checkTags, checkText, isValidId } from './fields.ts';
 import {
   DEFAULT_PAIR,
@@ -51,6 +52,12 @@ function cardLimitError(): Result<never> {
   });
 }
 
+/** Jedes Deck muss als einzelne Datei exportier- und wieder importierbar bleiben. */
+function withinDeckSize(next: VocabStore, deckId: string): Result<VocabStore> {
+  const tooLarge = checkDeckExportSize(next, deckId);
+  return tooLarge ? fail(tooLarge) : ok(next);
+}
+
 function notFound(what: string): Result<never> {
   return fail({
     code: 'not_found',
@@ -90,7 +97,7 @@ export function updateDeck(store: VocabStore, deckId: string, input: DeckInput):
   if (!checked.ok) return checked;
   const decks = store.decks.slice();
   decks[index] = { ...decks[index], name: checked.value.name, description: checked.value.description };
-  return ok({ ...store, decks });
+  return withinDeckSize({ ...store, decks }, deckId);
 }
 
 export type DeletionImpact = {
@@ -147,7 +154,7 @@ export function addCard(
   const checked = checkCardInput(input);
   if (!checked.ok) return checked;
   const card: VocabCard = { id, deckId, ...checked.value, createdAt: now.toISOString() };
-  return ok({ ...store, cards: [...store.cards, card] });
+  return withinDeckSize({ ...store, cards: [...store.cards, card] }, deckId);
 }
 
 /**
@@ -187,10 +194,11 @@ export function updateCard(
   }
   const cards = store.cards.slice();
   cards[index] = { ...previous, ...checked.value };
+  const next = withinDeckSize({ ...store, cards }, previous.deckId);
+  if (!next.ok) return next;
   return ok({
     store: {
-      ...store,
-      cards,
+      ...next.value,
       reviews: reset ? store.reviews.filter((review) => review.cardId !== cardId) : store.reviews,
     },
     progressReset: reset,

@@ -96,8 +96,7 @@ export function VocabSession({
   }
 
   if (finished) {
-    const now = new Date();
-    const followUp = sessionFollowUp(store, selection, now);
+    const followUp = sessionFollowUp(store, selection, actions.now);
     return (
       <section className="vocab-panel vocab-session-done" aria-labelledby="session-done-title">
         <p className="eyebrow">Daily Review</p>

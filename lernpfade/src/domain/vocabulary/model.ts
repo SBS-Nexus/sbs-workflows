@@ -44,7 +44,10 @@ export const DIRECTION_LABELS: Readonly<Record<Direction, string>> = {
 
 /** Feste, getestete Grenzen. Textlängen zählen Unicode-Zeichen (Code Points). */
 export const LIMITS = {
-  /** Importdatei, geprüft vor dem vollständigen Lesen. */
+  /**
+   * Importdatei, geprüft vor dem vollständigen Lesen. Zugleich die Obergrenze
+   * jeder Exportdatei und damit jedes einzelnen Decks (siehe `exchange.ts`).
+   */
   importBytes: 2 * 1024 * 1024,
   decks: 50,
   /** Karten insgesamt über alle Decks. */
@@ -132,6 +135,7 @@ export type VocabErrorCode =
   | 'too_many_tags'
   | 'limit_decks'
   | 'limit_cards'
+  | 'limit_deck_size'
   | 'not_found'
   | 'duplicate'
   | 'invalid_store'

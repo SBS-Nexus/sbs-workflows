@@ -198,6 +198,23 @@ export function localDayKey(date: Date, timeZone?: string): string {
 }
 
 /**
+ * Beginn des nächsten lokalen Kalendertags (auf eine Sekunde genau, nie
+ * davor). Gesucht wird binär im Fenster bis 27 Stunden: Auch ein Tag mit
+ * Zeitumstellung (23 oder 25 Stunden) endet darin.
+ */
+export function nextLocalDayStart(now: Date, timeZone?: string): Date {
+  const today = localDayKey(now, timeZone);
+  let sameDay = now.getTime();
+  let nextDay = sameDay + 27 * 3_600_000;
+  while (nextDay - sameDay > 1000) {
+    const middle = Math.floor((sameDay + nextDay) / 2);
+    if (localDayKey(new Date(middle), timeZone) === today) sameDay = middle;
+    else nextDay = middle;
+  }
+  return new Date(nextDay);
+}
+
+/**
  * Prüft, dass ein Objekt nur erlaubte eigene Schlüssel hat. Schützt vor
  * untergeschobenen Feldern wie `__proto__`, `constructor` oder `prototype`;
  * geprüfte Werte werden anschließend immer in neue Objekte übernommen,

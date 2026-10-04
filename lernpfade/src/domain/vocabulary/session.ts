@@ -1,6 +1,6 @@
 import type { ReviewRating, ReviewState } from '../review/model.ts';
 import { initialReviewState, isDue, scheduleReview } from '../review/scheduler.ts';
-import { localDayKey, reviewKey } from './fields.ts';
+import { localDayKey, nextLocalDayStart, reviewKey } from './fields.ts';
 import {
   DIRECTIONS,
   LIMITS,
@@ -259,6 +259,18 @@ export function vocabStats(store: VocabStore, now: Date, timeZone?: string): Voc
       store.activity?.day === today ? store.activity.ratings.reduce((sum, entry) => sum + entry.count, 0) : 0,
     nextDueAt: nextDueAt(store, all),
   };
+}
+
+/**
+ * Nächster Zeitpunkt, an dem sich etwas Angezeigtes von selbst ändert: die
+ * nächste Fälligkeit (irgendeines Decks, irgendeiner Richtung) oder der
+ * Beginn des nächsten lokalen Kalendertags („heute bewertet"). Bis dahin
+ * liefern Statistik und Warteschlange für jeden Zeitpunkt dasselbe.
+ */
+export function nextChangeAt(store: VocabStore, now: Date, timeZone?: string): Date {
+  const due = nextDueAt(store, { deckIds: null, directions: DIRECTIONS, now });
+  const dayStart = nextLocalDayStart(now, timeZone);
+  return due !== null && Date.parse(due) < dayStart.getTime() ? new Date(due) : dayStart;
 }
 
 export type DeckStats = { cards: number; due: number };

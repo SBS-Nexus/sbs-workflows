@@ -459,6 +459,16 @@ abgegebene Bewertungen. „Heute" ist der Kalendertag in der Zeitzone des
 Browsers (`Intl…resolvedOptions().timeZone`); gespeichert wird nur der
 laufende Tag. Keine Lernminuten, keine Beherrschungsprozente.
 
+**Zeitbasis der Oberfläche:** Statistik, Fälligkeiten je Deck, die
+Auswahlzusammenfassung und der Startknopf rechnen mit einer gemeinsamen
+Zeit (`actions.now`). Sie wird neu gesetzt, wenn sich Angezeigtes von selbst
+ändern kann — zur nächsten Fälligkeit oder zum nächsten lokalen
+Tagesbeginn (`nextChangeAt`, spätestens alle 15 Minuten) —, bei der Rückkehr
+in den Tab (`visibilitychange`, `focus`, `pageshow`) und nach jedem
+Speichern. Eine offene Übersicht wird damit ohne Reload und ohne
+Auswahlwechsel aktuell. Die Aktualisierung schreibt nichts, startet keine
+Session und ändert die Warteschlange einer laufenden Session nicht.
+
 ### 11.7 JSON-Format (Schema 1)
 
 ```json
@@ -493,6 +503,19 @@ laufende Tag. Keine Lernminuten, keine Beherrschungsprozente.
   Versionen, `progressIncluded: true` und Grenzüberschreitungen werden
   abgelehnt. Bereits vorhandene IDs ⇒ Ablehnung mit Erklärung, kein
   Duplikat, kein überschriebener Fortschritt.
+- Export: **kompaktes** JSON plus Zeilenende, für ein Deck und für alle Decks
+  über denselben Weg (`prepareExport`). Gemessen werden die UTF-8-Bytes der
+  tatsächlich heruntergeladenen Datei. Läge sie über 2 MiB, wird keine Datei
+  erzeugt und kein Erfolg gemeldet, sondern erklärt, warum — bei „Alle Decks
+  exportieren" mit dem Hinweis, die Decks einzeln zu exportieren. Nie gekürzt.
+- Roundtrip-Garantie: Damit jedes Deck einzeln exportier- und wieder
+  importierbar bleibt, darf kein Deck größer werden als eine Exportdatei
+  (≤ 2 MiB). Karte anlegen/bearbeiten, Deck bearbeiten und Import prüfen das
+  und lehnen sonst mit Erklärung ab. Ein Deck, das diese Grenze schon
+  überschreitet (nur aus Daten außerhalb dieser Version denkbar), bleibt
+  lesbar und lernbar, wird aber nicht exportiert; es zu sichern verlangte ein
+  mehrteiliges Exportformat (neue Schema-Version) — das ist nicht Teil von
+  LP-06. Die Importgrenze von 2 MiB bleibt unverändert.
 - Inhalte werden nur als Text gerendert. Beispieldatei:
   `lernpfade/public/vokabeln/beispiel-import.json`.
 
@@ -501,6 +524,7 @@ laufende Tag. Keine Lernminuten, keine Beherrschungsprozente.
 | Grenze | Wert |
 |---|---|
 | Importdatei | 2 MiB |
+| Exportdatei / ein Deck als Exportdatei | 2 MiB (UTF-8, kompakt) |
 | Decks | 50 |
 | Karten insgesamt | 1.000 (auch über mehrere Importe und manuelle Eingabe) |
 | Deckname / Beschreibung / Herkunft | 80 / 300 / 120 Zeichen |

@@ -1,12 +1,14 @@
 import { checkTags, checkText, hasOnlyKeys, isIsoTimestamp, isValidId } from './fields.ts';
 import {
   LIMITS,
+  emptyStore,
   fail,
   ok,
   type DeckOrigin,
   type Result,
   type VocabCard,
   type VocabDeck,
+  type VocabError,
   type VocabStore,
 } from './model.ts';
 
@@ -20,6 +22,12 @@ import {
  * Der Import ist zweistufig: `previewImport` prüft vollständig und liefert
  * eine Vorschau, `applyImport` übernimmt erst nach Bestätigung — atomar:
  * entweder alle Decks und Karten der Datei oder nichts.
+ *
+ * Roundtrip-Garantie: Jede Exportdatei ist so groß, wie sie tatsächlich
+ * heruntergeladen wird (`serializeExport`, kompakt), und wird nur erzeugt,
+ * wenn sie die Importgrenze einhält (`prepareExport`). Damit das für jedes
+ * einzelne Deck immer möglich ist, darf kein Deck größer werden, als eine
+ * Exportdatei sein darf (`checkDeckExportSize`).
  */
 
 export const EXCHANGE_FORMAT = 'lernpfade-vokabeln';
@@ -62,6 +70,16 @@ function exchangeOrigin(origin: DeckOrigin): ExchangeOrigin {
   return origin.kind === 'self' ? { kind: 'self', label: SELF_ORIGIN_LABEL } : { kind: origin.kind, label: origin.label };
 }
 
+function exchangeCard(card: VocabCard): ExchangeCard {
+  return {
+    id: card.id,
+    term: card.term,
+    translation: card.translation,
+    ...(card.context ? { context: card.context } : {}),
+    tags: card.tags.slice(),
+  };
+}
+
 /** Exportiert die angegebenen Decks (oder alle). Enthält keinen Lernfortschritt. */
 export function exportDecks(store: VocabStore, deckIds: readonly string[] | null, now: Date): ExchangeFile {
   const wanted = deckIds ? new Set(deckIds) : null;
@@ -80,17 +98,116 @@ export function exportDecks(store: VocabStore, deckIds: readonly string[] | null
         sourceLanguage: deck.sourceLanguage,
         targetLanguage: deck.targetLanguage,
         origin: exchangeOrigin(deck.origin),
-        cards: store.cards
-          .filter((card) => card.deckId === deck.id)
-          .map((card) => ({
-            id: card.id,
-            term: card.term,
-            translation: card.translation,
-            ...(card.context ? { context: card.context } : {}),
-            tags: card.tags.slice(),
-          })),
+        cards: store.cards.filter((card) => card.deckId === deck.id).map(exchangeCard),
       })),
   };
+}
+
+/**
+ * Genau der Text, der als Datei heruntergeladen wird: kompaktes JSON plus
+ * Zeilenende. Eingerücktes JSON wäre bis zu ~10 % größer und könnte die
+ * Importgrenze überschreiten, obwohl der Inhalt hineinpasst.
+ */
+export function serializeExport(file: ExchangeFile): string {
+  return `${JSON.stringify(file)}\n`;
+}
+
+export type PreparedExport = {
+  fileName: string;
+  text: string;
+  /** UTF-8-Bytes von `text` — die Größe der heruntergeladenen Datei. */
+  bytes: number;
+  deckCount: number;
+  cardCount: number;
+};
+
+export type ExportRefusal = {
+  reason: 'too_large';
+  bytes: number;
+  /** Decks, die schon allein zu groß wären (nur bei Altbeständen möglich). */
+  oversizedDecks: { id: string; name: string; bytes: number }[];
+};
+
+/**
+ * Gemeinsamer Exportweg für ein Deck und für alle Decks. Liefert die Datei
+ * nur, wenn sie sich in einem leeren VokabelPfad wieder importieren lässt
+ * (≤ `LIMITS.importBytes`); sonst eine Begründung — nie eine gekürzte Datei.
+ */
+export function prepareExport(
+  store: VocabStore,
+  deckIds: readonly string[] | null,
+  now: Date,
+): Result<PreparedExport, ExportRefusal> {
+  const file = exportDecks(store, deckIds, now);
+  const text = serializeExport(file);
+  const bytes = utf8Bytes(text);
+  if (bytes > LIMITS.importBytes) {
+    return fail({
+      reason: 'too_large',
+      bytes,
+      oversizedDecks: file.decks
+        .map((deck) => ({ id: deck.id, name: deck.name, bytes: deckExportBytes(store, deck.id) }))
+        .filter((deck) => deck.bytes > LIMITS.importBytes),
+    });
+  }
+  return ok({
+    fileName: exportFileName(file),
+    text,
+    bytes,
+    deckCount: file.decks.length,
+    cardCount: file.decks.reduce((sum, deck) => sum + deck.cards.length, 0),
+  });
+}
+
+/** Karten sind unveränderliche Objekte; ihre serialisierte Größe wird einmal berechnet. */
+const cardBytes = new WeakMap<VocabCard, number>();
+
+function cardExportBytes(card: VocabCard): number {
+  let bytes = cardBytes.get(card);
+  if (bytes === undefined) {
+    bytes = utf8Bytes(JSON.stringify(exchangeCard(card)));
+    cardBytes.set(card, bytes);
+  }
+  return bytes;
+}
+
+/**
+ * Exakte Größe der Exportdatei, die dieses eine Deck ergäbe — ohne das ganze
+ * Deck zu serialisieren. Kompaktes JSON setzt sich lückenlos zusammen:
+ * Datei mit leerer Kartenliste + jede Karte + ein Komma zwischen zwei Karten.
+ * `exportedAt` hat stets dieselbe Länge; der Zeitpunkt spielt keine Rolle.
+ */
+export function deckExportBytes(store: VocabStore, deckId: string): number {
+  const deck = store.decks.find((entry) => entry.id === deckId);
+  if (!deck) return 0;
+  let bytes = utf8Bytes(serializeExport(exportDecks({ ...store, decks: [deck], cards: [] }, null, new Date(0))));
+  let count = 0;
+  for (const card of store.cards) {
+    if (card.deckId !== deckId) continue;
+    bytes += cardExportBytes(card);
+    count += 1;
+  }
+  return count > 1 ? bytes + count - 1 : bytes;
+}
+
+/**
+ * Hält die Invariante „jedes Deck bleibt als einzelne Datei exportier- und
+ * wieder importierbar" ein.
+ */
+export function checkDeckExportSize(store: VocabStore, deckId: string): VocabError | null {
+  const bytes = deckExportBytes(store, deckId);
+  if (bytes <= LIMITS.importBytes) return null;
+  const name = store.decks.find((entry) => entry.id === deckId)?.name ?? deckId;
+  return {
+    code: 'limit_deck_size',
+    message: `„${name}" wäre damit als Exportdatei ${formatMiB(bytes)} groß – mehr als die Importgrenze von 2 MiB. Damit sich jedes Deck sichern und wieder importieren lässt, wird die Änderung nicht übernommen. Lege für weitere Karten ein neues Deck an oder kürze lange Texte.`,
+  };
+}
+
+/** Lesbare Größe mit einer Nachkommastelle, ohne die Grenze schönzurunden (aufgerundet). */
+export function formatMiB(bytes: number): string {
+  const mib = Math.ceil((bytes / (1024 * 1024)) * 10) / 10;
+  return `${mib.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MiB`;
 }
 
 export function exportFileName(file: ExchangeFile): string {
@@ -266,6 +383,7 @@ export function previewImport(text: string, store: VocabStore, now: Date): Resul
     });
 
     checkAgainstStore(store, decks, cards);
+    checkImportedDeckSizes(decks, cards);
 
     return ok({
       decks,
@@ -307,6 +425,24 @@ function checkAgainstStore(store: VocabStore, decks: readonly VocabDeck[], cards
       'limit_exceeded',
       `Nach dem Import wären es ${store.cards.length + cards.length} Karten; erlaubt sind höchstens ${LIMITS.cards}.`,
     );
+  }
+}
+
+/**
+ * Ein importiertes Deck muss sich auch wieder exportieren lassen. Die Datei
+ * selbst hält die Grenze ein; als Export kann dasselbe Deck dennoch etwas
+ * größer werden (z. B. ergänzter Hinweistext, Herkunft „import").
+ */
+function checkImportedDeckSizes(decks: readonly VocabDeck[], cards: readonly VocabCard[]): void {
+  const imported: VocabStore = { ...emptyStore(), decks: decks.slice(), cards: cards.slice() };
+  for (const deck of decks) {
+    const tooLarge = checkDeckExportSize(imported, deck.id);
+    if (tooLarge) {
+      reject(
+        'too_large',
+        `„${deck.name}" ergäbe nach dem Import eine Exportdatei über 2 MiB und ließe sich nicht wieder sichern. Teile das Deck in der Datei auf mehrere Decks auf.`,
+      );
+    }
   }
 }
 

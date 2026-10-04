@@ -494,13 +494,14 @@ viertes Deployable, kein Backend.
   Transaktion). Kein Konto, keine Synchronisation; Löschen der Browserdaten
   entfernt die Daten.
 - **Grenzen:** Import ≤ 2 MiB, ≤ 50 Decks, ≤ 1.000 Karten insgesamt,
-  Textlimits je Feld, ≤ 20 Abfragen je Session.
+  Textlimits je Feld, ≤ 20 Abfragen je Session. Jede Exportdatei — und damit
+  jedes Deck — bleibt ≤ 2 MiB und so wieder importierbar.
 - **Nicht enthalten:** weitere Sprachen in der UI, Audio/Aussprache,
   KI-Generierung, Cloud-Sync, Plattformfortschritt (LP-07), SSO (LP-08),
   Übernahme von Identität oder Fortschritt aus den anderen Apps.
 - Vertrag und Einzelheiten: `docs/LEARNING-PLATFORM.md`, Abschnitt 11.
 
-Gates: Hub-Typecheck, 94 Unit-Tests (Review-Core, Föderation, VokabelPfad),
+Gates: Hub-Typecheck, 103 Unit-Tests (Review-Core, Föderation, VokabelPfad),
 Produktionsbuild und Playwright-E2E gegen den Produktionsbuild (Desktop,
 375 px, 200 % Zoom, axe) — alle im Workflow `Lernpfade Hub`.
 
