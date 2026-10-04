@@ -296,6 +296,11 @@ function DeckSettings({
         />
         <FieldError id={`${descriptionId}-error`} text={error?.field === 'description' ? error.text : null} />
       </div>
+      {error && error.field === null ? (
+        <p className="field-error" role="alert">
+          {error.text}
+        </p>
+      ) : null}
       <button className="button button-secondary" type="submit" disabled={actions.locked || actions.saving}>
         Deck speichern
       </button>

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   deckExportBytes,
+  deckRoundtripBytes,
   exportDecks,
   prepareExport,
   previewImport,
@@ -9,7 +10,7 @@ import {
   utf8Bytes,
   type ExchangeFile,
 } from './exchange.ts';
-import { LIMITS, emptyStore, type VocabStore } from './model.ts';
+import { LIMITS, emptyStore, type DeckOrigin, type VocabStore } from './model.ts';
 import { addCard, updateCard, updateDeck } from './operations.ts';
 import { NOW, card, must, sampleStore, withDeck } from './testing.ts';
 import { validateStore } from './validate.ts';
@@ -176,4 +177,105 @@ test('an import whose deck could not be exported again is refused as a whole', (
   assert.equal(!preview.ok && preview.error.code, 'too_large');
   assert.match(!preview.ok ? preview.error.message : '', /ließe sich nicht wieder sichern/);
   assert.equal(JSON.stringify(sampleStore()), before);
+});
+
+// ---------------------------------------------------------------------------
+// Work-Review W1-Rest: Der Import speichert die Herkunft als „import". Ein
+// selbst erstelltes Deck wird dadurch als Export 2 Bytes größer. Kein Export
+// darf gelingen, dessen Import anschließend scheitert.
+// ---------------------------------------------------------------------------
+
+const LIMIT = LIMITS.importBytes;
+
+/** Gelingt der Export, muss auch der Import in einen leeren Bestand gelingen — und danach erneut Export und Import. */
+function assertRoundtripOrRefusal(store: VocabStore, deckIds: string[] | null, label: string): 'exported' | 'refused' {
+  const exported = prepareExport(store, deckIds, NOW);
+  if (!exported.ok) {
+    assert.ok(!('text' in exported.error), `${label}: keine Datei bei Ablehnung`);
+    return 'refused';
+  }
+  const imported = previewImport(exported.value.text, emptyStore(), NOW);
+  assert.equal(imported.ok, true, `${label}: Export gelang (${exported.value.bytes} Bytes), Import scheiterte: ${imported.ok ? '' : imported.error.message}`);
+  if (!imported.ok) return 'exported';
+  const inFresh: VocabStore = { ...emptyStore(), decks: imported.value.decks, cards: imported.value.cards };
+  const again = must(prepareExport(inFresh, null, NOW));
+  assert.equal(previewImport(again.text, emptyStore(), NOW).ok, true, `${label}: zweiter Roundtrip`);
+  assert.deepEqual(imported.value.cards.map((entry) => entry.id), store.cards.filter((entry) => !deckIds || deckIds.includes(entry.deckId)).map((entry) => entry.id));
+  return 'exported';
+}
+
+/** Gespeicherter Grenzbestand (ohne Operationen, z. B. aus einem älteren Stand): Deckname so gewählt, dass der Export genau `bytes` groß ist. */
+function storedAtExportBytes(base: VocabStore, deckId: string, bytes: number, origin: DeckOrigin): VocabStore {
+  const withOrigin: VocabStore = { ...base, decks: base.decks.map((deck) => (deck.id === deckId ? { ...deck, name: 'R', origin } : deck)) };
+  const missing = bytes - deckExportBytes(withOrigin, deckId);
+  assert.ok(missing >= 0 && missing < LIMITS.deckName, `Name um ${missing} Zeichen verlängerbar`);
+  const store: VocabStore = {
+    ...withOrigin,
+    decks: withOrigin.decks.map((deck) => (deck.id === deckId ? { ...deck, name: `R${'a'.repeat(missing)}` } : deck)),
+  };
+  assert.equal(deckExportBytes(store, deckId), bytes);
+  assert.equal(validateStore(store).ok, true);
+  return store;
+}
+
+test('Work W1-Rest repro: only successful operations; 2 MiB −2/−1/0 never yields an export the import rejects', () => {
+  const { store } = fillToDeckLimit('rand');
+  const gap = LIMIT - deckExportBytes(store, 'rand');
+  const baseName = store.decks[0].name;
+  const outcomes: Record<number, string> = {};
+  for (const offset of [-2, -1, 0]) {
+    const renamed = updateDeck(store, 'rand', { name: baseName + 'a'.repeat(gap + offset), description: '' });
+    if (!renamed.ok) {
+      assert.equal(renamed.error.code, 'limit_deck_size');
+      assert.match(renamed.error.message, /Byte über der Größengrenze/);
+      outcomes[offset] = 'operation refused';
+      continue;
+    }
+    assert.equal(deckExportBytes(renamed.value, 'rand'), LIMIT + offset);
+    outcomes[offset] = assertRoundtripOrRefusal(renamed.value, ['rand'], `offset ${offset}`);
+  }
+  // „self" → „import" kostet 2 Bytes: Bis 2 MiB − 2 ist alles erlaubt und rundläuft, darüber lehnt schon die Änderung ab.
+  assert.deepEqual(outcomes, { '-2': 'exported', '-1': 'operation refused', '0': 'operation refused' });
+});
+
+test('stored boundary states: the shared export path decides by the post-import size, for every origin', () => {
+  const { store: filled } = fillToDeckLimit('grenze');
+  const origins: [string, DeckOrigin, number][] = [
+    // [Name, Herkunft, Änderung der Exportgröße durch den Import]
+    ['self', { kind: 'self' }, +2],
+    ['import', { kind: 'import', label: 'Selbst erstellt' }, 0],
+    ['starter', { kind: 'starter', label: 'Selbst erstellt' }, -1],
+  ];
+  for (const [name, origin, growth] of origins) {
+    for (const offset of [-2, -1, 0]) {
+      const store = storedAtExportBytes(filled, 'grenze', LIMIT + offset, origin);
+      assert.equal(deckRoundtripBytes(store, 'grenze'), LIMIT + offset + Math.max(growth, 0), `${name} ${offset}`);
+      const before = JSON.stringify(store);
+      const outcome = assertRoundtripOrRefusal(store, ['grenze'], `${name} ${offset}`);
+      const expected = offset + growth <= 0 ? 'exported' : 'refused';
+      assert.equal(outcome, expected, `${name} ${offset}`);
+      if (outcome === 'refused') {
+        const refusal = prepareExport(store, ['grenze'], NOW);
+        assert.equal(!refusal.ok && refusal.error.reason, 'roundtrip', `${name} ${offset}: Datei passt, Roundtrip nicht`);
+        assert.deepEqual(!refusal.ok && refusal.error.oversizedDecks.map((deck) => [deck.id, deck.bytes - LIMIT]), [['grenze', offset + growth]]);
+        // Auch „Alle Decks exportieren" entscheidet so.
+        assert.equal(prepareExport(store, null, NOW).ok, false);
+      }
+      assert.equal(JSON.stringify(store), before, 'eine Ablehnung verändert nichts');
+    }
+  }
+});
+
+test('an imported boundary deck stays exportable and importable again', () => {
+  const { store: filled } = fillToDeckLimit('wieder');
+  // Selbst erstellt, 2 MiB − 2: Nach dem Import ist es genau 2 MiB groß — und rundläuft weiter.
+  const store = storedAtExportBytes(filled, 'wieder', LIMIT - 2, { kind: 'self' });
+  const first = must(previewImport(must(prepareExport(store, ['wieder'], NOW)).text, emptyStore(), NOW));
+  const imported: VocabStore = { ...emptyStore(), decks: first.decks, cards: first.cards };
+  assert.equal(imported.decks[0].origin.kind, 'import');
+  assert.equal(deckExportBytes(imported, 'wieder'), LIMIT);
+  assert.equal(assertRoundtripOrRefusal(imported, ['wieder'], 'importiert an der Grenze'), 'exported');
+  // Jede weitere Vergrößerung wird schon bei der Änderung abgelehnt.
+  const bigger = updateDeck(imported, 'wieder', { name: `${imported.decks[0].name}a`, description: '' });
+  assert.equal(!bigger.ok && bigger.error.code, 'limit_deck_size');
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useMemo, useState } from 'react';
-import { formatMiB, prepareExport } from '@/domain/vocabulary/exchange';
+import { formatBytes, formatMiB, prepareExport } from '@/domain/vocabulary/exchange';
 import { DIRECTION_LABELS, LIMITS, type Direction, type VocabStore } from '@/domain/vocabulary/model';
 import { createDeck, deckDeletionImpact, deleteDeck } from '@/domain/vocabulary/operations';
 import { newId } from '@/domain/vocabulary/fields';
@@ -54,19 +54,33 @@ export function VocabOverview({
       actions.notify({ tone: 'success', text: `${label} exportiert – ohne Lernfortschritt.` });
       return;
     }
-    const { bytes, oversizedDecks } = prepared.error;
-    const what = deckIds ? label : 'Alle Decks zusammen';
-    const parts = [
-      `Nicht exportiert: ${what} ergäbe${deckIds ? '' : 'n'} eine Datei von ${formatMiB(bytes)} – mehr als die Importgrenze von 2 MiB. Sie ließe sich nicht wieder importieren und wird deshalb nicht erzeugt.`,
-    ];
-    if (!deckIds && oversizedDecks.length < store.decks.length) {
-      parts.push('Exportiere die Decks einzeln über „Exportieren" am jeweiligen Deck – jedes davon bleibt für sich importierbar.');
-    }
-    if (deckIds) {
-      parts.push('Kürze lange Texte oder lösche Karten in diesem Deck, um es sichern zu können.');
-    } else if (oversizedDecks.length > 0) {
+    const { reason, bytes, oversizedDecks } = prepared.error;
+    const names = oversizedDecks.map((deck) => `„${deck.name}"`).join(', ');
+    const one = oversizedDecks.length === 1;
+    const excess = Math.max(0, ...oversizedDecks.map((deck) => deck.bytes)) - LIMITS.importBytes;
+    const parts: string[] = [];
+    if (reason === 'too_large') {
+      const what = deckIds ? label : 'Alle Decks zusammen';
       parts.push(
-        `Zu groß für eine einzelne Datei: ${oversizedDecks.map((deck) => `„${deck.name}" (${formatMiB(deck.bytes)})`).join(', ')}. Kürze lange Texte oder lösche Karten darin, um ${oversizedDecks.length === 1 ? 'es' : 'sie'} sichern zu können.`,
+        `Nicht exportiert: ${what} ergäbe${deckIds ? '' : 'n'} eine Datei von ${formatMiB(bytes)} – mehr als die Importgrenze von 2 MiB. Sie ließe sich nicht wieder importieren und wird deshalb nicht erzeugt.`,
+      );
+      if (!deckIds && oversizedDecks.length < store.decks.length) {
+        parts.push('Exportiere die Decks einzeln über „Exportieren" am jeweiligen Deck – jedes davon bleibt für sich importierbar.');
+      }
+    } else {
+      // Die Datei passt, aber der Import würde sie ablehnen: Er speichert die Herkunft als „importiert".
+      parts.push(
+        `Nicht exportiert: ${names} ${one ? 'liegt' : 'liegen'} genau an der Größengrenze. Der Import speichert die Herkunft als „importiert"; danach wäre ${one ? 'das Deck' : 'jedes davon'} als Exportdatei größer als 2 MiB, und der Import würde die Datei deshalb ablehnen.`,
+      );
+    }
+    if (oversizedDecks.length > 0) {
+      if (!deckIds && reason === 'too_large') {
+        parts.push(`Zu groß für eine einzelne Datei: ${oversizedDecks.map((deck) => `„${deck.name}" (${formatMiB(deck.bytes)})`).join(', ')}.`);
+      }
+      parts.push(
+        excess <= 1024
+          ? `Kürze ${one ? 'dort' : 'in diesen Decks'} den Decknamen oder einen Text um mindestens ${formatBytes(excess)} (bei einfachen Buchstaben ebenso viele Zeichen) und exportiere erneut.`
+          : `Kürze lange Texte oder lösche Karten ${one ? 'in diesem Deck' : 'in diesen Decks'}, um ${one ? 'es' : 'sie'} sichern zu können.`,
       );
     }
     parts.push('Deine Daten in diesem Browser bleiben unverändert.');

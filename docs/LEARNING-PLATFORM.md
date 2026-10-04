@@ -510,8 +510,14 @@ Session und ändert die Warteschlange einer laufenden Session nicht.
   exportieren" mit dem Hinweis, die Decks einzeln zu exportieren. Nie gekürzt.
 - Roundtrip-Garantie: Damit jedes Deck einzeln exportier- und wieder
   importierbar bleibt, darf kein Deck größer werden als eine Exportdatei
-  (≤ 2 MiB). Karte anlegen/bearbeiten, Deck bearbeiten und Import prüfen das
-  und lehnen sonst mit Erklärung ab. Ein Deck, das diese Grenze schon
+  (≤ 2 MiB) — gemessen auch in der Form, die der Import speichert
+  (`deckRoundtripBytes`): Der Import setzt die Herkunft auf `import`, ein
+  selbst erstelltes Deck wird als Export dadurch 2 Bytes größer. Karte
+  anlegen/bearbeiten, Deck bearbeiten und Import prüfen das und lehnen sonst
+  mit Erklärung ab. Der Export entscheidet ebenso: Ein gespeicherter Bestand
+  genau an der Grenze, dessen Import scheitern würde, wird nicht exportiert;
+  die Meldung nennt die fehlenden Bytes (z. B. Deckname um 2 Zeichen
+  kürzen). Ein Deck, das diese Grenze schon
   überschreitet (nur aus Daten außerhalb dieser Version denkbar), bleibt
   lesbar und lernbar, wird aber nicht exportiert; es zu sichern verlangte ein
   mehrteiliges Exportformat (neue Schema-Version) — das ist nicht Teil von

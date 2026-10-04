@@ -122,16 +122,25 @@ export type PreparedExport = {
 };
 
 export type ExportRefusal = {
-  reason: 'too_large';
+  /**
+   * `too_large`: Die Datei selbst läge über der Importgrenze.
+   * `roundtrip`: Die Datei passt, aber mindestens ein Deck wäre nach dem
+   * Import (Herkunft wird dort zu „import") als Export zu groß — der Import
+   * würde es deshalb ablehnen. Nur bei Grenzbeständen möglich.
+   */
+  reason: 'too_large' | 'roundtrip';
+  /** Größe der Datei, die entstanden wäre. */
   bytes: number;
-  /** Decks, die schon allein zu groß wären (nur bei Altbeständen möglich). */
+  /** Decks, deren Roundtrip-Größe (`deckRoundtripBytes`) über der Grenze liegt. */
   oversizedDecks: { id: string; name: string; bytes: number }[];
 };
 
 /**
  * Gemeinsamer Exportweg für ein Deck und für alle Decks. Liefert die Datei
- * nur, wenn sie sich in einem leeren VokabelPfad wieder importieren lässt
- * (≤ `LIMITS.importBytes`); sonst eine Begründung — nie eine gekürzte Datei.
+ * nur, wenn ihr Import in einem leeren VokabelPfad gelingt: Die Datei hält
+ * die Importgrenze ein UND jedes Deck darin bleibt auch in der Form, die der
+ * Import speichert, als Export innerhalb der Grenze (`deckRoundtripBytes`).
+ * Sonst eine Begründung — nie eine gekürzte oder umgeschriebene Datei.
  */
 export function prepareExport(
   store: VocabStore,
@@ -141,14 +150,11 @@ export function prepareExport(
   const file = exportDecks(store, deckIds, now);
   const text = serializeExport(file);
   const bytes = utf8Bytes(text);
-  if (bytes > LIMITS.importBytes) {
-    return fail({
-      reason: 'too_large',
-      bytes,
-      oversizedDecks: file.decks
-        .map((deck) => ({ id: deck.id, name: deck.name, bytes: deckExportBytes(store, deck.id) }))
-        .filter((deck) => deck.bytes > LIMITS.importBytes),
-    });
+  const oversizedDecks = file.decks
+    .map((deck) => ({ id: deck.id, name: deck.name, bytes: deckRoundtripBytes(store, deck.id) }))
+    .filter((deck) => deck.bytes > LIMITS.importBytes);
+  if (bytes > LIMITS.importBytes || oversizedDecks.length > 0) {
+    return fail({ reason: bytes > LIMITS.importBytes ? 'too_large' : 'roundtrip', bytes, oversizedDecks });
   }
   return ok({
     fileName: exportFileName(file),
@@ -179,11 +185,14 @@ function cardExportBytes(card: VocabCard): number {
  */
 export function deckExportBytes(store: VocabStore, deckId: string): number {
   const deck = store.decks.find((entry) => entry.id === deckId);
-  if (!deck) return 0;
+  return deck ? exportBytesOf(store, deck) : 0;
+}
+
+function exportBytesOf(store: VocabStore, deck: VocabDeck): number {
   let bytes = utf8Bytes(serializeExport(exportDecks({ ...store, decks: [deck], cards: [] }, null, new Date(0))));
   let count = 0;
   for (const card of store.cards) {
-    if (card.deckId !== deckId) continue;
+    if (card.deckId !== deck.id) continue;
     bytes += cardExportBytes(card);
     count += 1;
   }
@@ -191,17 +200,44 @@ export function deckExportBytes(store: VocabStore, deckId: string): number {
 }
 
 /**
+ * Das Deck so, wie der Import es speichert: Jede Herkunft wird zu „import"
+ * mit der Bezeichnung aus der Datei (`importedOrigin`). Alles andere bleibt
+ * gleich — Texte und Tags sind im Bestand schon normalisiert.
+ */
+function asImported(deck: VocabDeck): VocabDeck {
+  return { ...deck, origin: { kind: 'import', label: exchangeOrigin(deck.origin).label } };
+}
+
+/**
+ * Größe, die für die Roundtrip-Garantie zählt: die Exportdatei dieses Decks
+ * heute UND die Exportdatei desselben Decks nach einem Import. Der Import
+ * ändert die Herkunft (z. B. `"self"` → `"import"`, +2 Bytes); ohne diesen
+ * Anteil könnte ein Export genau an der Grenze gelingen und der eigene
+ * Import ihn dann ablehnen.
+ */
+export function deckRoundtripBytes(store: VocabStore, deckId: string): number {
+  const deck = store.decks.find((entry) => entry.id === deckId);
+  if (!deck) return 0;
+  return Math.max(exportBytesOf(store, deck), exportBytesOf(store, asImported(deck)));
+}
+
+/**
  * Hält die Invariante „jedes Deck bleibt als einzelne Datei exportier- und
- * wieder importierbar" ein.
+ * wieder importierbar — auch nach dem Import erneut" ein.
  */
 export function checkDeckExportSize(store: VocabStore, deckId: string): VocabError | null {
-  const bytes = deckExportBytes(store, deckId);
+  const bytes = deckRoundtripBytes(store, deckId);
   if (bytes <= LIMITS.importBytes) return null;
   const name = store.decks.find((entry) => entry.id === deckId)?.name ?? deckId;
   return {
     code: 'limit_deck_size',
-    message: `„${name}" wäre damit als Exportdatei ${formatMiB(bytes)} groß – mehr als die Importgrenze von 2 MiB. Damit sich jedes Deck sichern und wieder importieren lässt, wird die Änderung nicht übernommen. Lege für weitere Karten ein neues Deck an oder kürze lange Texte.`,
+    message: `„${name}" läge damit ${formatBytes(bytes - LIMITS.importBytes)} über der Größengrenze: Als Exportdatei – auch nach einem erneuten Import – wäre es mehr als die Importgrenze von 2 MiB. Damit sich jedes Deck sichern und wieder importieren lässt, wird die Änderung nicht übernommen. Lege für weitere Karten ein neues Deck an oder kürze lange Texte.`,
   };
+}
+
+/** Bytezahl mit deutschem Tausendertrennzeichen, z. B. „1.234 Byte". */
+export function formatBytes(bytes: number): string {
+  return `${bytes.toLocaleString('de-DE')} Byte`;
 }
 
 /** Lesbare Größe mit einer Nachkommastelle, ohne die Grenze schönzurunden (aufgerundet). */

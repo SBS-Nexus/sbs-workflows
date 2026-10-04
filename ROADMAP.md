@@ -501,7 +501,7 @@ viertes Deployable, kein Backend.
   Übernahme von Identität oder Fortschritt aus den anderen Apps.
 - Vertrag und Einzelheiten: `docs/LEARNING-PLATFORM.md`, Abschnitt 11.
 
-Gates: Hub-Typecheck, 103 Unit-Tests (Review-Core, Föderation, VokabelPfad),
+Gates: Hub-Typecheck, 106 Unit-Tests (Review-Core, Föderation, VokabelPfad),
 Produktionsbuild und Playwright-E2E gegen den Produktionsbuild (Desktop,
 375 px, 200 % Zoom, axe) — alle im Workflow `Lernpfade Hub`.
 
