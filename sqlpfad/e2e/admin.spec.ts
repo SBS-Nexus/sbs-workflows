@@ -59,9 +59,9 @@ test('eine Lernende sieht die Redaktion nicht – auch nicht über die Adresse',
   await meldeAn(page);
 
   const hauptnavigation = page.getByRole('navigation', { name: 'Hauptnavigation' });
-  await expect(
-    hauptnavigation.getByRole('link', { name: 'Redaktion', exact: true }),
-  ).toHaveCount(0);
+  await expect(hauptnavigation.getByRole('link', { name: 'Redaktion', exact: true })).toHaveCount(
+    0,
+  );
 
   await page.goto('/admin');
   await expect(page).toHaveURL(/\/fortschritt$/);
