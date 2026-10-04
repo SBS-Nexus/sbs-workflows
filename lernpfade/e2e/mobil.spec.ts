@@ -4,6 +4,7 @@ import {
   EXAMPLE_FILE,
   addCard,
   backToOverview,
+  clearBrowserData,
   createDeck,
   expectNoSeriousA11yViolations,
   gotoVocab,
@@ -31,7 +32,7 @@ async function shot(page: Page, name: string): Promise<void> {
 
 async function fullFlow(page: Page, prefix: string): Promise<void> {
   await page.goto('/');
-  await page.evaluate(() => window.localStorage.clear());
+  await clearBrowserData(page);
   await gotoVocab(page);
   await checkView(page, `${prefix} leer`);
 

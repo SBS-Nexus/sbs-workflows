@@ -10,6 +10,7 @@ import {
   nextDueAt,
   recordResult,
   reveal,
+  sessionFollowUp,
   startSession,
   vocabStats,
   type ReviewTask,
@@ -181,4 +182,35 @@ test('a card deleted mid-session cannot be rated and leaves no orphaned record',
   const outcome = applyRating(store, task, 'good', NOW);
   assert.equal(outcome.ok, false);
   assert.equal(store.reviews.length, 0);
+});
+
+test('after a capped session, remaining due work is reported instead of only the next date', () => {
+  const cards = Array.from({ length: 15 }, (_, i) => card(`term${i}`, `Begriff${i}`));
+  let store = withDeck(emptyStore(), 'deck-a', cards);
+  const later = new Date(NOW.getTime() + DAY);
+  const tasks = buildQueue(store, { deckIds: null, directions: BOTH, now: later });
+  assert.equal(tasks.length, 20, '30 queries due, session capped at 20');
+  for (const task of tasks) store = must(applyRating(store, task, 'good', later)).store;
+
+  const followUp = sessionFollowUp(store, { deckIds: null, directions: BOTH }, later);
+  assert.equal(followUp.remainingDue, 10, 'the 10 queries outside the session are still due');
+  assert.equal(followUp.nextDueAt, new Date(later.getTime() + DAY).toISOString());
+
+  // Nach einer zweiten Session ist für diese Auswahl nichts mehr fällig.
+  const second = buildQueue(store, { deckIds: null, directions: BOTH, now: later });
+  for (const task of second) store = must(applyRating(store, task, 'good', later)).store;
+  assert.equal(sessionFollowUp(store, { deckIds: null, directions: BOTH }, later).remainingDue, 0);
+});
+
+test('follow-up counts due work in decks the capped session never reached', () => {
+  const many = Array.from({ length: 10 }, (_, i) => card(`alpha${i}`, `Alpha${i}`));
+  let store = withDeck(emptyStore(), 'deck-a', many, NOW);
+  store = withDeck(store, 'deck-b', [card('beta', 'Beta')], new Date(NOW.getTime() + 1000));
+  const selection = { deckIds: null, directions: BOTH };
+  const tasks = buildQueue(store, { ...selection, now: NOW });
+  assert.equal(tasks.length, 20);
+  assert.ok(tasks.every((task) => task.deckId === 'deck-a'), 'deck-b is outside the first 20');
+  for (const task of tasks) store = must(applyRating(store, task, 'good', NOW)).store;
+
+  assert.equal(sessionFollowUp(store, selection, NOW).remainingDue, 2, "deck-b's two queries are still due");
 });

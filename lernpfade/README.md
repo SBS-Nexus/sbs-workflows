@@ -59,8 +59,10 @@ npm run build
 
 `/vokabeln`: eigene Decks Englisch ↔ Deutsch, Karten mit Satzkontext und Tags,
 beide Lernrichtungen, Daily Review, Statistik, JSON-Import/-Export und zwei
-Starterdecks. Gespeichert wird **nur in diesem Browser** (`localStorage`,
-Schlüssel `lernpfade-vokabeln-v1`) — kein Konto, keine Synchronisation.
+Starterdecks. Gespeichert wird **nur in diesem Browser** (IndexedDB,
+Datenbank `lernpfade-vokabeln`; Revisionsprüfung und Schreiben atomar in einer
+Transaktion, damit kein Tab einen anderen still überschreibt) — kein Konto,
+keine Synchronisation.
 Geplant wird mit dem gemeinsamen Review-Core (`src/domain/review/scheduler.ts`).
 
 - Domäne und Speicher: `src/domain/vocabulary/` (rein, ohne Browser testbar)

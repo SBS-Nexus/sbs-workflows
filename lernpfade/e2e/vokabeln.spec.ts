@@ -2,9 +2,9 @@ import { mkdirSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import {
   DEMO_KEY,
-  VOCAB_KEY,
   addCard,
   backToOverview,
+  clearBrowserData,
   createDeck,
   expectNoOutgoingContent,
   expectNoSeriousA11yViolations,
@@ -13,6 +13,7 @@ import {
   recordRequests,
   stat,
   successNotice,
+  writeVocabRaw,
   type CardSpec,
 } from './helpers';
 
@@ -32,7 +33,7 @@ async function shot(page: Page, name: string): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
-  await page.evaluate(() => window.localStorage.clear());
+  await clearBrowserData(page);
 });
 
 test('vom Hub: eigenes Deck mit drei Karten anlegen und beide Richtungen vollständig lernen', async ({ page }) => {
@@ -94,7 +95,8 @@ test('vom Hub: eigenes Deck mit drei Karten anlegen und beide Richtungen vollst�
   await expect(page.getByRole('heading', { level: 1, name: 'Session abgeschlossen' })).toBeVisible();
   await expect(page.getByText('Alle 6 Abfragen dieser Session bewertet und gespeichert.')).toBeVisible();
   await expectNoSeriousA11yViolations(page, 'Session abgeschlossen');
-  await expect(page.getByText(/^Nächste Fälligkeit: /)).toBeVisible();
+  await expect(page.getByText(/^Nichts mehr fällig\. Nächste Fälligkeit: /)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Nächste Session starten' })).toHaveCount(0);
 
   const expectedPrompts = CARDS.flatMap((card) => [card.term, card.translation]).sort();
   expect([...seenPrompts].sort(), 'jede Abfrage genau einmal').toEqual(expectedPrompts);
@@ -266,14 +268,72 @@ test('vollständig per Tastatur: Deck, Karte und Session', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Session abgeschlossen' })).toBeFocused();
 });
 
+test('gedeckelte Session: Restfälligkeit wird genannt und ist direkt lernbar', async ({ page }) => {
+  // 11 Karten × 2 Richtungen = 22 Abfragen; eine Session umfasst höchstens 20.
+  const deck = {
+    format: 'lernpfade-vokabeln',
+    schemaVersion: 1,
+    progressIncluded: false,
+    decks: [
+      {
+        id: 'viele-karten',
+        name: 'Viele Karten',
+        description: '',
+        sourceLanguage: 'en',
+        targetLanguage: 'de',
+        origin: { kind: 'self', label: 'E2E' },
+        cards: Array.from({ length: 11 }, (_, i) => ({
+          id: `karte-${i + 1}`,
+          term: `word${i + 1}`,
+          translation: `Wort${i + 1}`,
+          context: '',
+          tags: [],
+        })),
+      },
+    ],
+  };
+  await gotoVocab(page);
+  await page.getByLabel('Datei auswählen').setInputFiles({
+    name: 'viele-karten.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(deck)),
+  });
+  await page.getByRole('button', { name: 'Import übernehmen' }).click();
+  await expect(successNotice(page)).toHaveText('1 Deck mit 11 Karten importiert.');
+
+  await page.getByLabel('Beide Richtungen').check();
+  await page.getByRole('button', { name: 'Session starten' }).click();
+  async function rateAll(count: number): Promise<void> {
+    for (let i = 1; i <= count; i += 1) {
+      await expect(page.getByRole('heading', { level: 1, name: `Abfrage ${i} von ${count}` })).toBeVisible();
+      await page.getByRole('button', { name: 'Antwort zeigen' }).click();
+      await page.getByRole('button', { name: /^Gut/ }).click();
+    }
+    await expect(page.getByRole('heading', { level: 1, name: 'Session abgeschlossen' })).toBeVisible();
+  }
+
+  await rateAll(20);
+  await expect(page.getByText('Für deine Auswahl sind noch 2 Abfragen fällig.')).toBeVisible();
+  await expect(page.getByText(/Nichts mehr fällig/)).toHaveCount(0);
+  await expectNoSeriousA11yViolations(page, 'Session gedeckelt abgeschlossen');
+
+  await page.getByRole('button', { name: 'Nächste Session starten' }).click();
+  await rateAll(2);
+  await expect(page.getByText(/^Nichts mehr fällig\. Nächste Fälligkeit: /)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Nächste Session starten' })).toHaveCount(0);
+
+  const stored = JSON.parse((await readVocabStorage(page)) ?? '{}') as { reviews: unknown[] };
+  expect(stored.reviews).toHaveLength(22);
+});
+
 test('Speicher voll: Änderung wird nicht als gespeichert gemeldet, Daten bleiben', async ({ page }) => {
   await page.addInitScript(() => {
-    const original = Storage.prototype.setItem;
-    Storage.prototype.setItem = function setItem(key: string, value: string) {
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function put(this: IDBObjectStore, ...args: Parameters<IDBObjectStore['put']>) {
       if ((window as unknown as { __quotaFull?: boolean }).__quotaFull) {
         throw new DOMException('quota', 'QuotaExceededError');
       }
-      return original.call(this, key, value);
+      return original.apply(this, args);
     };
   });
   await gotoVocab(page);
@@ -313,9 +373,38 @@ test('Konfliktsperre: ein zweiter Tab überschreibt nichts still', async ({ page
   await other.close();
 });
 
+test('Konfliktsperre greift beim Schreiben, auch ohne Benachrichtigung zwischen Tabs', async ({ page, context }) => {
+  // Tab A erfährt nichts vom anderen Tab (kein BroadcastChannel). Die Sperre muss
+  // trotzdem halten: Die Revision wird atomar beim Schreiben geprüft.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'BroadcastChannel', { value: undefined, configurable: true });
+  });
+  await gotoVocab(page);
+  await createDeck(page, 'Tab A');
+  await backToOverview(page);
+
+  const other = await context.newPage();
+  await gotoVocab(other);
+  await createDeck(other, 'Tab B');
+  const fromB = await readVocabStorage(other);
+  await other.close();
+
+  await expect(page.getByText('In einem anderen Tab wurde VokabelPfad geändert.')).toHaveCount(0);
+  const form = page.getByRole('form', { name: 'Neues Deck anlegen' });
+  await form.getByLabel('Name des Decks').fill('Veralteter Tab');
+  await form.getByRole('button', { name: 'Deck anlegen' }).click();
+  await expect(page.locator('.vocab-notice-error')).toContainText('in einem anderen Tab geändert');
+  await expect(page.getByRole('alert').filter({ hasText: 'In einem anderen Tab wurde VokabelPfad geändert.' })).toBeVisible();
+  expect(await readVocabStorage(page), 'der Stand aus Tab B bleibt unverändert').toBe(fromB);
+
+  await page.getByRole('button', { name: 'Aktuellen Stand laden' }).click();
+  await expect(page.getByRole('heading', { level: 3, name: 'Tab B' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 3, name: 'Veralteter Tab' })).toHaveCount(0);
+});
+
 test('beschädigte und künftige Daten werden nicht überschrieben', async ({ page }) => {
   await page.goto('/');
-  await page.evaluate((key) => window.localStorage.setItem(key, '{"version":1,"decks":"kaputt"'), VOCAB_KEY);
+  await writeVocabRaw(page, '{"version":1,"decks":"kaputt"');
   await page.goto('/vokabeln');
   await expect(page.getByRole('heading', { name: 'Gespeicherte Daten sind beschädigt' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Rohdaten sichern' })).toBeVisible();
@@ -338,7 +427,7 @@ test('beschädigte und künftige Daten werden nicht überschrieben', async ({ pa
   expect(await readVocabStorage(page)).toBeNull();
   expect(await page.evaluate(() => window.localStorage.getItem('lernpfade-review-state-v1'))).toBe('demo-bleibt');
 
-  await page.evaluate((key) => window.localStorage.setItem(key, JSON.stringify({ version: 7, revision: 1 })), VOCAB_KEY);
+  await writeVocabRaw(page, JSON.stringify({ version: 7, revision: 1 }));
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Daten einer neueren Version' })).toBeVisible();
   expect(await readVocabStorage(page)).toBe(JSON.stringify({ version: 7, revision: 1 }));

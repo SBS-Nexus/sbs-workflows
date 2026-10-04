@@ -114,8 +114,8 @@ export function VocabImport({ store, actions }: { store: VocabStore; actions: Vo
             <button
               className="button button-primary"
               type="button"
-              disabled={actions.locked}
-              onClick={() => {
+              disabled={actions.locked || actions.saving}
+              onClick={async () => {
                 const result = applyImport(store, preview.value);
                 if (!result.ok) {
                   setError(result.error.message);
@@ -123,7 +123,7 @@ export function VocabImport({ store, actions }: { store: VocabStore; actions: Vo
                   return;
                 }
                 if (
-                  actions.commit(
+                  await actions.commit(
                     result.value,
                     `${plural(preview.value.deckCount, 'Deck', 'Decks')} mit ${plural(preview.value.cardCount, 'Karte', 'Karten')} importiert.`,
                   )

@@ -57,7 +57,7 @@ export function VocabOverview({
       actions.notify({ tone: 'error', text: result.error.message });
       return;
     }
-    actions.commit(result.value, `Deck „${deckToDelete.name}" wurde gelöscht.`);
+    void actions.commit(result.value, `Deck „${deckToDelete.name}" wurde gelöscht.`);
   }
 
   return (
@@ -197,7 +197,7 @@ export function VocabOverview({
                 <button
                   className="button button-secondary"
                   type="button"
-                  disabled={adopted}
+                  disabled={adopted || actions.saving}
                   aria-label={`${adopted ? 'Bereits übernommen' : 'Als eigenes Deck übernehmen'}: ${starter.name}`}
                   onClick={() => {
                     const result = adoptStarterDeck(store, starter.id, new Date());
@@ -205,7 +205,7 @@ export function VocabOverview({
                       actions.notify({ tone: 'error', text: result.error.message });
                       return;
                     }
-                    actions.commit(result.value, `Starterdeck „${starter.name}" übernommen.`);
+                    void actions.commit(result.value, `Starterdeck „${starter.name}" übernommen.`);
                   }}
                 >
                   {adopted ? 'Bereits übernommen' : 'Als eigenes Deck übernehmen'}
@@ -269,7 +269,7 @@ function SessionSetup({ store, actions }: { store: VocabStore; actions: VocabAct
         onSubmit={(event) => {
           event.preventDefault();
           const tasks = buildQueue(store, { ...options, now: new Date() });
-          if (tasks.length > 0) actions.startSession(tasks);
+          if (tasks.length > 0) actions.startSession(tasks, { deckIds: options.deckIds, directions: options.directions });
         }}
       >
         <fieldset>
@@ -337,7 +337,7 @@ function CreateDeckForm({ store, actions }: { store: VocabStore; actions: VocabA
     <form
       className="vocab-form"
       aria-labelledby={`${nameId}-legend`}
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
         const id = newId('deck');
         const result = createDeck(store, { name, description }, id, new Date());
@@ -347,7 +347,7 @@ function CreateDeckForm({ store, actions }: { store: VocabStore; actions: VocabA
           if (field) document.getElementById(field === 'name' ? nameId : descriptionId)?.focus();
           return;
         }
-        if (actions.commit(result.value, `Deck „${name.trim()}" angelegt.`)) {
+        if (await actions.commit(result.value, `Deck „${name.trim()}" angelegt.`)) {
           setName('');
           setDescription('');
           setError(null);
@@ -388,7 +388,7 @@ function CreateDeckForm({ store, actions }: { store: VocabStore; actions: VocabA
           {error.text}
         </p>
       ) : null}
-      <button className="button button-primary" type="submit" disabled={actions.locked}>
+      <button className="button button-primary" type="submit" disabled={actions.locked || actions.saving}>
         Deck anlegen
       </button>
     </form>

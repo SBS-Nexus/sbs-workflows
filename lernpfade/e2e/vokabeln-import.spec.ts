@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import {
   EXAMPLE_FILE,
+  clearBrowserData,
   expectNoOutgoingContent,
   expectNoSeriousA11yViolations,
   gotoVocab,
@@ -14,7 +15,7 @@ const FIXTURES = 'src/domain/vocabulary/fixtures';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
-  await page.evaluate(() => window.localStorage.clear());
+  await clearBrowserData(page);
   await gotoVocab(page);
 });
 

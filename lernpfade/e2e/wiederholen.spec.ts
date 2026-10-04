@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { MOCK_SOURCE_ORIGINS } from './config';
-import { DEMO_KEY, VOCAB_KEY, expectNoSeriousA11yViolations, mockLiveSources, recordRequests } from './helpers';
+import {
+  DEMO_KEY,
+  expectNoSeriousA11yViolations,
+  mockLiveSources,
+  readVocabStorage,
+  recordRequests,
+  writeVocabRaw,
+} from './helpers';
 
 /**
  * LP-05B-Regression im Hub. Die Live-Quellen sind hier MOCKS (`page.route`);
@@ -40,7 +47,7 @@ const OWN_VOCAB = JSON.stringify({
 
 test('LIVE (Mock), nicht angemeldet (Mock) und Demo bleiben getrennt; keine Vokabeldaten an Quellen', async ({ page }) => {
   await page.goto('/');
-  await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [VOCAB_KEY, OWN_VOCAB]);
+  await writeVocabRaw(page, OWN_VOCAB);
   const seen = recordRequests(page);
   await mockLiveSources(page, { python: 'unauthenticated', sql: 'ok', ai: 'ok' });
 
@@ -61,7 +68,7 @@ test('LIVE (Mock), nicht angemeldet (Mock) und Demo bleiben getrennt; keine Voka
   // Demo bewerten: ändert nur den Demo-Schlüssel, nie VokabelPfad-Daten.
   await page.getByRole('button', { name: 'Antwort zeigen' }).click();
   await page.getByRole('button', { name: 'Gut' }).click();
-  expect(await page.evaluate((key) => window.localStorage.getItem(key), VOCAB_KEY)).toBe(OWN_VOCAB);
+  expect(await readVocabStorage(page)).toBe(OWN_VOCAB);
   expect(await page.evaluate((key) => window.localStorage.getItem(key), DEMO_KEY)).not.toBeNull();
 
   const toSources = seen.filter((request) => Object.values(MOCK_SOURCE_ORIGINS).some((origin) => request.url.startsWith(origin)));

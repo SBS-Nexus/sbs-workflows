@@ -2,7 +2,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, type Locator, type Page, type Request } from '@playwright/test';
 import { HUB_ORIGIN, MOCK_SOURCE_ORIGINS } from './config';
 
-export const VOCAB_KEY = 'lernpfade-vokabeln-v1';
+/** IndexedDB-Ort der VokabelPfad-Daten (siehe `src/domain/vocabulary/idb-backend.ts`). */
+export const VOCAB_DB = { name: 'lernpfade-vokabeln', store: 'daten', key: 'zustand' } as const;
 export const DEMO_KEY = 'lernpfade-review-state-v1';
 export const EXAMPLE_FILE = 'public/vokabeln/beispiel-import.json';
 
@@ -44,8 +45,83 @@ export async function horizontalOverflow(page: Page): Promise<number> {
   return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 }
 
+/**
+ * Liest den gespeicherten VokabelPfad-Rohtext direkt aus IndexedDB; `null`,
+ * wenn nichts gespeichert ist. Legt dabei nie eine Datenbank an.
+ */
 export async function readVocabStorage(page: Page): Promise<string | null> {
-  return page.evaluate((key) => window.localStorage.getItem(key), VOCAB_KEY);
+  return page.evaluate(
+    (db) =>
+      new Promise<string | null>((resolve, reject) => {
+        const request = indexedDB.open(db.name);
+        request.onupgradeneeded = () => request.transaction?.abort();
+        request.onerror = () => {
+          if (request.error?.name === 'AbortError') resolve(null);
+          else reject(request.error);
+        };
+        request.onsuccess = () => {
+          const connection = request.result;
+          if (!connection.objectStoreNames.contains(db.store)) {
+            connection.close();
+            resolve(null);
+            return;
+          }
+          const get = connection.transaction(db.store, 'readonly').objectStore(db.store).get(db.key);
+          get.onsuccess = () => {
+            connection.close();
+            resolve(get.result === undefined ? null : (get.result as string));
+          };
+          get.onerror = () => {
+            connection.close();
+            reject(get.error);
+          };
+        };
+      }),
+    VOCAB_DB,
+  );
+}
+
+/** Schreibt einen Rohtext (auch absichtlich kaputten) an den VokabelPfad-Speicherort. */
+export async function writeVocabRaw(page: Page, raw: string): Promise<void> {
+  await page.evaluate(
+    ([db, value]) =>
+      new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open(db.name, 1);
+        request.onupgradeneeded = () => {
+          if (!request.result.objectStoreNames.contains(db.store)) request.result.createObjectStore(db.store);
+        };
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const connection = request.result;
+          const tx = connection.transaction(db.store, 'readwrite');
+          tx.objectStore(db.store).put(value, db.key);
+          tx.oncomplete = () => {
+            connection.close();
+            resolve();
+          };
+          tx.onabort = () => {
+            connection.close();
+            reject(tx.error);
+          };
+        };
+      }),
+    [VOCAB_DB, raw] as const,
+  );
+}
+
+/** Löscht alle Browserdaten des Hubs, die diese Tests anfassen (Demo-Deck und VokabelPfad). */
+export async function clearBrowserData(page: Page): Promise<void> {
+  await page.evaluate(
+    (name) =>
+      new Promise<void>((resolve, reject) => {
+        window.localStorage.clear();
+        const request = indexedDB.deleteDatabase(name);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+        request.onblocked = () => reject(new Error('deleteDatabase blocked'));
+      }),
+    VOCAB_DB.name,
+  );
 }
 
 export async function gotoVocab(page: Page): Promise<void> {

@@ -118,6 +118,28 @@ export function nextDueAt(store: VocabStore, options: Omit<QueueOptions, 'limit'
   return next === null ? null : new Date(next).toISOString();
 }
 
+/** Was beim Start einer Session gewählt wurde: Decks (`null` = alle) und Richtungen. */
+export type SessionSelection = Omit<QueueOptions, 'limit' | 'now'>;
+
+export type SessionFollowUp = {
+  /** Abfragen derselben Auswahl, die jetzt (noch) fällig sind — etwa jenseits der 20er-Grenze. */
+  remainingDue: number;
+  /** Nächste künftige Fälligkeit derselben Auswahl. */
+  nextDueAt: string | null;
+};
+
+/**
+ * Was nach einer Session ehrlich zu sagen ist: Ist für dieselbe Auswahl noch
+ * etwas fällig (weil die Session gedeckelt war), wird das genannt — nicht nur
+ * die nächste künftige Fälligkeit. Maßgeblich ist die ursprüngliche Auswahl,
+ * nicht die Decks der ersten 20 Abfragen: Bei „alle Decks" kann der Rest in
+ * Decks liegen, die in der Session gar nicht vorkamen.
+ */
+export function sessionFollowUp(store: VocabStore, selection: SessionSelection, now: Date): SessionFollowUp {
+  const options = { deckIds: selection.deckIds, directions: selection.directions, now };
+  return { remainingDue: dueTasks(store, options).length, nextDueAt: nextDueAt(store, options) };
+}
+
 export type SessionResult = { key: string; rating: ReviewRating; nextDueAt: string; nextDueLabel: string };
 
 export type Session = {

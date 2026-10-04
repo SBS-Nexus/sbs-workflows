@@ -1,117 +1,131 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { VOCAB_STORAGE_KEY, emptyStore, type VocabStore } from './model.ts';
+import { emptyStore, type VocabStore } from './model.ts';
 import { addCard } from './operations.ts';
 import { applyRating, buildQueue } from './session.ts';
-import { loadVocabStorage, resetVocabStorage, revisionOf, saveVocabStorage } from './storage.ts';
-import { MemoryStorage, NOW, card, must, quotaError, sampleStore } from './testing.ts';
+import { loadVocabStorage, resetVocabStorage, saveVocabStorage, storedRevision } from './storage.ts';
+import { MemoryBackend, NOW, card, must, quotaError, sampleStore } from './testing.ts';
 import { validateStore } from './validate.ts';
 
-const DEMO_KEY = 'lernpfade-review-state-v1';
-
-function saved(storage: MemoryStorage, store: VocabStore, basedOn: number): VocabStore {
-  const outcome = saveVocabStorage(storage, store, basedOn);
+async function saved(backend: MemoryBackend, store: VocabStore, basedOn: number): Promise<VocabStore> {
+  const outcome = await saveVocabStorage(backend, store, basedOn);
   assert.equal(outcome.ok, true, outcome.ok ? '' : outcome.reason);
   return (outcome as { ok: true; store: VocabStore }).store;
 }
 
-test('nothing stored yet gives an empty, unwritten state', () => {
-  const storage = new MemoryStorage();
-  const outcome = loadVocabStorage(storage);
+test('nothing stored yet gives an empty, unwritten state', async () => {
+  const backend = new MemoryBackend();
+  const outcome = await loadVocabStorage(backend);
   assert.equal(outcome.status, 'empty');
-  assert.equal(storage.data.size, 0, 'loading never writes');
+  assert.equal(backend.raw, null, 'loading never writes');
 });
 
-test('decks, cards and progress survive a reload unchanged', () => {
-  const storage = new MemoryStorage();
-  let store = saved(storage, sampleStore(), 0);
+test('decks, cards and progress survive a reload unchanged', async () => {
+  const backend = new MemoryBackend();
+  let store = await saved(backend, sampleStore(), 0);
   const task = buildQueue(store, { deckIds: null, directions: ['de-en'], now: NOW })[0];
-  store = saved(storage, must(applyRating(store, task, 'good', NOW, 'Europe/Berlin')).store, store.revision);
+  store = await saved(backend, must(applyRating(store, task, 'good', NOW, 'Europe/Berlin')).store, store.revision);
   assert.equal(store.revision, 2);
 
-  const reloaded = loadVocabStorage(storage);
+  const reloaded = await loadVocabStorage(backend);
   assert.equal(reloaded.status, 'ok');
   assert.deepEqual(reloaded.status === 'ok' && reloaded.store, store);
 });
 
-test('corrupted data is reported, never silently replaced', () => {
+test('corrupted data is reported, never silently replaced', async () => {
   for (const raw of ['{not json', '[]', '{"version":1}', JSON.stringify({ ...emptyStore(), decks: 'x' })]) {
-    const storage = new MemoryStorage();
-    storage.data.set(VOCAB_STORAGE_KEY, raw);
-    const outcome = loadVocabStorage(storage);
+    const backend = new MemoryBackend();
+    backend.raw = raw;
+    const outcome = await loadVocabStorage(backend);
     assert.equal(outcome.status, 'corrupt', raw);
     assert.equal(outcome.status === 'corrupt' && outcome.raw, raw, 'raw data offered for backup');
     // Auch ein Schreibversuch auf Basis eines leeren Zustands überschreibt nichts.
-    const write = saveVocabStorage(storage, sampleStore(), 0);
+    const write = await saveVocabStorage(backend, sampleStore(), 0);
     assert.equal(!write.ok && write.reason, 'conflict');
-    assert.equal(storage.data.get(VOCAB_STORAGE_KEY), raw);
+    assert.equal(backend.raw, raw);
   }
 });
 
-test('data from a newer version is kept and reported as such', () => {
-  const storage = new MemoryStorage();
+test('data from a newer version is kept and reported as such', async () => {
+  const backend = new MemoryBackend();
   const raw = JSON.stringify({ version: 2, revision: 4, somethingNew: true });
-  storage.data.set(VOCAB_STORAGE_KEY, raw);
-  const outcome = loadVocabStorage(storage);
-  assert.deepEqual(outcome, { status: 'future', raw, version: 2 });
-  assert.equal(saveVocabStorage(storage, sampleStore(), 0).ok, false);
-  assert.equal(storage.data.get(VOCAB_STORAGE_KEY), raw);
+  backend.raw = raw;
+  assert.deepEqual(await loadVocabStorage(backend), { status: 'future', raw, version: 2 });
+  assert.equal((await saveVocabStorage(backend, sampleStore(), 0)).ok, false);
+  assert.equal(backend.raw, raw);
 });
 
-test('a full storage is reported as failure and keeps the previous data', () => {
-  const storage = new MemoryStorage();
-  const first = saved(storage, sampleStore(), 0);
-  const before = storage.data.get(VOCAB_STORAGE_KEY);
-  storage.failNextSet = quotaError();
+test('a full storage is reported as failure and keeps the previous data', async () => {
+  const backend = new MemoryBackend();
+  const first = await saved(backend, sampleStore(), 0);
+  const before = backend.raw;
+  backend.failNextWrite = quotaError();
   const next = must(addCard(first, 'deck-a', card('cat', 'Katze'), 'card-cat', NOW));
-  const outcome = saveVocabStorage(storage, next, first.revision);
-  assert.deepEqual(outcome, { ok: false, reason: 'quota' });
-  assert.equal(storage.data.get(VOCAB_STORAGE_KEY), before);
+  assert.deepEqual(await saveVocabStorage(backend, next, first.revision), { ok: false, reason: 'quota' });
+  assert.equal(backend.raw, before);
 });
 
-test('a write that does not stick is not reported as success', () => {
-  const storage = new MemoryStorage();
-  storage.setItem = () => undefined; // Browser „schluckt" den Schreibvorgang.
-  assert.deepEqual(saveVocabStorage(storage, sampleStore(), 0), { ok: false, reason: 'unavailable' });
+test('a write that does not stick is not reported as success', async () => {
+  const backend = new MemoryBackend();
+  backend.swallowWrites = true;
+  assert.deepEqual(await saveVocabStorage(backend, sampleStore(), 0), { ok: false, reason: 'unavailable' });
 });
 
-test('blocked storage is reported as unavailable', () => {
-  const storage = new MemoryStorage();
-  storage.failGet = true;
-  assert.deepEqual(loadVocabStorage(storage), { status: 'unavailable' });
-  assert.deepEqual(loadVocabStorage(null), { status: 'unavailable' });
-  assert.equal(saveVocabStorage(storage, sampleStore(), 0).ok, false);
+test('blocked storage is reported as unavailable', async () => {
+  const backend = new MemoryBackend();
+  backend.failRead = true;
+  assert.deepEqual(await loadVocabStorage(backend), { status: 'unavailable' });
+  assert.deepEqual(await loadVocabStorage(null), { status: 'unavailable' });
+  assert.equal((await saveVocabStorage(null, sampleStore(), 0)).ok, false);
 });
 
-test('a change from another tab blocks the write instead of overwriting it', () => {
-  const storage = new MemoryStorage();
-  const tabA = saved(storage, sampleStore(), 0);
+test('a change from another tab blocks the write instead of overwriting it', async () => {
+  const backend = new MemoryBackend();
+  const tabA = await saved(backend, sampleStore(), 0);
   // Tab B lädt denselben Stand, fügt eine Karte hinzu und speichert.
-  const tabB = saved(storage, must(addCard(tabA, 'deck-a', card('cat', 'Katze'), 'card-b', NOW)), tabA.revision);
+  const tabB = await saved(backend, must(addCard(tabA, 'deck-a', card('cat', 'Katze'), 'card-b', NOW)), tabA.revision);
   // Tab A arbeitet noch auf dem alten Stand.
-  const staleWrite = saveVocabStorage(storage, must(addCard(tabA, 'deck-a', card('dog', 'Hund'), 'card-a', NOW)), tabA.revision);
+  const staleWrite = await saveVocabStorage(
+    backend,
+    must(addCard(tabA, 'deck-a', card('dog', 'Hund'), 'card-a', NOW)),
+    tabA.revision,
+  );
   assert.deepEqual(staleWrite, { ok: false, reason: 'conflict' });
-  const current = loadVocabStorage(storage);
+  const current = await loadVocabStorage(backend);
   assert.deepEqual(current.status === 'ok' && current.store, tabB, "tab B's card is kept");
-  assert.equal(revisionOf(storage.data.get(VOCAB_STORAGE_KEY) ?? null), tabB.revision);
+  assert.equal(storedRevision(backend.raw), tabB.revision);
 });
 
-test('an invalid next state is never written', () => {
-  const storage = new MemoryStorage();
+test('two simultaneous saves from the same revision: exactly one wins, nothing is lost silently', async () => {
+  const backend = new MemoryBackend();
+  const base = await saved(backend, sampleStore(), 0);
+  const fromA = must(addCard(base, 'deck-a', card('dog', 'Hund'), 'card-a', NOW));
+  const fromB = must(addCard(base, 'deck-a', card('cat', 'Katze'), 'card-b', NOW));
+  const outcomes = await Promise.all([
+    saveVocabStorage(backend, fromA, base.revision),
+    saveVocabStorage(backend, fromB, base.revision),
+  ]);
+  assert.deepEqual(
+    outcomes.map((outcome) => (outcome.ok ? 'ok' : outcome.reason)).sort(),
+    ['conflict', 'ok'],
+  );
+  const winner = outcomes.find((outcome) => outcome.ok) as { ok: true; store: VocabStore };
+  assert.equal(backend.raw, JSON.stringify(winner.store), 'the reported winner is what is stored');
+});
+
+test('an invalid next state is never written', async () => {
+  const backend = new MemoryBackend();
   const broken = { ...sampleStore(), cards: [{ ...sampleStore().cards[0], deckId: 'nope' }] };
-  assert.deepEqual(saveVocabStorage(storage, broken, 0), { ok: false, reason: 'invalid' });
-  assert.equal(storage.data.size, 0);
+  assert.deepEqual(await saveVocabStorage(backend, broken, 0), { ok: false, reason: 'invalid' });
+  assert.equal(backend.raw, null);
 });
 
-test('reset removes only the VokabelPfad key', () => {
-  const storage = new MemoryStorage();
-  saved(storage, sampleStore(), 0);
-  storage.data.set(DEMO_KEY, '{"language-en-retrieval":{}}');
-  storage.data.set('something-else', 'x');
-  assert.equal(resetVocabStorage(storage), true);
-  assert.equal(storage.data.has(VOCAB_STORAGE_KEY), false);
-  assert.equal(storage.data.get(DEMO_KEY), '{"language-en-retrieval":{}}', 'demo state untouched');
-  assert.equal(storage.data.get('something-else'), 'x');
+test('reset removes the VokabelPfad record', async () => {
+  const backend = new MemoryBackend();
+  await saved(backend, sampleStore(), 0);
+  assert.equal(await resetVocabStorage(backend), true);
+  assert.equal(backend.raw, null);
+  assert.equal(await resetVocabStorage(null), false);
 });
 
 function storedWith(mutate: (value: Record<string, unknown>) => void): unknown {
@@ -148,18 +162,18 @@ test('stored values are validated: references, ids, dates, ratings and finite nu
   assert.equal(validateStore(storedWith(() => undefined)).ok, true, 'unmodified state is valid');
 });
 
-test('non-finite numbers in stored JSON are rejected', () => {
+test('non-finite numbers in stored JSON are rejected', async () => {
   const raw = JSON.stringify(storedWith(() => undefined)).replace(/"ease":\d+(\.\d+)?/, '"ease":1e999');
   assert.match(raw, /1e999/);
-  const storage = new MemoryStorage();
-  storage.data.set(VOCAB_STORAGE_KEY, raw);
-  assert.equal(loadVocabStorage(storage).status, 'corrupt');
+  const backend = new MemoryBackend();
+  backend.raw = raw;
+  assert.equal((await loadVocabStorage(backend)).status, 'corrupt');
 });
 
-test('prototype keys in stored data are rejected and cause no pollution', () => {
+test('prototype keys in stored data are rejected and cause no pollution', async () => {
   const raw = JSON.stringify(storedWith(() => undefined)).replace('"decks":[{', '"decks":[{"__proto__":{"polluted":true},');
-  const storage = new MemoryStorage();
-  storage.data.set(VOCAB_STORAGE_KEY, raw);
-  assert.equal(loadVocabStorage(storage).status, 'corrupt');
+  const backend = new MemoryBackend();
+  backend.raw = raw;
+  assert.equal((await loadVocabStorage(backend)).status, 'corrupt');
   assert.equal(({} as Record<string, unknown>).polluted, undefined);
 });

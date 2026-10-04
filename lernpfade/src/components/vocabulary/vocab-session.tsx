@@ -2,17 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ReviewRating } from '@/domain/review/model';
-import { DIRECTION_LABELS, DIRECTIONS, type VocabStore } from '@/domain/vocabulary/model';
+import { DIRECTION_LABELS, LIMITS, type VocabStore } from '@/domain/vocabulary/model';
 import {
   applyRating,
+  buildQueue,
   currentTask,
   isFinished,
-  nextDueAt,
   recordResult,
   reveal,
+  sessionFollowUp,
   startSession,
   type ReviewTask,
   type Session,
+  type SessionSelection,
 } from '@/domain/vocabulary/session';
 import { formatDateTime, plural } from './format';
 import type { VocabActions } from './vocab-app';
@@ -33,15 +35,17 @@ function languageOf(task: ReviewTask, side: 'prompt' | 'answer'): 'en' | 'de' {
  * Eine Session über eine beim Start festgelegte Liste von Abfragen. Die Liste
  * schrumpft nicht beim Bewerten; die Position rückt je Bewertung genau um
  * eins vor. Ein Ref-Wächter verhindert, dass ein schneller Doppelklick
- * zweimal plant oder zählt, bevor React neu gerendert hat.
+ * zweimal plant oder zählt, solange das Speichern noch läuft.
  */
 export function VocabSession({
   store,
   tasks,
+  selection,
   actions,
 }: {
   store: VocabStore;
   tasks: ReviewTask[];
+  selection: SessionSelection;
   actions: VocabActions;
 }): React.ReactElement {
   const [session, setSession] = useState<Session>(() => startSession(tasks));
@@ -70,7 +74,7 @@ export function VocabSession({
     update(reveal(sessionRef.current));
   }
 
-  function onRate(rating: ReviewRating): void {
+  async function onRate(rating: ReviewRating): Promise<void> {
     if (busy.current) return;
     const current = sessionRef.current;
     const active = currentTask(current);
@@ -83,7 +87,7 @@ export function VocabSession({
         return;
       }
       // Erst wenn wirklich gespeichert wurde, rückt die Session vor.
-      if (!actions.commit(outcome.value.store, '')) return;
+      if (!(await actions.commit(outcome.value.store, ''))) return;
       // Den gespeicherten Stand (mit neuer Revision) liefert der nächste Render über `store`.
       update(recordResult(current, outcome.value.result));
     } finally {
@@ -92,9 +96,8 @@ export function VocabSession({
   }
 
   if (finished) {
-    const deckIds = new Set(tasks.map((entry) => entry.deckId));
-    const directions = DIRECTIONS.filter((direction) => tasks.some((entry) => entry.direction === direction));
-    const next = nextDueAt(store, { deckIds, directions, now: new Date() });
+    const now = new Date();
+    const followUp = sessionFollowUp(store, selection, now);
     return (
       <section className="vocab-panel vocab-session-done" aria-labelledby="session-done-title">
         <p className="eyebrow">Daily Review</p>
@@ -106,10 +109,43 @@ export function VocabSession({
             ? `Alle ${plural(tasks.length, 'Abfrage', 'Abfragen')} dieser Session bewertet und gespeichert.`
             : `${plural(session.results.length, 'Abfrage', 'Abfragen')} bewertet und gespeichert.`}
         </p>
-        <p>{next ? `Nächste Fälligkeit: ${formatDateTime(next)}.` : 'Keine weiteren Fälligkeiten geplant.'}</p>
-        <button className="button button-primary" type="button" onClick={() => actions.openOverview()}>
-          Zur Übersicht
-        </button>
+        {followUp.remainingDue > 0 ? (
+          <p className="vocab-followup">
+            {followUp.remainingDue === 1
+              ? 'Für deine Auswahl ist noch 1 Abfrage fällig.'
+              : `Für deine Auswahl sind noch ${followUp.remainingDue} Abfragen fällig.`}{' '}
+            Eine Session umfasst höchstens {LIMITS.sessionSize} Abfragen.
+          </p>
+        ) : (
+          <p>
+            {followUp.nextDueAt
+              ? `Nichts mehr fällig. Nächste Fälligkeit: ${formatDateTime(followUp.nextDueAt)}.`
+              : 'Nichts mehr fällig und keine weiteren Fälligkeiten geplant.'}
+          </p>
+        )}
+        <div className="vocab-actions">
+          {followUp.remainingDue > 0 ? (
+            <button
+              className="button button-primary"
+              type="button"
+              disabled={actions.locked}
+              onClick={() => {
+                const next = buildQueue(store, { ...selection, now: new Date() });
+                if (next.length > 0) actions.startSession(next, selection);
+                else actions.openOverview();
+              }}
+            >
+              Nächste Session starten
+            </button>
+          ) : null}
+          <button
+            className={followUp.remainingDue > 0 ? 'button button-secondary' : 'button button-primary'}
+            type="button"
+            onClick={() => actions.openOverview()}
+          >
+            Zur Übersicht
+          </button>
+        </div>
       </section>
     );
   }
@@ -177,7 +213,14 @@ export function VocabSession({
         {session.revealed ? (
           <div className="review-ratings" role="group" aria-label="Wie gut wusstest du die Antwort?">
             {RATINGS.map((entry) => (
-              <button key={entry.rating} type="button" onClick={() => onRate(entry.rating)} disabled={actions.locked}>
+              <button
+                key={entry.rating}
+                type="button"
+                onClick={() => void onRate(entry.rating)}
+                // Nicht während des Speicherns deaktivieren: Der Fokus bliebe sonst bei einem
+                // Fehler auf einem deaktivierten Knopf hängen. Doppelte Bewertungen hält `busy` ab.
+                disabled={actions.locked}
+              >
                 {entry.label}
                 <small>{entry.hint}</small>
               </button>

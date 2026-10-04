@@ -195,7 +195,7 @@ export function VocabDeckView({
             actions.notify({ tone: 'error', text: result.error.message });
             return;
           }
-          actions.commit(result.value, `Karte „${cardToDelete.term}" gelöscht.`);
+          void actions.commit(result.value, `Karte „${cardToDelete.term}" gelöscht.`);
         }}
       >
         {cardToDelete && cardImpact ? (
@@ -214,14 +214,14 @@ export function VocabDeckView({
         confirmLabel="Deck endgültig löschen"
         danger
         onCancel={() => setPendingDeckDelete(false)}
-        onConfirm={() => {
+        onConfirm={async () => {
           const result = deleteDeck(store, deck.id);
           setPendingDeckDelete(false);
           if (!result.ok) {
             actions.notify({ tone: 'error', text: result.error.message });
             return;
           }
-          if (actions.commit(result.value, '')) {
+          if (await actions.commit(result.value, '')) {
             actions.openOverview({ tone: 'success', text: `Deck „${deck.name}" wurde gelöscht.` });
           }
         }}
@@ -267,7 +267,7 @@ function DeckSettings({
           return;
         }
         setError(null);
-        actions.commit(result.value, 'Deck gespeichert. Lernfortschritt bleibt unverändert.');
+        void actions.commit(result.value, 'Deck gespeichert. Lernfortschritt bleibt unverändert.');
       }}
     >
       <div className="vocab-field">
@@ -296,7 +296,7 @@ function DeckSettings({
         />
         <FieldError id={`${descriptionId}-error`} text={error?.field === 'description' ? error.text : null} />
       </div>
-      <button className="button button-secondary" type="submit" disabled={actions.locked}>
+      <button className="button button-secondary" type="submit" disabled={actions.locked || actions.saving}>
         Deck speichern
       </button>
     </form>
@@ -321,7 +321,7 @@ function NewCardForm({
       ref={formRef}
       className="vocab-form"
       aria-label="Neue Karte"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
         const result = addCard(store, deckId, toInput(draft), newId('card'), new Date());
         if (!result.ok) {
@@ -330,7 +330,7 @@ function NewCardForm({
           focusField(formRef.current, state?.field ?? null);
           return;
         }
-        if (actions.commit(result.value, `Karte „${draft.term.trim()}" angelegt.`)) {
+        if (await actions.commit(result.value, `Karte „${draft.term.trim()}" angelegt.`)) {
           setDraft(EMPTY_DRAFT);
           setError(null);
           focusField(formRef.current, 'term');
@@ -341,7 +341,7 @@ function NewCardForm({
       <p className="vocab-muted">
         {plural(store.cards.length, 'Karte', 'Karten')} von höchstens {LIMITS.cards} insgesamt.
       </p>
-      <button className="button button-primary" type="submit" disabled={actions.locked}>
+      <button className="button button-primary" type="submit" disabled={actions.locked || actions.saving}>
         Karte hinzufügen
       </button>
     </form>
@@ -365,7 +365,7 @@ function EditCardForm({
   const formRef = useFocusOnMount<HTMLFormElement>();
   const hasProgress = store.reviews.some((review) => review.cardId === card.id);
 
-  function save(confirmProgressReset: boolean): void {
+  async function save(confirmProgressReset: boolean): Promise<void> {
     const result = updateCard(store, card.id, toInput(draft), confirmProgressReset);
     if (!result.ok) {
       const state = errorState(result.error);
@@ -376,7 +376,7 @@ function EditCardForm({
     const message = result.value.progressReset
       ? 'Karte gespeichert. Der Lernfortschritt beider Richtungen beginnt neu.'
       : 'Karte gespeichert.';
-    if (actions.commit(result.value.store, message)) onDone();
+    if (await actions.commit(result.value.store, message)) onDone();
   }
 
   return (
@@ -391,12 +391,12 @@ function EditCardForm({
           setConfirmReset(true);
           return;
         }
-        save(false);
+        void save(false);
       }}
     >
       <CardFields draft={draft} onChange={setDraft} error={error} idPrefix={`edit-${card.id}`} />
       <div className="vocab-actions">
-        <button className="button button-primary" type="submit" disabled={actions.locked}>
+        <button className="button button-primary" type="submit" disabled={actions.locked || actions.saving}>
           Änderungen speichern
         </button>
         <button className="button button-secondary" type="button" onClick={onDone}>
@@ -410,7 +410,7 @@ function EditCardForm({
         onCancel={() => setConfirmReset(false)}
         onConfirm={() => {
           setConfirmReset(false);
-          save(true);
+          void save(true);
         }}
       >
         <p>

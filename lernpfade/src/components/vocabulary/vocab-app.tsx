@@ -1,15 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { VOCAB_STORAGE_KEY, type VocabStore } from '@/domain/vocabulary/model';
-import type { ReviewTask } from '@/domain/vocabulary/session';
+import { VOCAB_CHANNEL, browserBackend } from '@/domain/vocabulary/idb-backend';
+import type { VocabStore } from '@/domain/vocabulary/model';
+import type { ReviewTask, SessionSelection } from '@/domain/vocabulary/session';
 import {
-  browserStorage,
   loadVocabStorage,
   resetVocabStorage,
-  revisionOf,
   saveVocabStorage,
   type SaveFailure,
+  type VocabBackend,
 } from '@/domain/vocabulary/storage';
 import { ConfirmDialog } from './confirm-dialog';
 import { downloadText } from './download';
@@ -23,6 +23,11 @@ import { VocabSession } from './vocab-session';
  * Ladezustand; gelesen wird erst nach dem Mount — dadurch gibt es keinen
  * Hydration-Unterschied und keinen Moment, in dem ein leerer Zustand
  * vorhandene Daten überschreiben könnte.
+ *
+ * Gespeichert wird in IndexedDB (atomare Konfliktsperre, siehe
+ * `domain/vocabulary/storage.ts`). Über einen `BroadcastChannel` melden Tabs
+ * einander neue Stände, damit ein veralteter Tab sich sofort sperrt; die
+ * eigentliche Sicherung ist die Revisionsprüfung beim Schreiben.
  */
 
 type Phase =
@@ -32,21 +37,26 @@ type Phase =
   | { kind: 'corrupt'; raw: string; detail: string }
   | { kind: 'future'; raw: string; version: number };
 
-type View = { name: 'overview' } | { name: 'deck'; deckId: string } | { name: 'session'; tasks: ReviewTask[] };
+type View = { name: 'overview' } | { name: 'deck'; deckId: string } | { name: 'session'; tasks: ReviewTask[]; selection: SessionSelection; id: number };
 
 export type Notice = { tone: 'success' | 'error'; text: string };
 
 export type VocabActions = {
-  /** Speichert `next`; gibt `true` nur bei tatsächlich gespeichertem Zustand zurück. */
-  commit: (next: VocabStore, successMessage: string) => boolean;
+  /** Speichert `next`; liefert `true` nur bei tatsächlich gespeichertem Zustand. */
+  commit: (next: VocabStore, successMessage: string) => Promise<boolean>;
   notify: (notice: Notice) => void;
   openDeck: (deckId: string) => void;
   openOverview: (message?: Notice) => void;
-  startSession: (tasks: ReviewTask[]) => void;
+  /** `selection` ist die ursprüngliche Auswahl — für den ehrlichen Abschluss einer gedeckelten Session. */
+  startSession: (tasks: ReviewTask[], selection: SessionSelection) => void;
   /** Gesperrt, solange ein anderer Tab neuere Daten geschrieben hat. */
   locked: boolean;
+  /** Ein Speichervorgang läuft gerade. */
+  saving: boolean;
   timeZone: string;
 };
+
+type ChannelMessage = { type: 'saved'; revision: number } | { type: 'reset' };
 
 const SAVE_MESSAGES: Record<SaveFailure, string> = {
   conflict:
@@ -66,21 +76,38 @@ function browserTimeZone(): string {
   }
 }
 
+function openChannel(): BroadcastChannel | null {
+  try {
+    return typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(VOCAB_CHANNEL);
+  } catch {
+    return null;
+  }
+}
+
 export function VocabApp(): React.ReactElement {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
   const [store, setStore] = useState<VocabStore | null>(null);
   const [view, setView] = useState<View>({ name: 'overview' });
   const [notice, setNotice] = useState<Notice | null>(null);
   const [locked, setLocked] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [timeZone, setTimeZone] = useState('UTC');
   const [navigated, setNavigated] = useState(false);
   // Aktueller Stand auch für Ereignisse, die zwischen zwei Renderdurchläufen eintreffen.
   const storeRef = useRef<VocabStore | null>(null);
   const lockedRef = useRef(false);
+  const savingRef = useRef(false);
+  const backendRef = useRef<VocabBackend | null>(null);
+  const channelRef = useRef<BroadcastChannel | null>(null);
 
-  const load = useCallback((message?: Notice) => {
-    const outcome = loadVocabStorage(browserStorage());
+  const lock = useCallback(() => {
+    lockedRef.current = true;
+    setLocked(true);
+  }, []);
+
+  const load = useCallback(async (message?: Notice) => {
+    const outcome = await loadVocabStorage(backendRef.current);
     lockedRef.current = false;
     setLocked(false);
     if (outcome.status === 'ok' || outcome.status === 'empty') {
@@ -103,54 +130,68 @@ export function VocabApp(): React.ReactElement {
   }, []);
 
   useEffect(() => {
+    backendRef.current = browserBackend();
     setTimeZone(browserTimeZone());
-    load();
+    void load();
   }, [load]);
 
-  // Konfliktsperre: Schreibt ein anderer Tab, wird dieser Tab gesperrt statt still zu überschreiben.
+  // Konfliktsperre: Meldet ein anderer Tab einen neuen Stand, sperrt sich dieser Tab.
   useEffect(() => {
-    function onStorage(event: StorageEvent): void {
-      if (event.key !== VOCAB_STORAGE_KEY && event.key !== null) return;
+    const channel = openChannel();
+    channelRef.current = channel;
+    if (!channel) return;
+    channel.onmessage = (event: MessageEvent<ChannelMessage>) => {
       const current = storeRef.current;
-      if (current && revisionOf(event.newValue) === current.revision) return;
-      lockedRef.current = true;
-      setLocked(true);
-    }
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
+      if (event.data?.type === 'saved' && current && event.data.revision === current.revision) return;
+      lock();
+    };
+    return () => {
+      channel.close();
+      channelRef.current = null;
+    };
+  }, [lock]);
 
-  const commit = useCallback((next: VocabStore, successMessage: string): boolean => {
-    const current = storeRef.current;
-    if (!current) return false;
-    if (lockedRef.current) {
-      setNotice({ tone: 'error', text: SAVE_MESSAGES.conflict });
-      return false;
-    }
-    // `next` trägt die Revision des Stands, aus dem es berechnet wurde. Ist das nicht
-    // mehr der aktuelle Stand (z. B. Doppel-Submit im selben Tab), wird nicht gespeichert —
-    // sonst würde die zuerst gespeicherte Änderung still überschrieben.
-    if (next.revision !== current.revision) {
-      setNotice({
-        tone: 'error',
-        text: 'Nicht gespeichert: Der Stand hat sich gerade geändert. Bitte prüfe die Ansicht und versuche es erneut.',
-      });
-      return false;
-    }
-    const outcome = saveVocabStorage(browserStorage(), next, next.revision);
-    if (!outcome.ok) {
-      if (outcome.reason === 'conflict') {
-        lockedRef.current = true;
-        setLocked(true);
+  const commit = useCallback(
+    async (next: VocabStore, successMessage: string): Promise<boolean> => {
+      const current = storeRef.current;
+      if (!current) return false;
+      // Ein Speichervorgang nach dem anderen; ein Doppel-Submit wird nicht ein zweites Mal geschrieben.
+      if (savingRef.current) return false;
+      if (lockedRef.current) {
+        setNotice({ tone: 'error', text: SAVE_MESSAGES.conflict });
+        return false;
       }
-      setNotice({ tone: 'error', text: SAVE_MESSAGES[outcome.reason] });
-      return false;
-    }
-    storeRef.current = outcome.store;
-    setStore(outcome.store);
-    setNotice(successMessage ? { tone: 'success', text: successMessage } : null);
-    return true;
-  }, []);
+      // `next` trägt die Revision des Stands, aus dem es berechnet wurde. Ist das nicht
+      // mehr der aktuelle Stand, wird nicht gespeichert — sonst würde eine zuvor
+      // gespeicherte Änderung still überschrieben.
+      if (next.revision !== current.revision) {
+        setNotice({
+          tone: 'error',
+          text: 'Nicht gespeichert: Der Stand hat sich gerade geändert. Bitte prüfe die Ansicht und versuche es erneut.',
+        });
+        return false;
+      }
+      savingRef.current = true;
+      setSaving(true);
+      try {
+        const outcome = await saveVocabStorage(backendRef.current, next, next.revision);
+        if (!outcome.ok) {
+          if (outcome.reason === 'conflict') lock();
+          setNotice({ tone: 'error', text: SAVE_MESSAGES[outcome.reason] });
+          return false;
+        }
+        storeRef.current = outcome.store;
+        setStore(outcome.store);
+        setNotice(successMessage ? { tone: 'success', text: successMessage } : null);
+        channelRef.current?.postMessage({ type: 'saved', revision: outcome.store.revision } satisfies ChannelMessage);
+        return true;
+      } finally {
+        savingRef.current = false;
+        setSaving(false);
+      }
+    },
+    [lock],
+  );
 
   const actions: VocabActions = {
     commit,
@@ -165,19 +206,27 @@ export function VocabApp(): React.ReactElement {
       setNotice(message ?? null);
       setView({ name: 'overview' });
     },
-    startSession: (tasks) => {
+    startSession: (tasks, selection) => {
       setNavigated(true);
       setNotice(null);
-      setView({ name: 'session', tasks });
+      // Neue `id` = neue Session-Instanz, auch direkt im Anschluss an eine abgeschlossene.
+      setView((previous) => ({
+        name: 'session',
+        tasks,
+        selection,
+        id: previous.name === 'session' ? previous.id + 1 : 1,
+      }));
     },
     locked,
+    saving,
     timeZone,
   };
 
-  function resetAll(): void {
+  async function resetAll(): Promise<void> {
     setConfirmReset(false);
-    if (resetVocabStorage(browserStorage())) {
-      load({ tone: 'success', text: 'Die VokabelPfad-Daten dieses Browsers wurden gelöscht.' });
+    if (await resetVocabStorage(backendRef.current)) {
+      channelRef.current?.postMessage({ type: 'reset' } satisfies ChannelMessage);
+      await load({ tone: 'success', text: 'Die VokabelPfad-Daten dieses Browsers wurden gelöscht.' });
     } else {
       setNotice({ tone: 'error', text: 'Löschen nicht möglich: Der Browser verweigert den Zugriff auf den Speicher.' });
     }
@@ -193,7 +242,7 @@ export function VocabApp(): React.ReactElement {
             <strong>In einem anderen Tab wurde VokabelPfad geändert.</strong> Damit nichts überschrieben
             wird, speichert dieser Tab erst wieder, wenn du den aktuellen Stand lädst.
           </p>
-          <button className="button button-secondary" type="button" onClick={() => load()}>
+          <button className="button button-secondary" type="button" onClick={() => void load()}>
             Aktuellen Stand laden
           </button>
         </div>
@@ -212,7 +261,7 @@ export function VocabApp(): React.ReactElement {
             Dieser Browser erlaubt VokabelPfad gerade keinen Zugriff auf seinen lokalen Speicher (zum Beispiel
             im privaten Modus oder bei blockierten Website-Daten). Ohne ihn kann nichts gespeichert werden.
           </p>
-          <button className="button button-secondary" type="button" onClick={() => load()}>
+          <button className="button button-secondary" type="button" onClick={() => void load()}>
             Erneut versuchen
           </button>
         </div>
@@ -246,7 +295,7 @@ export function VocabApp(): React.ReactElement {
         view.name === 'deck' && store.decks.some((deck) => deck.id === view.deckId) ? (
           <VocabDeckView key={view.deckId} store={store} deckId={view.deckId} actions={actions} />
         ) : view.name === 'session' ? (
-          <VocabSession store={store} tasks={view.tasks} actions={actions} />
+          <VocabSession key={view.id} store={store} tasks={view.tasks} selection={view.selection} actions={actions} />
         ) : (
           <VocabOverview store={store} actions={actions} focusHeading={navigated} />
         )
@@ -257,7 +306,7 @@ export function VocabApp(): React.ReactElement {
         title="VokabelPfad zurücksetzen?"
         confirmLabel="Endgültig zurücksetzen"
         danger
-        onConfirm={resetAll}
+        onConfirm={() => void resetAll()}
         onCancel={() => setConfirmReset(false)}
       >
         <p>

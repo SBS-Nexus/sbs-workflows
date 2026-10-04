@@ -4,7 +4,8 @@ import type { ReviewState } from '../review/model.ts';
  * LP-06 — VokabelPfad: Datenmodell.
  *
  * Alles hier lebt ausschließlich im Browser der lernenden Person (siehe
- * `storage.ts`). Es gibt kein Konto, keinen Server und keine Synchronisation.
+ * `storage.ts` und `idb-backend.ts`). Es gibt kein Konto, keinen Server und
+ * keine Synchronisation.
  *
  * Begriffe:
  * - **Karte**: ein Vokabeleintrag (Begriff + Übersetzung, optional Satzkontext
@@ -15,9 +16,6 @@ import type { ReviewState } from '../review/model.ts';
  */
 
 export const VOCAB_STORE_VERSION = 1;
-
-/** Eigener Speicherbereich, getrennt vom Demo-Schlüssel `lernpfade-review-state-v1`. */
-export const VOCAB_STORAGE_KEY = 'lernpfade-vokabeln-v1';
 
 /**
  * Sprachen, die in diesem Slice tatsächlich unterstützt werden. Das Modell

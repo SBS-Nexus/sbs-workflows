@@ -1,32 +1,38 @@
-import { VOCAB_STORAGE_KEY, emptyStore, type VocabStore } from './model.ts';
+import { emptyStore, type VocabStore } from './model.ts';
 import { validateStore } from './validate.ts';
 
 /**
- * Browser-Speicheradapter für VokabelPfad.
+ * Speicherlogik für VokabelPfad — unabhängig von der konkreten Browser-API.
  *
- * Technik: `localStorage` unter genau einem eigenen, versionierten Schlüssel
- * (`lernpfade-vokabeln-v1`). Begründung: Die Datenmenge ist klein und hart
- * begrenzt (≤ 50 Decks, ≤ 1.000 Karten), Lesen und Schreiben sind synchron
- * und damit ohne Zwischenzustände prüfbar, und das `storage`-Ereignis meldet
- * Änderungen aus anderen Tabs. IndexedDB brächte Asynchronität und
- * Transaktionsverwaltung ohne Nutzen für diese Größenordnung.
+ * Im Browser liegt der Zustand als EIN serialisierter Datensatz in einer
+ * eigenen IndexedDB-Datenbank (`idb-backend.ts`). Begründung: Nur eine
+ * IndexedDB-`readwrite`-Transaktion macht „Revision prüfen und schreiben"
+ * über alle Tabs derselben Origin atomar. `localStorage` kann das nicht —
+ * zwei Tabs könnten beide prüfen, bevor einer schreibt, und der spätere
+ * Schreibvorgang würde den früheren still verwerfen.
  *
  * Garantien:
  * - Gelesen wird als `unknown` und vollständig geprüft (`validateStore`).
  * - Beschädigte Daten oder eine künftige Version werden NIE automatisch
- *   überschrieben; Zurücksetzen gibt es nur ausdrücklich (`resetVocabStorage`)
- *   und nur für diesen einen Schlüssel — kein `localStorage.clear()`.
- * - Jeder Schreibvorgang prüft vorher die Revision im Speicher
- *   (Konfliktsperre zwischen Tabs) und hinterher durch Zurücklesen, dass
- *   wirklich gespeichert wurde. Ein Fehlschlag (z. B. Speicher voll) wird als
- *   Fehler gemeldet, nie als Erfolg.
+ *   überschrieben; Zurücksetzen gibt es nur ausdrücklich
+ *   (`resetVocabStorage`) und nur für diesen einen Datensatz.
+ * - Jeder Schreibvorgang prüft atomar die Revision im Speicher
+ *   (Konfliktsperre zwischen Tabs) und liest danach zurück, ob wirklich
+ *   gespeichert wurde. Ein Fehlschlag (z. B. Speicher voll) wird als Fehler
+ *   gemeldet, nie als Erfolg.
  */
 
-/** Ausschnitt der Web-Storage-API, den der Adapter braucht (testbar ohne Browser). */
-export type StorageLike = {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
+/** Die Speicherschnittstelle, die der Adapter braucht (testbar ohne Browser). */
+export type VocabBackend = {
+  /** Gespeicherter Rohtext; `null` = noch nichts gespeichert. */
+  read(): Promise<string | null>;
+  /**
+   * Atomar: liest den aktuellen Rohtext und schreibt `serialized` nur, wenn
+   * `isCurrent(roh)` zutrifft. Kein anderer Schreibvorgang darf dazwischen
+   * liegen — auch nicht aus einem anderen Tab.
+   */
+  compareAndWrite(isCurrent: (raw: string | null) => boolean, serialized: string): Promise<'written' | 'conflict'>;
+  remove(): Promise<void>;
 };
 
 export type LoadOutcome =
@@ -40,16 +46,8 @@ export type LoadOutcome =
   /** Der Browser verweigert den Zugriff (z. B. Speicher deaktiviert). */
   | { status: 'unavailable' };
 
-export function loadVocabStorage(storage: StorageLike | null): LoadOutcome {
-  if (!storage) return { status: 'unavailable' };
-  let raw: string | null;
-  try {
-    raw = storage.getItem(VOCAB_STORAGE_KEY);
-  } catch {
-    return { status: 'unavailable' };
-  }
+export function parseStoredVocab(raw: string | null): LoadOutcome {
   if (raw === null) return { status: 'empty', store: emptyStore() };
-
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -60,6 +58,17 @@ export function loadVocabStorage(storage: StorageLike | null): LoadOutcome {
   if (checked.ok) return { status: 'ok', store: checked.store };
   if (checked.reason === 'future_version') return { status: 'future', raw, version: checked.version };
   return { status: 'corrupt', raw, detail: checked.detail };
+}
+
+export async function loadVocabStorage(backend: VocabBackend | null): Promise<LoadOutcome> {
+  if (!backend) return { status: 'unavailable' };
+  let raw: string | null;
+  try {
+    raw = await backend.read();
+  } catch {
+    return { status: 'unavailable' };
+  }
+  return parseStoredVocab(raw);
 }
 
 export type SaveFailure =
@@ -74,8 +83,8 @@ export type SaveFailure =
 
 export type SaveOutcome = { ok: true; store: VocabStore } | { ok: false; reason: SaveFailure };
 
-/** Revision des gespeicherten Zustands; `null` = nicht lesbar/gültig. */
-function storedRevision(raw: string | null): number | null {
+/** Revision eines gespeicherten Rohtexts; `0` = leer, `null` = nicht lesbar/gültig. */
+export function storedRevision(raw: string | null): number | null {
   if (raw === null) return 0;
   try {
     const checked = validateStore(JSON.parse(raw));
@@ -85,7 +94,7 @@ function storedRevision(raw: string | null): number | null {
   }
 }
 
-function isQuotaError(error: unknown): boolean {
+export function isQuotaError(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) return false;
   const named = error as { name?: unknown; code?: unknown };
   return (
@@ -101,32 +110,25 @@ function isQuotaError(error: unknown): boolean {
  * Änderung beruht (`basedOnRevision`). Erfolgreich gespeichert wird mit
  * Revision + 1.
  */
-export function saveVocabStorage(
-  storage: StorageLike | null,
+export async function saveVocabStorage(
+  backend: VocabBackend | null,
   next: VocabStore,
   basedOnRevision: number,
-): SaveOutcome {
-  if (!storage) return { ok: false, reason: 'unavailable' };
+): Promise<SaveOutcome> {
+  if (!backend) return { ok: false, reason: 'unavailable' };
   const candidate: VocabStore = { ...next, revision: basedOnRevision + 1 };
   const checked = validateStore(candidate);
   if (!checked.ok) return { ok: false, reason: 'invalid' };
-
-  let current: string | null;
-  try {
-    current = storage.getItem(VOCAB_STORAGE_KEY);
-  } catch {
-    return { ok: false, reason: 'unavailable' };
-  }
-  if (storedRevision(current) !== basedOnRevision) return { ok: false, reason: 'conflict' };
-
   const serialized = JSON.stringify(checked.store);
+
   try {
-    storage.setItem(VOCAB_STORAGE_KEY, serialized);
+    const written = await backend.compareAndWrite((raw) => storedRevision(raw) === basedOnRevision, serialized);
+    if (written === 'conflict') return { ok: false, reason: 'conflict' };
   } catch (error) {
     return { ok: false, reason: isQuotaError(error) ? 'quota' : 'unavailable' };
   }
   try {
-    if (storage.getItem(VOCAB_STORAGE_KEY) !== serialized) return { ok: false, reason: 'unavailable' };
+    if ((await backend.read()) !== serialized) return { ok: false, reason: 'unavailable' };
   } catch {
     return { ok: false, reason: 'unavailable' };
   }
@@ -134,29 +136,15 @@ export function saveVocabStorage(
 }
 
 /**
- * Entfernt ausschließlich die VokabelPfad-Daten dieses Browsers. Nur nach
+ * Entfernt ausschließlich den VokabelPfad-Datensatz dieses Browsers. Nur nach
  * ausdrücklicher Bestätigung aufrufen.
  */
-export function resetVocabStorage(storage: StorageLike | null): boolean {
-  if (!storage) return false;
+export async function resetVocabStorage(backend: VocabBackend | null): Promise<boolean> {
+  if (!backend) return false;
   try {
-    storage.removeItem(VOCAB_STORAGE_KEY);
-    return storage.getItem(VOCAB_STORAGE_KEY) === null;
+    await backend.remove();
+    return (await backend.read()) === null;
   } catch {
     return false;
-  }
-}
-
-/** Revision aus einem `storage`-Ereignis eines anderen Tabs (`null` = gelöscht/ungültig). */
-export function revisionOf(raw: string | null): number | null {
-  return raw === null ? null : storedRevision(raw);
-}
-
-/** Zugriff auf `window.localStorage`, der in gesperrten Kontexten nicht wirft. */
-export function browserStorage(): StorageLike | null {
-  try {
-    return typeof window === 'undefined' ? null : window.localStorage;
-  } catch {
-    return null;
   }
 }

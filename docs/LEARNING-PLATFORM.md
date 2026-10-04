@@ -386,26 +386,33 @@ validiert wird heute ausschließlich `en` → `de`.
 
 ### 11.2 Speicher und Versionierung
 
-- **Technik:** `localStorage`, ein einziger Schlüssel
-  `lernpfade-vokabeln-v1`, getrennt vom Demo-Schlüssel
-  `lernpfade-review-state-v1`. Begründung: kleine, hart begrenzte Datenmenge;
-  synchrones Lesen/Schreiben ohne Zwischenzustände; das `storage`-Ereignis
-  meldet Änderungen anderer Tabs. IndexedDB brächte Asynchronität ohne Nutzen
-  für diese Größe.
+- **Technik:** IndexedDB, eigene Datenbank `lernpfade-vokabeln`
+  (Object Store `daten`, ein Datensatz `zustand` mit dem serialisierten
+  Zustand), getrennt vom Demo-Deck (`localStorage`,
+  `lernpfade-review-state-v1`). Begründung: Nur eine IndexedDB-
+  `readwrite`-Transaktion macht „Revision prüfen und schreiben" über alle
+  Tabs derselben Origin atomar. Mit `localStorage` könnten zwei Tabs beide
+  dieselbe Revision prüfen, bevor einer schreibt — der spätere Schreibvorgang
+  würde den früheren still verwerfen.
 - **Format:** `{ version: 1, revision, decks, cards, reviews, activity }`.
   Gelesen wird als `unknown` und vollständig geprüft (Version, erlaubte
   Felder, IDs, Referenzen, Zeitstempel, Ratings, endliche Zahlen, Grenzen).
 - **Beschädigt / künftige Version:** wird angezeigt, nie automatisch
   überschrieben. Angeboten werden „Rohdaten sichern" (lokaler Download) und
-  „VokabelPfad zurücksetzen" — nur nach Bestätigung, nur dieser Schlüssel,
-  kein `localStorage.clear()`.
+  „VokabelPfad zurücksetzen" — nur nach Bestätigung, nur dieser Datensatz;
+  Demo-Deck und andere Daten der Seite bleiben unberührt.
 - **Schreiben:** Jede Änderung beruht auf einer Revision. Gespeichert wird nur,
-  wenn im Speicher noch genau diese Revision liegt (Konfliktsperre); danach
-  wird zurückgelesen. „Speicher voll" und andere Fehler werden als Fehler
-  gemeldet, der vorige Stand bleibt unverändert.
-- **Tabs:** Schreibt ein anderer Tab, sperrt sich dieser Tab mit einem
-  Hinweis, bis der aktuelle Stand geladen wird. Es gibt kein automatisches
-  Zusammenführen.
+  wenn im Speicher noch genau diese Revision liegt — geprüft und geschrieben
+  in derselben `readwrite`-Transaktion (atomare Konfliktsperre); danach wird
+  zurückgelesen. Ein Tab speichert immer nur einen Vorgang zugleich.
+  „Speicher voll" und andere Fehler werden als Fehler gemeldet, der vorige
+  Stand bleibt unverändert.
+- **Tabs:** Nach jedem Speichern meldet ein Tab den neuen Stand über einen
+  `BroadcastChannel` (`lernpfade-vokabeln`); andere Tabs sperren sich sofort
+  mit einem Hinweis, bis der aktuelle Stand geladen wird. Die Meldung ist nur
+  Komfort: Auch ohne sie (Kanal nicht verfügbar, Meldung verpasst) lehnt die
+  Revisionsprüfung beim Schreiben einen veralteten Tab ab und sperrt ihn. Es
+  gibt kein automatisches Zusammenführen.
 - **Hydration:** Server und erster Client-Render zeigen denselben
   Ladezustand; gelesen wird erst nach dem Mount.
 
@@ -438,6 +445,10 @@ auch in der Oberfläche.
   einmal bewertet. Doppelklicks planen und zählen nicht doppelt.
 - Prompt zuerst; Antwort, Satzkontext und Tags erst nach dem Aufdecken.
 - Scheduling unverändert über den gemeinsamen Review-Core; „Nochmal" = morgen.
+- Abschluss: Ist für dieselbe Auswahl (Decks und Richtungen wie beim Start)
+  noch etwas fällig — etwa weil die Session bei 20 gedeckelt war —, nennt der
+  Abschluss die Zahl und bietet „Nächste Session starten" an. Erst wenn nichts
+  mehr fällig ist, wird die nächste Fälligkeit genannt.
 - Nichts fällig: ehrlicher Abschluss mit nächster Fälligkeit, keine
   Endlosschleife.
 

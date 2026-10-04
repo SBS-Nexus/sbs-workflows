@@ -488,9 +488,11 @@ viertes Deployable, kein Backend.
   einen Tag; es gibt keine Wiederholung innerhalb derselben Session.
 - **Identität:** stabile Deck-/Karten-IDs; je Lernrichtung ein eigener
   Wiederholungszustand `<deckId>:<cardId>:<en-de|de-en>`.
-- **Speicher:** nur in diesem Browser, eigener versionierter Schlüssel
-  `lernpfade-vokabeln-v1`, getrennt vom Demo-Schlüssel. Kein Konto, keine
-  Synchronisation; Löschen der Browserdaten entfernt die Daten.
+- **Speicher:** nur in diesem Browser, eigene versionierte IndexedDB
+  `lernpfade-vokabeln`, getrennt vom Demo-Schlüssel. Atomare
+  Konfliktsperre zwischen Tabs (Revisionsprüfung und Schreiben in einer
+  Transaktion). Kein Konto, keine Synchronisation; Löschen der Browserdaten
+  entfernt die Daten.
 - **Grenzen:** Import ≤ 2 MiB, ≤ 50 Decks, ≤ 1.000 Karten insgesamt,
   Textlimits je Feld, ≤ 20 Abfragen je Session.
 - **Nicht enthalten:** weitere Sprachen in der UI, Audio/Aussprache,
@@ -498,7 +500,7 @@ viertes Deployable, kein Backend.
   Übernahme von Identität oder Fortschritt aus den anderen Apps.
 - Vertrag und Einzelheiten: `docs/LEARNING-PLATFORM.md`, Abschnitt 11.
 
-Gates: Hub-Typecheck, 91 Unit-Tests (Review-Core, Föderation, VokabelPfad),
+Gates: Hub-Typecheck, 94 Unit-Tests (Review-Core, Föderation, VokabelPfad),
 Produktionsbuild und Playwright-E2E gegen den Produktionsbuild (Desktop,
 375 px, 200 % Zoom, axe) — alle im Workflow `Lernpfade Hub`.
 

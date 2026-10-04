@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { emptyStore, type VocabStore } from './model.ts';
 import { addCard, createDeck, type CardInput } from './operations.ts';
-import type { StorageLike } from './storage.ts';
+import type { VocabBackend } from './storage.ts';
 
 /** Nur für Tests: kleine Bausteine, damit jeder Test seinen Zustand explizit aufbaut. */
 
@@ -40,28 +40,36 @@ export function fixture(name: string): string {
   return readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
 }
 
-/** Speicher im Arbeitsspeicher mit optional eingeschleusten Fehlern. */
-export class MemoryStorage implements StorageLike {
-  readonly data = new Map<string, string>();
-  failNextSet: Error | null = null;
-  failGet = false;
+/**
+ * Speicher im Arbeitsspeicher mit eingeschleusbaren Fehlern. `compareAndWrite`
+ * ist atomar wie eine IndexedDB-`readwrite`-Transaktion: Prüfen und Schreiben
+ * geschehen ohne Unterbrechung.
+ */
+export class MemoryBackend implements VocabBackend {
+  raw: string | null = null;
+  failNextWrite: Error | null = null;
+  failRead = false;
+  /** Simuliert einen Browser, der Schreibvorgänge stillschweigend verwirft. */
+  swallowWrites = false;
 
-  getItem(key: string): string | null {
-    if (this.failGet) throw new Error('SecurityError');
-    return this.data.has(key) ? (this.data.get(key) as string) : null;
+  async read(): Promise<string | null> {
+    if (this.failRead) throw new Error('SecurityError');
+    return this.raw;
   }
 
-  setItem(key: string, value: string): void {
-    if (this.failNextSet) {
-      const error = this.failNextSet;
-      this.failNextSet = null;
+  async compareAndWrite(isCurrent: (raw: string | null) => boolean, serialized: string): Promise<'written' | 'conflict'> {
+    if (!isCurrent(this.raw)) return 'conflict';
+    if (this.failNextWrite) {
+      const error = this.failNextWrite;
+      this.failNextWrite = null;
       throw error;
     }
-    this.data.set(key, value);
+    if (!this.swallowWrites) this.raw = serialized;
+    return 'written';
   }
 
-  removeItem(key: string): void {
-    this.data.delete(key);
+  async remove(): Promise<void> {
+    this.raw = null;
   }
 }
 
