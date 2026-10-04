@@ -50,10 +50,40 @@ noch Nutzerkennung.
 Architektur und Begründung: `docs/LEARNING-PLATFORM.md`, Abschnitt 10.
 
 ```bash
-npm run test       # Review-Domäne: Scheduler, Adapter, Föderation, Abruf
+npm run test       # Review-Domäne: Scheduler, Adapter, Föderation, Abruf + VokabelPfad
 npm run typecheck
 npm run build
 ```
+
+## VokabelPfad (LP-06, lokaler MVP)
+
+`/vokabeln`: eigene Decks Englisch ↔ Deutsch, Karten mit Satzkontext und Tags,
+beide Lernrichtungen, Daily Review, Statistik, JSON-Import/-Export und zwei
+Starterdecks. Gespeichert wird **nur in diesem Browser** (`localStorage`,
+Schlüssel `lernpfade-vokabeln-v1`) — kein Konto, keine Synchronisation.
+Geplant wird mit dem gemeinsamen Review-Core (`src/domain/review/scheduler.ts`).
+
+- Domäne und Speicher: `src/domain/vocabulary/` (rein, ohne Browser testbar)
+- Oberfläche: `src/components/vocabulary/`, Route `src/app/vokabeln/`
+- Beispiel-Import: `public/vokabeln/beispiel-import.json`
+- Vertrag, Formate, Grenzen: `docs/LEARNING-PLATFORM.md`, Abschnitt 11
+
+```bash
+npm run test       # Unit-Tests (Review-Core, Föderation, VokabelPfad)
+npm run test:e2e   # Playwright gegen den Produktionsbuild, ohne Retries
+```
+
+`npm run test:e2e` baut selbst (`next build`) und startet `next start` auf
+Port 3210. Für die LP-05B-Regression zeigen die Live-Quellen dabei auf lokale
+Adressen, die die Tests per `page.route` als **Mocks** beantworten. Lokal
+wird ein vorhandenes Chromium unter `PLAYWRIGHT_CHROMIUM_PATH` bzw.
+`/opt/pw-browsers/chromium` genutzt, sonst `npx playwright install chromium`.
+
+Abhängigkeiten: Der Hub hat weiterhin kein eingechecktes Lockfile. Die
+Testwerkzeuge sind exakt gepinnt (`@playwright/test` 1.62.1,
+`@axe-core/playwright` 4.13.0, wie in AIPfad); `overrides` legt
+`playwright-core` auf 1.62.1 fest, damit nicht zwei Versionen nebeneinander
+installiert werden.
 
 ## UI-Kontrakt für die drei Apps
 

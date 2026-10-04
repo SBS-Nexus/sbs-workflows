@@ -62,7 +62,8 @@ Das ist wichtiger als identische Kursstrukturen.
 
 ## 5. Pfadübergreifender Wiederholungsmotor
 
-Der geplante **VokabelPfad** ist zugleich der Prototyp für einen gemeinsamen
+Der **VokabelPfad** (seit LP-06 als lokaler MVP unter `/vokabeln`, siehe
+Abschnitt 11) ist zugleich der Prototyp für einen gemeinsamen
 Spaced-Repetition-Layer.
 
 Eine Wiederholungseinheit kann zu einem Fachpfad gehören oder global sein:
@@ -345,6 +346,9 @@ heruntergestuft.
   Browser und ändern ausdrücklich keine App.
 - Live-Quellen sind opt-in: `NEXT_PUBLIC_REVIEW_FEDERATION_SOURCES=python,sql,ai`
   plus die vorhandenen `NEXT_PUBLIC_*_URL`. Ohne beides bleibt es beim Demo.
+- **VokabelPfad** (LP-06): eigener Hinweis mit Weg zu `/vokabeln`. Eigene
+  Vokabeldaten erscheinen nicht unter LIVE oder DEMO und werden nie an eine
+  Quelle gesendet.
 
 ### 10.9 Restrisiko
 
@@ -361,3 +365,150 @@ sie auf genau eine Origin beschränkt und standardmäßig aus ist.
 - **LP-07** kann dasselbe Muster für Fortschritt nutzen; scheitert die
   Same-Site-Voraussetzung, spricht das für LP-08 (gemeinsame Identität),
   nicht für das Teilen von Cookies.
+
+## 11. VokabelPfad — lokaler MVP (LP-06)
+
+Status: implementiert auf einem abhängigen PR der Integrationsbranch
+`claude/lernpfade-unified-hub`. Nicht in `main`, nicht produktiv veröffentlicht.
+
+### 11.1 Umfang
+
+`/vokabeln` in der Hub-App: eigene Decks **Englisch ↔ Deutsch**, Karten mit
+Begriff (Englisch), Übersetzung (Deutsch), optionalem Satzkontext und Tags,
+beide Lernrichtungen, Daily Review, einfache Statistik, JSON-Import/-Export
+und zwei redaktionelle Starterdecks. Technische Begriffe (Git, SQL, Python,
+AI) nutzen dieselbe Kartenlogik als eigene lokale Sammlung — ohne Identität
+oder Fortschritt der anderen Apps.
+
+Das Modell trägt Sprachcodes (`sourceLanguage`, `targetLanguage`), damit
+weitere Sprachpaare später ohne Formatbruch möglich sind. Angeboten und
+validiert wird heute ausschließlich `en` → `de`.
+
+### 11.2 Speicher und Versionierung
+
+- **Technik:** `localStorage`, ein einziger Schlüssel
+  `lernpfade-vokabeln-v1`, getrennt vom Demo-Schlüssel
+  `lernpfade-review-state-v1`. Begründung: kleine, hart begrenzte Datenmenge;
+  synchrones Lesen/Schreiben ohne Zwischenzustände; das `storage`-Ereignis
+  meldet Änderungen anderer Tabs. IndexedDB brächte Asynchronität ohne Nutzen
+  für diese Größe.
+- **Format:** `{ version: 1, revision, decks, cards, reviews, activity }`.
+  Gelesen wird als `unknown` und vollständig geprüft (Version, erlaubte
+  Felder, IDs, Referenzen, Zeitstempel, Ratings, endliche Zahlen, Grenzen).
+- **Beschädigt / künftige Version:** wird angezeigt, nie automatisch
+  überschrieben. Angeboten werden „Rohdaten sichern" (lokaler Download) und
+  „VokabelPfad zurücksetzen" — nur nach Bestätigung, nur dieser Schlüssel,
+  kein `localStorage.clear()`.
+- **Schreiben:** Jede Änderung beruht auf einer Revision. Gespeichert wird nur,
+  wenn im Speicher noch genau diese Revision liegt (Konfliktsperre); danach
+  wird zurückgelesen. „Speicher voll" und andere Fehler werden als Fehler
+  gemeldet, der vorige Stand bleibt unverändert.
+- **Tabs:** Schreibt ein anderer Tab, sperrt sich dieser Tab mit einem
+  Hinweis, bis der aktuelle Stand geladen wird. Es gibt kein automatisches
+  Zusammenführen.
+- **Hydration:** Server und erster Client-Render zeigen denselben
+  Ladezustand; gelesen wird erst nach dem Mount.
+
+### 11.3 Datenverlustgrenze
+
+Die Daten liegen ausschließlich in diesem Browser auf diesem Gerät. Es gibt
+kein Konto, keine Synchronisation und keine Sicherung durch Lernpfade. Löschen
+der Browserdaten, privater Modus oder ein anderer Browser bedeuten: keine
+Daten. Der Export sichert Inhalte, **keinen** Lernfortschritt. Das steht so
+auch in der Oberfläche.
+
+### 11.4 Karte, Abfrage, Richtungsschlüssel
+
+- **Karte** = ein Vokabeleintrag. **Abfrage** = eine Lernrichtung einer Karte;
+  jede Karte hat genau zwei.
+- Review-Schlüssel je Abfrage: `<deckId>:<cardId>:<en-de|de-en>`. IDs sind
+  Kleinbuchstaben/Ziffern/Bindestrich (1–64 Zeichen) ohne Doppelpunkt; der
+  Schlüssel ist dadurch eindeutig zerlegbar. Titel, Text oder Position sind
+  nie Identität.
+- Begriff oder Übersetzung ändern: nach Bestätigung starten **beide**
+  Richtungen der Karte neu. Satzkontext, Tags, Deckname: Fortschritt bleibt.
+- Löschen entfernt Karten, Fortschritt und Tageszähler des gelöschten Inhalts.
+
+### 11.5 Daily Review
+
+- Auswahl: Englisch → Deutsch, Deutsch → Englisch oder beide; Decks wählbar.
+- Aufgenommen werden nur neue oder fällige Abfragen; Reihenfolge nach
+  Fälligkeit (neu = Anlagezeitpunkt), dann Schlüssel; höchstens 20.
+- Die Warteschlange wird beim Start fest gebildet; jede Abfrage wird genau
+  einmal bewertet. Doppelklicks planen und zählen nicht doppelt.
+- Prompt zuerst; Antwort, Satzkontext und Tags erst nach dem Aufdecken.
+- Scheduling unverändert über den gemeinsamen Review-Core; „Nochmal" = morgen.
+- Nichts fällig: ehrlicher Abschluss mit nächster Fälligkeit, keine
+  Endlosschleife.
+
+### 11.6 Statistik und Tageszählung
+
+Karten, Abfragen (= Karten × 2), fällige Abfragen je Richtung, heute
+abgegebene Bewertungen. „Heute" ist der Kalendertag in der Zeitzone des
+Browsers (`Intl…resolvedOptions().timeZone`); gespeichert wird nur der
+laufende Tag. Keine Lernminuten, keine Beherrschungsprozente.
+
+### 11.7 JSON-Format (Schema 1)
+
+```json
+{
+  "format": "lernpfade-vokabeln",
+  "schemaVersion": 1,
+  "exportedAt": "2026-10-04T12:00:00.000Z",
+  "progressIncluded": false,
+  "hinweis": "Enthält nur Decks und Karten, keinen Lernfortschritt. …",
+  "decks": [
+    {
+      "id": "beispiel-reisen",
+      "name": "Beispiel: Reisen",
+      "description": "optional",
+      "sourceLanguage": "en",
+      "targetLanguage": "de",
+      "origin": { "kind": "self", "label": "Selbst erstellt" },
+      "cards": [
+        { "id": "beispiel-reisen-luggage", "term": "luggage", "translation": "Gepäck",
+          "context": "optional", "tags": ["reisen"] }
+      ]
+    }
+  ]
+}
+```
+
+- `origin.kind`: `self` | `starter` | `import`; `label` ist die angezeigte
+  Herkunft. Importierte Decks zeigen „Importiert · Herkunft laut Datei: …".
+- Import: Dateigröße vor dem Lesen prüfen → vollständige Prüfung → Vorschau
+  (Decks, Karten, Sprache, Herkunft) → Übernahme nur nach Bestätigung,
+  atomar. Unbekannte Felder, Prototyp-Schlüssel, doppelte IDs, unbekannte
+  Versionen, `progressIncluded: true` und Grenzüberschreitungen werden
+  abgelehnt. Bereits vorhandene IDs ⇒ Ablehnung mit Erklärung, kein
+  Duplikat, kein überschriebener Fortschritt.
+- Inhalte werden nur als Text gerendert. Beispieldatei:
+  `lernpfade/public/vokabeln/beispiel-import.json`.
+
+### 11.8 Grenzen
+
+| Grenze | Wert |
+|---|---|
+| Importdatei | 2 MiB |
+| Decks | 50 |
+| Karten insgesamt | 1.000 (auch über mehrere Importe und manuelle Eingabe) |
+| Deckname / Beschreibung / Herkunft | 80 / 300 / 120 Zeichen |
+| Begriff / Übersetzung / Satzkontext | 200 / 200 / 500 Zeichen |
+| Tags je Karte / Taglänge | 10 / 32 Zeichen |
+| Abfragen je Session | 20 |
+
+Zeichen = Unicode-Zeichen (Code Points). Texte sind einzeilig; Steuerzeichen
+werden abgelehnt.
+
+### 11.9 Tests
+
+```bash
+cd lernpfade
+npm run test       # Unit: Review-Core, Föderation, VokabelPfad (Domäne + Speicher)
+npm run typecheck
+npm run build
+npm run test:e2e   # Playwright gegen Produktionsbuild: Desktop, 375 px, 200 % Zoom, axe
+```
+
+Die E2E-Tests beantworten die LP-05B-Quellen mit `page.route`-**Mocks**; sie
+belegen das Verhalten des Hubs, nicht das der echten Apps.
