@@ -1,4 +1,4 @@
-export type PathStatus = 'available' | 'building' | 'planned';
+export type PathStatus = 'available' | 'local-mvp' | 'building' | 'planned';
 
 export type LearningPath = {
   slug: string;
@@ -91,11 +91,13 @@ export const NEXT_PATHS: readonly LearningPath[] = [
     eyebrow: 'Wiederholen',
     title: 'VokabelPfad',
     description:
-      'Sprachen und Fachbegriffe mit kurzen täglichen Sessions, aktivem Abruf und Spaced Repetition lernen.',
-    outcome: 'Ein gemeinsamer Wiederholungsmotor für Sprache und technische Begriffe.',
-    status: 'planned',
+      'Englisch ↔ Deutsch mit eigenen Decks, beiden Lernrichtungen, Satzkontext, Tags und JSON-Import/-Export.',
+    outcome:
+      'Lokaler MVP: Daily Review mit dem gemeinsamen Wiederholungsmotor – gespeichert nur in diesem Browser, ohne Konto und ohne Synchronisation.',
+    status: 'local-mvp',
+    href: '/vokabeln',
     accent: 'rose',
-    topics: ['Vokabeln', 'Aussprache', 'Sätze', 'Spaced Repetition', 'Daily 5'],
+    topics: ['Englisch ↔ Deutsch', 'Eigene Decks', 'Satzkontext', 'Daily Review', 'Fachbegriffe'],
   },
   {
     slug: 'typescript',
@@ -145,6 +147,7 @@ export const NEXT_PATHS: readonly LearningPath[] = [
 
 export const STATUS_LABEL: Record<PathStatus, string> = {
   available: 'Verfügbar',
+  'local-mvp': 'Lokaler MVP',
   building: 'In Ausbau',
   planned: 'Geplant',
 };

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { LiveReview, type LiveSourceConfig } from '@/components/review/live-review';
+import { SiteHeader } from '@/components/site-header';
 import { ReviewSession } from '@/components/review/review-session';
 import { normalizeSourceBaseUrl, parseEnabledSources } from '@/domain/review/fetch-source';
 import { REVIEW_SOURCE_APP_URLS } from '@/lib/catalog';
@@ -24,31 +25,13 @@ function liveSources(): LiveSourceConfig[] {
 export const metadata: Metadata = {
   title: 'Wiederholen',
   description:
-    'Fällige Wiederholungen aus PythonPfad, SQLPfad und AIPfad an einem Ort – plus ein Demo-Deck für Vokabeln und Technik.',
+    'Fällige Wiederholungen aus PythonPfad, SQLPfad und AIPfad an einem Ort, der Weg zu deinen eigenen Vokabeldecks und ein Demo-Deck.',
 };
 
 export default function ReviewPage(): React.ReactElement {
   return (
     <>
-      <header className="site-header">
-        <div className="shell header-inner">
-          <a className="brand" href="/" aria-label="Lernpfade Startseite">
-            <span className="brand-mark" aria-hidden="true">
-              LP
-            </span>
-            <span>
-              <strong>Lernpfade</strong>
-              <small>SBS Nexus Learning</small>
-            </span>
-          </a>
-          <nav aria-label="Seitennavigation">
-            <a href="/">Pfade</a>
-            <a href="/wiederholen" aria-current="page">
-              Wiederholen
-            </a>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader current="wiederholen" />
 
       <main id="hauptinhalt" className="shell review-page">
         <div className="review-shell">
@@ -56,6 +39,19 @@ export default function ReviewPage(): React.ReactElement {
           <h1 className="review-page-title">Wiederholen über alle Lernpfade</h1>
         </div>
         <LiveReview sources={liveSources()} />
+        <section className="vocab-pointer" aria-labelledby="vocab-pointer-title">
+          <div>
+            <p className="eyebrow">Eigene Vokabeln</p>
+            <h2 id="vocab-pointer-title">VokabelPfad: deine eigenen Decks</h2>
+            <p>
+              Englisch ↔ Deutsch mit eigenen Karten, beiden Lernrichtungen und täglicher Wiederholung. Deine
+              Vokabeldaten bleiben getrennt von den Live-Quellen und vom Demo-Deck – nur in diesem Browser.
+            </p>
+          </div>
+          <a className="button button-primary" href="/vokabeln">
+            Zum VokabelPfad
+          </a>
+        </section>
         <ReviewSession />
       </main>
     </>

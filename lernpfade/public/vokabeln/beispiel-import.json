@@ -1,0 +1,59 @@
+{
+  "format": "lernpfade-vokabeln",
+  "schemaVersion": 1,
+  "exportedAt": "2026-10-04T12:00:00.000Z",
+  "progressIncluded": false,
+  "hinweis": "Enthält nur Decks und Karten, keinen Lernfortschritt. Wiederholungsstände bleiben in dem Browser, in dem sie entstanden sind.",
+  "decks": [
+    {
+      "id": "beispiel-reisen",
+      "name": "Beispiel: Reisen",
+      "description": "Kleines Beispieldeck für den Import.",
+      "sourceLanguage": "en",
+      "targetLanguage": "de",
+      "origin": {
+        "kind": "self",
+        "label": "Lernpfade-Beispieldatei"
+      },
+      "cards": [
+        {
+          "id": "beispiel-reisen-luggage",
+          "term": "luggage",
+          "translation": "Gepäck",
+          "context": "Our luggage arrived one day late.",
+          "tags": [
+            "reisen"
+          ]
+        },
+        {
+          "id": "beispiel-reisen-departure",
+          "term": "departure",
+          "translation": "Abfahrt · Abflug",
+          "context": "The departure is at 7:45 from platform 3.",
+          "tags": [
+            "reisen",
+            "bahn"
+          ]
+        },
+        {
+          "id": "beispiel-reisen-to-book",
+          "term": "to book",
+          "translation": "buchen · reservieren",
+          "context": "We booked a room near the station.",
+          "tags": [
+            "reisen",
+            "verb"
+          ]
+        },
+        {
+          "id": "beispiel-reisen-delay",
+          "term": "delay",
+          "translation": "Verspätung",
+          "tags": [
+            "bahn"
+          ]
+        }
+      ]
+    }
+  ]
+}

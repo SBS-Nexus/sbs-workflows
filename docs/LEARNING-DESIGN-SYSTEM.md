@@ -126,6 +126,18 @@ Eine Review-Karte trennt strikt:
 
 Die Antwort darf nicht vor dem Recall sichtbar sein.
 
+Herkunft einer Review-Karte ist immer als Text sichtbar, nie nur über Farbe:
+
+| Kennzeichnung | Bedeutung |
+|---|---|
+| `LIVE · <App>` | echte fällige Einträge einer App, nur Anzeige (LP-05B) |
+| `DEMO · <Bereich>` | lokales Beispiel-Deck, ändert keine App |
+| `EIGENES DECK · <Richtung>` | persönliche VokabelPfad-Karte, nur in diesem Browser (LP-06) |
+
+Destruktive Aktionen (Deck/Karte löschen, VokabelPfad zurücksetzen) nutzen
+den Danger-Button und einen modalen Dialog, der Umfang und betroffenen
+Lernfortschritt benennt; der Fokus startet auf „Abbrechen".
+
 ## 5. Accessibility
 
 Pflicht:

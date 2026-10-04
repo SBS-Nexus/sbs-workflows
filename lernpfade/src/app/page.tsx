@@ -56,6 +56,7 @@ export default function Home(): React.ReactElement {
           </a>
           <nav aria-label="Seitennavigation">
             <a href="#pfade">Pfade</a>
+            <a href="/vokabeln">Vokabeln</a>
             <a href="/wiederholen">Wiederholen</a>
             <a href="#zukunft">Roadmap</a>
             <a href="#lernmodell">Lernmodell</a>
@@ -191,15 +192,21 @@ export default function Home(): React.ReactElement {
           <div className="shell vocab-grid">
             <div>
               <p className="eyebrow">VokabelPfad</p>
-              <h2>„Vokabeln“ passt sehr gut — aber als gemeinsamer Lernmotor.</h2>
+              <h2>Eigene Vokabeln – mit demselben Wiederholungsmotor.</h2>
               <p>
-                Das kann klassische Sprachen genauso abdecken wie technische Begriffe. Ein Konto
-                könnte später gleichzeitig Englisch-Vokabeln, SQL-Begriffe und AI-Terminologie
-                wiederholen.
+                Der VokabelPfad ist als lokaler MVP nutzbar: Englisch ↔ Deutsch, eigene Decks, beide
+                Lernrichtungen, Import/Export und tägliche Wiederholung. Technische Begriffe aus Git,
+                SQL, Python und AI funktionieren mit derselben Kartenlogik. Gespeichert wird nur in
+                deinem Browser.
               </p>
-              <a className="button button-primary vocab-cta" href="/wiederholen">
-                Daily Review ausprobieren <ArrowIcon />
-              </a>
+              <div className="hero-actions">
+                <a className="button button-primary vocab-cta" href="/vokabeln">
+                  VokabelPfad öffnen <ArrowIcon />
+                </a>
+                <a className="button button-secondary vocab-cta" href="/wiederholen">
+                  Alle Wiederholungen
+                </a>
+              </div>
             </div>
             <div className="vocab-stack" aria-label="Beispielkarten">
               <div className="vocab-card">

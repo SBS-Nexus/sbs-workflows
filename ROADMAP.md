@@ -1,6 +1,6 @@
 # Lernpfade — Roadmap
 
-Stand: 2026-10-01  
+Stand: 2026-10-04\
 Repository: `SBS-Nexus/sbs-workflows`
 
 ## Leitbild
@@ -324,7 +324,7 @@ lernen zu müssen.
 
 ## LP-05 — Review Adapter für bestehende Apps
 
-Status: **LP-05A ADAPTER CONTRACT IMPLEMENTIERT IN PR #41; LP-05B FÖDERIERTE, SCHREIBGESCHÜTZTE QUELLEN IMPLEMENTIERT (abhängiger PR auf #41); LIVE-BETRIEB SETZT SAME-SITE-DOMAINS VORAUS**
+Status: **LP-05A ADAPTER CONTRACT IMPLEMENTIERT IN PR #41; LP-05B FÖDERIERTE, SCHREIBGESCHÜTZTE QUELLEN ABGESCHLOSSEN UND IN DIE INTEGRATIONSBRANCH `claude/lernpfade-unified-hub` ÜBERNOMMEN (PR #47) — NOCH NICHT IN `main`, NICHT PRODUKTIV AKTIVIERT; LIVE-BETRIEB SETZT SAME-SITE-DOMAINS VORAUS**
 
 Priorität: **P0**
 
@@ -373,7 +373,7 @@ Scope immer aus der authentifizierten Session ableiten.
 
 ### LP-05B — Föderierte, schreibgeschützte Wiederholungsquellen
 
-Status: **IMPLEMENTIERT (abhängiger PR auf #41), NICHT IN PRODUKTION AKTIVIERT**
+Status: **ABGESCHLOSSEN — über PR #47 in die Integrationsbranch `claude/lernpfade-unified-hub` übernommen; noch nicht in `main`, nicht in Produktion aktiviert**
 
 ```text
 Python source ─┐
@@ -420,6 +420,8 @@ Lernpfade remains read-only in LP-05B.
 ---
 
 ## LP-06 — VokabelPfad MVP
+
+Status: **LOKALER MVP IMPLEMENTIERT (abhängiger PR auf die Integrationsbranch `claude/lernpfade-unified-hub`); NICHT IN `main`, NICHT PRODUKTIV VERÖFFENTLICHT**
 
 Priorität: **P1**
 
@@ -470,6 +472,38 @@ Dieselbe Engine darf auch Decks enthalten wie:
 
 AI-generierte Inhalte müssen prüfbar bleiben; die Quelle eines Imports muss
 sichtbar sein.
+
+### Umsetzung (LP-06)
+
+Lebt in der vorhandenen Hub-App unter `lernpfade/` → **`/vokabeln`**. Kein
+viertes Deployable, kein Backend.
+
+- **Umfang:** eigene Decks Englisch ↔ Deutsch; Karten mit Begriff,
+  Übersetzung, optionalem Satzkontext und Tags; anlegen, bearbeiten, löschen,
+  nach Tags filtern; beide Lernrichtungen; Daily Review; einfache Statistik;
+  JSON-Import/-Export; zwei redaktionelle Starterdecks (Englisch Alltag,
+  technische Fachbegriffe) — erst nach ausdrücklicher Übernahme gespeichert.
+- **Scheduling:** unverändert der gemeinsame Review-Core
+  (`initialReviewState`, `isDue`, `scheduleReview`). Auch „Nochmal" plant
+  einen Tag; es gibt keine Wiederholung innerhalb derselben Session.
+- **Identität:** stabile Deck-/Karten-IDs; je Lernrichtung ein eigener
+  Wiederholungszustand `<deckId>:<cardId>:<en-de|de-en>`.
+- **Speicher:** nur in diesem Browser, eigene versionierte IndexedDB
+  `lernpfade-vokabeln`, getrennt vom Demo-Schlüssel. Atomare
+  Konfliktsperre zwischen Tabs (Revisionsprüfung und Schreiben in einer
+  Transaktion). Kein Konto, keine Synchronisation; Löschen der Browserdaten
+  entfernt die Daten.
+- **Grenzen:** Import ≤ 2 MiB, ≤ 50 Decks, ≤ 1.000 Karten insgesamt,
+  Textlimits je Feld, ≤ 20 Abfragen je Session. Jede Exportdatei — und damit
+  jedes Deck — bleibt ≤ 2 MiB und so wieder importierbar.
+- **Nicht enthalten:** weitere Sprachen in der UI, Audio/Aussprache,
+  KI-Generierung, Cloud-Sync, Plattformfortschritt (LP-07), SSO (LP-08),
+  Übernahme von Identität oder Fortschritt aus den anderen Apps.
+- Vertrag und Einzelheiten: `docs/LEARNING-PLATFORM.md`, Abschnitt 11.
+
+Gates: Hub-Typecheck, 106 Unit-Tests (Review-Core, Föderation, VokabelPfad),
+Produktionsbuild und Playwright-E2E gegen den Produktionsbuild (Desktop,
+375 px, 200 % Zoom, axe) — alle im Workflow `Lernpfade Hub`.
 
 ---
 
