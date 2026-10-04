@@ -77,11 +77,13 @@ export function ReviewSession(): React.ReactElement {
   }
 
   return (
-    <section className="review-shell" aria-labelledby="review-title">
+    <section className="review-shell demo-review" aria-labelledby="review-title">
       <div className="review-toolbar">
         <div>
-          <p className="eyebrow">Daily Review</p>
-          <h1 id="review-title">Wiederholen über alle Lernpfade</h1>
+          <p className="eyebrow">
+            <span className="demo-badge">DEMO · Beispiel</span>
+          </p>
+          <h2 id="review-title">Beispiel-Deck</h2>
         </div>
         <button className="review-reset" type="button" onClick={resetDemo}>
           Demo zurücksetzen
@@ -89,14 +91,15 @@ export function ReviewSession(): React.ReactElement {
       </div>
 
       <p className="review-intro">
-        Ein gemeinsamer Review-Motor für Sprache und Technik. Diese erste Version speichert
-        ausschließlich lokal in deinem Browser und sendet keine Lerndaten an einen Server.
+        Beispielkarten für Sprache und Technik. Deine Bewertungen hier ändern nur diese lokale
+        Demo in deinem Browser — nicht PythonPfad, SQLPfad oder AIPfad. Es werden keine Lerndaten
+        an einen Server gesendet.
       </p>
 
       <div className="review-card">
         <div className="review-card-meta">
           <span className={`review-domain domain-${current.domain}`}>
-            {DOMAIN_LABELS[current.domain]}
+            DEMO · {DOMAIN_LABELS[current.domain]}
           </span>
           <span>
             Karte {(index % queue.length) + 1} / {queue.length}

@@ -324,7 +324,7 @@ lernen zu müssen.
 
 ## LP-05 — Review Adapter für bestehende Apps
 
-Status: **LP-05A ADAPTER CONTRACT IMPLEMENTIERT IN PR #41; PRODUKTIVE DATENANBINDUNG OFFEN**
+Status: **LP-05A ADAPTER CONTRACT IMPLEMENTIERT IN PR #41; LP-05B FÖDERIERTE, SCHREIBGESCHÜTZTE QUELLEN IMPLEMENTIERT (abhängiger PR auf #41); LIVE-BETRIEB SETZT SAME-SITE-DOMAINS VORAUS**
 
 Priorität: **P0**
 
@@ -370,6 +370,52 @@ Scope immer aus der authentifizierten Session ableiten.
   Review-Format gemappt werden
 - keine Datenmigration nötig
 - Duplicate-Key-Strategie dokumentiert
+
+### LP-05B — Föderierte, schreibgeschützte Wiederholungsquellen
+
+Status: **IMPLEMENTIERT (abhängiger PR auf #41), NICHT IN PRODUKTION AKTIVIERT**
+
+```text
+Python source ─┐
+SQL source ────┼──> Lernpfade federation ──> /wiederholen
+AIPfad source ─┘
+
+Source applications remain systems of record.
+Lernpfade remains read-only in LP-05B.
+```
+
+- **Systeme der Wahrheit** bleiben PythonPfad, SQLPfad und AIPfad. Lernpfade
+  sammelt nur ein; kein gemeinsames Review- oder Nutzerkonto, kein SSO, keine
+  Migration, kein Zurückschreiben.
+- **Identität:** Python = Aufgabe, AIPfad = Aufgabe, SQL = **Konzept**
+  (`ConceptMastery.nextReviewAt`); die gewählte SQL-Aufgabe ist nur
+  Darstellung. Kanonischer Schlüssel `<source>:<sourceKind>:<sourceItemId>`.
+- **Transport:** Je App eine enge Route `GET /api/platform/review-source`.
+  Der Browser ruft sie vom Hub aus mit der **eigenen** Sitzung der App auf;
+  die App leitet die Person serverseitig aus ihrer Sitzung ab. Der Hub-Server
+  sieht kein Cookie und keine Kennung. CORS nur für genau eine konfigurierte
+  Hub-Origin (`PLATFORM_HUB_ORIGIN`, Vorgabe leer = aus).
+- **Obergrenzen:** je Quelle höchstens 25 (Hub fragt 10 an), global 25;
+  Kürzung wird gemeldet. Ordnung: `dueAt` aufsteigend, dann Schlüssel.
+- **Teilausfall:** Eine ausgefallene oder ungültige Quelle wird isoliert und
+  sichtbar gemeldet; fehlende Anmeldung heißt „nicht angemeldet", nie „nichts
+  fällig".
+- **Voraussetzung für Live-Daten:** Hub und Apps müssen *same-site* sein
+  (gemeinsame registrierbare Domain), sonst schickt der Browser das
+  `SameSite=Lax`-Sitzungscookie nicht mit. Unter `*.vercel.app` (Public
+  Suffix) ist das nicht der Fall. Domain-/DNS-Umstellung ist **nicht** Teil
+  von LP-05B.
+- Einzelheiten: `docs/LEARNING-PLATFORM.md`, Abschnitt 10.
+
+### Folgen für LP-05C / LP-07
+
+- **LP-05C (Rückschreiben/Abschließen):** braucht eine eigene, schreibende
+  Grenze je App (POST, CSRF, Idempotenz, Origin-Prüfung). Nicht durch
+  Erweitern dieser GET-Route.
+- **LP-07 (Plattformfortschritt):** kann dasselbe Muster nutzen (Option A:
+  Aggregation über APIs der Apps) — mit derselben Same-Site-Voraussetzung.
+  Scheitert diese, ist das ein Argument für LP-08 (gemeinsame Identität),
+  nicht für das Teilen von Cookies über eine Parent-Domain.
 
 ---
 
