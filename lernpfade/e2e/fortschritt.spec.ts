@@ -3,11 +3,16 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { HUB_ORIGIN, HUB_ORIGIN_UNCONNECTED, MOCK_SOURCE_ORIGINS } from './config';
 import {
   DEMO_KEY,
+  addCard,
+  backToOverview,
+  createDeck,
   expectNoSeriousA11yViolations,
+  gotoVocab,
   mockProgressSources,
   readVocabStorage,
   recordRequests,
   writeVocabRaw,
+  type ProgressMockMode,
   type SeenRequest,
 } from './helpers';
 
@@ -262,6 +267,78 @@ test('Vokabeln aus einer künftigen Version und nach Reload: Fehler bleibt Fehle
   await page.reload();
   await expect(metric(card(page, 'VokabelPfad'), 'Karten')).toHaveText('2 in 1 Deck');
   await expect(page.getByRole('region', { name: 'Fällig insgesamt' }).locator('.progress-total')).toHaveText('10 fällig');
+});
+
+test('offene Seite bleibt aktuell: Fälligkeit und Tageswechsel, Speichern in einem anderen Tab, Rückkehr in den Tab', async ({
+  page,
+  context,
+}) => {
+  // Uhr: 23:59 in Berlin; eine Karte wird in beide Richtungen mit „Gut" gelernt (nächste Fälligkeit: +1 Tag).
+  await page.clock.install({ time: '2026-10-04T21:59:00.000Z' });
+  await gotoVocab(page);
+  await createDeck(page, 'Tageswechsel');
+  await addCard(page, { term: 'tomorrow', translation: 'morgen' });
+  await backToOverview(page);
+  await page.getByLabel('Beide Richtungen').check();
+  await page.getByRole('button', { name: 'Session starten' }).click();
+  for (let i = 1; i <= 2; i += 1) {
+    await page.getByRole('button', { name: 'Antwort zeigen' }).click();
+    await page.getByRole('button', { name: /^Gut/ }).click();
+  }
+  await page.getByRole('button', { name: 'Zur Übersicht' }).click();
+
+  const modes: Record<'python' | 'sql' | 'ai', ProgressMockMode> = { python: 'ok', sql: 'ok', ai: 'ok' };
+  await mockProgressSources(page, modes);
+  const seen = recordRequests(page);
+  await page.goto('/fortschritt');
+  const vokabeln = card(page, 'VokabelPfad');
+  const summary = page.getByRole('region', { name: 'Fällig insgesamt' });
+  await expect(metric(vokabeln, 'Heute bewertet')).toHaveText('2');
+  await expect(metric(vokabeln, 'Fällig Englisch → Deutsch')).toHaveText('0');
+  await expect(summary.locator('.progress-total')).toHaveText('6 fällig');
+  const stored = await readVocabStorage(page);
+  const sourceRequests = () => seen.filter((request) => request.url.endsWith('/api/platform/progress-source')).length;
+  expect(sourceRequests()).toBe(3);
+
+  // Die Uhr läuft über Fälligkeit und Tageswechsel — ohne Eingabe, ohne Reload.
+  await page.clock.fastForward(Date.parse('2026-10-05T22:00:30.000Z') - (await page.evaluate(() => Date.now())));
+  await expect(metric(vokabeln, 'Heute bewertet')).toHaveText('0');
+  await expect(metric(vokabeln, 'Fällig Englisch → Deutsch')).toHaveText('1');
+  await expect(metric(vokabeln, 'Fällig Deutsch → Englisch')).toHaveText('1');
+  await expect(summary.locator('.progress-total')).toHaveText('8 fällig');
+  await expect(summary).toContainText('Python 4 · SQL 2 · AI 0 · Vokabeln 2');
+  expect(await readVocabStorage(page), 'die Zeitaktualisierung schreibt nichts').toBe(stored);
+  expect(sourceRequests(), 'die Uhr allein fragt keine Quelle ab').toBe(3);
+
+  // Inzwischen ist die Anmeldung in PythonPfad abgelaufen.
+  modes.python = 'unauthenticated';
+
+  // Ein anderer Tab speichert Vokabeln: der lokale Stand wird neu gelesen.
+  const other = await context.newPage();
+  await gotoVocab(other);
+  await createDeck(other, 'Zweiter Tab');
+  await expect(metric(vokabeln, 'Karten')).toHaveText('1 in 2 Decks');
+  await other.close();
+  const fromOther = await readVocabStorage(page);
+
+  // Rückkehr in den Tab: Quellen werden neu abgefragt; die abgelaufene Anmeldung zeigt sich ehrlich.
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(card(page, 'PythonPfad').getByText('In PythonPfad bist du nicht angemeldet.')).toBeVisible();
+  await expect(summary).toContainText('Keine Gesamtzahl, solange Python nicht lesbar ist');
+  await expect(card(page, 'SQLPfad').getByText('LIVE · SQL')).toBeVisible();
+
+  // Gedrosselt: eine weitere Rückkehr innerhalb einer Minute fragt die Quellen nicht erneut ab.
+  const afterReturn = sourceRequests();
+  expect(afterReturn).toBe(6);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(metric(vokabeln, 'Karten')).toHaveText('1 in 2 Decks');
+  expect(sourceRequests()).toBe(afterReturn);
+
+  expectReadOnly(seen);
+  expect(await readVocabStorage(page), 'Lesen und Aktualisieren schreiben nichts').toBe(fromOther);
 });
 
 test('vollständig per Tastatur: Navigation zu /fortschritt und weiter in eine Quell-App', async ({ page }) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProgressSource, SourceProgress } from '@/domain/progress/contract';
 import { fetchProgressSource } from '@/domain/progress/fetch-progress';
 import {
@@ -13,8 +13,9 @@ import {
   type VocabularyState,
   type VocabularySummary,
 } from '@/domain/progress/federation';
-import { browserBackend } from '@/domain/vocabulary/idb-backend';
-import { loadVocabStorage } from '@/domain/vocabulary/storage';
+import { VOCAB_CHANNEL, browserBackend } from '@/domain/vocabulary/idb-backend';
+import { nextChangeAt } from '@/domain/vocabulary/session';
+import { loadVocabStorage, type LoadOutcome, type VocabBackend } from '@/domain/vocabulary/storage';
 
 /**
  * LP-07 — Plattformfortschritt, schreibgeschützt.
@@ -23,7 +24,22 @@ import { loadVocabStorage } from '@/domain/vocabulary/storage';
  * langsame oder ausgefallene Quelle hält weder die anderen noch die lokalen
  * Vokabeln auf. Die Reihenfolge der Karten ist fest. Nichts hier schreibt —
  * weder in eine App noch in den Vokabelspeicher.
+ *
+ * Aktualität (wie `/vokabeln`): Die Vokabelstatistik wird an der nächsten
+ * Grenze neu gerechnet (Fälligkeit oder lokaler Tageswechsel, siehe
+ * `nextChangeAt`), höchstens 15 Minuten später. Speichert ein anderer Tab
+ * Vokabeln, wird der lokale Stand neu gelesen. Bei der Rückkehr in den Tab
+ * werden die Vokabeln neu gelesen und die Quellen neu abgefragt — die Quellen
+ * höchstens einmal pro Minute. Eine verspätete ältere Antwort überschreibt
+ * nie eine neuere.
  */
+
+/** Nie seltener prüfen als so: schützt vor Uhrsprüngen und gedrosselten Timern. */
+const MAX_REFRESH_DELAY_MS = 15 * 60_000;
+/** Kleiner Abstand hinter der Grenze, damit sie sicher überschritten ist. */
+const REFRESH_MARGIN_MS = 250;
+/** Quellen bei Rückkehr in den Tab höchstens so oft erneut abfragen. */
+const SOURCE_REFRESH_MIN_INTERVAL_MS = 60_000;
 
 export type ProgressSourceConfig = {
   source: ProgressSource;
@@ -288,35 +304,107 @@ function browserTimeZone(): string | undefined {
   }
 }
 
+function openChannel(): BroadcastChannel | null {
+  try {
+    return typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(VOCAB_CHANNEL);
+  } catch {
+    return null;
+  }
+}
+
+function readableStore(outcome: LoadOutcome | null) {
+  return outcome && (outcome.status === 'ok' || outcome.status === 'empty') ? outcome.store : null;
+}
+
 export function ProgressOverview({ sources }: { sources: readonly ProgressSourceConfig[] }): React.ReactElement {
   const enabled = sources.filter((config) => config.baseUrl).map((config) => config.source);
   const [states, setStates] = useState<Record<ProgressSource, SourceState>>(() => initialSourceStates(enabled));
-  const [vocabulary, setVocabulary] = useState<VocabularyState>({ status: 'loading' });
+  const [vocabOutcome, setVocabOutcome] = useState<LoadOutcome | null>(null);
+  const [now, setNow] = useState(() => new Date());
+  const [timeZone, setTimeZone] = useState<string | undefined>(undefined);
+  // Die Quellen stehen beim Seitenaufruf fest.
+  const sourcesRef = useRef(sources);
+  const backendRef = useRef<VocabBackend | null>(null);
+  const mountedRef = useRef(false);
+  // Laufende Nummer je Abruf: nur die jüngste Antwort zählt.
+  const sourceTicketsRef = useRef<Partial<Record<ProgressSource, number>>>({});
+  const vocabTicketRef = useRef(0);
+  const sourcesLoadedAtRef = useRef(0);
 
-  useEffect(() => {
-    let cancelled = false;
-
+  const loadSources = useCallback(() => {
+    sourcesLoadedAtRef.current = Date.now();
     // Jede Quelle für sich: Wer zuerst antwortet, erscheint zuerst; niemand wartet auf andere.
-    for (const config of sources) {
+    for (const config of sourcesRef.current) {
       if (!config.baseUrl) continue;
-      void fetchProgressSource({ source: config.source, baseUrl: config.baseUrl }, (url, init) =>
-        fetch(url, init),
-      ).then((outcome) => {
-        if (!cancelled) setStates((current) => ({ ...current, [outcome.source]: resolveSourceOutcome(outcome) }));
-      });
+      const source = config.source;
+      const ticket = (sourceTicketsRef.current[source] ?? 0) + 1;
+      sourceTicketsRef.current[source] = ticket;
+      void fetchProgressSource({ source, baseUrl: config.baseUrl }, (url, init) => fetch(url, init)).then(
+        (outcome) => {
+          if (!mountedRef.current || sourceTicketsRef.current[source] !== ticket) return;
+          setStates((current) => ({ ...current, [source]: resolveSourceOutcome(outcome) }));
+        },
+      );
     }
-
-    // Lokale Vokabeln: nur lesen, mit der vorhandenen, geprüften Statistik.
-    void loadVocabStorage(browserBackend()).then((outcome) => {
-      if (!cancelled) setVocabulary(summarizeVocabulary(outcome, new Date(), browserTimeZone()));
-    });
-
-    return () => {
-      cancelled = true;
-    };
-    // Die Quellen stehen beim Seitenaufruf fest: genau ein Abruf je Quelle.
   }, []);
 
+  // Lokale Vokabeln: nur lesen, mit der vorhandenen, geprüften Statistik.
+  const loadVocabulary = useCallback(() => {
+    const ticket = vocabTicketRef.current + 1;
+    vocabTicketRef.current = ticket;
+    void loadVocabStorage(backendRef.current).then((outcome) => {
+      if (!mountedRef.current || vocabTicketRef.current !== ticket) return;
+      setVocabOutcome(outcome);
+      setNow(new Date());
+    });
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    backendRef.current = browserBackend();
+    setTimeZone(browserTimeZone());
+    loadSources();
+    loadVocabulary();
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [loadSources, loadVocabulary]);
+
+  // Zeitbasis der Vokabeln: zur nächsten Grenze neu rechnen (nicht seltener als alle 15 Minuten).
+  useEffect(() => {
+    const store = readableStore(vocabOutcome);
+    if (!store) return;
+    const boundary = nextChangeAt(store, now, timeZone).getTime();
+    const delay = Math.min(Math.max(boundary - Date.now() + REFRESH_MARGIN_MS, REFRESH_MARGIN_MS), MAX_REFRESH_DELAY_MS);
+    const timer = window.setTimeout(() => setNow(new Date()), delay);
+    return () => window.clearTimeout(timer);
+  }, [vocabOutcome, now, timeZone]);
+
+  // Rückkehr in den Tab (Timer laufen im Hintergrund gedrosselt oder gar nicht) und Speichern in einem anderen Tab.
+  useEffect(() => {
+    const refresh = (): void => {
+      loadVocabulary();
+      if (Date.now() - sourcesLoadedAtRef.current >= SOURCE_REFRESH_MIN_INTERVAL_MS) loadSources();
+    };
+    const onVisible = (): void => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('pageshow', refresh);
+    const channel = openChannel();
+    if (channel) channel.onmessage = () => loadVocabulary();
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('pageshow', refresh);
+      channel?.close();
+    };
+  }, [loadSources, loadVocabulary]);
+
+  const vocabulary: VocabularyState = vocabOutcome
+    ? summarizeVocabulary(vocabOutcome, now, timeZone)
+    : { status: 'loading' };
   const total = backlogTotal(states, vocabulary);
 
   return (

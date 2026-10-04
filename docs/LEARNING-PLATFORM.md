@@ -703,6 +703,15 @@ Antwort.
   Apps und fällige Vokabelabfragen, je Quelle ausgewiesen. Fehlt eine
   verbundene Quelle oder sind die lokalen Vokabeln unlesbar, gibt es **keine**
   Gesamtzahl, sondern den Hinweis, was fehlt.
+- Aktualität einer offen bleibenden Seite: Die Vokabelstatistik wird wie auf
+  `/vokabeln` an der nächsten Grenze neu gerechnet (Fälligkeit oder lokaler
+  Tageswechsel, spätestens nach 15 Minuten). Speichert ein anderer Tab
+  Vokabeln, wird der lokale Stand neu gelesen. Bei der Rückkehr in den Tab
+  (`visibilitychange`, `focus`, `pageshow`) werden die Vokabeln neu gelesen
+  und die Quellen neu abgefragt, die Quellen höchstens einmal pro Minute.
+  Eine verspätete ältere Antwort überschreibt nie eine neuere. Bis dahin
+  bleibt der zuletzt geprüfte Stand je Quelle stehen; es gibt kein
+  Hintergrund-Polling.
 
 ### 12.7 VokabelPfad lokal
 
@@ -751,6 +760,8 @@ Produktionsaktivierung, keine Domain-/DNS-Änderung.
   keine Schreibwirkung, 401/400, CORS, Cache.
 - Hub: `src/domain/progress/*.test.ts` (Vertrag, Abruf, Teilausfall,
   Summenregel, Reihenfolgeunabhängigkeit, Vokabeln lokal) und
-  `e2e/fortschritt.spec.ts` gegen den Produktionsbuild — die Quellen sind dort
+  `e2e/fortschritt.spec.ts` gegen den Produktionsbuild (darunter Aktualität
+  per Playwright Clock, Speichern in einem zweiten Tab, Rückkehr in den Tab
+  mit Drosselung) — die Quellen sind dort
   ausdrücklich `page.route`-**Mocks**. Für „nicht verbunden" startet Playwright
   einen zweiten Prozess desselben Builds ohne Freischaltung.

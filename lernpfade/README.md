@@ -68,6 +68,9 @@ VokabelPfad wird lokal aus IndexedDB gelesen.
   der Freischaltung für `/wiederholen`.
 - Kein Gesamtprozent, kein Mastery-Score, keine Lernzeit. „Fällig insgesamt"
   nur, wenn alle verbundenen Quellen geantwortet haben.
+- Eine offene Seite bleibt aktuell: Vokabeln an Fälligkeit/Tageswechsel und
+  nach Speichern in einem anderen Tab, Quellen bei Rückkehr in den Tab
+  (höchstens einmal pro Minute).
 - Dieselbe Same-Site-Voraussetzung wie LP-05B; unter `*.vercel.app` zeigt der
   Hub „nicht angemeldet".
 - Domäne: `src/domain/progress/`, Oberfläche: `src/components/progress/`,
