@@ -1,0 +1,65 @@
+name: Lernpfade Hub
+
+on:
+  pull_request:
+    paths:
+      - 'lernpfade/**'
+      - '.github/workflows/lernpfade-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'lernpfade/**'
+      - '.github/workflows/lernpfade-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Typecheck, tests and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lernpfade
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Abhängigkeiten installieren
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit-Tests
+        run: npm run test
+
+      - name: Produktionsbuild
+        run: npm run build
+
+      # LP-06: Browser-Tests gegen einen echten Produktionsbuild (ohne Retries).
+      # Die Playwright-Konfiguration baut dafür selbst neu und schaltet die
+      # LP-05B-Quellen auf lokale MOCK-Adressen (page.route) – keine echten Apps,
+      # keine Secrets.
+      - name: Playwright-Browser installieren
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-End- und Accessibility-Tests (VokabelPfad, Wiederholen)
+        run: npm run test:e2e
+
+      - name: Testbericht und Screenshots sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lernpfade-playwright
+          path: |
+            lernpfade/playwright-report/
+            lernpfade/test-results/
+          retention-days: 14

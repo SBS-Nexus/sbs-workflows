@@ -2,11 +2,13 @@ import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 /**
- * Zwei Testprojekte, streng getrennt.
+ * Drei Testprojekte, streng getrennt.
  *
- * `unit` läuft überall und in Millisekunden. `sql` braucht einen echten SQL
- * Server und wird ohne Zugangsdaten übersprungen statt bestanden – die
- * Begründung steht in tests/sql/motor.integration.test.ts.
+ * `unit` läuft überall und in Millisekunden. `integration` prüft Dienste gegen
+ * eine echte PostgreSQL-Plattformdatenbank (`TEST_DATABASE_URL`) und bricht ohne
+ * sie ab. `sql` braucht einen echten SQL Server und wird ohne Zugangsdaten
+ * übersprungen statt bestanden – die Begründung steht in
+ * tests/sql/motor.integration.test.ts.
  *
  * Die Trennung ist Absicht: Läge beides in einem Projekt, würde ein Lauf ohne
  * Server grün melden und dabei die Hälfte dessen verschweigen, was er hätte
@@ -29,6 +31,19 @@ export default defineConfig({
       {
         resolve: { alias },
         test: { name: 'unit', include: ['tests/unit/**/*.test.ts'], environment: 'node' },
+      },
+      {
+        resolve: { alias },
+        test: {
+          name: 'integration',
+          include: ['tests/integration/**/*.test.ts'],
+          environment: 'node',
+          setupFiles: ['tests/integration/setup.ts'],
+          // Eine Plattform-Testdatenbank: Dateien laufen nacheinander.
+          fileParallelism: false,
+          testTimeout: 30_000,
+          hookTimeout: 180_000,
+        },
       },
       {
         resolve: { alias },
