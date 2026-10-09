@@ -42,3 +42,41 @@ Cookie`, Route `force-dynamic`. Personenbezogene Antworten landen in keinem
   lesen, nur diese Route. Deshalb genau eine Origin und Vorgabe aus.
 - `src/server/platform/review-source-http.ts` ist in PythonPfad, SQLPfad und
   AIPfad wortgleich (getrennte Bereitstellungen, kein gemeinsames Paket).
+
+## Fortschrittsquelle (LP-07)
+
+`GET /api/platform/progress-source` ist eine eigene, **schreibgeschützte**
+Quelle für `/fortschritt` im Lernpfade-Hub. Architektur und Vertrag:
+`docs/LEARNING-PLATFORM.md` (Repository-Wurzel), Abschnitt 12.
+
+- **Konzepte ohne Prozentwert:** dieselbe Ableitung wie die
+  Wissenslandkarte (`bewerteKonzept` über das letzte eigene Ergebnis jeder
+  veröffentlichten Aufgabe bekannter Art). „Beobachtet" = beurteilbare
+  Konzepte mit mindestens einer bearbeiteten Aufgabe (`angefangen`,
+  `wackelig`, `sitzt`), „bereit" = nur `sitzt`
+  (`criterion = "all-assessable-tasks-last-passed"`).
+  `ConceptMastery.masteryScore` wird weder gelesen noch weitergegeben.
+- **Wiederholungen:** fällige, übbare Konzepte über
+  `ConceptMastery.nextReviewAt` — dieselbe Bedingung wie die
+  Wiederholungsquelle.
+- **Lektionen:** veröffentlichte Lektionen wie im eigenen Überblick; Zähler
+  und Nenner meinen denselben Bestand.
+- **Projekte:** `kind = "submitted"` — veröffentlichte Projekte mit Abgabe im
+  Status `SUBMITTED`. SQLPfad nimmt Abgaben nicht fachlich ab; der Hub sagt
+  „abgegeben", nie „abgenommen".
+- **Letzte Aktivität:** der späteste Versuch, Lernsitzungseintrag
+  (`haltAktivitaetFest`) oder Lektionsabschluss.
+- **Umfang allein aus der Sitzung:** `getCurrentUser()` der eigenen Sitzung.
+  Die Route nimmt **keinen** Abfrageparameter an; jeder — insbesondere eine
+  `userId` — wird mit 400 abgewiesen. Ohne Sitzung: 401. Nur GET.
+- **Datensparsam:** nur Zähler, feste Aufzählungswerte und ein Zeitstempel —
+  keine Namen, Kennungen, Titel, Inhalte, Antworten oder Rohwerte eines
+  Kompetenzmodells.
+- **Transport, Cache, CORS, Fehler, Same-Site:** wie die
+  Wiederholungsquelle (`PLATFORM_HUB_ORIGIN`, Vorgabe leer = aus;
+  `private, no-store, max-age=0`; `Vary: Origin, Cookie`; 401/400/500 ohne
+  Details). Die Cookie-Attribute werden nicht gelockert.
+- **Nur lesend:** keine Sitzungsfortschreibung, kein Kompetenz- oder
+  Planungsupdate. Die Integrationstests prüfen das gegen echte Zeilen.
+- `src/server/platform/progress-source-http.ts` ist in PythonPfad, SQLPfad und
+  AIPfad wortgleich.

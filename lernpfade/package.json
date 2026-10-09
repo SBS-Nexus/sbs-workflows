@@ -12,7 +12,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "verify": "npm run typecheck && npm run test && npm run build",
-    "test": "node --experimental-strip-types --test src/domain/review/*.test.ts src/domain/vocabulary/*.test.ts",
+    "test": "node --experimental-strip-types --test src/domain/review/*.test.ts src/domain/vocabulary/*.test.ts src/domain/progress/*.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
