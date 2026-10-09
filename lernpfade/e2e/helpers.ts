@@ -227,7 +227,12 @@ export async function mockLiveSources(
   }
 }
 
-export type ProgressMockMode = 'ok' | 'empty' | 'unauthenticated' | 'down' | 'invalid' | 'hang';
+/**
+ * `started`: nur eine begonnene Lektion — Aktivität ja, aber weder Versuch noch
+ * Abschluss, also kein bekannter Zeitpunkt (so erzeugt es auch
+ * `buildPlatformProgressSource` mit `startedLessons: 1`).
+ */
+export type ProgressMockMode = 'ok' | 'empty' | 'started' | 'unauthenticated' | 'down' | 'invalid' | 'hang';
 
 /** Gültige Schema-1-Antworten je Quelle — ausdrücklich MOCKS, keine echte App. */
 export const MOCK_PROGRESS = {
@@ -311,10 +316,10 @@ export async function mockProgressSources(
       const body =
         mode === 'invalid'
           ? { ...MOCK_PROGRESS[source], schemaVersion: 2 }
-          : mode === 'empty'
+          : mode === 'empty' || mode === 'started'
             ? {
                 ...MOCK_PROGRESS[source],
-                participation: { hasActivity: false },
+                participation: { hasActivity: mode === 'started' },
                 lessons: { completed: 0, total: MOCK_PROGRESS[source].lessons.total },
                 reviews: { due: 0 },
                 concepts: { ...MOCK_PROGRESS[source].concepts, observed: 0, ready: 0 },

@@ -219,6 +219,40 @@ test('eine hängende Quelle blockiert weder die anderen noch die Vokabeln und l�
   await expect(page.getByRole('region', { name: 'Fällig insgesamt' })).toContainText('solange AI nicht lesbar ist');
 });
 
+test('„Zuletzt aktiv": Zeitpunkt, Aktivität ohne Zeitpunkt und wirklich leer bleiben unterscheidbar', async ({ page }) => {
+  await mockProgressSources(page, { python: 'started', sql: 'empty', ai: 'ok' });
+  await page.goto('/fortschritt');
+
+  // Begonnene Lektion ohne Versuch/Abschluss: gültig, LIVE, Aktivität ja — aber kein Zeitpunkt.
+  const python = card(page, 'PythonPfad');
+  await expect(python.getByText('LIVE · Python')).toBeVisible();
+  await expect(metric(python, 'Zuletzt aktiv')).toHaveText('Kein Zeitpunkt erfasst');
+  await expect(metric(python, 'Lektionen abgeschlossen')).toContainText('0 von 12');
+  await expect(python.getByText('Noch keine Lernaktivität in PythonPfad erfasst.')).toHaveCount(0);
+  await expect(python.getByText('PythonPfad ist derzeit nicht erreichbar.')).toHaveCount(0);
+
+  // Wirklich leer: „noch nie" bleibt richtig.
+  const sql = card(page, 'SQLPfad');
+  await expect(sql.getByText('Noch keine Lernaktivität in SQLPfad erfasst.')).toBeVisible();
+  await expect(metric(sql, 'Zuletzt aktiv')).toHaveText('noch nie');
+
+  // Mit Zeitstempel: formatierter Zeitpunkt.
+  await expect(metric(card(page, 'AIPfad'), 'Zuletzt aktiv')).toHaveText(/^\d{2}\.\d{2}\.2026, \d{2}:\d{2}$/);
+
+  // Gültiger Stand: die Gesamtzahl bleibt vollständig.
+  await expect(page.getByRole('region', { name: 'Fällig insgesamt' }).locator('.progress-total')).toHaveText('0 fällig');
+  await expectNoSeriousA11yViolations(page, '/fortschritt Aktivität ohne Zeitpunkt');
+  mkdirSync('test-results/screenshots', { recursive: true });
+  // Ausschnitt der Ganzseitenaufnahme: Dort verdeckt die mitlaufende Kopfzeile keine Karte.
+  const grid = (await page.locator('.progress-grid').boundingBox())!;
+  const scrollY = await page.evaluate(() => window.scrollY);
+  await page.screenshot({
+    path: 'test-results/screenshots/lp07-zuletzt-aktiv.png',
+    fullPage: true,
+    clip: { x: grid.x, y: grid.y + scrollY, width: grid.width, height: grid.height },
+  });
+});
+
 test('nicht verbunden (zweiter Hub ohne Freischaltung): ehrlich statt 0, keine Anfrage an Quellen', async ({ page }) => {
   const seen = recordRequests(page);
   await page.goto(`${HUB_ORIGIN_UNCONNECTED}/`);

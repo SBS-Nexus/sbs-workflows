@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProgressSource, SourceProgress } from '@/domain/progress/contract';
+import { lastActiveOf } from '@/domain/progress/display';
 import { fetchProgressSource } from '@/domain/progress/fetch-progress';
 import {
   backlogTotal,
@@ -203,6 +204,12 @@ function SourceCard({ config, state }: { config: ProgressSourceConfig; state: So
   );
 }
 
+function lastActiveText(progress: SourceProgress): string {
+  const lastActive = lastActiveOf(progress);
+  if (lastActive.kind === 'timestamp') return dateTime.format(new Date(lastActive.at));
+  return lastActive.kind === 'unrecorded' ? 'Kein Zeitpunkt erfasst' : 'noch nie';
+}
+
 function SourceMetrics({ progress, appName }: { progress: SourceProgress; appName: string }): React.ReactElement {
   const { completed, total } = progress.lessons;
   return (
@@ -236,7 +243,7 @@ function SourceMetrics({ progress, appName }: { progress: SourceProgress; appNam
         {projectMetric(progress, appName)}
         <Metric
           label="Zuletzt aktiv"
-          value={progress.lastActiveAt ? dateTime.format(new Date(progress.lastActiveAt)) : 'noch nie'}
+          value={lastActiveText(progress)}
         />
       </dl>
     </>
