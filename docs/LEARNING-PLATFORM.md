@@ -19,7 +19,9 @@ sie trotzdem wie eine Anwendung wirken.
 
 Jeder Pfad verwendet dieselbe Produktsprache:
 
-1. **Dachleiste:** `Lernpfade / <Pfad>`, Rücksprung zur gemeinsamen Homepage.
+1. **Dachleiste:** `Lernpfade / <Pfad>`; mit konfiguriertem Hub eine benannte
+   Plattformnavigation zu „Alle Pfade“, „Alle Wiederholungen“ und
+   „Gesamtfortschritt“ (LP-03A, `docs/learning-shell/README.md`).
 2. **Bereiche:** Überblick, Lernen, Üben/Labs, Projekte, Wiederholen,
    Fortschritt, Profil — nur vorhandene Fähigkeiten werden gezeigt.
 3. **Statusbegriffe:** Verfügbar, In Ausbau, Geplant, Erledigt, Fällig.

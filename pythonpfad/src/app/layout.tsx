@@ -141,7 +141,7 @@ export default async function RootLayout({
           Direkt zum Hauptinhalt springen
         </a>
         <ServiceWorkerRegistration />
-        <LearningPlatformBar current="PythonPfad" />
+        <LearningPlatformBar app="python" />
         {children}
       </body>
     </html>

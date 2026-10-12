@@ -1,50 +1,53 @@
-type LearningPlatformBarProps = {
-  current: string;
-};
+import { SHELL_APP_NAME, hubLinks, type ShellApp } from '@/lib/learning-shell';
 
-export function LearningPlatformBar({ current }: LearningPlatformBarProps): React.ReactElement {
-  const hubUrl = process.env.NEXT_PUBLIC_LEARNING_HUB_URL?.trim();
+/**
+ * Plattform-Dachleiste der Lernpfade-Shell (LP-04, Vertrag LP-03A).
+ *
+ * KANONISCH ist `docs/learning-shell/learning-platform-bar.tsx`; jede App
+ * führt eine bytegleiche Kopie (geprüft von `scripts/check-learning-shell.mjs`).
+ *
+ * Mit konfigurierter `NEXT_PUBLIC_LEARNING_HUB_URL` steht hier eine benannte
+ * Plattformnavigation zum Hub, zu seinen Wiederholungen und zum Gesamtfortschritt
+ * — eigens benannt, damit sie von den Wiederholungs- und Fortschrittszielen
+ * der App unterscheidbar bleibt. Ohne Konfiguration gibt es keine Verweise:
+ * keine erfundene Adresse, kein toter Link. Die Adresse wird nur gelesen.
+ */
+export function LearningPlatformBar({ app }: { app: ShellApp }): React.ReactElement {
+  const hub = hubLinks(process.env.NEXT_PUBLIC_LEARNING_HUB_URL);
 
   return (
-    <div className="border-b border-[var(--lp-platform-border)] bg-[var(--lp-platform-bg)] text-[var(--lp-platform-fg)]">
-      <div className="mx-auto flex min-h-9 max-w-7xl items-center justify-between gap-4 px-4 text-xs sm:px-6">
-        <div className="flex min-w-0 items-center gap-2">
-          {hubUrl ? (
-            <a
-              href={hubUrl}
-              className="font-bold tracking-tight text-[var(--lp-platform-fg)] no-underline hover:text-[var(--lp-platform-hover)]"
-            >
-              Lernpfade
-            </a>
-          ) : (
-            <span className="font-bold tracking-tight">Lernpfade</span>
-          )}
-          <span aria-hidden="true" className="text-[var(--lp-platform-subtle)]">
+    <div className="lp-shell lp-shell-bar" data-lp-app={app}>
+      <div className="lp-shell-bar-inner">
+        <div className="lp-shell-bar-context">
+          <span className="lp-shell-bar-brand">Lernpfade</span>
+          <span aria-hidden="true" className="lp-shell-bar-separator">
             /
           </span>
-          <span className="truncate text-[var(--lp-platform-muted)]">{current}</span>
+          <span className="lp-shell-bar-current">{SHELL_APP_NAME[app]}</span>
         </div>
 
-        {hubUrl ? (
-          <div className="flex shrink-0 items-center gap-3 font-semibold">
-            <a
-              href={`${hubUrl}/wiederholen`}
-              className="hidden text-[var(--lp-platform-muted)] no-underline hover:text-[var(--lp-platform-fg)] sm:inline"
-            >
-              Wiederholen
-            </a>
-            <a
-              href={hubUrl}
-              className="text-[var(--lp-platform-muted)] no-underline hover:text-[var(--lp-platform-fg)]"
-            >
-              Alle Pfade
-              <span aria-hidden="true"> →</span>
-            </a>
-          </div>
+        {hub ? (
+          <nav aria-label="Lernpfade-Plattform">
+            <ul className="lp-shell-bar-links">
+              <li>
+                <a className="lp-shell-bar-link" href={hub.home}>
+                  Alle Pfade
+                </a>
+              </li>
+              <li>
+                <a className="lp-shell-bar-link" href={hub.review}>
+                  Alle Wiederholungen
+                </a>
+              </li>
+              <li>
+                <a className="lp-shell-bar-link" href={hub.progress}>
+                  Gesamtfortschritt
+                </a>
+              </li>
+            </ul>
+          </nav>
         ) : (
-          <span className="hidden text-[var(--lp-platform-muted)] sm:inline">
-            Gemeinsame Lernplattform
-          </span>
+          <span className="lp-shell-bar-note hidden sm:inline">Gemeinsame Lernplattform</span>
         )}
       </div>
     </div>
