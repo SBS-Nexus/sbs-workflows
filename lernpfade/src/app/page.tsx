@@ -58,6 +58,7 @@ export default function Home(): React.ReactElement {
             <a href="#pfade">Pfade</a>
             <a href="/vokabeln">Vokabeln</a>
             <a href="/wiederholen">Wiederholen</a>
+            <a href="/fortschritt">Fortschritt</a>
             <a href="#zukunft">Roadmap</a>
             <a href="#lernmodell">Lernmodell</a>
           </nav>
@@ -71,7 +72,7 @@ export default function Home(): React.ReactElement {
               <p className="kicker">Eine Plattform. Mehrere Fähigkeiten. Ein Lernmodell.</p>
               <h1>
                 Technologie lernen,
-                <span> als würde alles zusammengehören.</span>
+                <span> als würde alles zusammen&shy;gehören.</span>
               </h1>
               <p className="hero-copy">
                 Python, SQL, Git & GitHub und AI sind keine getrennten Welten. Lernpfade verbindet
@@ -192,7 +193,7 @@ export default function Home(): React.ReactElement {
           <div className="shell vocab-grid">
             <div>
               <p className="eyebrow">VokabelPfad</p>
-              <h2>Eigene Vokabeln – mit demselben Wiederholungsmotor.</h2>
+              <h2>Eigene Vokabeln – mit demselben Wiederholungs&shy;motor.</h2>
               <p>
                 Der VokabelPfad ist als lokaler MVP nutzbar: Englisch ↔ Deutsch, eigene Decks, beide
                 Lernrichtungen, Import/Export und tägliche Wiederholung. Technische Begriffe aus Git,

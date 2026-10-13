@@ -114,6 +114,23 @@ Fortschritt zeigt immer:
 - verständliche Beschriftung
 - keine reine Farbcodierung
 
+**Progress Cards (LP-07, `/fortschritt`):** eine Karte je Pfad mit fester
+Reihenfolge (Python, SQL, AI, Vokabeln). Jede Kennzahl ist ein Paar aus
+Beschriftung und Wert (`dl`), quellspezifische Bedeutungen stehen als Text
+darunter („Gefestigt heißt in PythonPfad …", „SQLPfad nimmt Projekte nicht
+fachlich ab."). Ein Balken erscheint nur für den Lektionsfortschritt und nur
+zusammen mit „x von y"; es gibt kein Gesamtprozent über Pfade.
+
+Zustand einer Quelle immer als Text, nie als leere Karte oder 0:
+
+| Zustand | Darstellung |
+|---|---|
+| angemeldet, geprüft | `LIVE · <App>` und Kennzahlen; echte 0 nur hier |
+| nicht angemeldet | Hinweis mit Akzent „Info" und Weg „In <App> anmelden" |
+| nicht erreichbar / ungültig | Hinweis mit Akzent „Warnung"; andere Pfade bleiben |
+| nicht verbunden | neutraler Hinweis, Weg „In <App> öffnen" |
+| lädt | Statuszeile „… wird geladen", ohne Zahlen |
+
 ### Wiederholung
 
 Eine Review-Karte trennt strikt:
@@ -133,6 +150,7 @@ Herkunft einer Review-Karte ist immer als Text sichtbar, nie nur über Farbe:
 | `LIVE · <App>` | echte fällige Einträge einer App, nur Anzeige (LP-05B) |
 | `DEMO · <Bereich>` | lokales Beispiel-Deck, ändert keine App |
 | `EIGENES DECK · <Richtung>` | persönliche VokabelPfad-Karte, nur in diesem Browser (LP-06) |
+| `LOKAL · nur in diesem Browser` | VokabelPfad-Stand auf `/fortschritt`, nie an eine App gesendet (LP-07) |
 
 Destruktive Aktionen (Deck/Karte löschen, VokabelPfad zurücksetzen) nutzen
 den Danger-Button und einen modalen Dialog, der Umfang und betroffenen

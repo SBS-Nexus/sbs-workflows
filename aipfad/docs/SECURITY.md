@@ -399,6 +399,35 @@ Cookie`, Route `force-dynamic`. Personenbezogene Antworten landen in keinem
 - `src/server/platform/review-source-http.ts` ist in PythonPfad, SQLPfad und
   AIPfad wortgleich (getrennte Bereitstellungen, kein gemeinsames Paket).
 
+## Lernpfade-Fortschrittsquelle (LP-07)
+
+`GET /api/platform/progress-source` ist eine eigene, **schreibgeschützte**
+Quelle für `/fortschritt` im Lernpfade-Hub. Architektur und Vertrag:
+`docs/LEARNING-PLATFORM.md` (Repository-Wurzel), Abschnitt 12.
+
+- **Gezählt wird:** mit denselben Prädikaten wie `/fortschritt` der App
+  (`veroeffentlichteLektion`, `veroeffentlichteAufgabe`) veröffentlichte und
+  eigene abgeschlossene Lektionen sowie fällige, offene Wiederholungen;
+  Konzepte mit eigenem `ConceptMastery`-Beleg und davon „bereit" nach
+  `meetsPrerequisite` (der Wert 0–100 verlässt die App nicht); der späteste
+  Aufgabenversuch, Lab-Eintrag oder Lektionsabschluss. AIPfad kennt keine
+  Projekte: `projects.kind = "unsupported"`, nie „0 von 0".
+
+- **Umfang allein aus der Sitzung:** `getCurrentUser()` der eigenen Sitzung.
+  Die Route nimmt **keinen** Abfrageparameter an; jeder — insbesondere eine
+  `userId` — wird mit 400 abgewiesen. Ohne Sitzung: 401. Nur GET.
+- **Datensparsam:** nur Zähler, feste Aufzählungswerte und ein Zeitstempel —
+  keine Namen, Kennungen, Titel, Inhalte, Antworten oder Rohwerte eines
+  Kompetenzmodells.
+- **Transport, Cache, CORS, Fehler, Same-Site:** wie die
+  Wiederholungsquelle (`PLATFORM_HUB_ORIGIN`, Vorgabe leer = aus;
+  `private, no-store, max-age=0`; `Vary: Origin, Cookie`; 401/400/500 ohne
+  Details). Die Cookie-Attribute werden nicht gelockert.
+- **Nur lesend:** keine Sitzungsfortschreibung, kein Kompetenz- oder
+  Planungsupdate. Die Integrationstests prüfen das gegen echte Zeilen.
+- `src/server/platform/progress-source-http.ts` ist in PythonPfad, SQLPfad und
+  AIPfad wortgleich.
+
 ## Bekannte, akzeptierte Restrisiken dieser Ausbaustufe
 
 - **`deepmerge-ts` (transitive Abhängigkeit von `prisma`/`@prisma/config`,

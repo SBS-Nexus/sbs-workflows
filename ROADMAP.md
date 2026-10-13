@@ -421,7 +421,7 @@ Lernpfade remains read-only in LP-05B.
 
 ## LP-06 — VokabelPfad MVP
 
-Status: **LOKALER MVP IMPLEMENTIERT (abhängiger PR auf die Integrationsbranch `claude/lernpfade-unified-hub`); NICHT IN `main`, NICHT PRODUKTIV VERÖFFENTLICHT**
+Status: **LOKALER MVP ABGESCHLOSSEN — über PR #55 in die Integrationsbranch `claude/lernpfade-unified-hub` übernommen; NICHT IN `main`, NICHT PRODUKTIV VERÖFFENTLICHT**
 
 Priorität: **P1**
 
@@ -509,6 +509,8 @@ Produktionsbuild und Playwright-E2E gegen den Produktionsbuild (Desktop,
 
 ## LP-07 — Plattformweiter Fortschritt
 
+Status: **IMPLEMENTIERT auf dem abhängigen Branch `claude/lernpfade-lp07-progress` (PR gegen die Integrationsbranch `claude/lernpfade-unified-hub`); NICHT IN `main`, NICHT PRODUKTIV AKTIVIERT; LIVE-BETRIEB SETZT SAME-SITE-DOMAINS VORAUS**
+
 Priorität: **P1**
 
 ### Ziel
@@ -556,6 +558,42 @@ oder
 B. gemeinsame Identity-/Progress-Datenbank
 
 **Default: zuerst A.**
+
+**Entschieden für LP-07: A — read-only Federation über die bestehenden Apps.**
+Kein gemeinsames Konto, keine gemeinsame Fortschrittsdatenbank, kein SSO,
+keine Cookie-Freigabe, keine Migration, kein Zurückschreiben.
+
+### Umsetzung (LP-07)
+
+```text
+Python Progress ─┐
+SQL Progress ────┼──> Browser im Lernpfade-Hub ──> /fortschritt
+AIPfad Progress ─┘
+VokabelPfad local IndexedDB ────────────────┘
+```
+
+- Je App eine eigene Route `GET /api/platform/progress-source` (nicht
+  `review-source` erweitert): nur GET, keine Abfrageparameter, Person allein
+  aus der eigenen Sitzung, CORS nur für `PLATFORM_HUB_ORIGIN`,
+  `private, no-store`, nur Aggregate (Schema 1, streng geprüft).
+- Quellspezifische Semantik statt Vereinheitlichung: Python/AIPfad
+  „gefestigt" über ihre Voraussetzungsschwelle (ohne Rohwert), SQL „sitzt"
+  über dieselbe Ableitung wie seine Wissenslandkarte (kein Prozentmodell);
+  Projekte „abgenommen" (Python), „abgegeben" (SQL), „keine" (AIPfad).
+- Hub `/fortschritt`: Karten je Pfad mit Lektionsfortschritt, fälligen
+  Wiederholungen, Konzeptbelegen, Projektstatus und letzter Aktivität, dazu
+  VokabelPfad **lokal**. Je Quelle eigener Zustand (angemeldet, nicht
+  angemeldet, nicht erreichbar, nicht verbunden), eigene Zeitgrenze.
+- **Kein** Gesamtprozent, kein Mastery-Score, kein Ranking, keine Lernzeit.
+  Einzige Summe „Fällig insgesamt", nur wenn alle verbundenen Quellen
+  geantwortet haben.
+- Freischaltung: `PROGRESS_FEDERATION_SOURCES` (Vorgabe leer = aus), getrennt
+  von LP-05B; in diesem Slice kein Produktionswert.
+- Einzelheiten: `docs/LEARNING-PLATFORM.md`, Abschnitt 12.
+
+Das Beispiel oben (Prozent je Pfad, Lernminuten) bleibt bewusst **nicht**
+umgesetzt: Prozentwerte der Apps messen Verschiedenes, und Lernzeit braucht
+erst eine gemeinsame Tages-, Zeitzonen- und Sitzungssemantik.
 
 ---
 
@@ -877,30 +915,29 @@ Ein eigener Pfad braucht:
 
 ---
 
-# 6. Nächster konkreter Slice nach PR #41
+# 6. Stand der Integrationsbranch und nächste Schritte
 
-## LP-03A — Shared Design Tokens + Navigation Contract
+Die Slices nach LP-01 liegen auf der Integrationsbranch
+`claude/lernpfade-unified-hub` (PR #41, **noch nicht** nach `main` gemergt,
+nicht produktiv):
 
-Nach Merge von PR #41:
+- LP-05A Review Adapter Contract — in PR #41
+- LP-05B föderierte, schreibgeschützte Wiederholungsquellen — PR #47,
+  übernommen
+- LP-06 VokabelPfad lokaler MVP — PR #55, übernommen
+- LP-07 Plattformfortschritt (read-only Federation) — abhängiger PR von
+  `claude/lernpfade-lp07-progress`, in Prüfung
 
-1. Design-Tokens aus PythonPfad, SQLPfad und AIPfad inventarisieren.
-2. Semantische gemeinsame Tokens festlegen.
-3. aktive Navigation, mobile Navigation und Account-Aktionen angleichen.
-4. Screenshots für drei identische Zustände vergleichen:
-   - public landing
-   - signed-in overview
-   - lesson screen
-5. keine Fachkomponente anfassen.
-6. Exact-Head-Gates aller betroffenen Apps.
+Offen und jeweils eine eigene Entscheidung:
 
-Danach:
-
-## LP-05A — Review Adapter Design
-
-- bestehende Review-Modelle der drei Apps vergleichen
-- kleinsten verlustfreien Adaptervertrag festlegen
-- Fixtures statt Produktion migrieren
-- erst danach Persistenzentscheidung treffen
+1. Übernahme von LP-07 in die Integrationsbranch nach unabhängiger Prüfung.
+2. Merge von PR #41 nach `main`.
+3. Domain-/DNS-Entscheidung für same-site Hub und Apps — Voraussetzung für
+   Live-Daten aus LP-05B und LP-07; ohne sie zeigen beide „nicht angemeldet".
+4. LP-03A — gemeinsame Design-Tokens und Navigationsvertrag über alle Apps
+   (keine Fachkomponente anfassen; Exact-Head-Gates aller betroffenen Apps).
+5. LP-05C (Abschließen aus dem Hub) und LP-08 (gemeinsame Identität) erst nach
+   dieser Domain-Entscheidung.
 
 ---
 
