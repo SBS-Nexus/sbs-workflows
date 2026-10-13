@@ -10,6 +10,7 @@ import {
   erwarteWirklichSichtbar,
   horizontalOverflow,
   kontrast,
+  offeneMenues,
   sichtbareHauptnavigation,
   stil,
   tabBis,
@@ -106,6 +107,45 @@ test('Vertrag auf jeder Breite: gleiche Bereiche, gleiche Reihenfolge, alles err
       await expect(menueEintrag(page, 'Abmelden')).toBeHidden();
     });
   }
+});
+
+/**
+ * Navigation schließt das Menü dauerhaft: Nach Zurück und Vorwärts in der
+ * Browser-Historie ist es zu, auch auf der Seite, auf der es offen war.
+ * Clientseitig im bleibenden Layout — ein Reload (`page.goto`) würde den
+ * Zustand verwerfen und den Fehler verdecken. Vorher: offen → zu → offen.
+ */
+test('Benutzermenü bleibt nach Browser-Zurück und -Vorwärts zu', async ({ page }) => {
+  await anmelden(page);
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto('/fortschritt');
+  await page.evaluate(() => {
+    (window as unknown as { ohneReload?: boolean }).ohneReload = true;
+  });
+  await (await sichtbareHauptnavigation(page)).getByRole('link', { name: 'Lernen' }).click();
+  await page.waitForURL(/\/lernen$/);
+
+  const knopf = menueKnopf(page);
+  await knopf.click();
+  await expect(knopf).toHaveAttribute('aria-expanded', 'true');
+
+  const schritte = [
+    ['zurück', /\/fortschritt$/],
+    ['vorwärts', /\/lernen$/],
+    ['zurück', /\/fortschritt$/],
+    ['vorwärts', /\/lernen$/],
+  ] as const;
+  for (const [richtung, ziel] of schritte) {
+    if (richtung === 'zurück') await page.goBack();
+    else await page.goForward();
+    await page.waitForURL(ziel);
+    await expect(knopf, `nach ${richtung}`).toHaveAttribute('aria-expanded', 'false');
+    await expect(offeneMenues(page), `nach ${richtung}: kein offenes Panel`).resolves.toEqual([]);
+  }
+  expect(
+    await page.evaluate(() => (window as unknown as { ohneReload?: boolean }).ohneReload),
+    'clientseitig, ohne Reload',
+  ).toBe(true);
 });
 
 test('Detailroute: genau ein aktiver Eintrag; fremde Seiten markieren nichts', async ({ page }) => {

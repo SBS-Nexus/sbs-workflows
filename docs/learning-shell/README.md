@@ -104,9 +104,16 @@ ausdrücklich zugeordnet (AIPfad `/lektion/...` → Lernen).
   PythonPfad nachweislich nicht in eine Zeile.)
 - Menüs sind ein Disclosure (Knopf mit `aria-expanded` + Liste), bewusst
   ohne `role="menu"`: Tab durch die Einträge, Escape schließt und gibt den
-  Fokus zurück, Klick oder Fokus außerhalb schließt, nach Navigation und bei
-  einem Breakpoint-Wechsel ist das Menü zu. Die Liste richtet sich so aus,
-  dass sie im Bild bleibt.
+  Fokus zurück, Klick oder Fokus außerhalb schließt.
+  - Navigation schließt dauerhaft: Auch Browser-Zurück/Vorwärts auf die
+    Seite, auf der es offen war, öffnet es nicht wieder.
+  - Ein Breakpoint-Wechsel (Tailwind `sm` 640, `md` 768, `xl` 1280 px)
+    schließt, ebenso eine Größenänderung, die den Knopf ausblendet. Lag der
+    Fokus im Menü, kehrt er zum sichtbaren Knopf zurück, sonst wird er
+    abgegeben — nie auf einem verborgenen Eintrag oder unsichtbaren Knopf.
+  - Innerhalb eines Breakpoints bleibt es offen und wird bei jeder
+    Größenänderung neu ausgerichtet (der Knopf wandert durch Umbruch), so
+    dass die Liste im Bild bleibt.
 - Bedienziele mindestens 44 px hoch. Ausnahme: die vorhandenen
   Theme-Schalter von Python/SQL (40 × 40 px, App-Komponente außerhalb der
   Shell; WCAG 2.5.8 mit 24 px erfüllt).

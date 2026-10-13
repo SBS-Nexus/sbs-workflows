@@ -192,3 +192,41 @@ export async function tabBis(
   }
   await expect(ziel, `${label}: per Tab erreichbar`).toBeFocused();
 }
+
+/** Offene, sichtbare Menü-Panels mit ihrer linken und rechten Kante. */
+export async function offeneMenues(page: Page): Promise<Array<{ links: number; rechts: number }>> {
+  return page.locator('.lp-shell-menu-panel:not([hidden])').evaluateAll((panels) =>
+    panels
+      .filter((panel) => panel.getClientRects().length > 0)
+      .map((panel) => {
+        const rect = panel.getBoundingClientRect();
+        return { links: rect.left, rechts: rect.right };
+      }),
+  );
+}
+
+/** Jedes offene Menü-Panel liegt vollständig im Bild. */
+export async function erwarteMenueImBild(page: Page, label: string): Promise<void> {
+  const breite = await page.evaluate(() => document.documentElement.clientWidth);
+  const panels = await offeneMenues(page);
+  expect(panels.length, `${label}: ein offenes Menü`).toBe(1);
+  for (const panel of panels) {
+    expect(panel.links, `${label}: linke Kante im Bild`).toBeGreaterThanOrEqual(0);
+    expect(panel.rechts, `${label}: rechte Kante im Bild`).toBeLessThanOrEqual(breite);
+  }
+}
+
+/**
+ * Der Fokus ist brauchbar: abgegeben (Dokument) oder auf einem sichtbaren
+ * Element, das in keinem verborgenen Bereich liegt.
+ */
+export async function erwarteBrauchbarenFokus(page: Page, label: string): Promise<void> {
+  const befund = await page.evaluate(() => {
+    const aktiv = document.activeElement;
+    if (aktiv === null || aktiv === document.body) return 'abgegeben';
+    if (aktiv.closest('[hidden]') !== null) return 'in verborgenem Bereich';
+    if (aktiv.getClientRects().length === 0) return 'auf unsichtbarem Element';
+    return 'sichtbar';
+  });
+  expect(['abgegeben', 'sichtbar'], `${label}: Fokus ${befund}`).toContain(befund);
+}

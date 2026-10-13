@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
+/** Tailwind-Breakpoints, an denen Shell und Apps den Kopf umbauen: sm, md, xl. */
+const BREAKPOINTS = ['(min-width: 40rem)', '(min-width: 48rem)', '(min-width: 80rem)'];
+
 /**
  * Menü der Lernpfade-Shell (LP-03A): ein Knopf, der eine Liste von Zielen und
  * Aktionen auf- und zuklappt (Disclosure-Muster).
@@ -15,11 +18,15 @@ import { usePathname } from 'next/navigation';
  * Knöpfen — Tab durch die Einträge, Enter löst aus. Dazu:
  *  - Escape schließt und gibt den Fokus an den Knopf zurück,
  *  - Klick außerhalb oder Fokus außerhalb schließt,
- *  - nach einer Navigation ist das Menü zu,
- *  - wird der Knopf bei einem Breakpoint-Wechsel unsichtbar, schließt es —
- *    es bleibt kein verborgener, fokussierbarer Inhalt zurück,
+ *  - eine Navigation schließt dauerhaft — auch Browser-Zurück/Vorwärts auf
+ *    die Seite, auf der es offen war, öffnet es nicht wieder,
+ *  - ein Breakpoint-Wechsel (sm, md, xl) schließt; ebenso eine Größenänderung,
+ *    bei der der Knopf unsichtbar wird. Lag der Fokus im Menü, kehrt er zum
+ *    Knopf zurück, wenn der sichtbar ist, sonst wird er abgegeben — er bleibt
+ *    weder auf einem verborgenen Eintrag noch auf einem unsichtbaren Knopf,
  *  - die Liste öffnet zum Knopf bündig rechts; wäre sie dann links aus dem
- *    Bild, öffnet sie bündig links.
+ *    Bild, öffnet sie bündig links. Bei jeder Größenänderung innerhalb eines
+ *    Breakpoints wird neu gemessen, weil der Knopf durch Umbruch wandert.
  */
 export function ShellMenu({
   label,
@@ -32,8 +39,11 @@ export function ShellMenu({
   children: (close: () => void) => React.ReactNode;
 }): React.ReactElement {
   const pathname = usePathname();
-  // Offen nur auf der Seite, auf der es geöffnet wurde: Navigation schließt.
+  // Offen nur auf der Seite, auf der es geöffnet wurde. Ein Pfadwechsel
+  // verwirft den Zustand schon beim Rendern: Sonst wäre das Menü nach
+  // Zurück und Vorwärts wieder offen, ohne dass jemand es geöffnet hat.
   const [openOn, setOpenOn] = useState<string | null>(null);
+  if (openOn !== null && openOn !== pathname) setOpenOn(null);
   const open = openOn !== null && openOn === pathname;
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -43,14 +53,19 @@ export function ShellMenu({
   // Nur Zustand: `close` wird an die Einträge gereicht und berührt keine Ref.
   const close = useCallback(() => setOpenOn(null), []);
 
-  // Ausrichtung messen, bevor gezeichnet wird: Die Liste bleibt im Bild.
-  useLayoutEffect(() => {
+  // Ausrichtung messen: Die Liste bleibt im Bild.
+  const align = useCallback(() => {
     const panel = panelRef.current;
     const button = buttonRef.current;
-    if (!open || !panel || !button) return;
+    if (!panel || !button || panel.hidden) return;
     const fitsRightAligned = button.getBoundingClientRect().right - panel.offsetWidth >= 8;
     panel.dataset.align = fitsRightAligned ? 'end' : 'start';
-  }, [open]);
+  }, []);
+
+  // Beim Öffnen messen, bevor gezeichnet wird.
+  useLayoutEffect(() => {
+    if (open) align();
+  }, [open, align]);
 
   useEffect(() => {
     if (!open) return;
@@ -62,26 +77,38 @@ export function ShellMenu({
     const onFocusIn = (event: FocusEvent): void => {
       if (outside(event.target)) close();
     };
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape') return;
+    const visible = (element: HTMLElement): boolean => element.getClientRects().length > 0;
+    // Schließen, ohne Fokus auf Verborgenem zu lassen.
+    const dismiss = (): void => {
       const focusInside = !outside(document.activeElement);
       close();
-      if (focusInside) buttonRef.current?.focus();
+      if (!focusInside) return;
+      const button = buttonRef.current;
+      if (button && visible(button)) button.focus();
+      else if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    };
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') dismiss();
     };
     const onResize = (): void => {
-      if (buttonRef.current && buttonRef.current.getClientRects().length === 0) close();
+      const button = buttonRef.current;
+      if (button && !visible(button)) dismiss();
+      else align();
     };
+    const breakpoints = BREAKPOINTS.map((query) => window.matchMedia(query));
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('focusin', onFocusIn);
     document.addEventListener('keydown', onKeyDown);
     window.addEventListener('resize', onResize);
+    for (const breakpoint of breakpoints) breakpoint.addEventListener('change', dismiss);
     return () => {
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('focusin', onFocusIn);
       document.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('resize', onResize);
+      for (const breakpoint of breakpoints) breakpoint.removeEventListener('change', dismiss);
     };
-  }, [open, close]);
+  }, [open, close, align]);
 
   return (
     <div ref={rootRef} className={className ? `lp-shell-menu ${className}` : 'lp-shell-menu'}>

@@ -3,12 +3,15 @@ import { expect, test, type Page } from '@playwright/test';
 import { onboardingAbschliessen, registriere } from './helfer';
 import {
   beschriftungen,
+  erwarteBrauchbarenFokus,
   erwarteKeineSchwerenAxeBefunde,
+  erwarteMenueImBild,
   erwartePlattformleiste,
   erwarteSichtbarenFokus,
   erwarteWirklichSichtbar,
   horizontalOverflow,
   kontrast,
+  offeneMenues,
   sichtbareHauptnavigation,
   stil,
   tabBis,
@@ -115,6 +118,79 @@ test('„Mehr"-Ziel öffnen: Wissenslandkarte auf Desktop und Telefon', async ({
     await expect(page).toHaveURL(/\/wissenslandkarte$/);
     await expect(page.getByRole('heading').first()).toBeVisible();
   }
+});
+
+/**
+ * Offenes „Mehr" und Breitenwechsel ohne Reload: Über einen Breakpoint
+ * (sm 640, xl 1280) schließt es, der Fokus bleibt brauchbar; innerhalb eines
+ * Breakpoints bleibt es offen und wird neu ausgerichtet. Vorher blieb es nach
+ * 1280 → 640 und 700 → 640 rechtsbündig offen und ragte links aus dem Bild.
+ */
+test('Offenes „Mehr" bei Breitenwechsel: zu über Breakpoints, sonst im Bild', async ({ page }) => {
+  await anmelden(page);
+
+  async function oeffneMitFokusImMenue(breite: number): Promise<void> {
+    await page.setViewportSize({ width: breite, height: 860 });
+    await page.goto('/pfad');
+    const knopf = mehr(page);
+    await knopf.click();
+    await expect(knopf).toHaveAttribute('aria-expanded', 'true');
+    await page.keyboard.press('Tab');
+    await expect(
+      page.getByRole('banner').getByRole('link', { name: 'Wissenslandkarte', exact: true }),
+    ).toBeFocused();
+    await erwarteMenueImBild(page, `${breite} px, frisch geöffnet`);
+  }
+
+  async function erwarteZuUndWiederOeffenbar(label: string): Promise<void> {
+    await expect(offeneMenues(page), `${label}: kein offenes Panel`).resolves.toEqual([]);
+    for (const knopf of await page.getByRole('banner').getByRole('button', { name: /^Mehr/ }).all())
+      await expect(knopf, label).toHaveAttribute('aria-expanded', 'false');
+    await erwarteBrauchbarenFokus(page, label);
+    const knopf = mehr(page);
+    await knopf.click();
+    await erwarteMenueImBild(page, `${label}, erneut geöffnet`);
+    for (const name of MEHR) {
+      await erwarteWirklichSichtbar(
+        page.getByRole('banner').getByRole('link', { name, exact: true }),
+        `${label}, erneut geöffnet: ${name}`,
+      );
+    }
+  }
+
+  await test.step('1280 → 640 px (xl): schließt, Fokus zurück auf „Mehr"', async () => {
+    await oeffneMitFokusImMenue(1280);
+    await page.setViewportSize({ width: 640, height: 860 });
+    await expect(mehr(page)).toHaveAttribute('aria-expanded', 'false');
+    await expect(mehr(page)).toBeFocused();
+    await erwarteZuUndWiederOeffenbar('1280 → 640 px');
+  });
+
+  await test.step('700 → 640 px (kein Breakpoint): bleibt offen, ganz im Bild', async () => {
+    await oeffneMitFokusImMenue(700);
+    await page.setViewportSize({ width: 640, height: 860 });
+    await expect(mehr(page)).toHaveAttribute('aria-expanded', 'true');
+    await erwarteMenueImBild(page, '700 → 640 px');
+    for (const name of MEHR) {
+      await erwarteWirklichSichtbar(
+        page.getByRole('banner').getByRole('link', { name, exact: true }),
+        `700 → 640 px: ${name}`,
+      );
+    }
+    await bild(page, 'shell-ai-700-640-mehr');
+  });
+
+  await test.step('375 → 640 px (sm): mobiles „Mehr" schließt, Fokus abgegeben', async () => {
+    await oeffneMitFokusImMenue(375);
+    await page.setViewportSize({ width: 640, height: 860 });
+    await erwarteZuUndWiederOeffenbar('375 → 640 px');
+  });
+
+  await test.step('640 → 375 px (sm): „Mehr" der Navigation schließt', async () => {
+    await oeffneMitFokusImMenue(640);
+    await page.setViewportSize({ width: 375, height: 860 });
+    await erwarteZuUndWiederOeffenbar('640 → 375 px');
+  });
 });
 
 test('Lektion unter /lektion gehört zu „Lernen"; Überblick und Fortschritt getrennt', async ({

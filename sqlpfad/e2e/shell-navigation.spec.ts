@@ -9,6 +9,7 @@ import {
   erwarteWirklichSichtbar,
   horizontalOverflow,
   kontrast,
+  offeneMenues,
   sichtbareHauptnavigation,
   stil,
   tabBis,
@@ -154,6 +155,45 @@ test('Redaktion für die vorhandene Rolle: im Kopf ab 640 px, darunter im Konto-
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByRole('heading', { name: 'Redaktion', level: 1 })).toBeVisible();
   await expect(kontoMenue(page)).toHaveAttribute('aria-expanded', 'false');
+});
+
+/**
+ * Navigation schließt das Menü dauerhaft: Nach Zurück und Vorwärts in der
+ * Browser-Historie ist es zu, auch auf der Seite, auf der es offen war.
+ * Clientseitig im bleibenden Layout — ein Reload (`page.goto`) würde den
+ * Zustand verwerfen und den Fehler verdecken. Vorher: offen → zu → offen.
+ */
+test('Konto-Menü bleibt nach Browser-Zurück und -Vorwärts zu', async ({ page }) => {
+  await anmelden(page);
+  await page.setViewportSize({ width: 375, height: 860 });
+  await page.goto('/fortschritt');
+  await page.evaluate(() => {
+    (window as unknown as { ohneReload?: boolean }).ohneReload = true;
+  });
+  await (await sichtbareHauptnavigation(page)).getByRole('link', { name: 'Lernen' }).click();
+  await page.waitForURL(/\/lernen$/);
+
+  const knopf = kontoMenue(page);
+  await knopf.click();
+  await expect(knopf).toHaveAttribute('aria-expanded', 'true');
+
+  const schritte = [
+    ['zurück', /\/fortschritt$/],
+    ['vorwärts', /\/lernen$/],
+    ['zurück', /\/fortschritt$/],
+    ['vorwärts', /\/lernen$/],
+  ] as const;
+  for (const [richtung, ziel] of schritte) {
+    if (richtung === 'zurück') await page.goBack();
+    else await page.goForward();
+    await page.waitForURL(ziel);
+    await expect(knopf, `nach ${richtung}`).toHaveAttribute('aria-expanded', 'false');
+    await expect(offeneMenues(page), `nach ${richtung}: kein offenes Panel`).resolves.toEqual([]);
+  }
+  expect(
+    await page.evaluate(() => (window as unknown as { ohneReload?: boolean }).ohneReload),
+    'clientseitig, ohne Reload',
+  ).toBe(true);
 });
 
 test('Detailroute: genau ein aktiver Eintrag', async ({ page }) => {
