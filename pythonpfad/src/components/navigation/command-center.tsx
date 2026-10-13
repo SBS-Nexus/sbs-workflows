@@ -58,7 +58,7 @@ const JUMP_TARGETS: Readonly<Record<string, { href: string; label: string }>> = 
   u: { href: '/ueben', label: 'Üben' },
   p: { href: '/projekte', label: 'Projekte' },
   w: { href: '/wiederholen', label: 'Wiederholen' },
-  f: { href: '/fortschritt', label: 'Fortschritt' },
+  f: { href: '/fortschritt', label: 'Überblick' },
   c: { href: '/labor', label: 'Code-Labor' },
 };
 
@@ -512,7 +512,7 @@ const SHORTCUT_GROUPS: ReadonlyArray<{ title: string; items: readonly ShortcutIt
       { keys: ['g', 'u'], description: 'Üben', sequence: true },
       { keys: ['g', 'p'], description: 'Projekte', sequence: true },
       { keys: ['g', 'w'], description: 'Wiederholen', sequence: true },
-      { keys: ['g', 'f'], description: 'Fortschritt', sequence: true },
+      { keys: ['g', 'f'], description: 'Überblick', sequence: true },
       { keys: ['g', 'c'], description: 'Code-Labor', sequence: true },
     ],
   },

@@ -102,7 +102,7 @@ export default async function RootLayout({
         <a href="#hauptinhalt" className="skip-link">
           Direkt zum Hauptinhalt springen
         </a>
-        <LearningPlatformBar current="AIPfad" />
+        <LearningPlatformBar app="ai" />
         {children}
       </body>
     </html>

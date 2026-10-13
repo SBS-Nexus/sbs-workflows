@@ -215,12 +215,22 @@ Produktprimitive verwenden.
 ```text
 docs/
   LEARNING-DESIGN-SYSTEM.md
+  learning-shell/            ← LP-03A: kanonischer Shell-Vertrag
+    README.md
+    learning-shell.css       (Tokens --lp-shell-*, Shell-Bausteine)
+    learning-shell.ts        (Navigationsvertrag, Aktivzustand, Hub-Ziele)
+    learning-shell.test.ts
+    learning-platform-bar.tsx
+    shell-menu.tsx
 
-lernpfade/src/design/
-  tokens.ts
-  status.ts
-  navigation.ts
+<app>/src/styles/learning-shell.css   ┐ bytegleiche Kopien je App,
+<app>/src/lib/learning-shell.ts       ┘ geprüft von scripts/check-learning-shell.mjs
 ```
+
+Die früher hier genannten Dateien `lernpfade/src/design/tokens.ts`,
+`status.ts` und `navigation.ts` wurden nie angelegt. Der Shell-Teil des
+Vertrags liegt seit LP-03A in `docs/learning-shell/` (siehe dortiges README);
+gemeinsame Status-/Badge-Tokens sind noch offen.
 
 Langfristig optional:
 
@@ -934,8 +944,10 @@ Offen und jeweils eine eigene Entscheidung:
 2. Merge von PR #41 nach `main`.
 3. Domain-/DNS-Entscheidung für same-site Hub und Apps — Voraussetzung für
    Live-Daten aus LP-05B und LP-07; ohne sie zeigen beide „nicht angemeldet".
-4. LP-03A — gemeinsame Design-Tokens und Navigationsvertrag über alle Apps
-   (keine Fachkomponente anfassen; Exact-Head-Gates aller betroffenen Apps).
+4. LP-03A — gemeinsame Shell-Tokens und Navigationsvertrag über alle Apps:
+   abhängiger Draft-PR von `claude/lernpfade-lp03a-shell-navigation` gegen
+   `claude/lernpfade-lp07-progress`, in Prüfung (Vertrag:
+   `docs/learning-shell/README.md`).
 5. LP-05C (Abschließen aus dem Hub) und LP-08 (gemeinsame Identität) erst nach
    dieser Domain-Entscheidung.
 

@@ -131,7 +131,7 @@ export default function RootLayout({
         <a href="#hauptinhalt" className="skip-link">
           Direkt zum Hauptinhalt springen
         </a>
-        <LearningPlatformBar current="SQLPfad" />
+        <LearningPlatformBar app="sql" />
         {children}
       </body>
     </html>

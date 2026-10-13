@@ -37,6 +37,12 @@ border         #374151
 Diese Werte dürfen nicht pro Fachpfad überschrieben werden. Die Fachfarbe
 beginnt unterhalb der Plattformleiste.
 
+Seit LP-03A teilen Dachleiste, App-Kopf, Hauptnavigation und ihre Menüs
+außerdem die Shell-Tokens `--lp-shell-*` (Fläche, Text, Rand, Fokus, Radius,
+Abstände, Menü-Elevation, Bewegung, Pfad-Akzent) und einen gemeinsamen
+Navigationsvertrag. Werte, Matrix und Synchronisation:
+`docs/learning-shell/README.md`.
+
 ## 2. Gemeinsame Ebenen
 
 ### Ebene A — Plattform
@@ -199,6 +205,9 @@ Gemeinsame Regel:
 - keine dauerhafte dekorative Bewegung
 - keine Gamification durch Wackeln/Bouncing
 - Reduced Motion schaltet nicht essentielle Animation ab
+- Shell (Dachleiste, Kopf, Navigation, Menüs): 120 ms / 200 ms, unter
+  „Bewegung reduzieren“ (System oder Konto) 0,01 ms; Fachanimationen behalten
+  ihre eigenen Zeiten
 
 ## 8. Responsive Contract
 
@@ -209,6 +218,9 @@ Mobil:
 - globale Dachleiste bleibt sichtbar
 - Kernnavigation ist mit Daumen erreichbar
 - keine horizontal notwendige Desktop-Navigation ohne Alternative
+- Shell-Breakpoints (LP-03A): unter 640 px untere Leiste plus Menü für
+  Sitzung und Zusatzziele; 640–1279 px Navigation in eigener, umbrechender
+  Zeile; ab 1280 px in der Kopfzeile — nie versteckt seitlich scrollend
 - Review-Ratings bleiben ohne horizontales Scrollen bedienbar
 
 ## 9. Implementierungsstrategie
@@ -226,7 +238,9 @@ Ein echtes `packages/learning-ui` wird erst eingeführt, wenn:
 4. kein Fachpfad unnötig sein Bundle vergrößert.
 
 Bis dahin gilt: gemeinsame Semantik, kleine bewusst synchronisierte
-Plattformkomponenten, automatisierte Regressionen.
+Plattformkomponenten, automatisierte Regressionen. Für die Shell ist das
+umgesetzt: kanonische Dateien in `docs/learning-shell/`, bytegleiche Kopien je
+App, Drift-Check `node scripts/check-learning-shell.mjs` in der CI.
 
 ## 10. Review-Regel für neue UI
 

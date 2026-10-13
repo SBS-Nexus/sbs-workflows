@@ -1,0 +1,452 @@
+/*
+ * Lernpfade-Shell — gemeinsame Tokens und Bausteine (LP-03A).
+ *
+ * KANONISCH ist `docs/learning-shell/learning-shell.css`. Jede App führt eine
+ * bytegleiche Kopie unter `src/styles/learning-shell.css`;
+ * `node scripts/check-learning-shell.mjs` scheitert bei Abweichung.
+ *
+ * Geltungsbereich: ausschließlich Shell-Elemente — Dachleiste, App-Kopf,
+ * Navigation und ihre Menüs. Jede Regel hängt an einer `.lp-shell…`-Klasse;
+ * es gibt keine Regel für bloße Elemente (`a`, `button`, …) und keine
+ * Umdefinition vorhandener App-Tokens (`--surface`, `--text`, `--bg`, `--fg`,
+ * `--color-ink-*`, Modulfarben, Editor-Tokens).
+ *
+ * Bewusst NICHT in einem Cascade-Layer: PythonPfad und SQLPfad setzen
+ * `:focus-visible` ungeschichtet, und eine ungeschichtete Regel schlägt jede
+ * geschichtete. Nur so gilt der gemeinsame Fokus auch dort. Weil jede Regel an
+ * einer Shell-Klasse hängt, wirkt das nicht seitenweit — AIPfads geschichtete
+ * Link-Farben (behobener Kontrastfehler) bleiben unberührt. Sichtbarkeit nach
+ * Breakpoint regeln weiter die Tailwind-Klassen der Apps; diese Datei setzt
+ * deshalb kein `display` auf Elemente, die responsiv ein- oder ausgeblendet
+ * werden.
+ */
+
+/* --- Tokens: neutral, in allen Apps gleich ------------------------------ */
+
+.lp-shell {
+  --lp-shell-surface: #ffffff;
+  --lp-shell-surface-hover: #eef1f6;
+  --lp-shell-text: #111827;
+  --lp-shell-text-muted: #4b5563;
+  --lp-shell-border: #dfe3eb;
+  --lp-shell-focus: #1d4ed8;
+  --lp-shell-on-accent: #ffffff;
+
+  --lp-shell-focus-width: 3px;
+  --lp-shell-focus-offset: 2px;
+  --lp-shell-radius: 0.75rem;
+  --lp-shell-radius-small: 0.5rem;
+  --lp-shell-space-1: 0.25rem;
+  --lp-shell-space-2: 0.5rem;
+  --lp-shell-space-3: 0.75rem;
+  --lp-shell-target: 2.75rem;
+  --lp-shell-menu-shadow: 0 16px 36px -16px rgb(15 23 42 / 0.35), 0 2px 6px rgb(15 23 42 / 0.1);
+  --lp-shell-duration-fast: 120ms;
+  --lp-shell-duration-base: 200ms;
+  --lp-shell-ease: cubic-bezier(0.2, 0, 0, 1);
+  --lp-shell-font: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+
+  /* Fokus auf der immer dunklen Dachleiste (Farben: --lp-platform-*). */
+  --lp-shell-platform-focus: #93c5fd;
+
+  font-family: var(--lp-shell-font);
+}
+
+/* Pfad-Akzente: konfigurierte Identität je App. */
+.lp-shell[data-lp-app='python'] {
+  --lp-shell-accent: #1d4ed8;
+  --lp-shell-accent-soft: #dbeafe;
+}
+
+.lp-shell[data-lp-app='sql'] {
+  --lp-shell-accent: #0f766e;
+  --lp-shell-accent-soft: #ccfbf1;
+}
+
+.lp-shell[data-lp-app='ai'] {
+  --lp-shell-accent: #92400e;
+  --lp-shell-accent-soft: #fef3c7;
+}
+
+/* Dunkel: ausdrücklich gewählt oder vom System, solange nicht hell gewählt. */
+:root[data-theme='dark'] .lp-shell,
+:root.dark .lp-shell {
+  --lp-shell-surface: #151a24;
+  --lp-shell-surface-hover: #232a37;
+  --lp-shell-text: #f3f4f6;
+  --lp-shell-text-muted: #c4cad5;
+  --lp-shell-border: #2e3646;
+  --lp-shell-focus: #93c5fd;
+  --lp-shell-on-accent: #0b1220;
+}
+
+:root[data-theme='dark'] .lp-shell[data-lp-app='python'],
+:root.dark .lp-shell[data-lp-app='python'] {
+  --lp-shell-accent: #93c5fd;
+  --lp-shell-accent-soft: #1e2f52;
+}
+
+:root[data-theme='dark'] .lp-shell[data-lp-app='sql'],
+:root.dark .lp-shell[data-lp-app='sql'] {
+  --lp-shell-accent: #5eead4;
+  --lp-shell-accent-soft: #12403c;
+}
+
+:root[data-theme='dark'] .lp-shell[data-lp-app='ai'],
+:root.dark .lp-shell[data-lp-app='ai'] {
+  --lp-shell-accent: #fcd34d;
+  --lp-shell-accent-soft: #42300c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .lp-shell {
+    --lp-shell-surface: #151a24;
+    --lp-shell-surface-hover: #232a37;
+    --lp-shell-text: #f3f4f6;
+    --lp-shell-text-muted: #c4cad5;
+    --lp-shell-border: #2e3646;
+    --lp-shell-focus: #93c5fd;
+    --lp-shell-on-accent: #0b1220;
+  }
+
+  :root:not([data-theme='light']) .lp-shell[data-lp-app='python'] {
+    --lp-shell-accent: #93c5fd;
+    --lp-shell-accent-soft: #1e2f52;
+  }
+
+  :root:not([data-theme='light']) .lp-shell[data-lp-app='sql'] {
+    --lp-shell-accent: #5eead4;
+    --lp-shell-accent-soft: #12403c;
+  }
+
+  :root:not([data-theme='light']) .lp-shell[data-lp-app='ai'] {
+    --lp-shell-accent: #fcd34d;
+    --lp-shell-accent-soft: #42300c;
+  }
+}
+
+/* Bewegung: System-Einstellung und Konto-Einstellung (`data-reduce-motion`). */
+:root[data-reduce-motion='true'] .lp-shell {
+  --lp-shell-duration-fast: 0.01ms;
+  --lp-shell-duration-base: 0.01ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-shell {
+    --lp-shell-duration-fast: 0.01ms;
+    --lp-shell-duration-base: 0.01ms;
+  }
+}
+
+/* --- Fokus: gleiche Geometrie überall ----------------------------------- */
+
+.lp-shell :focus-visible {
+  outline: var(--lp-shell-focus-width) solid var(--lp-shell-focus);
+  outline-offset: var(--lp-shell-focus-offset);
+  border-radius: var(--lp-shell-radius-small);
+}
+
+.lp-shell-bar :focus-visible {
+  outline-color: var(--lp-shell-platform-focus);
+}
+
+/* Fokussierte Ziele nicht unter Kopf oder unterer Leiste verstecken. */
+:root:has(.lp-shell-header) {
+  scroll-padding-top: 8rem;
+}
+
+@media (max-width: 639.98px) {
+  :root:has(.lp-shell-tabbar) {
+    scroll-padding-bottom: 5.5rem;
+  }
+}
+
+/* --- Plattform-Dachleiste ----------------------------------------------- */
+
+.lp-shell-bar {
+  border-bottom: 1px solid var(--lp-platform-border);
+  background: var(--lp-platform-bg);
+  color: var(--lp-platform-fg);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.lp-shell-bar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: var(--lp-shell-space-3);
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.lp-shell-bar-context {
+  display: flex;
+  min-width: 0;
+  min-height: var(--lp-shell-target);
+  align-items: center;
+  gap: var(--lp-shell-space-2);
+}
+
+.lp-shell-bar-brand {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.lp-shell-bar-separator {
+  color: var(--lp-platform-subtle);
+}
+
+.lp-shell-bar-current,
+.lp-shell-bar-note {
+  color: var(--lp-platform-muted);
+}
+
+.lp-shell-bar-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--lp-shell-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-weight: 600;
+}
+
+.lp-shell-bar-link {
+  display: inline-flex;
+  min-height: var(--lp-shell-target);
+  align-items: center;
+  padding-inline: var(--lp-shell-space-2);
+  color: var(--lp-platform-muted);
+  text-decoration: none;
+  transition: color var(--lp-shell-duration-fast) var(--lp-shell-ease);
+}
+
+.lp-shell-bar-link:hover {
+  color: var(--lp-platform-hover);
+}
+
+@media (min-width: 640px) {
+  .lp-shell-bar-inner {
+    padding-inline: 1.5rem;
+  }
+}
+
+/* --- App-Kopf und Hauptnavigation --------------------------------------- */
+
+.lp-shell-header {
+  border-bottom: 1px solid var(--lp-shell-border);
+  background: var(--lp-shell-surface);
+  color: var(--lp-shell-text);
+}
+
+.lp-shell-nav-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lp-shell-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-shell-nav-link {
+  display: flex;
+  min-height: var(--lp-shell-target);
+  align-items: center;
+  gap: var(--lp-shell-space-2);
+  padding-inline: var(--lp-shell-space-3);
+  border-radius: var(--lp-shell-radius);
+  color: var(--lp-shell-text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background-color var(--lp-shell-duration-fast) var(--lp-shell-ease),
+    color var(--lp-shell-duration-fast) var(--lp-shell-ease);
+}
+
+.lp-shell-nav-link:hover {
+  background: var(--lp-shell-surface-hover);
+  color: var(--lp-shell-text);
+}
+
+.lp-shell-nav-link[aria-current='page'] {
+  background: var(--lp-shell-accent-soft);
+  color: var(--lp-shell-accent);
+}
+
+/* Schaltflächen im Kopf (Menüknöpfe, Abmelden). */
+.lp-shell-action {
+  display: inline-flex;
+  min-height: var(--lp-shell-target);
+  min-width: var(--lp-shell-target);
+  align-items: center;
+  justify-content: center;
+  gap: var(--lp-shell-space-2);
+  padding-inline: var(--lp-shell-space-3);
+  border: 1px solid var(--lp-shell-border);
+  border-radius: var(--lp-shell-radius-small);
+  background: var(--lp-shell-surface);
+  color: var(--lp-shell-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--lp-shell-duration-fast) var(--lp-shell-ease);
+}
+
+.lp-shell-action:hover {
+  background: var(--lp-shell-surface-hover);
+}
+
+/* Zahl an einem Ziel (z. B. fällige Wiederholungen) — immer als Zahl. */
+.lp-shell-badge {
+  display: inline-flex;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 0.3rem;
+  border-radius: 999px;
+  background: var(--lp-shell-accent);
+  color: var(--lp-shell-on-accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* --- Menü (Disclosure: Knopf + Liste, keine ARIA-Menürollen) ------------- */
+
+.lp-shell-menu {
+  position: relative;
+}
+
+.lp-shell-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--lp-shell-space-1));
+  z-index: 60;
+  display: grid;
+  width: max-content;
+  min-width: 13rem;
+  max-width: min(18rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 8rem);
+  overflow-y: auto;
+  gap: 2px;
+  padding: var(--lp-shell-space-1);
+  border: 1px solid var(--lp-shell-border);
+  border-radius: var(--lp-shell-radius);
+  background: var(--lp-shell-surface);
+  color: var(--lp-shell-text);
+  box-shadow: var(--lp-shell-menu-shadow);
+}
+
+.lp-shell-menu-panel[data-align='start'] {
+  right: auto;
+  left: 0;
+}
+
+.lp-shell-menu-panel[hidden] {
+  display: none;
+}
+
+.lp-shell-menu-heading {
+  margin: 0;
+  padding: var(--lp-shell-space-2) var(--lp-shell-space-3) var(--lp-shell-space-1);
+  overflow-wrap: anywhere;
+  color: var(--lp-shell-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.lp-shell-menu-item {
+  display: flex;
+  width: 100%;
+  min-height: var(--lp-shell-target);
+  align-items: center;
+  gap: var(--lp-shell-space-2);
+  padding-inline: var(--lp-shell-space-3);
+  border: 0;
+  border-radius: var(--lp-shell-radius-small);
+  background: transparent;
+  color: var(--lp-shell-text);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lp-shell-menu-item:hover {
+  background: var(--lp-shell-surface-hover);
+}
+
+.lp-shell-menu-item[aria-current='page'] {
+  background: var(--lp-shell-accent-soft);
+  color: var(--lp-shell-accent);
+  font-weight: 600;
+}
+
+/* --- Untere Leiste (schmale Bildschirme) -------------------------------- */
+
+.lp-shell-tabbar {
+  border-top: 1px solid var(--lp-shell-border);
+  background: var(--lp-shell-surface);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.lp-shell-tabbar-list {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-shell-tab {
+  display: flex;
+  min-height: 3.5rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  padding: 0.375rem 0.125rem;
+  color: var(--lp-shell-text-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.lp-shell-tab[aria-current='page'] {
+  color: var(--lp-shell-accent);
+}
+
+.lp-shell-tab-icon {
+  position: relative;
+  display: flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+}
+
+.lp-shell-tab[aria-current='page'] .lp-shell-tab-icon {
+  background: var(--lp-shell-accent-soft);
+}
+
+.lp-shell-tab-icon .lp-shell-badge {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.5rem;
+}

@@ -5,17 +5,57 @@ on:
     paths:
       - 'lernpfade/**'
       - '.github/workflows/lernpfade-ci.yml'
+      # LP-03A: Shell-Vertrag und seine Kopien in den drei Fach-Apps.
+      - 'docs/learning-shell/**'
+      - 'scripts/check-learning-shell.mjs'
+      - '*/src/styles/learning-shell.css'
+      - '*/src/lib/learning-shell.ts'
+      - '*/tests/unit/learning-shell.test.ts'
+      - '*/src/components/*/learning-platform-bar.tsx'
+      - '*/src/components/*/shell-menu.tsx'
+      - '*/src/components/navigation/app-nav.tsx'
+      - '*/src/components/app/app-header.tsx'
+      - '*/src/app/globals.css'
   push:
     branches:
       - main
     paths:
       - 'lernpfade/**'
       - '.github/workflows/lernpfade-ci.yml'
+      # LP-03A: Shell-Vertrag und seine Kopien in den drei Fach-Apps.
+      - 'docs/learning-shell/**'
+      - 'scripts/check-learning-shell.mjs'
+      - '*/src/styles/learning-shell.css'
+      - '*/src/lib/learning-shell.ts'
+      - '*/tests/unit/learning-shell.test.ts'
+      - '*/src/components/*/learning-platform-bar.tsx'
+      - '*/src/components/*/shell-menu.tsx'
+      - '*/src/components/navigation/app-nav.tsx'
+      - '*/src/components/app/app-header.tsx'
+      - '*/src/app/globals.css'
 
 permissions:
   contents: read
 
 jobs:
+  # LP-03A: Die drei Fach-Apps führen bytegleiche Kopien des Shell-Vertrags.
+  # Der Check läuft mit Node-Bordmitteln, braucht keine Installation und
+  # repariert nichts — eine fehlende oder abweichende Kopie lässt ihn scheitern.
+  learning-shell:
+    name: Shell-Vertrag (Drift-Check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Shell-Vertrag prüfen
+        run: node scripts/check-learning-shell.mjs
+
   build:
     name: Typecheck, tests and build
     runs-on: ubuntu-latest
