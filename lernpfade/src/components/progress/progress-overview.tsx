@@ -17,6 +17,13 @@ import {
 import { VOCAB_CHANNEL, browserBackend } from '@/domain/vocabulary/idb-backend';
 import { nextChangeAt } from '@/domain/vocabulary/session';
 import { loadVocabStorage, type LoadOutcome, type VocabBackend } from '@/domain/vocabulary/storage';
+import { FeedbackCallout } from '@/components/feedback/callout';
+import {
+  EMPTY_SOURCE,
+  EMPTY_VOCABULARY,
+  sourceFeedback,
+  vocabularyFeedback,
+} from '@/components/feedback/source-feedback';
 
 /**
  * LP-07 — Plattformfortschritt, schreibgeschützt.
@@ -161,29 +168,29 @@ function SourceCard({ config, state }: { config: ProgressSourceConfig; state: So
       {config.note ? <p className="progress-muted">{config.note}</p> : null}
 
       {state.status === 'loading' ? (
-        <p className="progress-state" role="status">
+        <FeedbackCallout message={sourceFeedback('loading')}>
           Fortschritt aus {config.appName} wird geladen …
-        </p>
+        </FeedbackCallout>
       ) : null}
 
       {state.status === 'not_configured' ? (
-        <p className="progress-state progress-state-off">
+        <FeedbackCallout message={sourceFeedback('not_configured')}>
           Nicht mit dem Hub verbunden. Dein Fortschritt in {config.appName} ist dort weiterhin
           vollständig sichtbar.
-        </p>
+        </FeedbackCallout>
       ) : null}
 
       {state.status === 'unauthenticated' ? (
-        <p className="progress-state progress-state-auth">
+        <FeedbackCallout message={sourceFeedback('unauthenticated')}>
           In {config.appName} bist du nicht angemeldet. Ohne Anmeldung zeigt der Hub hier nichts — das
           heißt nicht, dass du dort keinen Fortschritt hast.
-        </p>
+        </FeedbackCallout>
       ) : null}
 
       {state.status === 'unavailable' ? (
-        <p className="progress-state progress-state-down">
+        <FeedbackCallout message={sourceFeedback('unavailable')}>
           {config.appName} ist derzeit nicht erreichbar. Die anderen Pfade bleiben nutzbar.
-        </p>
+        </FeedbackCallout>
       ) : null}
 
       {state.status === 'ok' ? <SourceMetrics progress={state.progress} appName={config.appName} /> : null}
@@ -215,7 +222,7 @@ function SourceMetrics({ progress, appName }: { progress: SourceProgress; appNam
   return (
     <>
       {!progress.hasActivity ? (
-        <p className="progress-state">Noch keine Lernaktivität in {appName} erfasst.</p>
+        <FeedbackCallout message={EMPTY_SOURCE}>Noch keine Lernaktivität in {appName} erfasst.</FeedbackCallout>
       ) : null}
       <dl className="progress-metrics">
         <Metric
@@ -262,20 +269,18 @@ function VocabularyCard({ state }: { state: VocabularyState }): React.ReactEleme
       </p>
 
       {state.status === 'loading' ? (
-        <p className="progress-state" role="status">
-          Vokabelstand wird gelesen …
-        </p>
+        <FeedbackCallout message={vocabularyFeedback('loading')}>Vokabelstand wird gelesen …</FeedbackCallout>
       ) : null}
 
       {state.status === 'error' ? (
-        <p className="progress-state progress-state-down">
+        <FeedbackCallout message={vocabularyFeedback(state.reason)}>
           {state.reason === 'corrupt'
             ? 'Deine Vokabeldaten in diesem Browser lassen sich nicht lesen. Sie wurden nicht verändert.'
             : state.reason === 'future'
               ? 'Deine Vokabeldaten stammen aus einer neueren Version von VokabelPfad und werden hier nicht gelesen.'
               : 'Der Browser erlaubt gerade keinen Zugriff auf den lokalen Speicher.'}{' '}
           Ein Fortschritt von 0 wäre deshalb falsch — prüfe den Stand im VokabelPfad.
-        </p>
+        </FeedbackCallout>
       ) : null}
 
       {state.status === 'ok' ? <VocabularyMetrics summary={state.summary} /> : null}
@@ -292,7 +297,9 @@ function VocabularyCard({ state }: { state: VocabularyState }): React.ReactEleme
 function VocabularyMetrics({ summary }: { summary: VocabularySummary }): React.ReactElement {
   return (
     <>
-      {summary.cards === 0 ? <p className="progress-state">Noch keine eigenen Vokabeln.</p> : null}
+      {summary.cards === 0 ? (
+        <FeedbackCallout message={EMPTY_VOCABULARY}>Noch keine eigenen Vokabeln.</FeedbackCallout>
+      ) : null}
       <dl className="progress-metrics">
         <Metric label="Karten" value={`${summary.cards} in ${plural(summary.decks, 'Deck', 'Decks')}`} />
         <Metric label="Fällig Englisch → Deutsch" value={summary.dueEnDe} />

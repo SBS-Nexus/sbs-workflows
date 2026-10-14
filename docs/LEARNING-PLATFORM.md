@@ -26,7 +26,10 @@ Jeder Pfad verwendet dieselbe Produktsprache:
    Fortschritt, Profil — nur vorhandene Fähigkeiten werden gezeigt.
 3. **Statusbegriffe:** Verfügbar, In Ausbau, Geplant, Erledigt, Fällig.
 4. **Interaktion:** gleiche Button-Hierarchie, aktive Navigation, Cards,
-   Badges, Callouts, Empty States und Fortschrittsanzeigen.
+   Badges, Callouts, Empty States und Fortschrittsanzeigen. Badges und
+   Callouts folgen seit LP-03B einem gemeinsamen Statusvertrag
+   (`docs/learning-feedback/README.md`); die übrigen Bausteine sind noch
+   app-eigen.
 5. **Typografie:** sachliche Sans-Schrift für Produkt-UI; Monospace nur dort,
    wo der Fachinhalt sie fachlich braucht.
 6. **Form:** dieselbe Radius-, Abstands- und Border-Logik.
@@ -370,8 +373,9 @@ sie auf genau eine Origin beschränkt und standardmäßig aus ist.
 
 ## 11. VokabelPfad — lokaler MVP (LP-06)
 
-Status: implementiert auf einem abhängigen PR der Integrationsbranch
-`claude/lernpfade-unified-hub`. Nicht in `main`, nicht produktiv veröffentlicht.
+Status: implementiert und über PR #55 in die Integrationsbranch
+`claude/lernpfade-unified-hub` übernommen. Nicht in `main`, nicht produktiv
+veröffentlicht.
 
 ### 11.1 Umfang
 
@@ -558,8 +562,8 @@ belegen das Verhalten des Hubs, nicht das der echten Apps.
 
 ## 12. Plattformfortschritt — read-only Federation (LP-07)
 
-Stand: implementiert auf dem abhängigen Branch `claude/lernpfade-lp07-progress`
-(PR gegen `claude/lernpfade-unified-hub`); **nicht** in `main`, **nicht**
+Stand: implementiert und über PR #57 in die Integrationsbranch
+`claude/lernpfade-unified-hub` übernommen; **nicht** in `main`, **nicht**
 produktiv aktiviert. Architekturentscheidung: **Option A — Aggregation über
 die bestehenden Apps.**
 

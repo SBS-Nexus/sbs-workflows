@@ -1,0 +1,243 @@
+/*
+ * Lernpfade — gemeinsame Darstellung von Badges und Callouts (LP-03B).
+ *
+ * KANONISCH ist `docs/learning-feedback/learning-feedback.css`. Jede App führt
+ * eine bytegleiche Kopie unter `src/styles/learning-feedback.css` und bindet
+ * sie in `src/app/globals.css` ein; `node scripts/check-learning-feedback.mjs`
+ * prüft beides.
+ *
+ * Bewusst NICHT in einem Cascade-Layer und ohne Regel für bloße Elemente:
+ * Jede Regel hängt an einer `.lp-feedback…`-Klasse. Gesetzt werden nur Farbe,
+ * Fläche, Rand, Form und Schrift der markierten Komponenten — kein `:root`,
+ * kein `display` für responsiv geschaltete Elemente, kein `margin` (Abstände
+ * nach außen bleiben bei den Apps). Vorhandene App-Tokens werden weder
+ * gelesen noch umdefiniert; einzig `--font-sans` dient als Schriftquelle.
+ *
+ * Statusfarbe ≠ Pfad-Akzent: Die Werte sind in allen vier Apps gleich, damit
+ * „Achtung" überall gleich aussieht. Gemessene Kontraste: Text auf Fläche
+ * ≥ 6,6 : 1, Randsignal gegen Fläche und Seitenflächen der Apps ≥ 3,9 : 1
+ * (hell und dunkel).
+ */
+
+.lp-feedback {
+  --lp-feedback-font: var(
+    --font-sans,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif
+  );
+  --lp-feedback-radius: 0.75rem;
+  --lp-feedback-radius-pill: 999px;
+  --lp-feedback-edge-width: 4px;
+  --lp-feedback-space-1: 0.25rem;
+  --lp-feedback-space-2: 0.5rem;
+  --lp-feedback-space-3: 0.75rem;
+  --lp-feedback-space-4: 1rem;
+  --lp-feedback-icon-size: 18px;
+  --lp-feedback-body-text: #111827;
+
+  /* Fläche · Rand/Signal · Text je Zustand (hell) */
+  --lp-feedback-neutral-surface: #f3f4f6;
+  --lp-feedback-neutral-edge: #6b7280;
+  --lp-feedback-neutral-text: #374151;
+  --lp-feedback-info-surface: #e8f1fb;
+  --lp-feedback-info-edge: #2563a6;
+  --lp-feedback-info-text: #1c4f86;
+  --lp-feedback-success-surface: #e7f5ec;
+  --lp-feedback-success-edge: #1d7a46;
+  --lp-feedback-success-text: #155c35;
+  --lp-feedback-warning-surface: #fdf4dd;
+  --lp-feedback-warning-edge: #a16207;
+  --lp-feedback-warning-text: #734805;
+  --lp-feedback-danger-surface: #fdeeed;
+  --lp-feedback-danger-edge: #c0281c;
+  --lp-feedback-danger-text: #981c12;
+  --lp-feedback-due-surface: #f2eefc;
+  --lp-feedback-due-edge: #6d45c6;
+  --lp-feedback-due-text: #55349f;
+  --lp-feedback-in-progress-surface: #e5f4f8;
+  --lp-feedback-in-progress-edge: #0e7490;
+  --lp-feedback-in-progress-text: #0b5c72;
+  --lp-feedback-locked-surface: #f4f4f5;
+  --lp-feedback-locked-edge: #71717a;
+  --lp-feedback-locked-text: #3f3f46;
+
+  /* Aktiver Zustand; ohne `data-lp-tone` neutral. */
+  --lp-feedback-surface: var(--lp-feedback-neutral-surface);
+  --lp-feedback-edge: var(--lp-feedback-neutral-edge);
+  --lp-feedback-text: var(--lp-feedback-neutral-text);
+}
+
+/* Dunkel: dieselbe Regel wie in den Apps — `data-theme="dark"` (bzw. `.dark`)
+ * oder System-Dunkel, solange nicht ausdrücklich `data-theme="light"`. */
+:root[data-theme='dark'] .lp-feedback,
+:root.dark .lp-feedback {
+  --lp-feedback-body-text: #f3f4f6;
+  --lp-feedback-neutral-surface: #1f2530;
+  --lp-feedback-neutral-edge: #8b95a5;
+  --lp-feedback-neutral-text: #d4d9e1;
+  --lp-feedback-info-surface: #11263d;
+  --lp-feedback-info-edge: #6aaee8;
+  --lp-feedback-info-text: #b3d6f6;
+  --lp-feedback-success-surface: #0f2b1c;
+  --lp-feedback-success-edge: #4cc38a;
+  --lp-feedback-success-text: #9be3bd;
+  --lp-feedback-warning-surface: #30240b;
+  --lp-feedback-warning-edge: #e2a83c;
+  --lp-feedback-warning-text: #f5d38f;
+  --lp-feedback-danger-surface: #371614;
+  --lp-feedback-danger-edge: #f2867c;
+  --lp-feedback-danger-text: #f9b9b3;
+  --lp-feedback-due-surface: #231a3c;
+  --lp-feedback-due-edge: #a98ae8;
+  --lp-feedback-due-text: #d2c2f6;
+  --lp-feedback-in-progress-surface: #0c2a33;
+  --lp-feedback-in-progress-edge: #4fc1dd;
+  --lp-feedback-in-progress-text: #a6dfee;
+  --lp-feedback-locked-surface: #23252a;
+  --lp-feedback-locked-edge: #8d929b;
+  --lp-feedback-locked-text: #c9cdd4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .lp-feedback {
+    --lp-feedback-body-text: #f3f4f6;
+    --lp-feedback-neutral-surface: #1f2530;
+    --lp-feedback-neutral-edge: #8b95a5;
+    --lp-feedback-neutral-text: #d4d9e1;
+    --lp-feedback-info-surface: #11263d;
+    --lp-feedback-info-edge: #6aaee8;
+    --lp-feedback-info-text: #b3d6f6;
+    --lp-feedback-success-surface: #0f2b1c;
+    --lp-feedback-success-edge: #4cc38a;
+    --lp-feedback-success-text: #9be3bd;
+    --lp-feedback-warning-surface: #30240b;
+    --lp-feedback-warning-edge: #e2a83c;
+    --lp-feedback-warning-text: #f5d38f;
+    --lp-feedback-danger-surface: #371614;
+    --lp-feedback-danger-edge: #f2867c;
+    --lp-feedback-danger-text: #f9b9b3;
+    --lp-feedback-due-surface: #231a3c;
+    --lp-feedback-due-edge: #a98ae8;
+    --lp-feedback-due-text: #d2c2f6;
+    --lp-feedback-in-progress-surface: #0c2a33;
+    --lp-feedback-in-progress-edge: #4fc1dd;
+    --lp-feedback-in-progress-text: #a6dfee;
+    --lp-feedback-locked-surface: #23252a;
+    --lp-feedback-locked-edge: #8d929b;
+    --lp-feedback-locked-text: #c9cdd4;
+  }
+}
+
+.lp-feedback[data-lp-tone='info'] {
+  --lp-feedback-surface: var(--lp-feedback-info-surface);
+  --lp-feedback-edge: var(--lp-feedback-info-edge);
+  --lp-feedback-text: var(--lp-feedback-info-text);
+}
+
+.lp-feedback[data-lp-tone='success'] {
+  --lp-feedback-surface: var(--lp-feedback-success-surface);
+  --lp-feedback-edge: var(--lp-feedback-success-edge);
+  --lp-feedback-text: var(--lp-feedback-success-text);
+}
+
+.lp-feedback[data-lp-tone='warning'] {
+  --lp-feedback-surface: var(--lp-feedback-warning-surface);
+  --lp-feedback-edge: var(--lp-feedback-warning-edge);
+  --lp-feedback-text: var(--lp-feedback-warning-text);
+}
+
+.lp-feedback[data-lp-tone='danger'] {
+  --lp-feedback-surface: var(--lp-feedback-danger-surface);
+  --lp-feedback-edge: var(--lp-feedback-danger-edge);
+  --lp-feedback-text: var(--lp-feedback-danger-text);
+}
+
+.lp-feedback[data-lp-tone='due'] {
+  --lp-feedback-surface: var(--lp-feedback-due-surface);
+  --lp-feedback-edge: var(--lp-feedback-due-edge);
+  --lp-feedback-text: var(--lp-feedback-due-text);
+}
+
+.lp-feedback[data-lp-tone='in-progress'] {
+  --lp-feedback-surface: var(--lp-feedback-in-progress-surface);
+  --lp-feedback-edge: var(--lp-feedback-in-progress-edge);
+  --lp-feedback-text: var(--lp-feedback-in-progress-text);
+}
+
+.lp-feedback[data-lp-tone='locked'] {
+  --lp-feedback-surface: var(--lp-feedback-locked-surface);
+  --lp-feedback-edge: var(--lp-feedback-locked-edge);
+  --lp-feedback-text: var(--lp-feedback-locked-text);
+}
+
+/* --- Badge -------------------------------------------------------------- */
+
+.lp-feedback-badge {
+  align-items: center;
+  gap: var(--lp-feedback-space-1);
+  max-width: 100%;
+  padding: 0.125rem 0.625rem;
+  border: 1px solid var(--lp-feedback-edge);
+  border-radius: var(--lp-feedback-radius-pill);
+  background: var(--lp-feedback-surface);
+  color: var(--lp-feedback-text);
+  font-family: var(--lp-feedback-font);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* Gesperrt ist nicht nur grau: gestrichelter Rand als zweites Signal. */
+.lp-feedback-badge[data-lp-tone='locked'] {
+  border-style: dashed;
+}
+
+/* --- Callout ------------------------------------------------------------ */
+
+.lp-feedback-callout {
+  min-width: 0;
+  padding: var(--lp-feedback-space-3) var(--lp-feedback-space-4);
+  border: 1px solid var(--lp-feedback-edge);
+  border-left-width: var(--lp-feedback-edge-width);
+  border-radius: var(--lp-feedback-radius);
+  background: var(--lp-feedback-surface);
+  color: var(--lp-feedback-body-text);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  overflow-wrap: break-word;
+}
+
+.lp-feedback-title {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lp-feedback-space-2);
+  margin: 0;
+  color: var(--lp-feedback-text);
+  font-family: var(--lp-feedback-font);
+  font-weight: 650;
+  letter-spacing: normal;
+}
+
+.lp-feedback-icon {
+  flex-shrink: 0;
+  width: var(--lp-feedback-icon-size);
+  height: var(--lp-feedback-icon-size);
+  margin-top: 0.15em;
+  color: var(--lp-feedback-text);
+}
+
+.lp-feedback-body {
+  min-width: 0;
+  color: var(--lp-feedback-body-text);
+}
+
+.lp-feedback-title + .lp-feedback-body {
+  margin-top: var(--lp-feedback-space-1);
+  padding-left: calc(var(--lp-feedback-icon-size) + var(--lp-feedback-space-2));
+}
