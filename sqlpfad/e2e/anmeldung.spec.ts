@@ -48,7 +48,10 @@ test('registrieren, Einstieg beantworten, abmelden', async ({ page }) => {
   await expect(page.locator('#experience')).toHaveValue('READS_QUERIES');
   await expect(page.locator('#dailyTimeBudget')).toHaveValue('30');
 
-  await page.getByRole('button', { name: 'Abmelden' }).click();
+  await page
+    .getByRole('region', { name: 'Sitzung' })
+    .getByRole('button', { name: 'Abmelden', exact: true })
+    .click();
   await expect(page).toHaveURL(/\/$/);
 
   // Nach dem Abmelden ist der Bereich wieder zu. Das ist der eigentliche

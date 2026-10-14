@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+@import '../styles/learning-shell.css';
+@import '../styles/learning-feedback.css';
 
 /*
  * AIPfad – Gestaltungsgrundlage
@@ -101,6 +103,12 @@
  */
 @layer base {
   :root {
+    --lp-platform-bg: #111827;
+    --lp-platform-fg: #ffffff;
+    --lp-platform-muted: #d1d5db;
+    --lp-platform-subtle: #9ca3af;
+    --lp-platform-hover: #c7d2fe;
+    --lp-platform-border: #374151;
     color-scheme: light;
     --bg: var(--color-ink-50);
     --bg-raised: #ffffff;
@@ -179,7 +187,7 @@
   .skip-link {
     position: absolute;
     left: 1rem;
-    top: -3rem;
+    top: -5rem;
     z-index: 100;
     background: var(--bg-raised);
     color: var(--fg);

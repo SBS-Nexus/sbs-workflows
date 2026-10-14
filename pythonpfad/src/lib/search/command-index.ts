@@ -70,8 +70,8 @@ export const STATIC_COMMANDS: readonly CommandEntry[] = [
   },
   {
     id: 'bereich-fortschritt',
-    title: 'Fortschritt',
-    keywords: 'dashboard statistik kompetenz uebersicht landkarte',
+    title: 'Überblick',
+    keywords: 'fortschritt dashboard statistik kompetenz uebersicht landkarte',
     group: 'Bereiche',
     href: '/fortschritt',
     icon: 'fortschritt',

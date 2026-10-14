@@ -30,7 +30,7 @@ export const metadata: Metadata = { title: 'Fortschritt' };
 
 const BAND_TONE = {
   new: 'neutral',
-  building: 'caution',
+  building: 'in-progress',
   usable: 'info',
   solid: 'success',
   durable: 'success',

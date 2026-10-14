@@ -58,7 +58,10 @@ async function macheZuAdmin(adresse: string): Promise<void> {
 test('eine Lernende sieht die Redaktion nicht – auch nicht über die Adresse', async ({ page }) => {
   await meldeAn(page);
 
-  await expect(page.getByRole('link', { name: 'Redaktion' })).toBeHidden();
+  const hauptnavigation = page.getByRole('navigation', { name: 'Hauptnavigation' });
+  await expect(hauptnavigation.getByRole('link', { name: 'Redaktion', exact: true })).toHaveCount(
+    0,
+  );
 
   await page.goto('/admin');
   await expect(page).toHaveURL(/\/fortschritt$/);
@@ -70,7 +73,10 @@ test('eine Adminsitzung sieht den Stand der Inhalte', async ({ page }) => {
   await macheZuAdmin(adresse);
 
   await page.reload();
-  await page.getByRole('link', { name: 'Redaktion' }).click();
+  await page
+    .getByRole('navigation', { name: 'Hauptnavigation' })
+    .getByRole('link', { name: 'Redaktion', exact: true })
+    .click();
   await expect(page).toHaveURL(/\/admin$/);
 
   await expect(page.getByRole('heading', { name: 'Redaktion', level: 1 })).toBeVisible();
@@ -108,7 +114,13 @@ test('die Redaktion nennt keine einzelnen Lernenden', async ({ page }) => {
   await macheZuAdmin(adresse);
 
   await page.goto('/admin');
-  const inhalt = await page.content();
+
+  /*
+   * Nur den eigentlichen Redaktionsinhalt prüfen. Der globale App-Header
+   * zeigt seit LP-03/04 absichtlich den Namen der angemeldeten Person als
+   * Profil-Link; das ist keine personenbezogene Redaktionsauswertung.
+   */
+  const inhalt = await page.locator('#hauptinhalt').innerText();
 
   expect(inhalt).not.toContain(adresse);
   expect(inhalt).not.toContain('Testerin Redaktion');

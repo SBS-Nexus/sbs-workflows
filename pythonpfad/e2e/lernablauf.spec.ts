@@ -241,7 +241,7 @@ test('schützt angemeldete Bereiche und meldet ab', async ({ page }) => {
   await completeOnboarding(page);
 
   await page.getByRole('button', { name: new RegExp(account.name.split(' ')[0]!) }).click();
-  await page.getByRole('menuitem', { name: 'Abmelden' }).click();
+  await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
   await page.waitForURL('/');
 
   await page.goto('/fortschritt');

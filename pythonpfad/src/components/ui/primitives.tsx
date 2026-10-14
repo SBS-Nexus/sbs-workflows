@@ -2,6 +2,16 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { Emoji, type EmojiName } from '@/components/ui/emoji';
+import {
+  FEEDBACK_CLASS,
+  calloutTitle,
+  feedbackBadge,
+  feedbackCallout,
+  feedbackLive,
+  type CalloutTone,
+  type CalloutToneInput,
+  type FeedbackToneInput,
+} from '@/lib/learning-feedback';
 
 /**
  * Kleine, zugängliche Bausteine.
@@ -154,34 +164,31 @@ export function Card({
 
 // ---------------------------------------------------------------------------
 
-const TONE_STYLES = {
-  info: {
-    container: 'border-[var(--border-strong)] bg-[var(--surface-sunken)]',
-    icon: 'info' as IconName,
-    label: 'Hinweis',
-  },
-  success: {
-    container: 'border-[var(--success)] bg-[var(--success-soft)]',
-    icon: 'haken' as IconName,
-    label: 'Erfolg',
-  },
-  caution: {
-    container: 'border-[var(--caution)] bg-[var(--caution-soft)]',
-    icon: 'achtung' as IconName,
-    label: 'Achtung',
-  },
-  alert: {
-    container: 'border-[var(--alert)] bg-[var(--alert-soft)]',
-    icon: 'fehler' as IconName,
-    label: 'Fehler',
-  },
-} as const;
+/**
+ * Ältere Tonnamen. Bleiben für Toasts und bestehende Aufrufe gültig; Badge
+ * und Callout lösen sie über den Statusvertrag auf (`caution` → `warning`,
+ * `alert` → `danger`).
+ */
+export type Tone = 'info' | 'success' | 'caution' | 'alert';
 
-export type Tone = keyof typeof TONE_STYLES;
+/*
+ * Rückmeldung und Status (LP-03B): Darstellung und Bedeutung kommen aus dem
+ * gemeinsamen Statusvertrag (`@/lib/learning-feedback`, Klassen in
+ * `learning-feedback.css`) — gleich in allen Lernpfaden. App-eigen bleibt
+ * nur das Symbol.
+ */
+const CALLOUT_ICON: Record<CalloutTone, IconName> = {
+  neutral: 'info',
+  info: 'info',
+  success: 'haken',
+  warning: 'achtung',
+  danger: 'fehler',
+};
 
 /**
  * Rückmeldung mit Symbol UND Text.
  * Farbe ist nie das einzige Unterscheidungsmerkmal (WCAG 1.4.1).
+ * Statisch ohne Live-Region; `live` meldet höflich (`role="status"`).
  */
 export function Callout({
   tone = 'info',
@@ -190,55 +197,52 @@ export function Callout({
   live = false,
   className,
 }: {
-  tone?: Tone;
+  tone?: CalloutToneInput;
   title?: string;
   children: ReactNode;
   live?: boolean;
   className?: string;
 }): ReactNode {
-  const style = TONE_STYLES[tone];
+  const feedback = feedbackCallout(tone);
+  const heading = calloutTitle(tone, title);
   return (
     <div
-      className={cx(
-        'rounded-lg border-l-4 border px-4 py-3 text-[0.95rem]',
-        style.container,
-        className,
-      )}
-      {...(live ? { role: 'status', 'aria-live': 'polite' } : {})}
+      className={cx(feedback.className, className)}
+      data-lp-tone={feedback['data-lp-tone']}
+      {...feedbackLive(live)}
     >
-      <p className="flex items-start gap-2 font-semibold">
-        <Icon name={style.icon} size={18} className="mt-0.5 shrink-0" />
-        <span>{title ?? style.label}</span>
-      </p>
-      <div className="mt-1 pl-[1.625rem]">{children}</div>
+      {heading ? (
+        <p className={FEEDBACK_CLASS.title}>
+          <Icon
+            name={CALLOUT_ICON[feedback['data-lp-tone'] as CalloutTone]}
+            size={18}
+            className={FEEDBACK_CLASS.icon}
+          />
+          <span>{heading}</span>
+        </p>
+      ) : null}
+      <div className={FEEDBACK_CLASS.body}>{children}</div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Kurzer Status. Neben den Meldungstönen auch die Lernzustände `due`
+ * (fällig), `in-progress` (begonnen) und `locked` (gesperrt) — die
+ * Bedeutung trägt immer der Text, die Farbe unterstützt nur.
+ */
 export function Badge({
   tone = 'info',
   children,
 }: {
-  tone?: Tone | 'neutral';
+  tone?: FeedbackToneInput;
   children: ReactNode;
 }): ReactNode {
-  const styles: Record<string, string> = {
-    neutral: 'bg-[var(--surface-sunken)] text-[var(--text-muted)] border-[var(--border)]',
-    info: 'bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)]',
-    success: 'bg-[var(--success-soft)] text-[var(--success)] border-[var(--success)]',
-    caution: 'bg-[var(--caution-soft)] text-[var(--caution)] border-[var(--caution)]',
-    alert: 'bg-[var(--alert-soft)] text-[var(--alert)] border-[var(--alert)]',
-  };
-
+  const feedback = feedbackBadge(tone);
   return (
-    <span
-      className={cx(
-        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
-        styles[tone],
-      )}
-    >
+    <span className={cx('inline-flex', feedback.className)} data-lp-tone={feedback['data-lp-tone']}>
       {children}
     </span>
   );

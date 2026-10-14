@@ -282,8 +282,9 @@ src/
   server/         Alles, was Datenbank oder Sitzung braucht
 prisma/           Datenmodell, Migrationen, Seed
 docs/             SQL-RUNNER.md – die Architekturentscheidungen zur Ausführung
+                  PLATTFORM-QUELLE.md – schreibgeschützte Quelle für den Lernpfade-Hub
 e2e/              Playwright
-tests/            Vitest (unit, sql)
+tests/            Vitest (unit, integration, sql)
 ```
 
 Die Trennlinie liegt bei `domain/`: Was dort steht, kennt weder Prisma noch
@@ -743,6 +744,9 @@ Projekte auf demselben Port.
 
 ## Weitere Dokumentation
 
+- [docs/PLATTFORM-QUELLE.md](docs/PLATTFORM-QUELLE.md) – SQLPfad als
+  schreibgeschützte Wiederholungsquelle für den Lernpfade-Hub (LP-05B):
+  Konzept-Identität, Sitzungsgrenze, Cache, CORS.
 - [docs/SQL-RUNNER.md](docs/SQL-RUNNER.md) – warum SQL eine andere Architektur
   braucht als Python, die zwei Datenebenen, das Berechtigungsmodell,
   Ressourcengrenzen, die offene Lizenzfrage, der Ablauf der Integrationstests
