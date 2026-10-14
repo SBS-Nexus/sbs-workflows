@@ -72,7 +72,7 @@ export default async function ProjekteSeite(): Promise<React.ReactElement> {
                   {stand?.status === 'SUBMITTED' ? (
                     <Badge tone="success">Fertig</Badge>
                   ) : stand ? (
-                    <Badge tone="info">In Arbeit</Badge>
+                    <Badge tone="in-progress">In Arbeit</Badge>
                   ) : (
                     <Badge tone="neutral">Offen</Badge>
                   )}

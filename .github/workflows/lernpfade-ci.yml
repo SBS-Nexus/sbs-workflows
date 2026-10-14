@@ -16,6 +16,13 @@ on:
       - '*/src/components/navigation/app-nav.tsx'
       - '*/src/components/app/app-header.tsx'
       - '*/src/app/globals.css'
+      # LP-03B: Statusvertrag (Badges, Callouts) und seine Kopien/Adapter.
+      - 'docs/learning-feedback/**'
+      - 'scripts/check-learning-feedback.mjs'
+      - '*/src/styles/learning-feedback.css'
+      - '*/src/lib/learning-feedback.ts'
+      - '*/tests/unit/learning-feedback.test.ts'
+      - '*/src/components/ui/primitives.tsx'
   push:
     branches:
       - main
@@ -33,6 +40,13 @@ on:
       - '*/src/components/navigation/app-nav.tsx'
       - '*/src/components/app/app-header.tsx'
       - '*/src/app/globals.css'
+      # LP-03B: Statusvertrag (Badges, Callouts) und seine Kopien/Adapter.
+      - 'docs/learning-feedback/**'
+      - 'scripts/check-learning-feedback.mjs'
+      - '*/src/styles/learning-feedback.css'
+      - '*/src/lib/learning-feedback.ts'
+      - '*/tests/unit/learning-feedback.test.ts'
+      - '*/src/components/ui/primitives.tsx'
 
 permissions:
   contents: read
@@ -55,6 +69,24 @@ jobs:
 
       - name: Shell-Vertrag prüfen
         run: node scripts/check-learning-shell.mjs
+
+  # LP-03B: Gleiches Prinzip für den Statusvertrag (Badges, Callouts) in den
+  # drei Fach-Apps und im Hub — Kopien bytegleich, CSS eingebunden, Adapter
+  # tatsächlich angebunden. Nur Node-Bordmittel, repariert nichts.
+  learning-feedback:
+    name: Statusvertrag (Drift-Check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Statusvertrag prüfen
+        run: node scripts/check-learning-feedback.mjs
 
   build:
     name: Typecheck, tests and build

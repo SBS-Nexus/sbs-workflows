@@ -66,7 +66,11 @@ Status: **IMPLEMENTIERT / VALIDIERUNG GRÜN / NOCH NICHT GEMERGT**
 - Python-/SQL-Vercel-Previews
 - Accessibility-Regression der Dachleiste gefunden und behoben
 
-Validierung des letzten vollständig geprüften LP-01-Heads:
+Validierung des letzten vollständig geprüften LP-01-Heads (historischer
+Nachweis zum Zeitpunkt von LP-01; die Preview-Angaben gelten nicht für spätere
+Stände — seit Oktober 2026 melden die Vercel-Previews von PythonPfad und
+SQLPfad „Account is blocked.“, Ursache nicht belegt; das ist kein bestandenes
+Preview-Gate):
 
 - Lernpfade Hub CI: PASS
 - AIPfad Format/Lint/Typecheck/Content: PASS
@@ -201,7 +205,7 @@ Er entscheidet ausdrücklich **noch nicht**:
 
 ## LP-03 — Design System Contract
 
-Status: **IMPLEMENTIERT IN PR #41**
+Status: **TEILWEISE — Grundlage in PR #41; LP-03A (Shell und Navigation, PR #58) in die Integrationsbranch `claude/lernpfade-unified-hub` übernommen; LP-03B (Statusanzeigen: Badges, Callouts) als Draft-PR in Prüfung. Buttons, Cards, ProgressBar, EmptyState und ErrorState offen. NICHT IN `main`, NICHT PRODUKTIV VERÖFFENTLICHT**
 
 Priorität: **P0**
 
@@ -222,15 +226,24 @@ docs/
     learning-shell.test.ts
     learning-platform-bar.tsx
     shell-menu.tsx
+  learning-feedback/         ← LP-03B: Statusvertrag (Badges, Callouts)
+    README.md
+    learning-feedback.css    (Tokens --lp-feedback-*, Badge/Callout)
+    learning-feedback.ts     (acht Zustände, Aliasse, Standardtitel, Live-Regel)
+    learning-feedback.test.ts
 
 <app>/src/styles/learning-shell.css   ┐ bytegleiche Kopien je App,
 <app>/src/lib/learning-shell.ts       ┘ geprüft von scripts/check-learning-shell.mjs
+<app>/src/styles/learning-feedback.css ┐ bytegleich in Python/SQL/AI und Hub,
+<app>/src/lib/learning-feedback.ts     ┘ geprüft von scripts/check-learning-feedback.mjs
 ```
 
 Die früher hier genannten Dateien `lernpfade/src/design/tokens.ts`,
 `status.ts` und `navigation.ts` wurden nie angelegt. Der Shell-Teil des
-Vertrags liegt seit LP-03A in `docs/learning-shell/` (siehe dortiges README);
-gemeinsame Status-/Badge-Tokens sind noch offen.
+Vertrags liegt seit LP-03A in `docs/learning-shell/` (siehe dortiges README),
+der Statusvertrag für Badges und Callouts seit LP-03B in
+`docs/learning-feedback/`. Noch offen im allgemeinen Komponentenvertrag:
+Buttons, Cards, ProgressBar, EmptyState und ErrorState.
 
 Langfristig optional:
 
@@ -519,7 +532,7 @@ Produktionsbuild und Playwright-E2E gegen den Produktionsbuild (Desktop,
 
 ## LP-07 — Plattformweiter Fortschritt
 
-Status: **IMPLEMENTIERT auf dem abhängigen Branch `claude/lernpfade-lp07-progress` (PR gegen die Integrationsbranch `claude/lernpfade-unified-hub`); NICHT IN `main`, NICHT PRODUKTIV AKTIVIERT; LIVE-BETRIEB SETZT SAME-SITE-DOMAINS VORAUS**
+Status: **IMPLEMENTIERT — über PR #57 in die Integrationsbranch `claude/lernpfade-unified-hub` übernommen; NICHT IN `main`, NICHT PRODUKTIV AKTIVIERT; LIVE-BETRIEB SETZT SAME-SITE-DOMAINS VORAUS**
 
 Priorität: **P1**
 
@@ -935,20 +948,25 @@ nicht produktiv):
 - LP-05B föderierte, schreibgeschützte Wiederholungsquellen — PR #47,
   übernommen
 - LP-06 VokabelPfad lokaler MVP — PR #55, übernommen
-- LP-07 Plattformfortschritt (read-only Federation) — abhängiger PR von
-  `claude/lernpfade-lp07-progress`, in Prüfung
+- LP-07 Plattformfortschritt (read-only Federation) — PR #57, übernommen
+- LP-03A gemeinsame Shell-Tokens und Navigationsvertrag — PR #58, übernommen
+  (Vertrag: `docs/learning-shell/README.md`)
+- LP-03B gemeinsame Statusanzeigen (Badges, Callouts) und Quellzustände auf
+  `/fortschritt` — Draft-PR von `claude/lernpfade-lp03b-status-feedback`
+  gegen die Integrationsbranch, in Prüfung (Vertrag:
+  `docs/learning-feedback/README.md`)
+
+Übernommen heißt: in der Integrationsbranch, **nicht** in `main` und nicht
+produktiv veröffentlicht. PR #41 bleibt offen; das ist keine Startfreigabe.
 
 Offen und jeweils eine eigene Entscheidung:
 
-1. Übernahme von LP-07 in die Integrationsbranch nach unabhängiger Prüfung.
-2. Merge von PR #41 nach `main`.
-3. Domain-/DNS-Entscheidung für same-site Hub und Apps — Voraussetzung für
+1. Merge von PR #41 nach `main`.
+2. Domain-/DNS-Entscheidung für same-site Hub und Apps — Voraussetzung für
    Live-Daten aus LP-05B und LP-07; ohne sie zeigen beide „nicht angemeldet".
-4. LP-03A — gemeinsame Shell-Tokens und Navigationsvertrag über alle Apps:
-   abhängiger Draft-PR von `claude/lernpfade-lp03a-shell-navigation` gegen
-   `claude/lernpfade-lp07-progress`, in Prüfung (Vertrag:
-   `docs/learning-shell/README.md`).
-5. LP-05C (Abschließen aus dem Hub) und LP-08 (gemeinsame Identität) erst nach
+3. Weitere Teile des Komponentenvertrags (LP-03): Buttons, Cards,
+   ProgressBar, EmptyState, ErrorState.
+4. LP-05C (Abschließen aus dem Hub) und LP-08 (gemeinsame Identität) erst nach
    dieser Domain-Entscheidung.
 
 ---

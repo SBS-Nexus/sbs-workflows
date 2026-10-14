@@ -26,7 +26,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }): React.ReactElement {
   return (
-    <html lang="de">
+    // Der Hub kennt nur das helle Schema; `data-theme="light"` hält die
+    // gemeinsamen Statusfarben (learning-feedback.css) auch bei System-Dunkel hell.
+    <html lang="de" data-theme="light">
       <body>
         <a className="skip-link" href="#hauptinhalt">
           Direkt zum Hauptinhalt

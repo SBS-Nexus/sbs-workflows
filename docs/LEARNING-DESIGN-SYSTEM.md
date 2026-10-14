@@ -94,6 +94,16 @@ Diese Bedeutungen dürfen nicht je App neu erfunden werden:
 Farbe ist nie das einzige Signal. Text und/oder Symbol müssen die Bedeutung
 ebenfalls tragen.
 
+Seit LP-03B ist diese Tabelle ausführbar: `docs/learning-feedback/`
+(`learning-feedback.ts` mit genau diesen acht IDs, `learning-feedback.css`
+mit den Tokens `--lp-feedback-*`), bytegleich in PythonPfad, SQLPfad, AIPfad
+und im Hub. Die `Badge`-/`Callout`-Komponenten der Apps sind kleine Adapter
+darauf; ältere Tonnamen bleiben gültig (`caution` → `warning`,
+`alert` → `danger`). Gleiche Zustände zeigen in allen Lernpfaden dieselben
+Farben — unabhängig vom Pfad-Akzent. Callouts sind statisch keine
+Live-Region; `live` meldet höflich, auch `danger` ist kein `role="alert"`.
+Details, Farbwerte und gemessene Kontraste: `docs/learning-feedback/README.md`.
+
 ## 4. Interaktionsvertrag
 
 ### Buttons
@@ -132,10 +142,13 @@ Zustand einer Quelle immer als Text, nie als leere Karte oder 0:
 | Zustand | Darstellung |
 |---|---|
 | angemeldet, geprüft | `LIVE · <App>` und Kennzahlen; echte 0 nur hier |
-| nicht angemeldet | Hinweis mit Akzent „Info" und Weg „In <App> anmelden" |
-| nicht erreichbar / ungültig | Hinweis mit Akzent „Warnung"; andere Pfade bleiben |
-| nicht verbunden | neutraler Hinweis, Weg „In <App> öffnen" |
-| lädt | Statuszeile „… wird geladen", ohne Zahlen |
+| nicht angemeldet | Callout `info` „Nicht angemeldet" und Weg „In <App> anmelden" |
+| nicht erreichbar / ungültig | Callout `warning` „Nicht erreichbar"; andere Pfade bleiben |
+| nicht verbunden | Callout `neutral` „Nicht verbunden", Weg „In <App> öffnen" |
+| lädt | Callout `neutral` „Wird geladen" (höflich angesagt), ohne Zahlen |
+
+Seit LP-03B kommen diese Hinweise aus dem gemeinsamen Statusvertrag
+(`docs/learning-feedback/README.md`, Zuordnung dort).
 
 ### Wiederholung
 
