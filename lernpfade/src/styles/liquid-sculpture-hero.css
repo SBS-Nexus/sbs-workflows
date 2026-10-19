@@ -1,0 +1,499 @@
+/*
+ * Liquid Sculpture Hero (src/components/ui/liquid-sculpture-hero.tsx).
+ *
+ * Aus den `.sh-*`-Styles der Originalkomponente (Guglielmo Giannattasio, MIT)
+ * für den Hub umgebaut:
+ * - natürliche Höhe (`min-height` statt fester 100svh, kein overflow:hidden,
+ *   keine Größen-Containment-Höhe): Zoom und lange Texte verlängern die Seite,
+ *   statt Inhalt abzuschneiden;
+ * - die Bildfläche reserviert `aspect-ratio` schon im Server-HTML, das
+ *   statische Bild braucht kein JavaScript zur Positionierung;
+ * - Text bekommt echte Farben statt Deckkraft (messbarer Kontrast);
+ * - keine Dauerbewegung: der Hinweis pulsiert dreimal, dann ruht er.
+ */
+
+.sh-root {
+  --sh-muted: var(--sh-muted-color, color-mix(in srgb, var(--sh-fg) 72%, var(--sh-bg)));
+  --sh-gutter: var(--sh-content-pad, clamp(20px, 3.2cqi, 48px));
+  --sh-aspect: var(--sh-aspect-wide, 2.5);
+  --sh-figure-h: calc(clamp(13rem, 46svh, 34rem) * var(--sh-scale, 1));
+  position: relative;
+  isolation: isolate;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  min-height: var(--sh-min-h, 100svh);
+  background: var(--sh-bg);
+  color: var(--sh-fg);
+  font-family: var(--sh-body);
+  -webkit-font-smoothing: antialiased;
+  touch-action: pan-y;
+}
+
+.sh-root *,
+.sh-root *::before,
+.sh-root *::after {
+  box-sizing: border-box;
+}
+
+.sh-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.sh-tint-flood {
+  flood-color: var(--sh-bg);
+}
+
+/* Ebene der GPU-Darstellung: über dem statischen Bild, unter dem Text. */
+.sh-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.sh-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.sh-root[data-gl='on'] .sh-canvas {
+  opacity: 1;
+}
+
+.sh-root[data-swap='1'] .sh-canvas {
+  opacity: 0;
+  transition-duration: 0.25s;
+}
+
+.sh-figure-wrap {
+  position: relative;
+  z-index: 0;
+  flex: 1 0 auto;
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 3cqi, 2.5rem) var(--sh-gutter) 0;
+}
+
+.sh-figure {
+  position: relative;
+  width: min(100%, var(--sh-figure-h) * var(--sh-aspect));
+  aspect-ratio: var(--sh-aspect);
+  translate: var(--sh-x, 0) var(--sh-y, 0);
+}
+
+.sh-figure picture,
+.sh-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sh-fallback {
+  max-width: none;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: opacity 0.5s ease;
+}
+
+.sh-root[data-gl='on'] .sh-fallback,
+.sh-root[data-swap='1'] .sh-fallback {
+  opacity: 0;
+}
+
+/* Fehlerpfad: das statische Bild bleibt in jedem Fall sichtbar, auch mitten im Wechsel. */
+.sh-root[data-gl='off'] .sh-fallback {
+  opacity: 1;
+}
+
+.sh-root[data-img='error'] .sh-fallback {
+  visibility: hidden;
+}
+
+.sh-backdrop-layer {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sh-backdrop {
+  font-family: var(--sh-head);
+  font-size: min(calc(164cqi / var(--sh-backdrop-chars, 6)), 32svh);
+  font-weight: 600;
+  line-height: 0.8;
+  letter-spacing: -0.06em;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--sh-fg) 5%, transparent);
+  user-select: none;
+}
+
+.sh-nav {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  padding: 1.6rem var(--sh-gutter) 0;
+}
+
+.sh-brand {
+  color: inherit;
+  font-family: var(--sh-head);
+  font-size: 1.06rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.sh-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem clamp(1.1rem, 2.4cqi, 2.25rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sh-link {
+  color: var(--sh-muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.sh-link:hover {
+  color: inherit;
+}
+
+.sh-theme {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--sh-fg) 22%, transparent);
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sh-theme:hover {
+  background: var(--sh-fg);
+  color: var(--sh-bg);
+}
+
+.sh-navcta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--sh-fg) 22%, transparent);
+  border-radius: 999px;
+  color: inherit;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.sh-navcta:hover {
+  background: var(--sh-fg);
+  color: var(--sh-bg);
+}
+
+.sh-hint {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 1.5rem;
+  margin: 0.6rem 0 0;
+  padding-inline: var(--sh-gutter);
+  color: var(--sh-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.8s ease,
+    visibility 0s linear 0.8s;
+}
+
+.sh-hint::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Nur wenn die Skulptur wirklich reagiert: Ohne Engine (Fehler, reduzierte Bewegung) gibt es keinen Hinweis. */
+.sh-root[data-gl='on'] .sh-hint {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.8s ease;
+}
+
+.sh-root[data-gl='on'] .sh-hint::before {
+  animation: sh-pulse 2.4s ease-in-out 3;
+}
+
+.sh-root[data-gl='on'][data-touched='1'] .sh-hint {
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.8s ease,
+    visibility 0s linear 0.8s;
+}
+
+@keyframes sh-pulse {
+  0%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.45;
+  }
+
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.sh-content {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  align-items: end;
+  gap: clamp(1.5rem, 4cqi, 4.5rem);
+  width: var(--sh-content-w, 100%);
+  margin-inline: auto;
+  padding: clamp(1rem, 2.4cqi, 2rem) var(--sh-gutter) clamp(1.5rem, 3cqi, 2.75rem);
+}
+
+.sh-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 clamp(0.9rem, 1.6cqi, 1.4rem);
+  color: var(--sh-eyebrow, var(--sh-muted));
+  font-size: 0.76rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.sh-eyebrow::before {
+  content: '';
+  flex: none;
+  width: 1.75rem;
+  height: 1px;
+  background: currentColor;
+}
+
+/* Weiche Trennstellen (&shy;) gelten erst, wenn ein langes Wort sonst nicht in die Spalte passt. */
+.sh-h1 {
+  margin: 0;
+  font-family: var(--sh-head);
+  font-size: clamp(2.5rem, 5cqi, 6rem);
+  font-weight: 600;
+  line-height: 0.96;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+  hyphens: none;
+}
+
+.sh-line {
+  display: block;
+}
+
+.sh-accent {
+  color: var(--sh-acc);
+  font-family: var(--sh-accent);
+  font-style: var(--sh-accent-style, italic);
+  font-weight: var(--sh-accent-weight, 400);
+  letter-spacing: -0.02em;
+}
+
+.sh-aside {
+  justify-self: end;
+  max-width: 26rem;
+  padding-bottom: 0.3em;
+}
+
+.sh-body {
+  margin: 0 0 1.5rem;
+  color: var(--sh-muted);
+  font-size: clamp(1rem, 0.94rem + 0.22cqi, 1.1rem);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.sh-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.4rem;
+}
+
+.sh-btn,
+.sh-txt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 3rem;
+  font-size: 0.95rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.sh-btn {
+  padding: 0.7rem 1.35rem;
+  border-radius: 999px;
+  background: var(--sh-fg);
+  color: var(--sh-bg);
+  text-decoration: none;
+  transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.sh-btn:hover {
+  transform: translateY(-1px);
+}
+
+.sh-txt {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.35em;
+}
+
+.sh-txt:hover {
+  text-decoration-color: currentColor;
+}
+
+.sh-btn svg,
+.sh-txt svg {
+  flex: none;
+  transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.sh-btn:hover svg,
+.sh-txt:hover svg {
+  transform: translateX(3px);
+}
+
+.sh-credit {
+  position: relative;
+  z-index: 2;
+  width: var(--sh-content-w, 100%);
+  margin: 0 auto;
+  padding: 0 var(--sh-gutter) 0.5rem;
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+.sh-credit a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  color: var(--sh-muted);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-underline-offset: 0.2em;
+}
+
+/* Die Hochformat-Variante gilt per Media Query — dieselbe Abfrage wie <picture> und Engine. */
+@media (max-width: 1023.98px) {
+  .sh-root {
+    --sh-figure-h: calc(clamp(12rem, 40svh, 26rem) * var(--sh-scale, 1));
+  }
+}
+
+/* Telefon: kleinere Skulptur, damit Überschrift und erste Aktion früh im Bild sind. */
+@media (max-width: 639.98px) {
+  .sh-root {
+    --sh-aspect: var(--sh-aspect-tall, 0.8);
+    --sh-figure-h: calc(clamp(12rem, 34svh, 22rem) * var(--sh-scale-tall, 1));
+  }
+}
+
+@container (max-width: 1023.98px) {
+  .sh-content {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  .sh-aside {
+    justify-self: start;
+    max-width: 34rem;
+    padding-bottom: 0;
+  }
+
+  .sh-h1 {
+    font-size: clamp(2.4rem, 8cqi, 5.25rem);
+  }
+}
+
+@container (max-width: 639.98px) {
+  .sh-eyebrow {
+    letter-spacing: 0.1em;
+  }
+
+  .sh-eyebrow::before {
+    display: none;
+  }
+
+  .sh-h1 {
+    font-size: clamp(2.1rem, 11cqi, 3.5rem);
+    line-height: 0.98;
+  }
+
+  .sh-body {
+    font-size: 1rem;
+  }
+
+  .sh-credit {
+    text-align: left;
+  }
+}
+
+@container (max-width: 359.98px) {
+  .sh-h1 {
+    hyphens: manual;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-canvas,
+  .sh-fallback,
+  .sh-hint,
+  .sh-btn,
+  .sh-btn svg,
+  .sh-txt svg {
+    transition: none;
+  }
+
+  .sh-root[data-gl='on'] .sh-hint::before {
+    animation: none;
+  }
+}
