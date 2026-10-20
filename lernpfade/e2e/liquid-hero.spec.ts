@@ -687,6 +687,31 @@ test.describe('Startseiten-Hero', () => {
   }
 });
 
+test.describe('Startseiten-Hero, schmale Spalte', () => {
+  test('ein zu breites Wort trennt an der weichen Trennstelle statt überzulaufen', async ({ page }) => {
+    // CI-Befund: Unter Linux fehlt Inter, mit der breiteren Ersatzschrift lief „Zusammenhänge“ bei
+    // 375 px über den Rand. Hier wird das Wort plattformunabhängig zu breit gemacht (Laufweite nur im
+    // Akzent) — die Überschrift muss trennen, statt die Spalte zu sprengen.
+    for (const width of [320, 375, 639]) {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/');
+      await page.addStyleTag({ content: '.sh-accent { letter-spacing: 0.14em !important; }' });
+      const result = await page.locator('.sh-h1').evaluate((h1) => {
+        const range = document.createRange();
+        range.selectNodeContents(h1);
+        const rects = [...range.getClientRects()].filter((rect) => rect.width > 0);
+        return {
+          overflow: h1.scrollWidth - h1.clientWidth,
+          right: Math.max(...rects.map((rect) => rect.right)),
+          viewport: document.documentElement.clientWidth,
+        };
+      });
+      expect(result.overflow, `${width} px: Überschrift läuft nicht über`).toBeLessThanOrEqual(1);
+      expect(result.right, `${width} px: alle Zeilen im Bild`).toBeLessThanOrEqual(result.viewport);
+    }
+  });
+});
+
 test.describe('Startseiten-Hero ohne JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 

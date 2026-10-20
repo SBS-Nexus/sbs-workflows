@@ -61,6 +61,13 @@ React selbst verlangt den Ordner nicht.
   Bildgrund`). Dadurch verschmilzt das statische Bild schon ohne JavaScript mit
   der Hub-Fläche, und beim Überblenden zur GPU-Darstellung springt die Farbe
   nicht.
+- **Überschrift:** In breiten Spalten wird nicht getrennt, die Zeilen sind
+  ausbalanciert. Unter 640 px Spaltenbreite darf „Zusammenhänge“ an der
+  weichen Trennstelle trennen, aber nur, wenn es sonst überliefe.
+  - Anlass ist ein CI-Befund: Unter Linux fehlt Inter, und mit der breiteren
+    Ersatzschrift lief das Wort bei 375 px über.
+  - Der Test „schmale Spalte“ macht das Wort plattformunabhängig zu breit;
+    mit den alten Regeln liefe es dort um gut 40 px über.
 - **Hinweis:** nur sichtbar, wenn die Skulptur wirklich reagiert (Engine
   aktiv). Er pulsiert dreimal und ruht dann, gemäß Design-Vertrag §7 „keine
   dauerhafte dekorative Bewegung“.

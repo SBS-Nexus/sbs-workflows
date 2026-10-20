@@ -59,7 +59,6 @@ export function LernpfadeHero(): React.ReactElement {
           '--sh-content-pad': '0px',
           '--sh-eyebrow': 'var(--indigo)',
           '--sh-accent-style': 'normal',
-          '--sh-accent-weight': 'inherit',
         } as React.CSSProperties
       }
     />

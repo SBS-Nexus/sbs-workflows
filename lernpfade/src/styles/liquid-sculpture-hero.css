@@ -463,9 +463,16 @@
     display: none;
   }
 
+  /*
+   * Schmale Spalte: Mit breiter Systemschrift (unter Linux ohne Inter z. B. DejaVu Sans) passt
+   * „Zusammenhänge“ nicht immer in eine Zeile — dann greift die weiche Trennstelle. Ohne
+   * `balance` trennt der Browser nur, wenn das Wort sonst überliefe.
+   */
   .sh-h1 {
     font-size: clamp(2.1rem, 11cqi, 3.5rem);
     line-height: 0.98;
+    text-wrap: wrap;
+    hyphens: manual;
   }
 
   .sh-body {
@@ -474,12 +481,6 @@
 
   .sh-credit {
     text-align: left;
-  }
-}
-
-@container (max-width: 359.98px) {
-  .sh-h1 {
-    hyphens: manual;
   }
 }
 
