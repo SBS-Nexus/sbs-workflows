@@ -8,6 +8,9 @@ import { expectNoSeriousA11yViolations, horizontalOverflow } from './helpers';
  * vollständig im Bild und überschneidet die Grafik nicht. Ein Seitenüberlauf
  * allein würde den Fehler nicht zeigen (die Grafik verdeckt, ohne die Seite zu
  * verbreitern). Dieselbe Prüfung gilt für die VokabelPfad-Überschrift.
+ *
+ * Seit der Liquid Sculpture Hero ist die Grafik die Bildfläche der Skulptur
+ * (`.sh-figure`) statt der früheren Systemkarte; die Prüfung bleibt dieselbe.
  */
 
 const SHOTS = 'test-results/screenshots';
@@ -58,7 +61,7 @@ for (const width of [900, 901, 920, 1000, 1280, 1440]) {
     await page.evaluate(() => document.fonts.ready);
 
     expect(await horizontalOverflow(page), 'kein horizontales Scrollen').toBeLessThanOrEqual(0);
-    await expectReadable(page, '.hero h1', '.system-card', 'Hero');
+    await expectReadable(page, '.sh-h1', '.sh-figure', 'Hero');
     await page.evaluate(() => window.scrollTo(0, 0));
     if (width === 920) {
       mkdirSync(SHOTS, { recursive: true });
