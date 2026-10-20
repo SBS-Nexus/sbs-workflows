@@ -104,10 +104,27 @@ test('echter Browser-Zoom 200 %: statische und aktive Hero, Fokus und CTA bleibe
       htmlZoom: getComputedStyle(document.documentElement).zoom,
       bodyZoom: getComputedStyle(document.body).zoom,
     }));
-    const capture = async (name: string, heroOnly = false) => {
+    const cdp = await context.newCDPSession(currentPage);
+    const captures: Array<{ name: string; width: number; height: number }> = [];
+    evidence.captures = captures;
+    evidence.captureMethod = 'CDP Page.captureScreenshot ohne clip, vollständige sichtbare Browserfläche';
+    const capture = async (name: string) => {
+      // Befund aus dem ersten echten Zoom-Lauf: Playwrights CSS-Clip lieferte
+      // bei 200 % nur 640 × 406 px bzw. eine leere Fokusaufnahme. Die native
+      // Oberfläche ohne Clip aufnehmen; ihre Pixelmaße werden mitgeprüft.
+      const result = await cdp.send('Page.captureScreenshot', {
+        format: 'png', fromSurface: true, captureBeyondViewport: false,
+      });
+      const image = Buffer.from(result.data, 'base64');
+      expect(image.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(true);
+      const width = image.readUInt32BE(16);
+      const height = image.readUInt32BE(20);
+      const current = await metrics();
+      expect(Math.abs(width - current.innerWidth * current.dpr), 'vollständige Aufnahmebreite, kein Zoom-Clip').toBeLessThanOrEqual(2);
+      expect(Math.abs(height - current.innerHeight * current.dpr), 'vollständige Aufnahmehöhe').toBeLessThanOrEqual(2);
+      captures.push({ name, width, height });
       const path = testInfo.outputPath(`${name}.png`);
-      if (heroOnly) await currentPage.locator('.sh-root').screenshot({ path });
-      else await currentPage.screenshot({ path });
+      writeFileSync(path, image);
       await testInfo.attach(name, { path, contentType: 'image/png' });
     };
 
@@ -145,7 +162,16 @@ test('echter Browser-Zoom 200 %: statische und aktive Hero, Fokus und CTA bleibe
     expect(textBounds, 'alle Hero-Textzeilen innerhalb der verfügbaren Breite').toEqual([]);
     await expectNoSeriousA11yViolations(page, 'Hero bei nativem Browser-Zoom 200 %, reduzierte Bewegung');
     await capture('native-zoom-200-viewport');
-    await capture('native-zoom-200-statisch-hero', true);
+    // Zusätzlicher sichtbarer Ausschnitt der Texte; nur für den Bildbeleg.
+    // Der Tastaturtest unten navigiert anschließend wieder vom Seitenanfang.
+    const textY = await page.evaluate(() => {
+      const text = document.querySelector('.sh-content')!.getBoundingClientRect();
+      const header = document.querySelector('.site-header')!.getBoundingClientRect();
+      return Math.max(0, Math.round(window.scrollY + text.top - header.height - 12));
+    });
+    await page.evaluate((y) => window.scrollTo(0, y), textY);
+    await expect.poll(() => currentPage.evaluate((y) => Math.abs(window.scrollY - y), textY)).toBeLessThanOrEqual(1);
+    await capture('native-zoom-200-text');
 
     // Gleicher Tab und dieselbe native Zoomstufe, jetzt mit der echten Engine.
     await page.evaluate(() => window.scrollTo(0, 0));
