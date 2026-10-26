@@ -1,3 +1,4 @@
+import { LernpfadeHero } from '@/components/home/lernpfade-hero';
 import { CORE_PATHS, NEXT_PATHS, STATUS_LABEL, type LearningPath } from '@/lib/catalog';
 
 function ArrowIcon(): React.ReactElement {
@@ -66,55 +67,7 @@ export default function Home(): React.ReactElement {
       </header>
 
       <main id="hauptinhalt">
-        <section className="hero">
-          <div className="shell hero-grid">
-            <div>
-              <p className="kicker">Eine Plattform. Mehrere Fähigkeiten. Ein Lernmodell.</p>
-              <h1>
-                Technologie lernen,
-                <span> als würde alles zusammen&shy;gehören.</span>
-              </h1>
-              <p className="hero-copy">
-                Python, SQL, Git & GitHub und AI sind keine getrennten Welten. Lernpfade verbindet
-                sie in einer gemeinsamen Oberfläche mit derselben Navigation, denselben
-                Interaktionsmustern und einem wiedererkennbaren Fortschrittsmodell.
-              </p>
-              <div className="hero-actions">
-                <a className="button button-primary" href="#pfade">
-                  Lernpfad wählen <ArrowIcon />
-                </a>
-                <a className="button button-secondary" href="#lernmodell">
-                  So funktioniert das Lernen
-                </a>
-              </div>
-            </div>
-            <div className="system-card" aria-label="Lernsystem Übersicht">
-              <div className="system-row">
-                <span className="system-node accent-indigo">PY</span>
-                <span>Programmieren</span>
-                <strong>Python</strong>
-              </div>
-              <div className="system-line" />
-              <div className="system-row">
-                <span className="system-node accent-teal">SQL</span>
-                <span>Daten</span>
-                <strong>SQL</strong>
-              </div>
-              <div className="system-line" />
-              <div className="system-row">
-                <span className="system-node accent-violet">GIT</span>
-                <span>Zusammenarbeit</span>
-                <strong>GitHub</strong>
-              </div>
-              <div className="system-line" />
-              <div className="system-row muted-row">
-                <span className="system-node accent-amber">AI</span>
-                <span>Verstehen & steuern</span>
-                <strong>AI</strong>
-              </div>
-            </div>
-          </div>
-        </section>
+        <LernpfadeHero />
 
         <section id="pfade" className="section shell">
           <div className="section-heading">
