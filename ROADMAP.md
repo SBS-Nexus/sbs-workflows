@@ -1,6 +1,6 @@
 # Lernpfade — Roadmap
 
-Stand: 2026-10-04\
+Stand: 2026-10-27\
 Repository: `SBS-Nexus/sbs-workflows`
 
 ## Leitbild
@@ -205,7 +205,7 @@ Er entscheidet ausdrücklich **noch nicht**:
 
 ## LP-03 — Design System Contract
 
-Status: **TEILWEISE — Grundlage in PR #41; LP-03A (Shell und Navigation, PR #58) in die Integrationsbranch `claude/lernpfade-unified-hub` übernommen; LP-03B (Statusanzeigen: Badges, Callouts) als Draft-PR in Prüfung. Buttons, Cards, ProgressBar, EmptyState und ErrorState offen. NICHT IN `main`, NICHT PRODUKTIV VERÖFFENTLICHT**
+Status: **TEILWEISE — Grundlage in PR #41; LP-03A (Shell und Navigation, PR #58) und LP-03B (Statusanzeigen: Badges, Callouts, PR #59) in die Integrationsbranch `claude/lernpfade-unified-hub` übernommen. Buttons, Cards, ProgressBar, EmptyState und ErrorState offen. NICHT IN `main`, NICHT PRODUKTIV VERÖFFENTLICHT**
 
 Priorität: **P0**
 
@@ -952,22 +952,41 @@ nicht produktiv):
 - LP-03A gemeinsame Shell-Tokens und Navigationsvertrag — PR #58, übernommen
   (Vertrag: `docs/learning-shell/README.md`)
 - LP-03B gemeinsame Statusanzeigen (Badges, Callouts) und Quellzustände auf
-  `/fortschritt` — Draft-PR von `claude/lernpfade-lp03b-status-feedback`
-  gegen die Integrationsbranch, in Prüfung (Vertrag:
+  `/fortschritt` — PR #59, übernommen (Vertrag:
   `docs/learning-feedback/README.md`)
+- Liquid Sculpture Hero für die Hub-Startseite — PR #60 (mit der nativen
+  200-%-Chromium-Zoomprüfung aus PR #61), übernommen; Bildrechte offen (siehe
+  `lernpfade/THIRD_PARTY_NOTICES.md`)
 
 Übernommen heißt: in der Integrationsbranch, **nicht** in `main` und nicht
 produktiv veröffentlicht. PR #41 bleibt offen; das ist keine Startfreigabe.
+Prüfstand 26.10.2026: Integrations-Head `95fa1f794145358aafe3ff079dfddea186042490`;
+Lernpfade Hub CI `40386028098` und AIPfad CI `40386027993` erfolgreich.
 
 Offen und jeweils eine eigene Entscheidung:
 
-1. Merge von PR #41 nach `main`.
-2. Domain-/DNS-Entscheidung für same-site Hub und Apps — Voraussetzung für
+1. Merge von PR #41 nach `main` **nur nach separater Release- und
+   Deployment-Prüfung**. GitHub-Deployments zeigen eine Produktionskopplung
+   für PythonPfad und SQLPfad. Der derzeitige Vercel-Status „Account is blocked“
+   darf nicht als dauerhaft deaktivierter Rollout-Schutz behandelt werden.
+2. Nutzungsrechte an den beiden Referenzbildern der Liquid Sculpture Hero
+   vor jeder Produktivveröffentlichung bestätigen oder die Bilder ersetzen
+   (`lernpfade/THIRD_PARTY_NOTICES.md`, Rechtestand offen).
+3. Domain-/DNS-Entscheidung für same-site Hub und Apps — Voraussetzung für
    Live-Daten aus LP-05B und LP-07; ohne sie zeigen beide „nicht angemeldet".
-3. Weitere Teile des Komponentenvertrags (LP-03): Buttons, Cards,
+4. Weitere Teile des Komponentenvertrags (LP-03): Buttons, Cards,
    ProgressBar, EmptyState, ErrorState.
-4. LP-05C (Abschließen aus dem Hub) und LP-08 (gemeinsame Identität) erst nach
+5. LP-05C (Abschließen aus dem Hub) und LP-08 (gemeinsame Identität) erst nach
    dieser Domain-Entscheidung.
+
+Nicht blockierende technische Nacharbeiten aus dem Integrationsreview:
+- `lernpfade/tsconfig.json`: Next-16-generierte Einstellung gegenprüfen und
+  bewusst einchecken, statt bei jedem Build einen schmutzigen Arbeitsbaum zu erzeugen.
+- Flaky E2E beim Ausblenden des Touch-Hinweises auf überlastetem Software-Renderer
+  (`lernpfade/e2e/liquid-hero-mobil.spec.ts`): CSS-Visibility-Übergang entkoppeln,
+  ohne Assertions/Timeouts zu schwächen; danach gezielt und vollständig testen.
+- Reproduzierbarkeit: fehlendes Hub-Lockfile und Python-/SQL-Gates separat priorisieren;
+  Bytegleichheit der HTTP-Quelladapter wird derzeit nicht durch ein eigenes Gate erzwungen.
 
 ---
 
