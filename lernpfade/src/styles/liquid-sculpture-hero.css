@@ -258,11 +258,10 @@
 }
 
 .sh-root[data-gl='on'][data-touched='1'] .sh-hint {
+  /* Berührung blendet den Hinweis sofort aus, unabhängig vom GPU-Frame-Timing. */
   visibility: hidden;
   opacity: 0;
-  transition:
-    opacity 0.8s ease,
-    visibility 0s linear 0.8s;
+  transition: none;
 }
 
 @keyframes sh-pulse {
