@@ -143,6 +143,55 @@ test('Unbekannte Adresse: 404 mit gemeinsamem Fehlerzustand — hell, dunkel, mo
   }
 });
 
+test('Lernpfad-Stationen: nächste Station hervorgehoben, taktile Kante in Modulfarbe, Einsinken', async ({
+  page,
+}) => {
+  await anmelden(page);
+  for (const schema of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: schema });
+    await page.goto('/lernen');
+    const aktuell = page.locator('a[aria-current="step"]');
+    await expect(aktuell, 'genau eine nächste Station').toHaveCount(1);
+    await expect(aktuell).toContainText('Start');
+    await expect(aktuell).toHaveAccessibleName(/Lektion 1, .*nächster Schritt/);
+    const muenze = aktuell.locator('span.rounded-full').last();
+    const vorher = await muenze.evaluate((node) => {
+      // Farben über einen Canvas-Pixel nach sRGB (color-mix liefert oklab).
+      const ctx = document.createElement('canvas').getContext('2d', {
+        willReadFrequently: true,
+      })!;
+      const helligkeit = (farbe: string): number => {
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillStyle = farbe;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      };
+      const style = getComputedStyle(node);
+      return {
+        kante: Number.parseFloat(style.borderBottomWidth),
+        dunkler: helligkeit(style.borderBottomColor) < helligkeit(style.backgroundColor) - 20,
+      };
+    });
+    expect(vorher.kante, 'taktile Kante').toBe(4);
+    expect(vorher.dunkler, 'Kante ist ein dunklerer Ton der Fläche').toBe(true);
+    await aktuell.evaluate((node) =>
+      node.addEventListener('click', (event) => event.preventDefault(), { once: true }),
+    );
+    await aktuell.evaluate((node) => node.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    const box = await muenze.boundingBox();
+    if (!box) throw new Error('Station nicht sichtbar');
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await expect
+      .poll(() => muenze.evaluate((node) => getComputedStyle(node).borderBottomWidth))
+      .toBe('2px');
+    await page.mouse.up();
+    await page.mouse.move(0, 0);
+    await bild(page, `komponenten-py-lernpfad-1280-${schema}`);
+  }
+});
+
 test('Rückmeldungsränder werden gezeigt: falsche Antwort trägt den Fehlerrand (Randfarben-Befund)', async ({
   page,
 }) => {
