@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   istBeurteilbar,
   istLektionAbgeschlossen,
+  OHNE_UEBUNGSSERVER,
+  zaehltZurBeurteilung,
   type AufgabenStand,
 } from '@/domain/aufgabe/abschluss';
 import { LEHRPLAN } from '@/content';
@@ -120,3 +122,34 @@ const BRAUCHT_AUSFUEHRUNG_IM_VALIDATOR = new Set<Aufgabenart>([
   'FEHLER_FINDEN',
   'TRANSFER',
 ]);
+
+describe('Mit eingeschaltetem Übungsserver', () => {
+  const MIT = { uebungsserver: true };
+  const auswahl: AufgabenStand = { art: 'EINFACHAUSWAHL', letztesErgebnis: 'PASSED' };
+  const pruefbar = (letztesErgebnis?: AufgabenStand['letztesErgebnis']): AufgabenStand => ({
+    art: 'ABFRAGE_SCHREIBEN',
+    amErgebnisPruefbar: true,
+    letztesErgebnis,
+  });
+  const aendernd: AufgabenStand = { art: 'ABFRAGE_SCHREIBEN', amErgebnisPruefbar: false };
+
+  it('zählen die Schreibaufgaben mit, die der Server am Ergebnis bewertet', () => {
+    expect(zaehltZurBeurteilung(pruefbar(), MIT)).toBe(true);
+    expect(zaehltZurBeurteilung(pruefbar(), OHNE_UEBUNGSSERVER)).toBe(false);
+    // Änderungsaufgaben bewertet er nicht – sie zählen auch mit Server nicht.
+    expect(zaehltZurBeurteilung(aendernd, MIT)).toBe(false);
+  });
+
+  it('schließt eine Lektion erst, wenn auch die bewerteten Schreibaufgaben sitzen', () => {
+    // Vorher galt sie hier schon als abgeschlossen: Die Schreibaufgabe zählte
+    // nicht, obwohl der Server sie bewertete.
+    expect(istLektionAbgeschlossen([auswahl, pruefbar()], MIT)).toBe(false);
+    expect(istLektionAbgeschlossen([auswahl, pruefbar('FAILED')], MIT)).toBe(false);
+    expect(istLektionAbgeschlossen([auswahl, pruefbar('PASSED')], MIT)).toBe(true);
+    expect(istLektionAbgeschlossen([auswahl, pruefbar('PASSED'), aendernd], MIT)).toBe(true);
+  });
+
+  it('bleibt ohne Server bei der bisherigen Regel', () => {
+    expect(istLektionAbgeschlossen([auswahl, pruefbar()])).toBe(true);
+  });
+});

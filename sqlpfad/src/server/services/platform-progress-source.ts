@@ -1,8 +1,10 @@
 import 'server-only';
 import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/server/db/prisma';
+import { istSqlRunnerVerfuegbar } from '@/server/env';
 import { ausDatenmodellArt } from '@/domain/aufgabe/art';
 import { bewerteKonzept, type AufgabenErgebnis } from '@/domain/aufgabe/kompetenz';
+import { amErgebnisPruefbar } from '@/domain/aufgabe/ausfuehrung';
 import type { Versuchsergebnis } from '@/domain/aufgabe/auswahl';
 import {
   buildPlatformProgressSource,
@@ -79,6 +81,8 @@ export async function readPlatformProgressSource(
               select: {
                 type: true,
                 status: true,
+                allowedStatementClasses: true,
+                expectedResultset: true,
                 attempts: {
                   where: { userId },
                   orderBy: { createdAt: 'desc' },
@@ -100,6 +104,8 @@ export async function readPlatformProgressSource(
     prisma.lessonProgress.aggregate({ where: { userId }, _max: { completedAt: true } }),
   ]);
 
+  // Dieselbe Regel wie Wissenslandkarte und Lektionsabschluss.
+  const rahmen = { uebungsserver: istSqlRunnerVerfuegbar() };
   let observed = 0;
   let ready = 0;
   for (const konzept of konzepte) {
@@ -111,9 +117,14 @@ export async function readPlatformProgressSource(
       ergebnisse.push({
         art,
         letztesErgebnis: bezug.exercise.attempts[0]?.result as Versuchsergebnis | undefined,
+        amErgebnisPruefbar: amErgebnisPruefbar({
+          art,
+          erlaubteKlassen: bezug.exercise.allowedStatementClasses,
+          hatErwartetesErgebnis: bezug.exercise.expectedResultset !== null,
+        }),
       });
     }
-    const { stand } = bewerteKonzept(ergebnisse);
+    const { stand } = bewerteKonzept(ergebnisse, rahmen);
     if (stand === 'angefangen' || stand === 'wackelig' || stand === 'sitzt') observed += 1;
     if (stand === 'sitzt') ready += 1;
   }

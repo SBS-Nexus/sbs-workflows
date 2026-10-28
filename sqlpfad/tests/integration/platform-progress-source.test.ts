@@ -27,6 +27,13 @@ const PRAEFIX = 'lp07-sql-progress-source';
 const NOW = new Date('2026-10-01T12:00:00.000Z');
 const TAG = 24 * 60 * 60 * 1000;
 const HUB = 'https://lernpfade.integrationstest.example';
+/*
+ * Vor dem ersten `getEnv()` setzen, nicht erst im Routentest: `getEnv`
+ * merkt sich die Umgebung beim ersten Aufruf, und seit der Leser den Schalter
+ * des Übungsservers liest (Beurteilungsrahmen), ruft ihn schon der erste
+ * Lesertest auf.
+ */
+process.env.PLATFORM_HUB_ORIGIN = HUB;
 
 async function nutzer(name: string): Promise<string> {
   const user = await prisma.user.create({
@@ -341,7 +348,6 @@ describe('SQLPfad-Fortschrittsquelle (LP-07, echte Datenbank)', () => {
   });
 
   it('Route: Umfang allein aus der Sitzung, keine Parameter, nicht teilbar zwischengespeichert', async () => {
-    process.env.PLATFORM_HUB_ORIGIN = HUB;
     const { GET } = await import('@/app/api/platform/progress-source/route');
     const anfrage = (query = '', origin = HUB) =>
       new Request(`http://localhost/api/platform/progress-source${query}`, {

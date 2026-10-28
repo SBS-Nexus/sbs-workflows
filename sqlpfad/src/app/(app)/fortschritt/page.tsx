@@ -6,6 +6,7 @@ import { Callout, Card, EmptyState, SectionHeading } from '@/components/ui/primi
 import { Wissenslandkarte, type KonzeptZeile } from '@/components/fortschritt/wissenslandkarte';
 import { ausDatenmodellArt } from '@/domain/aufgabe/art';
 import { bewerteKonzept, type AufgabenErgebnis } from '@/domain/aufgabe/kompetenz';
+import { amErgebnisPruefbar } from '@/domain/aufgabe/ausfuehrung';
 import type { Versuchsergebnis } from '@/domain/aufgabe/auswahl';
 import { minutenHeute } from '@/server/lernsitzung';
 import { formatiereDauer } from '@/domain/lernsitzung';
@@ -59,6 +60,8 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
                 select: {
                   type: true,
                   status: true,
+                  allowedStatementClasses: true,
+                  expectedResultset: true,
                   attempts: {
                     where: { userId: user.id },
                     orderBy: { createdAt: 'desc' },
@@ -85,6 +88,11 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
       ergebnisse.push({
         art,
         letztesErgebnis: bezug.exercise.attempts[0]?.result as Versuchsergebnis | undefined,
+        amErgebnisPruefbar: amErgebnisPruefbar({
+          art,
+          erlaubteKlassen: bezug.exercise.allowedStatementClasses,
+          hatErwartetesErgebnis: bezug.exercise.expectedResultset !== null,
+        }),
       });
     }
 
@@ -92,7 +100,7 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
       slug: konzept.slug,
       titel: konzept.title,
       beschreibung: konzept.description,
-      kompetenz: bewerteKonzept(ergebnisse),
+      kompetenz: bewerteKonzept(ergebnisse, { uebungsserver: runnerBereit }),
     };
   });
 

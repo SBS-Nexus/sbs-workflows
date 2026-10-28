@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { bewerteAusfuehrung, istAmErgebnisPruefbar } from '@/domain/aufgabe/ausfuehrung';
+import {
+  amErgebnisPruefbar,
+  bewerteAusfuehrung,
+  istAmErgebnisPruefbar,
+} from '@/domain/aufgabe/ausfuehrung';
 import type { Fehlererklaerung } from '@/domain/sql/fehler';
 import { resultsetAusJson, type Resultset } from '@/domain/sql/resultset';
 import type { Ausfuehrungsergebnis } from '@/domain/sql/runner';
@@ -201,5 +205,23 @@ describe('Resultset aus JSON', () => {
     expect(bewerteAusfuehrung(erfolg(geliefert), mitDatum, OHNE_REIHENFOLGE).bewertung.art).toBe(
       'richtig',
     );
+  });
+});
+
+describe('Dieselbe Regel für Zeilen aus der Datenbank', () => {
+  it('stimmt mit der Regel für geladene Aufgaben überein', () => {
+    for (const art of ['ABFRAGE_SCHREIBEN', 'FEHLER_FINDEN', 'EINFACHAUSWAHL'] as const) {
+      for (const erlaubteKlassen of [['SELECT'], ['SELECT', 'DML'], ['DDL']] as const) {
+        for (const erwartetesErgebnis of [ERWARTET, null]) {
+          expect(
+            amErgebnisPruefbar({
+              art,
+              erlaubteKlassen,
+              hatErwartetesErgebnis: erwartetesErgebnis !== null,
+            }),
+          ).toBe(istAmErgebnisPruefbar({ art, erlaubteKlassen, erwartetesErgebnis }));
+        }
+      }
+    }
   });
 });

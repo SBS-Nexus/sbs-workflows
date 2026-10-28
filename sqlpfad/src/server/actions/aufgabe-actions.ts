@@ -11,6 +11,7 @@ import { planeWiederholung } from '@/server/wiederholung';
 import { istSqlRunnerVerfuegbar } from '@/server/env';
 import { fuehreImRunnerAus, stelleSandboxBereit } from '@/server/sql/runner-client';
 import {
+  amErgebnisPruefbar,
   bewerteAusfuehrung,
   istAmErgebnisPruefbar,
   type Ausfuehrungsrueckmeldung,
@@ -402,6 +403,8 @@ async function pruefeLektionsAbschluss(userId: string, lektionId: string | null)
     where: { lessonId: lektionId, status: 'PUBLISHED' },
     select: {
       type: true,
+      allowedStatementClasses: true,
+      expectedResultset: true,
       attempts: {
         where: { userId },
         orderBy: { createdAt: 'desc' },
@@ -418,10 +421,17 @@ async function pruefeLektionsAbschluss(userId: string, lektionId: string | null)
     staende.push({
       art,
       letztesErgebnis: aufgabe.attempts[0]?.result as AufgabenStand['letztesErgebnis'],
+      amErgebnisPruefbar: amErgebnisPruefbar({
+        art,
+        erlaubteKlassen: aufgabe.allowedStatementClasses,
+        hatErwartetesErgebnis: aufgabe.expectedResultset !== null,
+      }),
     });
   }
 
-  if (!istLektionAbgeschlossen(staende)) return;
+  // Mit eingeschaltetem Übungsserver zählen die Schreibaufgaben mit, die er
+  // bewertet – sonst schlösse die Lektion ab, während sie noch offen sind.
+  if (!istLektionAbgeschlossen(staende, { uebungsserver: istSqlRunnerVerfuegbar() })) return;
 
   await prisma.lessonProgress.upsert({
     where: { userId_lessonId: { userId, lessonId: lektionId } },

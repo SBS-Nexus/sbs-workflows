@@ -30,8 +30,21 @@ import { antwortform, type BewertbareAufgabe, type Bewertung } from './bewertung
  * dafür braucht es eine eigene Prüfung, die es noch nicht gibt.
  */
 export function istAmErgebnisPruefbar(aufgabe: BewertbareAufgabe): boolean {
-  if (antwortform(aufgabe.art) !== 'sql' || !aufgabe.erwartetesErgebnis) return false;
-  return (aufgabe.erlaubteKlassen ?? ['SELECT']).every((klasse) => klasse === 'SELECT');
+  return amErgebnisPruefbar({
+    art: aufgabe.art,
+    erlaubteKlassen: aufgabe.erlaubteKlassen ?? ['SELECT'],
+    hatErwartetesErgebnis: Boolean(aufgabe.erwartetesErgebnis),
+  });
+}
+
+/** Dieselbe Regel für Zeilen aus der Datenbank, ohne das Ergebnis selbst zu laden. */
+export function amErgebnisPruefbar(aufgabe: {
+  art: BewertbareAufgabe['art'];
+  erlaubteKlassen: readonly string[];
+  hatErwartetesErgebnis: boolean;
+}): boolean {
+  if (antwortform(aufgabe.art) !== 'sql' || !aufgabe.hatErwartetesErgebnis) return false;
+  return aufgabe.erlaubteKlassen.every((klasse) => klasse === 'SELECT');
 }
 
 /** Was im Lernverlauf über den Versuch steht – Werte des Datenmodells. */
