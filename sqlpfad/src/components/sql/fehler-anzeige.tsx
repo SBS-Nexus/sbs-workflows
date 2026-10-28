@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { Fehlererklaerung } from '@/domain/sql/fehler';
 import { Icon } from '@/components/ui/icon';
 
@@ -21,13 +22,16 @@ export function FehlerAnzeige({
 }: {
   erklaerung: Fehlererklaerung;
 }): React.ReactElement {
+  // Eine Lektion hat mehrere Aufgaben; eine feste ID gäbe es dann doppelt, und
+  // `aria-labelledby` zeigte auf die falsche Überschrift.
+  const ueberschrift = useId();
   return (
     <section
-      aria-labelledby="fehler-ueberschrift"
+      aria-labelledby={ueberschrift}
       className="rounded-2xl border border-[var(--caution)] bg-[var(--caution-soft)] p-5"
     >
       <h3
-        id="fehler-ueberschrift"
+        id={ueberschrift}
         className="flex items-center gap-2 text-base font-bold tracking-tight text-[var(--caution)]"
       >
         <Icon name="suchen" size={18} />
