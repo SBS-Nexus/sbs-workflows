@@ -32,6 +32,10 @@ on:
       - '*/src/app/layout.tsx'
       - '*/src/app/error.tsx'
       - '*/src/app/not-found.tsx'
+      # LP-05B/LP-07: schreibgeschützte Plattformquellen der drei Fach-Apps.
+      - 'scripts/check-platform-sources.mjs'
+      - '*/src/server/platform/**'
+      - '*/src/app/api/platform/**'
   push:
     branches:
       - main
@@ -65,6 +69,10 @@ on:
       - '*/src/app/layout.tsx'
       - '*/src/app/error.tsx'
       - '*/src/app/not-found.tsx'
+      # LP-05B/LP-07: schreibgeschützte Plattformquellen der drei Fach-Apps.
+      - 'scripts/check-platform-sources.mjs'
+      - '*/src/server/platform/**'
+      - '*/src/app/api/platform/**'
 
 permissions:
   contents: read
@@ -126,6 +134,25 @@ jobs:
 
       - name: Komponentenvertrag prüfen
         run: node scripts/check-learning-components.mjs
+
+  # LP-05B/LP-07: Die Adapter der Plattformquellen sind in den drei Fach-Apps
+  # bytegleich, ihre Schema-Versionen und Quellnamen sind die, die der Hub
+  # annimmt, und jede App meldet sich unter ihrem eigenen Namen. Nur
+  # Node-Bordmittel, repariert nichts.
+  platform-sources:
+    name: Plattformquellen (Drift-Check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Plattformquellen prüfen
+        run: node scripts/check-platform-sources.mjs
 
   build:
     name: Typecheck, tests and build

@@ -1022,8 +1022,11 @@ Nicht blockierende technische Nacharbeiten aus dem Integrationsreview:
 - Flaky E2E beim Ausblenden des Touch-Hinweises auf überlastetem Software-Renderer
   (`lernpfade/e2e/liquid-hero-mobil.spec.ts`): CSS-Visibility-Übergang entkoppeln,
   ohne Assertions/Timeouts zu schwächen; danach gezielt und vollständig testen.
-- Reproduzierbarkeit: fehlendes Hub-Lockfile separat priorisieren; Bytegleichheit der
-  HTTP-Quelladapter wird derzeit nicht durch ein eigenes Gate erzwungen.
+- Reproduzierbarkeit: fehlendes Hub-Lockfile separat priorisieren. Die Bytegleichheit
+  der HTTP-Quelladapter erzwingt seit dem LP-03C-PR der Job „Plattformquellen
+  (Drift-Check)" (`scripts/check-platform-sources.mjs`): Adapter bytegleich in den
+  drei Fach-Apps, Schema-Versionen und Quellnamen wie im Hub, jede Route unter dem
+  eigenen Quellnamen; Gegenprobe mit fünf Befunden.
 - **Python-/SQL-Gates — erledigt im LP-03C-PR (eigene Commits):** Der
   PythonPfad-Workflow lag unter `pythonpfad/.github/workflows/` und ist dort **nie
   gelaufen** (GitHub erkennt Workflows nur im Wurzelverzeichnis); SQLPfad hatte
