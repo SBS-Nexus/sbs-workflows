@@ -142,3 +142,34 @@ test('Unbekannte Adresse: 404 mit gemeinsamem Fehlerzustand — hell, dunkel, mo
     await bild(page, `komponenten-py-404-${breite}-${schema}`);
   }
 });
+
+test('Rückmeldungsränder werden gezeigt: falsche Antwort trägt den Fehlerrand (Randfarben-Befund)', async ({
+  page,
+}) => {
+  await anmelden(page);
+  await page.goto('/lernen');
+  await page
+    .getByRole('link', { name: /Lektion 1,/ })
+    .first()
+    .click();
+  const falsch = page.getByRole('radio', { name: /Ein Gerät, das Rechenaufgaben löst/ });
+  await falsch.check();
+  await page
+    .getByRole('button', { name: /Lösung einreichen/ })
+    .first()
+    .click();
+  const feld = falsch.locator('xpath=ancestor::label[1]');
+  // Vorher überstimmte `* { border-color }` diese Klasse; der Rand blieb grau.
+  await expect
+    .poll(() =>
+      feld.evaluate((node) => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--alert)';
+        document.body.append(probe);
+        const alert = getComputedStyle(probe).color;
+        probe.remove();
+        return getComputedStyle(node).borderTopColor === alert;
+      }),
+    )
+    .toBe(true);
+});

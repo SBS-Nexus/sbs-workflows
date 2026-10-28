@@ -296,8 +296,17 @@
   }
 }
 
-* {
-  border-color: var(--border);
+/*
+ * Vorgabe-Randfarbe in der Basisschicht. Ungeschichtet überstimmte sie jede
+ * Tailwind-Randfarbe (Utilities liegen in `@layer utilities`, und eine
+ * ungeschichtete Regel gewinnt immer): die Modulleiste auf /lernen, der Rahmen
+ * der SQL-Fehleranzeige und hervorgehobene Auswahlfelder blieben deshalb
+ * grau. Gefunden bei LP-03C, siehe ROADMAP.
+ */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 }
 
 html {

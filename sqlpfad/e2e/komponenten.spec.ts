@@ -118,3 +118,17 @@ test('Unbekannte Adresse: eigene 404-Seite statt der englischen Vorgabe', async 
     await bild(page, `komponenten-sql-404-${breite}-${schema}`);
   }
 });
+
+test('Modulleisten auf /lernen tragen ihre Modulfarbe (Randfarben-Befund)', async ({ page }) => {
+  await anmelden(page);
+  await page.goto('/lernen');
+  // Vorher überstimmte `* { border-color }` die Klasse border-[var(--akzent)];
+  // alle vier Leisten waren gleich grau.
+  const leisten = page.locator('section[aria-labelledby] > div.border-l-4');
+  await expect(leisten.first()).toBeVisible();
+  const farben = await leisten.evaluateAll((nodes) =>
+    nodes.map((node) => getComputedStyle(node).borderLeftColor),
+  );
+  expect(farben.length, 'eine Leiste je Modul').toBeGreaterThan(1);
+  expect(new Set(farben).size, 'verschiedene Modulfarben').toBe(farben.length);
+});
