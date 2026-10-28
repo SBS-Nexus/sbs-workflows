@@ -96,7 +96,7 @@ export function DataControls(): React.ReactElement {
 
         {!confirmOpen ? (
           <div className="mt-3">
-            <Button type="button" variant="secondary" onClick={() => setConfirmOpen(true)}>
+            <Button type="button" variant="danger-secondary" onClick={() => setConfirmOpen(true)}>
               Löschung vorbereiten
             </Button>
           </div>
