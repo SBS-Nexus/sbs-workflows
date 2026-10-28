@@ -51,6 +51,39 @@ export function zuResultset(
 }
 
 /**
+ * Eine Ergebnismenge, wie der Treiber sie im `arrayRowMode` liefert: Zeilen als
+ * Arrays, die Spaltenangaben als (nicht aufzählbare) Eigenschaft `columns` am
+ * Array selbst.
+ */
+export type TreiberErgebnismenge = readonly unknown[][] & {
+  readonly columns?: readonly TreiberSpalte[];
+};
+
+/** Ergebnisform des Treibers im `arrayRowMode` – nur die Felder, die hier zählen. */
+export interface TreiberErgebnis {
+  recordsets?: readonly TreiberErgebnismenge[];
+  /** Nur bei `query()` und `execute()` gesetzt, bei `batch()` nicht. */
+  columns?: readonly (readonly TreiberSpalte[])[];
+  rowsAffected?: readonly number[];
+}
+
+/**
+ * Die erste Ergebnismenge als `Resultset`, oder `undefined`, wenn es keine gibt.
+ *
+ * Die Spalten werden an der Ergebnismenge selbst gelesen. Ein Gesamtfeld
+ * `columns` setzt der Treiber nur bei `query()` und `execute()`; der Motor ruft
+ * aber `batch()` auf, und dort fehlt es. Vorher las der Motor nur das
+ * Gesamtfeld und verwarf damit **jedes** Abfrageergebnis – kein SELECT kam bei
+ * der Lernenden an. Gegen einen echten SQL Server gemessen; die Integrationstests
+ * in tests/sql/ halten es fest.
+ */
+export function ersteErgebnismenge(ergebnis: TreiberErgebnis): Resultset | undefined {
+  const zeilen = ergebnis.recordsets?.[0];
+  const spalten = zeilen?.columns ?? ergebnis.columns?.[0];
+  return zeilen && spalten ? zuResultset(zeilen, spalten) : undefined;
+}
+
+/**
  * Bringt einen Treiberwert in die Wertemenge, die der Vergleich kennt.
  *
  * `undefined` wird zu `null`: Der Treiber liefert für eine fehlende Spalte in
