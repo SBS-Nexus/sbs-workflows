@@ -1022,18 +1022,40 @@ Nicht blockierende technische Nacharbeiten aus dem Integrationsreview:
 - Flaky E2E beim Ausblenden des Touch-Hinweises auf überlastetem Software-Renderer
   (`lernpfade/e2e/liquid-hero-mobil.spec.ts`): CSS-Visibility-Übergang entkoppeln,
   ohne Assertions/Timeouts zu schwächen; danach gezielt und vollständig testen.
-- Reproduzierbarkeit: fehlendes Hub-Lockfile und Python-/SQL-Gates separat priorisieren;
-  Bytegleichheit der HTTP-Quelladapter wird derzeit nicht durch ein eigenes Gate erzwungen.
+- Reproduzierbarkeit: fehlendes Hub-Lockfile separat priorisieren; Bytegleichheit der
+  HTTP-Quelladapter wird derzeit nicht durch ein eigenes Gate erzwungen.
+- **Python-/SQL-Gates — erledigt im LP-03C-PR (eigene Commits):** Der
+  PythonPfad-Workflow lag unter `pythonpfad/.github/workflows/` und ist dort **nie
+  gelaufen** (GitHub erkennt Workflows nur im Wurzelverzeichnis); SQLPfad hatte
+  keinen. Jetzt `.github/workflows/pythonpfad-ci.yml` (PostgreSQL, Migrationen,
+  Typecheck, Lint, Format, Vitest, Musterlösungen, Ausführungsaufzeichnung, Build,
+  Playwright) und `.github/workflows/sqlpfad-ci.yml` mit zwei Jobs: dieselbe Kette
+  für SQLPfad und **„SQL-Motor gegen SQL Server"** (Developer-Edition 2025, auf CU10
+  festgelegt). Der erste echte Lauf von `tests/sql/` fand einen Fehler, den keine
+  Attrappe gezeigt hätte: Der Motor verwarf **jedes** SELECT-Ergebnis (Treiber
+  liefert die Spalten bei `batch()` an der Ergebnismenge). Behoben, dazu neue Tests
+  der Sandbox-Berechtigungsgrenze (`tests/sql/berechtigung.integration.test.ts`)
+  mit Gegenprobe. Nicht produktiv wirksam, solange `FEATURE_SQL_RUNNER` aus ist.
+  Offen: eine E2E-Prüfung mit eingeschaltetem Runner.
 - Befund aus LP-03C, **im selben PR behoben** (eigener Commit): In PythonPfad und
   SQLPfad stand `* { border-color: var(--border) }` ungeschichtet in `globals.css`
   und überstimmte damit **jede** Tailwind-Randfarbe — im Browser gemessen blieben
   u. a. die Richtig/Falsch-Ränder der Python-Übungen, der Fehlerrand im Editor und
   die Modulleisten in SQLPfad grau. Die Regel steht jetzt in `@layer base`;
   Regressionsprüfungen in `komponenten.spec.ts` werden ohne den Fix rot.
-- Neuer Befund aus LP-03C (vorbestehend, nicht behoben): Im dunklen Schema sind die
-  SQL-Schlüsselwörter im SQLPfad-Editor (`SELECT`, `FROM`, `WHERE`) kaum lesbar,
-  und die Zeilennummern stehen gegenüber den Zeilen versetzt. Fachwerkzeug, eigener
-  Schritt mit Kontrastmessung.
+- Befund aus LP-03C (vorbestehend), **im selben PR behoben** (eigene Commits): Im
+  dunklen Schema waren die SQL-Schlüsselwörter im SQLPfad-Editor kaum lesbar —
+  CodeMirrors Vorgabefarben für helle Flächen, gemessen `SELECT` 1,61:1. Jetzt
+  Hervorhebung über die Farbmarken (`.tok-*`), nachgerechnet im Unit-Test und im
+  Browser (`abfrage.spec.ts`, ≥ 4,5:1 hell und dunkel); der Editor hat zudem einen
+  zugänglichen Namen, axe prüft `/abfrage` jetzt ganz. Die „versetzten
+  Zeilennummern" waren **kein** Fehler im Betrieb: CodeMirror misst einen Editor
+  erst, wenn er sichtbar wird; Ganzseiten-Bildschirmfotos zeigten Editoren
+  außerhalb des Bildschirms ungemessen. Im Browser nach dem Scrollen gemessen
+  liegen Nummern und Zeilen exakt gleich; der neue Test hält das fest.
+- Dabei gefunden und behoben: Das ausdrücklich gewählte Dunkelschema in SQLPfad trug
+  als `--accent-soft` noch Navy statt Petrol (Systemschema). Ein Test vergleicht
+  jetzt beide Dunkelblöcke Marke für Marke.
 
 ---
 
