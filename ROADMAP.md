@@ -1036,7 +1036,19 @@ Nicht blockierende technische Nacharbeiten aus dem Integrationsreview:
   liefert die Spalten bei `batch()` an der Ergebnismenge). Behoben, dazu neue Tests
   der Sandbox-Berechtigungsgrenze (`tests/sql/berechtigung.integration.test.ts`)
   mit Gegenprobe. Nicht produktiv wirksam, solange `FEATURE_SQL_RUNNER` aus ist.
-  Offen: eine E2E-Prüfung mit eingeschaltetem Runner.
+- **SQLPfad: Schreibaufgaben am Ergebnis bewerten — im selben PR (eigene Commits):**
+  Auch mit eingeschaltetem Runner bekam jede Schreibaufgabe „noch nicht
+  eingeschaltet"; der Vergleich lag fertig in der Fachschicht, war aber nicht
+  angeschlossen. Jetzt „Stimmt" / „Noch nicht" mit Abweichungen / übersetzter
+  Serverfehler, Versuch mit Fehlerart im Verlauf (`src/domain/aufgabe/ausfuehrung.ts`).
+  Vorher geprüft: jede lesende Musterlösung gegen die echten Übungsdaten
+  (`tests/sql/musterloesungen.integration.test.ts`) — fand ein falsches erwartetes
+  Ergebnis (`a-having-schreiben`) und sechs Aufgaben ohne eines; beides behoben.
+  Datumswerte nach dem Weg durch JSON zurückgewandelt (vorher zeigte `/abfrage`
+  `…T00:00:00.000Z`). Neue E2E-Suite mit eingeschaltetem Übungsserver
+  (`npm run test:e2e:uebungsserver`) im CI-Job „SQL Server – Motor, Musterlösungen,
+  Ende zu Ende". Offen: Bewertung von Änderungsaufgaben (DML/DDL) und der Betrieb
+  des Runner-Dienstes; die Lizenzfrage bleibt eine eigene Entscheidung.
 - Befund aus LP-03C, **im selben PR behoben** (eigener Commit): In PythonPfad und
   SQLPfad stand `* { border-color: var(--border) }` ungeschichtet in `globals.css`
   und überstimmte damit **jede** Tailwind-Randfarbe — im Browser gemessen blieben
