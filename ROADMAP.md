@@ -1017,8 +1017,9 @@ Offen und jeweils eine eigene Entscheidung:
    dieser Domain-Entscheidung.
 
 Nicht blockierende technische Nacharbeiten aus dem Integrationsreview:
-- `lernpfade/tsconfig.json`: Next-16-generierte Einstellung gegenprüfen und
-  bewusst einchecken, statt bei jedem Build einen schmutzigen Arbeitsbaum zu erzeugen.
+- ~~`lernpfade/tsconfig.json`: Next-16-generierte Einstellung gegenprüfen und
+  bewusst einchecken~~ — erledigt mit #64 (`bc60042`); Hub-Builds im LP-03C-PR
+  ließen den Arbeitsbaum unverändert.
 - Flaky E2E beim Ausblenden des Touch-Hinweises auf überlastetem Software-Renderer
   (`lernpfade/e2e/liquid-hero-mobil.spec.ts`): CSS-Visibility-Übergang entkoppeln,
   ohne Assertions/Timeouts zu schwächen; danach gezielt und vollständig testen.
