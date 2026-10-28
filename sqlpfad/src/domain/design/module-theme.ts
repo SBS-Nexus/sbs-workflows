@@ -133,5 +133,10 @@ export const MODULE_THEMES = THEMES;
  * Laufzeit entstehen, nicht erzeugen.
  */
 export function themeStyle(theme: ModuleTheme): Record<string, string> {
-  return { '--akzent': theme.color, '--akzent-soft': theme.soft };
+  /*
+   * `--lp-ui-area` reicht die Bereichsfarbe an die gemeinsamen Komponenten
+   * (LP-03C) weiter: Karten, Fortschrittsbalken und Leerzustände im Bereich
+   * nehmen sie an, ohne dass der Vertrag App-Tokens lesen muss.
+   */
+  return { '--akzent': theme.color, '--akzent-soft': theme.soft, '--lp-ui-area': theme.color };
 }

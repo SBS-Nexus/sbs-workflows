@@ -12,6 +12,25 @@ import {
   type CalloutToneInput,
   type FeedbackToneInput,
 } from '@/lib/learning-feedback';
+import {
+  COMPONENT_CLASS,
+  buttonAttributes,
+  cardAttributes,
+  emptyAttributes,
+  errorAttributes,
+  errorReference,
+  errorTitle,
+  progressAttributes,
+  progressFillWidth,
+  progressValue,
+  type ButtonSize,
+  type ButtonVariantInput,
+  type CardEmphasis,
+  type EmptyKind,
+  type EmptySize,
+  type ErrorKind,
+  type ProgressToneInput,
+} from '@/lib/learning-components';
 
 /**
  * Kleine, zugängliche Bausteine.
@@ -30,50 +49,15 @@ export function cx(...values: Array<string | false | null | undefined>): string 
 // ---------------------------------------------------------------------------
 
 /*
- * Knöpfe.
- *
- * Die tragenden Knöpfe haben eine sichtbare Unterkante, die beim Drücken
- * einsinkt (`btn-press`). Das ist nicht nur Zierde: Der Zustand „gedrückt" wird
- * dadurch an der Geometrie erkennbar und nicht allein an einem Farbwechsel –
- * ein Vorteil bei Farbsehschwäche und bei hellem Umgebungslicht.
- *
- * Die zurückhaltenden Varianten (ghost) bekommen die Kante bewusst nicht.
- * Wenn jeder Knopf hervortritt, tritt keiner hervor.
+ * Knöpfe (LP-03C): Aussehen, Größen und die taktile Unterkante kommen aus dem
+ * gemeinsamen Komponentenvertrag (`@/lib/learning-components`, Darstellung in
+ * `learning-components.css`) — gleich in allen Lernpfaden, Pfad-Akzent über
+ * `data-lp-app` am Wurzelelement. Die Unterkante sinkt beim Drücken ein: Der
+ * Zustand „gedrückt" ist an der Geometrie erkennbar, nicht allein an einer
+ * Farbe. Ältere Variantennamen (`onDark`, `onDarkGhost`) bleiben gültig.
  */
-const BUTTON_BASE =
-  'inline-flex items-center justify-center gap-2 rounded-xl font-medium ' +
-  'transition-[background-color,color,transform,border-bottom-width,box-shadow] ' +
-  'disabled:cursor-not-allowed disabled:opacity-55';
-
-const BUTTON_SIZES = {
-  sm: 'min-h-9 px-3 py-1.5 text-[0.875rem]',
-  md: 'min-h-11 px-4 py-2.5 text-[0.95rem]',
-  lg: 'min-h-14 px-7 py-3.5 text-[1.0625rem] rounded-2xl',
-} as const;
-
-export type ButtonSize = keyof typeof BUTTON_SIZES;
-
-const BUTTON_VARIANTS = {
-  primary:
-    'btn-press bg-[var(--accent)] text-[var(--text-inverse)] border-b-[var(--accent-deep)] ' +
-    'hover:bg-[var(--accent-hover)] font-bold tracking-tight',
-  secondary:
-    'btn-press bg-[var(--surface-raised)] text-[var(--text)] border border-[var(--border-strong)] ' +
-    'border-b-[var(--border-strong)] hover:bg-[var(--surface-sunken)] font-semibold',
-  ghost: 'text-[var(--accent)] hover:bg-[var(--accent-soft)] font-semibold',
-  danger:
-    'btn-press bg-[var(--alert)] text-[var(--text-inverse)] border-b-[var(--alert-deep)] ' +
-    'hover:opacity-90 font-bold',
-  /** Auf dunklem Verlauf. Weiße Fläche, damit der Kontrast unabhängig vom Verlauf stimmt. */
-  onDark:
-    'btn-press bg-white text-[var(--color-ink-900)] border-b-[var(--color-ink-300)] ' +
-    'hover:bg-[var(--color-ink-100)] font-bold tracking-tight',
-  /** Zweitrangig auf dunklem Verlauf. */
-  onDarkGhost:
-    'border-2 border-white/45 text-white hover:bg-white/12 font-semibold backdrop-blur-sm',
-} as const;
-
-export type ButtonVariant = keyof typeof BUTTON_VARIANTS;
+export type ButtonVariant = ButtonVariantInput;
+export type { ButtonSize };
 
 export function Button({
   variant = 'primary',
@@ -84,11 +68,15 @@ export function Button({
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  ref?: React.Ref<HTMLButtonElement>;
 }): ReactNode {
+  const ui = buttonAttributes(variant, size);
   return (
     <button
       {...props}
-      className={cx(BUTTON_BASE, BUTTON_SIZES[size], BUTTON_VARIANTS[variant], className)}
+      className={cx(ui.className, className)}
+      data-lp-variant={ui['data-lp-variant']}
+      data-lp-size={ui['data-lp-size']}
     >
       {children}
     </button>
@@ -106,11 +94,14 @@ export function ButtonLink({
   variant?: ButtonVariant;
   size?: ButtonSize;
 }): ReactNode {
+  const ui = buttonAttributes(variant, size);
   return (
     <Link
       {...props}
       href={href}
-      className={cx(BUTTON_BASE, BUTTON_SIZES[size], BUTTON_VARIANTS[variant], className)}
+      className={cx(ui.className, className)}
+      data-lp-variant={ui['data-lp-variant']}
+      data-lp-size={ui['data-lp-size']}
     >
       {children}
     </Link>
@@ -119,8 +110,15 @@ export function ButtonLink({
 
 // ---------------------------------------------------------------------------
 
+/*
+ * Karten (LP-03C): Eine Karte ist entweder Information (`Card`) oder als
+ * Ganzes ein Ziel (`CardLink`) — nie beides. Fläche und Rand nehmen die
+ * Bereichsfarbe leicht an (`themeStyle` setzt dafür `--lp-ui-area`); eine
+ * klickbare Karte trägt die taktile Unterkante wie ein Knopf.
+ */
 export function Card({
   as: Component = 'div',
+  emphasis = 'none',
   className,
   id,
   style,
@@ -128,6 +126,8 @@ export function Card({
   ...aria
 }: {
   as?: 'div' | 'section' | 'article' | 'li';
+  /** Hervorhebung des Randes; die Bedeutung muss zusätzlich im Text stehen. */
+  emphasis?: CardEmphasis;
   className?: string;
   id?: string;
   /** Für die Leitfarbe des Bereichs, siehe `themeStyle`. */
@@ -144,21 +144,40 @@ export function Card({
   'aria-labelledby'?: string;
   'aria-label'?: string;
 }): ReactNode {
+  const ui = cardAttributes('static', emphasis);
   return (
     <Component
       {...aria}
       id={id}
       style={style}
-      /*
-       * `karte-flaeche` färbt Fläche und Rahmen mit der Bereichsfarbe ein –
-       * siehe globals.css. Die größere Rundung gehört dazu: Ein Radius von
-       * 16 Pixeln wirkt sachlich, einer von 24 wirkt zugewandt, und das ist
-       * bei einer Lernanwendung für Anfänger keine Geschmacksfrage.
-       */
-      className={cx('karte-flaeche rounded-3xl border p-5 sm:p-6', className)}
+      className={cx(ui.className, className)}
+      data-lp-card={ui['data-lp-card']}
+      data-lp-emphasis={ui['data-lp-emphasis']}
     >
       {children}
     </Component>
+  );
+}
+
+/** Eine Karte, die als Ganzes ein Link ist. Enthält keine weiteren Bedienelemente. */
+export function CardLink({
+  emphasis = 'none',
+  className,
+  href,
+  children,
+  ...props
+}: React.ComponentProps<typeof Link> & { emphasis?: CardEmphasis }): ReactNode {
+  const ui = cardAttributes('interactive', emphasis);
+  return (
+    <Link
+      {...props}
+      href={href}
+      className={cx(ui.className, className)}
+      data-lp-card={ui['data-lp-card']}
+      data-lp-emphasis={ui['data-lp-emphasis']}
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -251,45 +270,35 @@ export function Badge({
 // ---------------------------------------------------------------------------
 
 /**
- * Fortschrittsanzeige mit Text-Alternative.
- * Der Wert wird zusätzlich als Text ausgegeben, damit er nicht nur visuell
- * erfassbar ist.
+ * Fortschrittsanzeige (LP-03C).
+ *
+ * Wert, Grenzen und sprechbarer Wert („3 von 10") kommen aus dem
+ * gemeinsamen Vertrag; ungültige Daten ergeben einen leeren Balken, nie einen
+ * vollen. Die sichtbare Zahl steht an der Aufrufstelle — Farbe allein trägt
+ * keine Bedeutung. `module` nimmt die Leitfarbe des umgebenden Bereichs
+ * (`themeStyle`), ältere Tonnamen (`caution`) bleiben gültig.
  */
 export function ProgressBar({
   value,
   max = 100,
   label,
   tone = 'accent',
+  valueText,
 }: {
   value: number;
   max?: number;
   label: string;
-  /** `module` nimmt die Leitfarbe des umgebenden Bereichs, siehe `themeStyle`. */
-  tone?: 'accent' | 'success' | 'caution' | 'module';
+  tone?: ProgressToneInput;
+  /** Eigener sprechbarer Wert, falls „x von y" nicht passt. */
+  valueText?: string;
 }): ReactNode {
-  const percent = max === 0 ? 0 : Math.round((Math.min(value, max) / max) * 100);
-  const colors = {
-    accent: 'var(--accent)',
-    success: 'var(--success)',
-    caution: 'var(--caution)',
-    module: 'var(--akzent, var(--accent))',
-  };
-
+  const progress = progressValue(value, max);
   return (
-    <div>
+    <div {...progressAttributes(progress, tone, valueText)} aria-label={label}>
       <div
-        role="progressbar"
-        aria-valuenow={value}
-        aria-valuemin={0}
-        aria-valuemax={max}
-        aria-label={label}
-        className="h-2.5 w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]"
-      >
-        <div
-          className="h-full rounded-full transition-[width] duration-300"
-          style={{ width: `${percent}%`, backgroundColor: colors[tone] }}
-        />
-      </div>
+        className={COMPONENT_CLASS.progressFill}
+        style={{ width: progressFillWidth(progress) }}
+      />
     </div>
   );
 }
@@ -389,48 +398,106 @@ export function CodeBlock({
 // ---------------------------------------------------------------------------
 
 /**
- * Leerer Zustand.
+ * Leerer Zustand (LP-03C).
  *
- * Mit Zeichnung statt mit einem leeren gestrichelten Kasten. Ein leerer
- * Bereich ist der Moment, in dem eine Anwendung am ehesten wie ein Fehler
- * aussieht – dabei ist er meistens völlig in Ordnung („heute steht keine
- * Wiederholung an"). Die Zeichnung nimmt der Fläche das Kaputte und lässt
- * Raum für den Satz, der erklärt, warum das so ist.
- *
- * Welche Zeichnung, entscheidet die aufrufende Stelle. Ein einziges Motiv für
- * alle leeren Zustände wäre bequem und falsch: „Hier ist noch nichts" und
- * „hier ist gerade nichts zu tun" sind verschiedene Aussagen, und die
- * Zeichnung ist das Erste, was gelesen wird.
+ * Ein leerer Bereich ist der Moment, in dem eine Anwendung am ehesten wie ein
+ * Fehler aussieht – dabei ist er meistens völlig in Ordnung. Der Vertrag
+ * unterscheidet deshalb drei Aussagen: `start` („hier ist noch nichts"),
+ * `done` („gerade ist nichts zu tun – alles erledigt") und `filtered` („die
+ * Auswahl trifft nichts"). Welche Zeichnung, entscheidet die aufrufende
+ * Stelle; ohne Zeichnung steht das Symbol der jeweiligen Aussage.
  */
+const EMPTY_ICON: Record<EmptyKind, IconName> = {
+  start: 'gluehbirne',
+  done: 'haken',
+  filtered: 'suchen',
+};
+
 export function EmptyState({
+  kind = 'start',
+  size = 'regular',
   title,
   description,
   action,
   illustration,
 }: {
+  kind?: EmptyKind;
+  /** `compact` für einen Hinweis innerhalb eines Panels. */
+  size?: EmptySize;
   title: string;
   description: string;
   action?: ReactNode;
   /** Zeichnung aus `@/components/ui/illustration`. Ohne Angabe nur ein Symbol. */
   illustration?: ReactNode;
 }): ReactNode {
+  const ui = emptyAttributes(kind, size);
   return (
-    <div className="animate-in muster-punkte muster-verlauf rounded-2xl border-2 border-dashed border-[var(--border-strong)] bg-[var(--akzent-soft,var(--surface-raised))] px-6 py-10 text-center">
+    <div
+      className={ui.className}
+      data-lp-empty={ui['data-lp-empty']}
+      data-lp-size={ui['data-lp-size']}
+    >
       {illustration ? (
-        <div aria-hidden="true" className="mx-auto mb-6 max-w-[13rem]">
+        <div aria-hidden="true" className={COMPONENT_CLASS.emptyArt} data-lp-art="illustration">
           {illustration}
         </div>
       ) : (
-        <span
-          aria-hidden="true"
-          className="animate-float mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-[var(--surface-raised)] text-[var(--akzent,var(--accent))]"
-        >
-          <Icon name="gluehbirne" size={32} />
+        <span aria-hidden="true" className={COMPONENT_CLASS.emptyArt}>
+          <Icon name={EMPTY_ICON[kind]} size={size === 'compact' ? 20 : 30} />
         </span>
       )}
-      <p className="text-lg font-black tracking-tight">{title}</p>
-      <p className="mx-auto mt-2 max-w-prose text-[var(--text-muted)]">{description}</p>
-      {action ? <div className="mt-6 flex justify-center">{action}</div> : null}
+      <div className={COMPONENT_CLASS.emptyBody}>
+        <p className={COMPONENT_CLASS.emptyTitle}>{title}</p>
+        <p className={COMPONENT_CLASS.emptyText}>{description}</p>
+        {action ? <div className={COMPONENT_CLASS.emptyActions}>{action}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Seitenweiter Fehlerzustand (LP-03C): abgestürzte Seite, unbekannte Adresse,
+ * nicht erreichbarer Dienst. Verrät keine technischen Details — eine Kennung
+ * für die Fehlersuche erscheint nur, wenn sie wie eine Kennung aussieht.
+ */
+const ERROR_ICON: Record<ErrorKind, IconName> = {
+  unexpected: 'fehler',
+  'not-found': 'suchen',
+  unavailable: 'achtung',
+};
+
+export function ErrorState({
+  kind,
+  title,
+  children,
+  reference,
+  actions,
+}: {
+  kind: ErrorKind;
+  /** Fachlicher Titel; ohne Angabe der allgemeine des Vertrags. */
+  title?: string;
+  children: ReactNode;
+  /** Etwa `error.digest` aus Next.js. */
+  reference?: unknown;
+  actions?: ReactNode;
+}): ReactNode {
+  const ui = errorAttributes(kind);
+  const kennung = errorReference(reference);
+  return (
+    <div className={ui.className} data-lp-error={ui['data-lp-error']}>
+      <span aria-hidden="true" className={COMPONENT_CLASS.errorArt}>
+        <Icon name={ERROR_ICON[kind]} size={28} />
+      </span>
+      <h1 className={COMPONENT_CLASS.errorTitle}>{errorTitle(kind, title)}</h1>
+      <div className={COMPONENT_CLASS.errorText}>{children}</div>
+      {kennung ? (
+        <p className={COMPONENT_CLASS.errorReference}>
+          Kennung für die Fehlersuche: <code className="font-mono">{kennung}</code>
+        </p>
+      ) : null}
+      {actions ? <div className={COMPONENT_CLASS.errorActions}>{actions}</div> : null}
     </div>
   );
 }

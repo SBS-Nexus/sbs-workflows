@@ -142,7 +142,7 @@ export function AufgabenKarte({
   }
 
   return (
-    <Card as="li" className="border-2">
+    <Card as="li">
       <div className="flex items-baseline gap-3">
         <span className="text-sm font-bold text-[var(--text-muted)] tabular-nums">{nummer}.</span>
         <div className="min-w-0 flex-1">
