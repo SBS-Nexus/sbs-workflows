@@ -476,14 +476,13 @@ umständlicher und genau deshalb richtig.
 
 Damit dieses Dokument nicht mehr verspricht als der Code hält:
 
-- **Der Runner-Dienst läuft, ist aber nicht gegen einen echten SQL Server
-  bewiesen.** Er liegt unter `runner/` und startet mit `npm run runner`;
-  Schnittstelle, Token-Prüfung, Grenzen und Fehlerübersetzung sind geprüft
-  (`tests/unit/runner-dienst.test.ts` startet den echten Prozess). Unbewiesen
-  bleibt `runner/mssql-motor.ts` samt der Vergabe der Anmeldenamen: Das T-SQL
-  dafür ist nach der Treiberdokumentation geschrieben und **gegen keinen
-  laufenden SQL Server gelaufen**. Dafür braucht es `npm run test:sql` mit
-  Zugangsdaten – siehe [docs/SQL-RUNNER.md](docs/SQL-RUNNER.md), Abschnitt 11.
+- **Der ganze Weg Anwendung → Runner → SQL Server ist nicht durchgehend
+  geprüft.** Die Teile sind es einzeln: Schnittstelle, Token-Prüfung, Grenzen
+  und Fehlerübersetzung des Dienstes (`tests/unit/runner-dienst.test.ts`
+  startet den echten Prozess), dazu `runner/mssql-motor.ts` samt Rechtevergabe
+  gegen einen echten SQL Server (`tests/sql/`, in der CI). Eine E2E-Prüfung mit
+  eingeschaltetem `FEATURE_SQL_RUNNER` gibt es nicht – siehe
+  [docs/SQL-RUNNER.md](docs/SQL-RUNNER.md), Abschnitt 11.
 - **Die Lizenzfrage** für den Produktionsbetrieb ist offen
   ([docs/SQL-RUNNER.md](docs/SQL-RUNNER.md), Abschnitt 6). Bis sie entschieden
   ist, bleibt `FEATURE_SQL_RUNNER` aus.

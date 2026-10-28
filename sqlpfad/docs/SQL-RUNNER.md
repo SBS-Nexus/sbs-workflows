@@ -180,6 +180,25 @@ npm run test:sql
 Läuft kein Server, meldet der Lauf ausdrücklich, dass die T-SQL-Semantik in
 diesem Durchgang nicht geprüft wurde.
 
+In der CI (`.github/workflows/sqlpfad-ci.yml`, Job „SQL-Motor gegen SQL
+Server") laufen sie bei jeder Änderung an `sqlpfad/` gegen die
+Developer-Edition von SQL Server 2025 – auf einen kumulativen Stand
+festgelegt, damit ein neues Abbild nicht unbemerkt das Verhalten ändert.
+Developer heißt: nur Entwicklung und Test; an der Lizenzfrage aus Abschnitt 6
+ändert der Lauf nichts.
+
+Zwei Dateien:
+
+- `motor.integration.test.ts` – Ergebnisse, NULL, doppelte Spaltennamen,
+  Fehlernummern, Zeitlimit, Abbruch, Zurücksetzen samt Struktur.
+- `berechtigung.integration.test.ts` – die Grenze aus Abschnitt 4. Der
+  Motor wird **an der Anweisungsprüfung vorbei** aufgerufen, als hätte jemand
+  eine Lücke in ihr gefunden: kein Lesen und kein Auflisten fremder
+  Sandboxes, kein `CREATE DATABASE`/`CREATE LOGIN`, keine Rechte an sich
+  selbst, kein `xp_cmdshell`, und die fremde Sandbox bleibt danach unberührt.
+  Gegenprobe: Mit `db_owner` statt `db_ddladmin` oder ohne
+  `DENY VIEW ANY DATABASE` werden drei dieser Tests rot.
+
 ---
 
 ## 9. Konfiguration des Runner-Prozesses
@@ -271,18 +290,22 @@ schnell" ist meist ein doppelter Klick, kein Angriff.
 Ehrlichkeitshalber, damit dieses Dokument nicht mehr verspricht als der Code
 hält:
 
-- **Ein grün gelaufener Durchgang der SQL-Integrationstests.** Bis dahin gilt
-  `runner/mssql-motor.ts` als unbewiesen: Er ist nach der Treiberdokumentation
-  geschrieben und **gegen keinen laufenden SQL Server gelaufen**. Das gilt
-  ausdrücklich auch für die Vergabe der Anmeldenamen und die Rechtevergabe aus
-  Abschnitt 10 – das T-SQL dafür ist geschrieben, nicht erprobt.
+- **Der durchgehende Weg Anwendung → Runner → SQL Server.** Geprüft sind die
+  Teile: `tests/unit/runner-dienst.test.ts` startet den echten Dienstprozess
+  und spricht ihn über HTTP an (Schnittstelle, Token, Grenzen, Übersetzung von
+  Fehlern und Zeitlimits, Freigeben belegter Plätze) – mit einem Prüfstand
+  als Motor. Der Motor selbst samt Vergabe der Anmeldenamen und Rechte aus
+  Abschnitt 10 läuft in `tests/sql/` gegen einen echten SQL Server (Abschnitt
+  8). Eine E2E-Prüfung mit eingeschaltetem `FEATURE_SQL_RUNNER`, die beides
+  verbindet, gibt es nicht.
 
-  Was **geprüft** ist: die Schnittstelle des Dienstes, die Token-Prüfung, die
-  Grenzen, die Übersetzung von Fehlern und Zeitlimits sowie das Freigeben
-  belegter Plätze. `tests/unit/runner-dienst.test.ts` startet dafür den
-  echten Dienstprozess und spricht ihn über HTTP an; nur der Motor dahinter
-  ist ein Prüfstand. Die Trennlinie verläuft genau dort, wo T-SQL-Semantik
-  beginnt.
+  Der erste echte Lauf der SQL-Integrationstests (Oktober 2026) fand einen
+  Fehler, den kein Prüfstand gezeigt hätte: Der Treiber liefert die
+  Spaltenangaben bei `batch()` an der Ergebnismenge, nicht im Gesamtergebnis.
+  Der Motor las nur das Gesamtergebnis und verwarf damit **jedes**
+  Abfrageergebnis. Behoben in `ersteErgebnismenge()`
+  (`src/domain/sql/treiber-uebersetzung.ts`), mit Unit-Test in der echten
+  Treiberform.
 
 - die Entscheidung aus Abschnitt 6
 
