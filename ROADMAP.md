@@ -1062,10 +1062,8 @@ Nicht blockierende technische Nacharbeiten aus dem Integrationsreview:
   aller 19 Einfachauswahlen stand vorn und wurde so angezeigt, die
   Reihenfolge-Aufgabe war beim Öffnen gelöst. Jetzt je Person und Aufgabe
   deterministisch gemischt, nie in Lehrplanreihenfolge (wie AIPfad seit PR #29).
-- Neuer Befund (nicht behoben): In PythonPfad steht die richtige Antwort jeder
-  Einfachauswahl an Position „a" oder „b" (6 bzw. 10 Aufgaben), nie weiter hinten;
-  angezeigt wird in Lehrplanreihenfolge. Schwächer als in SQLPfad, aber dieselbe
-  Art Hinweis an der Position. Abhilfe wie in SQLPfad/AIPfad, eigener Schritt.
+- Gegengeprüft: PythonPfad mischt Auswahl- und Parsons-Optionen bereits je Aufgabe
+  (`src/domain/content/public-view.ts`), AIPfad seit PR #29 – dort kein Befund.
 - Befund aus LP-03C, **im selben PR behoben** (eigener Commit): In PythonPfad und
   SQLPfad stand `* { border-color: var(--border) }` ungeschichtet in `globals.css`
   und überstimmte damit **jede** Tailwind-Randfarbe — im Browser gemessen blieben
