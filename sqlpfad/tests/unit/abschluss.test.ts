@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  fasseLektionZusammen,
   istBeurteilbar,
   istLektionAbgeschlossen,
   OHNE_UEBUNGSSERVER,
@@ -151,5 +152,20 @@ describe('Mit eingeschaltetem Übungsserver', () => {
 
   it('bleibt ohne Server bei der bisherigen Regel', () => {
     expect(istLektionAbgeschlossen([auswahl, pruefbar()])).toBe(true);
+  });
+});
+
+describe('Stand einer Lektion', () => {
+  it('zählt nach derselben Regel wie der Abschluss', () => {
+    const staende: AufgabenStand[] = [
+      { art: 'EINFACHAUSWAHL', letztesErgebnis: 'PASSED' },
+      { art: 'EINFACHAUSWAHL', letztesErgebnis: 'FAILED' },
+      { art: 'ABFRAGE_SCHREIBEN', amErgebnisPruefbar: true, letztesErgebnis: 'PASSED' },
+    ];
+    expect(fasseLektionZusammen(staende)).toEqual({ gesamt: 2, geloest: 1 });
+    expect(fasseLektionZusammen(staende, { uebungsserver: true })).toEqual({
+      gesamt: 3,
+      geloest: 2,
+    });
   });
 });

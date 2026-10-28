@@ -62,6 +62,11 @@ Die Datenbank ist die Kopie, nicht die Quelle – siehe
    daneben im Schema-Explorer.
 3. **Vier Aufgaben** verschiedener Art: erkennen, vorhersagen, ergänzen,
    selbst schreiben, einen Fehler erklären.
+4. **Der Stand darüber und der Abschluss darunter.** Ein Balken zählt, was
+   sitzt – nach derselben Regel wie der Abschluss (ohne Übungsserver ohne die
+   Schreibaufgaben). Gelöste Aufgaben tragen eine Marke, auch beim
+   Wiederkommen. Ist die Lektion durch, sagt eine Karte das und führt direkt
+   zur nächsten Lektion.
 
 ### Aufgabenarten
 
@@ -71,7 +76,7 @@ Die Datenbank ist die Kopie, nicht die Quelle – siehe
 | Reihenfolge                                          | vollständig, ohne Datenbank                                  |
 | Ergebnis vorhersagen                                 | Zeilenzahl geprüft, danach das echte Ergebnis daneben        |
 | Freitext, Fehler erklären                            | kein maschinelles Urteil – Musterantwort zum Selbstvergleich |
-| Abfrage schreiben, ergänzen, Fehler finden, Transfer | Policy geprüft; das Ergebnis braucht den Übungsserver        |
+| Abfrage schreiben, ergänzen, Fehler finden, Transfer | Policy geprüft; mit Übungsserver am Ergebnis bewertet        |
 
 Warum ein Teil davon absichtlich **nicht** maschinell bewertet wird, steht in
 [SQL-Ausführung](#11-sql-ausführung).
@@ -361,7 +366,16 @@ npm run db:seed       # einspielen
 Der Validator meldet unter anderem: eine Musterlösung, die die eigene Policy
 der Aufgabe verletzt; einen Hinweis, der die Lösung im Wortlaut nennt; ein
 erwartetes Ergebnis mit schiefer Zeilenbreite; ein Konzept ohne eine einzige
-Aufgabe; einen doppelten Slug.
+Aufgabe; einen doppelten Slug. Ob jede lesende Musterlösung auf den echten
+Übungsdaten ihr erwartetes Ergebnis liefert, prüft `npm run test:sql`
+(braucht einen SQL Server, läuft in der CI).
+
+**Optionen in beliebiger Reihenfolge eintragen.** Die richtige Antwort darf im
+Lehrplan vorn stehen, die Bausteine einer Reihenfolge-Aufgabe in der richtigen
+Reihenfolge: Angezeigt werden sie je Person und Aufgabe gemischt
+(`src/domain/aufgabe/anordnung.ts`), nie in Lehrplanreihenfolge, und der
+Server rechnet die Antwort zurück. Vorher war die erste Option immer richtig
+und die Reihenfolge-Aufgabe beim Öffnen gelöst.
 
 ---
 

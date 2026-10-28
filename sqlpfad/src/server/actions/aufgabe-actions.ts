@@ -5,13 +5,19 @@ import { z } from 'zod';
 import { requireUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
 import { ausDatenmodellArt } from '@/domain/aufgabe/art';
-import { istLektionAbgeschlossen, type AufgabenStand } from '@/domain/aufgabe/abschluss';
+import { istLektionAbgeschlossen } from '@/domain/aufgabe/abschluss';
+import {
+  ladeAufgabenstaende,
+  ladeLektionsstand,
+  type Lektionsstand,
+} from '@/server/lernen/lektionsstand';
+import { anzeigereihenfolge } from '@/server/lernen/aufgaben-ansicht';
+import { zurAufLehrplan } from '@/domain/aufgabe/anordnung';
 import { haltAktivitaetFest } from '@/server/lernsitzung';
 import { planeWiederholung } from '@/server/wiederholung';
 import { istSqlRunnerVerfuegbar } from '@/server/env';
 import { fuehreImRunnerAus, stelleSandboxBereit } from '@/server/sql/runner-client';
 import {
-  amErgebnisPruefbar,
   bewerteAusfuehrung,
   istAmErgebnisPruefbar,
   type Ausfuehrungsrueckmeldung,
@@ -85,6 +91,8 @@ export type Abgabeantwort = {
   erwartetesErgebnis?: Resultset;
   /** Nur bei am Ergebnis bewerteten Schreibaufgaben: eigenes Ergebnis, Abweichungen, Fehler. */
   ausfuehrung?: Pick<Ausfuehrungsrueckmeldung, 'eigenesErgebnis' | 'abweichungen' | 'fehler'>;
+  /** Neuer Stand der Lektion, wenn der Versuch in den Verlauf ging. */
+  lektion?: Lektionsstand;
 };
 
 export async function gibAufgabeAb(daten: unknown): Promise<Abgabeantwort> {
@@ -102,7 +110,12 @@ export async function gibAufgabeAb(daten: unknown): Promise<Abgabeantwort> {
     return { bewertung: { art: 'abgelehnt', begruendung: 'Diese Aufgabe gibt es nicht (mehr).' } };
   }
 
-  const antwort = geprueft.data.antwort as Antwort;
+  // Der Browser kennt nur Anzeigepositionen; zurück auf den Lehrplan, bevor
+  // bewertet und festgehalten wird (src/domain/aufgabe/anordnung.ts).
+  const antwort = zurAufLehrplan(
+    geprueft.data.antwort as Antwort,
+    anzeigereihenfolge(user.id, aufgabe.slug, aufgabe.bewertbar.nutzlast),
+  );
   let bewertung = bewerteAufgabe(aufgabe.bewertbar, antwort);
   let ausgefuehrt: Ausfuehrungsrueckmeldung | null = null;
 
@@ -145,6 +158,12 @@ export async function gibAufgabeAb(daten: unknown): Promise<Abgabeantwort> {
     await pruefeLektionsAbschluss(user.id, aufgabe.lektionId);
   }
 
+  // Nur wenn sich etwas geändert haben kann: Ohne Versuch bleibt der Stand.
+  const lektion =
+    ergebnis && aufgabe.lektionId ? await ladeLektionsstand(user.id, aufgabe.lektionId) : null;
+  const mitLektion = <T extends Abgabeantwort>(antwort: T): T =>
+    lektion ? { ...antwort, lektion } : antwort;
+
   /*
    * Das erwartete Ergebnis wird nach der Abgabe gezeigt - auch, wenn die Zahl
    * daneben lag. Gerade dann: Die Vorhersage lernt man nur, indem man sie mit
@@ -152,23 +171,23 @@ export async function gibAufgabeAb(daten: unknown): Promise<Abgabeantwort> {
    */
   if (aufgabe.bewertbar.art === 'ERGEBNIS_VORHERSAGEN' && aufgabe.bewertbar.erwartetesErgebnis) {
     if (bewertung.art === 'richtig' || bewertung.art === 'falsch') {
-      return { bewertung, erwartetesErgebnis: aufgabe.bewertbar.erwartetesErgebnis };
+      return mitLektion({ bewertung, erwartetesErgebnis: aufgabe.bewertbar.erwartetesErgebnis });
     }
   }
 
   if (ausgefuehrt) {
     const { eigenesErgebnis, abweichungen, fehler } = ausgefuehrt;
-    return {
+    return mitLektion({
       bewertung,
       ausfuehrung: {
         abweichungen,
         ...(eigenesErgebnis ? { eigenesErgebnis } : {}),
         ...(fehler ? { fehler } : {}),
       },
-    };
+    });
   }
 
-  return { bewertung };
+  return mitLektion({ bewertung });
 }
 
 /**
@@ -231,7 +250,9 @@ const einschaetzungSchema = z.object({
  * seine Antwort neben der Musterantwort liest und selbst entscheidet, hat den
  * Vergleich tatsächlich gezogen – das ist der lernwirksame Teil.
  */
-export async function meldeSelbsteinschaetzung(daten: unknown): Promise<{ gespeichert: boolean }> {
+export async function meldeSelbsteinschaetzung(
+  daten: unknown,
+): Promise<{ gespeichert: boolean; lektion?: Lektionsstand }> {
   const user = await requireUser();
 
   const geprueft = einschaetzungSchema.safeParse(daten);
@@ -263,7 +284,9 @@ export async function meldeSelbsteinschaetzung(daten: unknown): Promise<{ gespei
   await planeWiederholung(user.id, aufgabe.id, ergebnis, geprueft.data.hinweiseGenutzt);
   await pruefeLektionsAbschluss(user.id, aufgabe.lektionId);
 
-  return { gespeichert: true };
+  return aufgabe.lektionId
+    ? { gespeichert: true, lektion: await ladeLektionsstand(user.id, aufgabe.lektionId) }
+    : { gespeichert: true };
 }
 
 const loesungSchema = z.object({
@@ -340,6 +363,7 @@ export async function zeigeLoesung(daten: unknown): Promise<Loesungsantwort> {
 
 interface GeladeneAufgabe {
   id: string;
+  slug: string;
   lektionId: string | null;
   /** Slug des Übungsdatensatzes, in dessen Sandbox die Aufgabe läuft. */
   datensatz: string | null;
@@ -364,6 +388,7 @@ async function ladeAufgabe(slug: string): Promise<GeladeneAufgabe | null> {
 
   return {
     id: zeile.id,
+    slug: zeile.slug,
     lektionId: zeile.lessonId,
     datensatz: zeile.practiceSchema?.slug ?? null,
     vergleich: alsVergleichsoptionen(zeile.comparisonOptions),
@@ -399,35 +424,7 @@ async function pruefeLektionsAbschluss(userId: string, lektionId: string | null)
   });
   if (vorhanden?.state === 'COMPLETED') return;
 
-  const aufgaben = await prisma.exercise.findMany({
-    where: { lessonId: lektionId, status: 'PUBLISHED' },
-    select: {
-      type: true,
-      allowedStatementClasses: true,
-      expectedResultset: true,
-      attempts: {
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-        select: { result: true },
-      },
-    },
-  });
-
-  const staende: AufgabenStand[] = [];
-  for (const aufgabe of aufgaben) {
-    const art = ausDatenmodellArt(aufgabe.type);
-    if (!art) continue;
-    staende.push({
-      art,
-      letztesErgebnis: aufgabe.attempts[0]?.result as AufgabenStand['letztesErgebnis'],
-      amErgebnisPruefbar: amErgebnisPruefbar({
-        art,
-        erlaubteKlassen: aufgabe.allowedStatementClasses,
-        hatErwartetesErgebnis: aufgabe.expectedResultset !== null,
-      }),
-    });
-  }
+  const staende = await ladeAufgabenstaende(userId, lektionId);
 
   // Mit eingeschaltetem Übungsserver zählen die Schreibaufgaben mit, die er
   // bewertet – sonst schlösse die Lektion ab, während sie noch offen sind.

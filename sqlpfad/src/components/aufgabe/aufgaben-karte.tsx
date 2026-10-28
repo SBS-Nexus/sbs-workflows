@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { SqlEditor } from '@/components/editor/sql-editor';
 import { ErgebnisTabelle } from '@/components/sql/ergebnis-tabelle';
 import { FehlerAnzeige } from '@/components/sql/fehler-anzeige';
-import { Button, Callout, Card, CodeBlock, inputClass } from '@/components/ui/primitives';
+import { Badge, Button, Callout, Card, CodeBlock, inputClass } from '@/components/ui/primitives';
 import { Icon } from '@/components/ui/icon';
 import { Zeilentext } from '@/components/inhalt/lektionstext';
 import { antwortform, type Antwort, type Bewertung } from '@/domain/aufgabe/bewertung';
@@ -18,6 +18,7 @@ import {
   type Abgabeantwort,
   type Loesungsantwort,
 } from '@/server/actions/aufgabe-actions';
+import type { Lektionsstand } from '@/server/lernen/lektionsstand';
 
 /**
  * Eine Aufgabe bearbeiten.
@@ -54,10 +55,16 @@ export function AufgabenKarte({
   aufgabe,
   nummer,
   datensatz,
+  geloest = false,
+  beiNeuemStand,
 }: {
   aufgabe: AufgabenAnsicht;
   nummer: number;
   datensatz?: UebungsDatensatz;
+  /** Saß der letzte Versuch? Steht als Marke am Titel, auch beim Wiederkommen. */
+  geloest?: boolean;
+  /** Nach jeder Abgabe, die in den Verlauf ging: der neue Stand der Lektion. */
+  beiNeuemStand?: (stand: Lektionsstand) => void;
 }): React.ReactElement {
   const form = antwortform(aufgabe.art);
 
@@ -121,6 +128,7 @@ export function AufgabenKarte({
       setBewertung(antwort.bewertung);
       setErgebnis(antwort.erwartetesErgebnis ?? null);
       setAusfuehrung(antwort.ausfuehrung ?? null);
+      if (antwort.lektion) beiNeuemStand?.(antwort.lektion);
       setEingeschaetzt(false);
     });
   }
@@ -135,13 +143,14 @@ export function AufgabenKarte({
 
   function einschaetzen(urteil: 'getroffen' | 'teilweise' | 'daneben'): void {
     starte(async () => {
-      await meldeSelbsteinschaetzung({
+      const antwort = await meldeSelbsteinschaetzung({
         aufgabeSlug: aufgabe.slug,
         urteil,
         hinweiseGenutzt: offeneHinweise,
         dauerMs: bisherigeDauerMs(),
       });
       setEingeschaetzt(true);
+      if (antwort.lektion) beiNeuemStand?.(antwort.lektion);
     });
   }
 
@@ -150,7 +159,10 @@ export function AufgabenKarte({
       <div className="flex items-baseline gap-3">
         <span className="text-sm font-bold text-[var(--text-muted)] tabular-nums">{nummer}.</span>
         <div className="min-w-0 flex-1">
-          <h3 className="font-bold tracking-tight">{aufgabe.titel}</h3>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h3 className="font-bold tracking-tight">{aufgabe.titel}</h3>
+            {geloest ? <Badge tone="success">Gelöst</Badge> : null}
+          </div>
           <div className="mt-1 text-[0.95rem] text-[var(--text-muted)]">
             <Zeilentext text={aufgabe.aufgabenstellung} />
           </div>

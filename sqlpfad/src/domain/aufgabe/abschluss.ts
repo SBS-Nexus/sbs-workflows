@@ -70,3 +70,22 @@ export function istLektionAbgeschlossen(
   if (beurteilbare.length === 0) return false;
   return beurteilbare.every((aufgabe) => aufgabe.letztesErgebnis === 'PASSED');
 }
+
+/** Wie weit eine Lektion ist – nach derselben Regel wie der Abschluss. */
+export interface Lektionsfortschritt {
+  /** Aufgaben, die unter diesen Bedingungen beurteilt werden. */
+  gesamt: number;
+  /** Davon beim letzten Versuch gelöst. */
+  geloest: number;
+}
+
+export function fasseLektionZusammen(
+  aufgaben: readonly AufgabenStand[],
+  rahmen: Beurteilungsrahmen = OHNE_UEBUNGSSERVER,
+): Lektionsfortschritt {
+  const beurteilbare = aufgaben.filter((aufgabe) => zaehltZurBeurteilung(aufgabe, rahmen));
+  return {
+    gesamt: beurteilbare.length,
+    geloest: beurteilbare.filter((aufgabe) => aufgabe.letztesErgebnis === 'PASSED').length,
+  };
+}
