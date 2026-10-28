@@ -28,7 +28,7 @@ export default function RootLayout({
   return (
     // Der Hub kennt nur das helle Schema; `data-theme="light"` hält die
     // gemeinsamen Statusfarben (learning-feedback.css) auch bei System-Dunkel hell.
-    <html lang="de" data-theme="light">
+    <html lang="de" data-theme="light" data-lp-app="hub">
       <body>
         <a className="skip-link" href="#hauptinhalt">
           Direkt zum Hauptinhalt

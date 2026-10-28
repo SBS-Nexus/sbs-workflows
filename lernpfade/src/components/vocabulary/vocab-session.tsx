@@ -18,6 +18,7 @@ import {
 } from '@/domain/vocabulary/session';
 import { formatDateTime, plural } from './format';
 import type { VocabActions } from './vocab-app';
+import { Button, ProgressBar } from '@/components/ui/primitives';
 
 const RATINGS: { rating: ReviewRating; label: string; hint: string }[] = [
   { rating: 'again', label: 'Nochmal', hint: 'nicht gewusst – morgen wieder' },
@@ -124,8 +125,7 @@ export function VocabSession({
         )}
         <div className="vocab-actions">
           {followUp.remainingDue > 0 ? (
-            <button
-              className="button button-primary"
+            <Button
               type="button"
               disabled={actions.locked}
               onClick={() => {
@@ -135,15 +135,15 @@ export function VocabSession({
               }}
             >
               Nächste Session starten
-            </button>
+            </Button>
           ) : null}
-          <button
-            className={followUp.remainingDue > 0 ? 'button button-secondary' : 'button button-primary'}
+          <Button
+            variant={followUp.remainingDue > 0 ? 'secondary' : 'primary'}
             type="button"
             onClick={() => actions.openOverview()}
           >
             Zur Übersicht
-          </button>
+          </Button>
         </div>
       </section>
     );
@@ -161,8 +161,8 @@ export function VocabSession({
             Abfrage {session.position + 1} von {session.tasks.length}
           </h1>
         </div>
-        <button
-          className="button button-secondary"
+        <Button
+          variant="secondary"
           type="button"
           onClick={() =>
             actions.openOverview({
@@ -172,14 +172,13 @@ export function VocabSession({
           }
         >
           Session beenden
-        </button>
+        </Button>
       </div>
 
-      <progress
-        className="vocab-progress"
+      <ProgressBar
         max={session.tasks.length}
         value={session.position}
-        aria-label={`${session.position} von ${session.tasks.length} Abfragen bewertet`}
+        label={`${session.position} von ${session.tasks.length} Abfragen bewertet`}
       />
 
       <div className="review-card vocab-review-card">
@@ -204,9 +203,9 @@ export function VocabSession({
             ) : null}
           </div>
         ) : (
-          <button ref={revealRef} className="button button-primary review-reveal" type="button" onClick={onReveal}>
+          <Button ref={revealRef} className="review-reveal" type="button" onClick={onReveal}>
             Antwort zeigen
-          </button>
+          </Button>
         )}
 
         {session.revealed ? (

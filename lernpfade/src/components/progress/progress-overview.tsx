@@ -24,6 +24,7 @@ import {
   sourceFeedback,
   vocabularyFeedback,
 } from '@/components/feedback/source-feedback';
+import { ButtonLink, ProgressBar } from '@/components/ui/primitives';
 
 /**
  * LP-07 — Plattformfortschritt, schreibgeschützt.
@@ -197,14 +198,14 @@ function SourceCard({ config, state }: { config: ProgressSourceConfig; state: So
 
       <div className="progress-actions">
         {state.status === 'unauthenticated' && config.baseUrl ? (
-          <a className="button button-primary" href={`${config.baseUrl}/anmelden`}>
+          <ButtonLink href={`${config.baseUrl}/anmelden`}>
             In {config.appName} anmelden
-          </a>
+          </ButtonLink>
         ) : null}
         {openUrl ? (
-          <a className="button button-secondary" href={`${openUrl}/fortschritt`}>
+          <ButtonLink variant="secondary" href={`${openUrl}/fortschritt`}>
             In {config.appName} öffnen
-          </a>
+          </ButtonLink>
         ) : null}
       </div>
     </article>
@@ -231,11 +232,11 @@ function SourceMetrics({ progress, appName }: { progress: SourceProgress; appNam
             <>
               {completed} von {total}
               {total > 0 ? (
-                <progress
+                <ProgressBar
                   className="progress-bar"
                   max={total}
                   value={completed}
-                  aria-label={`Lektionsfortschritt in ${appName}: ${completed} von ${total}`}
+                  label={`Lektionsfortschritt in ${appName}: ${completed} von ${total}`}
                 />
               ) : null}
             </>
@@ -286,9 +287,9 @@ function VocabularyCard({ state }: { state: VocabularyState }): React.ReactEleme
       {state.status === 'ok' ? <VocabularyMetrics summary={state.summary} /> : null}
 
       <div className="progress-actions">
-        <a className="button button-secondary" href="/vokabeln">
+        <ButtonLink variant="secondary" href="/vokabeln">
           {state.status === 'error' ? 'Im VokabelPfad prüfen' : 'Zum VokabelPfad'}
-        </a>
+        </ButtonLink>
       </div>
     </article>
   );
