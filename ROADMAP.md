@@ -1053,6 +1053,19 @@ Nicht blockierende technische Nacharbeiten aus dem Integrationsreview:
   (`npm run test:e2e:uebungsserver`) im CI-Job „SQL Server – Motor, Musterlösungen,
   Ende zu Ende". Offen: Bewertung von Änderungsaufgaben (DML/DDL) und der Betrieb
   des Runner-Dienstes; die Lizenzfrage bleibt eine eigene Entscheidung.
+  Folgerichtig zählen bewertete Schreibaufgaben mit Übungsserver jetzt auch für
+  Lektionsabschluss, Wissenslandkarte und die Hub-Fortschrittsquelle
+  (`Beurteilungsrahmen`); ohne Server ändert sich nichts.
+- **SQLPfad: Lektionsverlauf und gemischte Optionen — im selben PR:** Stand je
+  Lektion („x von y gelöst", Komponentenvertrag), Marke „Gelöst" je Aufgabe,
+  Abschlusskarte mit „Weiter: nächste Lektion". Befund dabei: Die richtige Antwort
+  aller 19 Einfachauswahlen stand vorn und wurde so angezeigt, die
+  Reihenfolge-Aufgabe war beim Öffnen gelöst. Jetzt je Person und Aufgabe
+  deterministisch gemischt, nie in Lehrplanreihenfolge (wie AIPfad seit PR #29).
+- Neuer Befund (nicht behoben): In PythonPfad steht die richtige Antwort jeder
+  Einfachauswahl an Position „a" oder „b" (6 bzw. 10 Aufgaben), nie weiter hinten;
+  angezeigt wird in Lehrplanreihenfolge. Schwächer als in SQLPfad, aber dieselbe
+  Art Hinweis an der Position. Abhilfe wie in SQLPfad/AIPfad, eigener Schritt.
 - Befund aus LP-03C, **im selben PR behoben** (eigener Commit): In PythonPfad und
   SQLPfad stand `* { border-color: var(--border) }` ungeschichtet in `globals.css`
   und überstimmte damit **jede** Tailwind-Randfarbe — im Browser gemessen blieben
