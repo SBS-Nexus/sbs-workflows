@@ -3,12 +3,21 @@ name: PythonPfad
 # Läuft für jede Änderung unterhalb von pythonpfad/. Das Repository enthält
 # auch andere Projekte; ein Lauf der gesamten Prüfkette bei jeder fremden
 # Änderung wäre reine Wartezeit.
+#
+# Die Datei lag früher unter pythonpfad/.github/workflows/ und ist dort nie
+# gelaufen: GitHub Actions erkennt Workflows ausschließlich im
+# Wurzelverzeichnis des Repositorys.
 on:
   push:
     branches: [main]
-    paths: ['pythonpfad/**', '.github/workflows/pythonpfad.yml']
+    paths: ['pythonpfad/**', '.github/workflows/pythonpfad-ci.yml']
   pull_request:
-    paths: ['pythonpfad/**', '.github/workflows/pythonpfad.yml']
+    paths: ['pythonpfad/**', '.github/workflows/pythonpfad-ci.yml']
+
+# Der Lauf prüft nur und schreibt nichts ins Repository. Die Rechte stehen
+# deshalb hier, statt sich auf die Vorgabe der Organisation zu verlassen.
+permissions:
+  contents: read
 
 defaults:
   run:
@@ -101,6 +110,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-bericht
+          name: pythonpfad-playwright-report
           path: pythonpfad/playwright-report/
           retention-days: 7
