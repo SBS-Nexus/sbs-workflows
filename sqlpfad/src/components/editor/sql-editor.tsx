@@ -43,15 +43,17 @@ import type { UebungsDatensatz } from '@/domain/sql/schema';
  * bekommen ihre Farbe aus den Farbmarken in globals.css und wechseln damit
  * das Schema mit; die Kontraste rechnet tests/unit/farbkontrast.test.ts nach.
  *
- * Namen in eckigen Klammern (`[Kunden]`) bleiben bewusst ohne Farbe: Der
+ * Namen in eckigen Klammern (`[Kunden]`) tragen die Textfarbe: Der
  * SQL-Parser führt sie als besondere Zeichenkette, gemeint ist aber ein Name
- * wie jeder andere. Grün wie ein Text gefärbt, sähe `[Stadt]` aus wie
- * `N'Stadt'` – und genau diese Verwechslung soll die Hervorhebung verhindern.
+ * wie jeder andere. Ohne eigene Regel fiele die Hervorhebung auf die Farbe
+ * für Zeichenketten zurück, und `[Stadt]` sähe aus wie `N'Stadt'` – genau
+ * die Verwechslung, die die Hervorhebung verhindern soll.
  */
 const hervorhebung = HighlightStyle.define([
   { tag: tags.keyword, class: 'tok-keyword' },
   { tag: tags.typeName, class: 'tok-type' },
   { tag: tags.standard(tags.name), class: 'tok-function' },
+  { tag: tags.special(tags.string), class: 'tok-name' },
   { tag: tags.string, class: 'tok-string' },
   { tag: [tags.number, tags.bool, tags.null], class: 'tok-number' },
   { tag: [tags.lineComment, tags.blockComment], class: 'tok-comment' },

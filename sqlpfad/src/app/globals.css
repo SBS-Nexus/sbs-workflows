@@ -552,6 +552,10 @@ body::before {
 .cm-editor .tok-type {
   color: var(--accent);
 }
+/* Namen in eckigen Klammern: ein Name, keine Zeichenkette. */
+.cm-editor .tok-name {
+  color: var(--text);
+}
 .cm-editor .tok-string {
   color: var(--success);
 }
