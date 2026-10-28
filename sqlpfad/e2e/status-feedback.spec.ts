@@ -82,13 +82,10 @@ test('echte Seiten: Vertragsfarben, Kontrast, Umbruch — System hell und dunkel
             await bild(page, `status-sql${stelle.route.replace('/', '-')}-${breite}-${schema}`);
         });
       }
-      // /abfrage: Bestandsbefund am Editor (CodeMirror `.cm-content` ohne Namen), auch auf
-      // dem unveränderten Stand — dort nur die Statusanzeigen prüfen.
-      await erwarteKeineSchwerenAxeBefunde(
-        page,
-        `${stelle.route} 1280 px ${schema}`,
-        stelle.route === '/abfrage' ? '.lp-feedback' : undefined,
-      );
+      // Ganze Seite, auch /abfrage: Der Editor trägt jetzt einen zugänglichen Namen
+      // (vorher war `.cm-content` namenlos und die Prüfung dort auf die Statusanzeigen
+      // beschränkt).
+      await erwarteKeineSchwerenAxeBefunde(page, `${stelle.route} 1280 px ${schema}`);
     }
   }
 });

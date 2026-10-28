@@ -11,8 +11,9 @@ import {
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { autocompletion, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
-import { bracketMatching, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
+import { bracketMatching, HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { MSSQL, sql } from '@codemirror/lang-sql';
+import { tags } from '@lezer/highlight';
 import type { UebungsDatensatz } from '@/domain/sql/schema';
 
 /**
@@ -33,6 +34,29 @@ import type { UebungsDatensatz } from '@/domain/sql/schema';
  * vervollständigt, würde beim Lernen von T-SQL in die Irre führen.
  */
 
+/**
+ * Die Hervorhebung als Klassen, nicht als Farben.
+ *
+ * Vorher stand hier CodeMirrors `defaultHighlightStyle`. Dessen Farben sind
+ * fest und für helle Flächen gewählt: Im dunklen Schema stand `SELECT` in
+ * Dunkelviolett (#770088) auf ink-900 – 1,6:1, praktisch unlesbar. Die Klassen
+ * bekommen ihre Farbe aus den Farbmarken in globals.css und wechseln damit
+ * das Schema mit; die Kontraste rechnet tests/unit/farbkontrast.test.ts nach.
+ *
+ * Namen in eckigen Klammern (`[Kunden]`) bleiben bewusst ohne Farbe: Der
+ * SQL-Parser führt sie als besondere Zeichenkette, gemeint ist aber ein Name
+ * wie jeder andere. Grün wie ein Text gefärbt, sähe `[Stadt]` aus wie
+ * `N'Stadt'` – und genau diese Verwechslung soll die Hervorhebung verhindern.
+ */
+const hervorhebung = HighlightStyle.define([
+  { tag: tags.keyword, class: 'tok-keyword' },
+  { tag: tags.typeName, class: 'tok-type' },
+  { tag: tags.standard(tags.name), class: 'tok-function' },
+  { tag: tags.string, class: 'tok-string' },
+  { tag: [tags.number, tags.bool, tags.null], class: 'tok-number' },
+  { tag: [tags.lineComment, tags.blockComment], class: 'tok-comment' },
+]);
+
 export function SqlEditor({
   wert,
   beiAenderung,
@@ -40,6 +64,7 @@ export function SqlEditor({
   datensatz,
   schreibgeschuetzt = false,
   hinweis = 'Hier deine Abfrage schreiben …',
+  beschriftung = 'SQL-Abfrage',
 }: {
   wert: string;
   beiAenderung: (neu: string) => void;
@@ -49,6 +74,8 @@ export function SqlEditor({
   datensatz?: UebungsDatensatz;
   schreibgeschuetzt?: boolean;
   hinweis?: string;
+  /** Zugänglicher Name des Eingabefelds – der Platzhalter ist keiner. */
+  beschriftung?: string;
 }): React.ReactElement {
   const behaelter = useRef<HTMLDivElement>(null);
   const ansicht = useRef<EditorView | null>(null);
@@ -85,10 +112,18 @@ export function SqlEditor({
       closeBrackets(),
       highlightActiveLine(),
       autocompletion({ activateOnTyping: true }),
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      syntaxHighlighting(hervorhebung),
       sql({ dialect: MSSQL, schema, upperCaseKeywords: true }),
       placeholder(hinweis),
       EditorView.lineWrapping,
+      /*
+       * Ein Name für Hilfstechnik. CodeMirror schreibt in ein
+       * `contenteditable`, das ohne diese Angabe namenlos ist: Ein
+       * Bildschirmleser sagt dann nur „Bearbeitbar", und axe meldet es als
+       * schweren Befund (WCAG 4.1.2). Der Platzhalter zählt nicht – er
+       * verschwindet beim ersten Zeichen.
+       */
+      EditorView.contentAttributes.of({ 'aria-label': beschriftung, 'aria-multiline': 'true' }),
       EditorState.readOnly.of(schreibgeschuetzt),
       keymap.of([
         {
@@ -178,7 +213,7 @@ export function SqlEditor({
     // Absichtlich ohne `wert`: Der Editor verwaltet seinen Text selbst. Stünde
     // `wert` hier, würde jeder Tastendruck den Editor neu aufbauen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [datensatz, schreibgeschuetzt, hinweis]);
+  }, [datensatz, schreibgeschuetzt, hinweis, beschriftung]);
 
   /*
    * Text von außen setzen - etwa beim Zurücksetzen auf das Startgerüst.
