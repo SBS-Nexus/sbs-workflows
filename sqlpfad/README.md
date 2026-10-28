@@ -220,8 +220,9 @@ npm run dev
 
 ```bash
 npm run test:unit    # Domänenlogik, Inhalte, Kontraste
-npm run test:sql     # T-SQL-Semantik gegen einen echten SQL Server
-npm run test:e2e     # der ganze Weg im Produktionsbuild
+npm run test:sql     # T-SQL-Semantik, Rechte, Musterlösungen gegen einen echten SQL Server
+npm run test:e2e     # der ganze Weg im Produktionsbuild, Übungsserver aus
+npm run test:e2e:uebungsserver   # dasselbe mit eingeschaltetem Übungsserver
 npm run verify       # typecheck + lint + unit + build
 
 npm run auslieferung:pruefen -- https://sqlpfad.de   # eine laufende Installation
@@ -320,6 +321,12 @@ Dienst erreichbar, sagt die Anwendung das – deutlich, an der Stelle, an der es
 auffällt, und ohne Ersatzweg, der ein Ergebnis herbeirechnet. Eine
 geschriebene Abfrage bekommt dann „geprüft, aber nicht ausgeführt". Es wird
 nicht behauptet, sie sei richtig, weil sie richtig aussieht.
+
+**Mit Runner wird am Ergebnis bewertet.** Lesende Schreibaufgaben laufen in
+der eigenen Sandbox und werden mit dem erwarteten Ergebnis verglichen –
+„Stimmt", „Noch nicht" mit den Abweichungen, oder die übersetzte Meldung der
+Datenbank. Einzelheiten und Grenzen: [docs/SQL-RUNNER.md](docs/SQL-RUNNER.md),
+Abschnitt 12.
 
 Was trotzdem geht: Auswahl, Mehrfachauswahl, Reihenfolge und die Vorhersage
 der Zeilenzahl werden vollständig bewertet, ohne dass eine einzige Anweisung
@@ -476,13 +483,12 @@ umständlicher und genau deshalb richtig.
 
 Damit dieses Dokument nicht mehr verspricht als der Code hält:
 
-- **Der ganze Weg Anwendung → Runner → SQL Server ist nicht durchgehend
-  geprüft.** Die Teile sind es einzeln: Schnittstelle, Token-Prüfung, Grenzen
-  und Fehlerübersetzung des Dienstes (`tests/unit/runner-dienst.test.ts`
-  startet den echten Prozess), dazu `runner/mssql-motor.ts` samt Rechtevergabe
-  gegen einen echten SQL Server (`tests/sql/`, in der CI). Eine E2E-Prüfung mit
-  eingeschaltetem `FEATURE_SQL_RUNNER` gibt es nicht – siehe
-  [docs/SQL-RUNNER.md](docs/SQL-RUNNER.md), Abschnitt 11.
+- **Aufgaben, die Daten oder Strukturen ändern, werden nicht automatisch
+  bewertet** – auch nicht mit eingeschaltetem Übungsserver. Sie bekommen eine
+  ehrliche Auskunft statt eines Urteils ([docs/SQL-RUNNER.md](docs/SQL-RUNNER.md),
+  Abschnitt 12). Der Weg Anwendung → Runner → SQL Server selbst ist durchgehend
+  geprüft (`npm run test:e2e:uebungsserver`, in der CI), der Betrieb des Dienstes
+  nicht (Abschnitt 11).
 - **Die Lizenzfrage** für den Produktionsbetrieb ist offen
   ([docs/SQL-RUNNER.md](docs/SQL-RUNNER.md), Abschnitt 6). Bis sie entschieden
   ist, bleibt `FEATURE_SQL_RUNNER` aus.

@@ -187,10 +187,12 @@ festgelegt, damit ein neues Abbild nicht unbemerkt das Verhalten ändert.
 Developer heißt: nur Entwicklung und Test; an der Lizenzfrage aus Abschnitt 6
 ändert der Lauf nichts.
 
-Zwei Dateien:
+Drei Dateien:
 
 - `motor.integration.test.ts` – Ergebnisse, NULL, doppelte Spaltennamen,
   Fehlernummern, Zeitlimit, Abbruch, Zurücksetzen samt Struktur.
+- `musterloesungen.integration.test.ts` – jede lesende Musterlösung gegen ihr
+  erwartetes Ergebnis, auf den echten Übungsdaten (Abschnitt 12).
 - `berechtigung.integration.test.ts` – die Grenze aus Abschnitt 4. Der
   Motor wird **an der Anweisungsprüfung vorbei** aufgerufen, als hätte jemand
   eine Lücke in ihr gefunden: kein Lesen und kein Auflisten fremder
@@ -198,6 +200,12 @@ Zwei Dateien:
   selbst, kein `xp_cmdshell`, und die fremde Sandbox bleibt danach unberührt.
   Gegenprobe: Mit `db_owner` statt `db_ddladmin` oder ohne
   `DENY VIEW ANY DATABASE` werden drei dieser Tests rot.
+
+Dazu der ganze Weg mit eingeschaltetem Übungsserver:
+`npm run test:e2e:uebungsserver` (`playwright.uebungsserver.config.ts`,
+`e2e-uebungsserver/`) startet Runner-Dienst und Anwendung selbst und prüft
+Werkbank, Fehlerübersetzung, Bewertung von Schreibaufgaben und die Trennung
+zweier Konten. In der CI läuft beides im selben Job.
 
 ---
 
@@ -290,14 +298,12 @@ schnell" ist meist ein doppelter Klick, kein Angriff.
 Ehrlichkeitshalber, damit dieses Dokument nicht mehr verspricht als der Code
 hält:
 
-- **Der durchgehende Weg Anwendung → Runner → SQL Server.** Geprüft sind die
-  Teile: `tests/unit/runner-dienst.test.ts` startet den echten Dienstprozess
-  und spricht ihn über HTTP an (Schnittstelle, Token, Grenzen, Übersetzung von
-  Fehlern und Zeitlimits, Freigeben belegter Plätze) – mit einem Prüfstand
-  als Motor. Der Motor selbst samt Vergabe der Anmeldenamen und Rechte aus
-  Abschnitt 10 läuft in `tests/sql/` gegen einen echten SQL Server (Abschnitt
-  8). Eine E2E-Prüfung mit eingeschaltetem `FEATURE_SQL_RUNNER`, die beides
-  verbindet, gibt es nicht.
+- **Der Betrieb.** Der Weg Anwendung → Runner → SQL Server ist durchgehend
+  geprüft (Abschnitt 8), aber nur gegen die Developer-Edition in der CI.
+  Lastverhalten, Aufräumen alter Sandboxes und der Betrieb des Dienstes in
+  einer eigenen Umgebung sind nicht erprobt.
+
+- **Bewertung von Aufgaben, die Daten oder Strukturen ändern** (Abschnitt 12).
 
   Der erste echte Lauf der SQL-Integrationstests (Oktober 2026) fand einen
   Fehler, den kein Prüfstand gezeigt hätte: Der Treiber liefert die
@@ -327,3 +333,51 @@ Antworten in eigenen Worten bewertet die Lernende selbst neben der
 Musterantwort. Das ist keine Ersatzhandlung für fehlende Technik: Ein
 Textvergleich, der „ungefähr richtig" behauptet, wäre eine Anmaßung, und der
 eigene Vergleich ist ohnehin der lernwirksamere Teil.
+
+---
+
+## 12. Schreibaufgaben am Ergebnis bewerten
+
+Ist der Übungsserver eingeschaltet, wird eine geschriebene Abfrage in der
+Sandbox der Lernenden ausgeführt und ihr Ergebnis mit dem erwarteten verglichen
+(`vergleicheResultsets`, Regeln je Aufgabe in `vergleich`). Bis Oktober 2026
+landete jede Schreibaufgabe auch mit eingeschaltetem Server bei „noch nicht
+eingeschaltet": Der Vergleich lag fertig in der Fachschicht, war aber nirgends
+angeschlossen.
+
+| Ergebnis der Ausführung                                                   | Rückmeldung                                                    | Im Verlauf                          |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------- |
+| stimmt überein                                                            | „Stimmt" mit Zeilen- und Spaltenzahl, dazu das eigene Ergebnis | `PASSED`                            |
+| läuft, liefert anderes                                                    | „Noch nicht", bis zu vier Abweichungen, das eigene Ergebnis    | `FAILED`, `WRONG_RESULT`            |
+| Fehler des Servers                                                        | „Noch nicht" und die übersetzte Meldung samt Original          | `FAILED`, Fehlerart aus der Meldung |
+| Zeitlimit                                                                 | „Noch nicht" mit dem Hinweis des Dienstes                      | `FAILED`, `TIMEOUT`                 |
+| von der Anweisungsprüfung abgelehnt, abgebrochen, Dienst nicht erreichbar | Erklärung, kein Urteil                                         | nichts                              |
+
+**Das erwartete Ergebnis wird nicht angezeigt.** Es wäre die halbe Lösung, und
+die liegt hinter der Hinweisleiter.
+
+**Am Ergebnis bewertet werden nur lesende Aufgaben mit erwartetem Ergebnis**
+(`istAmErgebnisPruefbar`). Aufgaben, die Daten oder Strukturen ändern, würden
+die Sandbox verändern, und ihr Ergebnis ist ein Zustand, keine Ergebnismenge.
+Sie bekommen mit eingeschaltetem Server die ehrliche Auskunft, dass sie noch
+nicht automatisch geprüft werden – nicht die für ausgeschaltete Server.
+
+**Die erwarteten Ergebnisse sind selbst geprüft.**
+`tests/sql/musterloesungen.integration.test.ts` führt jede lesende
+Musterlösung gegen die echten Übungsdaten aus. Der erste Lauf fand
+`a-having-schreiben`: Erwartet waren drei Zeilen, die Daten geben eine her –
+jede richtige Abgabe hätte „Noch nicht" gehört. Sechs lesende Schreibaufgaben
+hatten gar kein erwartetes Ergebnis; es ist nachgetragen, mit ausdrücklicher
+Regel, wo Sortierung oder Spaltenname Teil der Aufgabe sind.
+
+**Datumswerte überleben JSON nicht von selbst.** Die Antwort des Dienstes und
+das erwartete Ergebnis in der Plattformdatenbank gehen durch JSON; aus einem
+Datum wird dort Text. `resultsetAusJson` macht an beiden Grenzen wieder
+Datumswerte daraus. Vorher zeigte `/abfrage` ein Datum als
+`2026-01-08T00:00:00.000Z`.
+
+**Zur Sandbox:** Bewertet wird in derselben Sandbox, in der die Lernende auf
+`/abfrage` übt. Dort laufen heute nur lesende Anweisungen, ihr Stand ist also
+der eingespielte. Sobald Änderungsaufgaben ausgeführt werden, muss die
+Bewertung lesender Aufgaben gegen einen bekannten Stand laufen – etwa nach
+einem Zurücksetzen oder in einer eigenen Bewertungs-Sandbox.

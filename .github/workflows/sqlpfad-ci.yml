@@ -106,16 +106,30 @@ jobs:
           path: sqlpfad/playwright-report/
           retention-days: 7
 
-  # Der einzige Ort, an dem sich T-SQL-Semantik und das Berechtigungsmodell
-  # der Sandboxes nachweisen lassen (docs/SQL-RUNNER.md, Abschnitte 4 und 8).
-  # Ohne Server würden diese Tests übersprungen statt bestanden — hier ist
-  # einer da, also laufen sie wirklich.
+  # Der einzige Ort, an dem sich T-SQL-Semantik, das Berechtigungsmodell der
+  # Sandboxes und die Musterlösungen gegen die echten Übungsdaten nachweisen
+  # lassen (docs/SQL-RUNNER.md, Abschnitte 4, 8 und 12) — und der ganze Weg
+  # Anwendung → Runner → SQL Server mit eingeschaltetem Übungsserver. Ohne
+  # Server würden diese Tests übersprungen statt bestanden; hier ist einer da.
   sql-motor:
-    name: SQL-Motor gegen SQL Server
+    name: SQL Server – Motor, Musterlösungen, Ende zu Ende
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sqlpfad
+          POSTGRES_PASSWORD: sqlpfad
+          POSTGRES_DB: sqlpfad
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U sqlpfad"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
       sqlserver:
         # Developer-Edition: nur Entwicklung und Test. Auf einen kumulativen
         # Stand festgelegt, damit ein neues Abbild nicht unbemerkt das
@@ -139,6 +153,9 @@ jobs:
       SQL_SERVER_HOST: 127.0.0.1
       SQL_SERVER_PORT: '1433'
       SQL_SERVER_SA_PASSWORD: Ci-Lauf_2026-kein-Geheimnis
+      DATABASE_URL: postgresql://sqlpfad:sqlpfad@localhost:5432/sqlpfad
+      AUTH_SECRET: ci-lauf-geheimnis-ohne-jede-bedeutung-0123456789
+      APP_URL: http://localhost:3000
 
     steps:
       - uses: actions/checkout@v4
@@ -152,5 +169,30 @@ jobs:
       - name: Abhängigkeiten installieren
         run: npm ci
 
+      # Motor, Berechtigungsgrenze, Musterlösungen gegen die echten Übungsdaten.
       - name: SQL-Integrationstests
         run: npm run test:sql
+
+      - name: Plattformdatenbank migrieren und befüllen
+        run: |
+          npm run db:deploy
+          npm run db:seed
+
+      - name: Produktionsbuild
+        run: npm run build
+
+      - name: Browser für die E2E-Tests
+        run: npx playwright install --with-deps chromium
+
+      # Startet Runner-Dienst und Anwendung selbst (playwright.uebungsserver.config.ts),
+      # FEATURE_SQL_RUNNER eingeschaltet.
+      - name: Ende zu Ende mit Übungsserver
+        run: npm run test:e2e:uebungsserver
+
+      - name: Testbericht sichern
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlpfad-uebungsserver-report
+          path: sqlpfad/playwright-report/
+          retention-days: 7
