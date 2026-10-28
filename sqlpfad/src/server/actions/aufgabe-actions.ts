@@ -5,9 +5,24 @@ import { z } from 'zod';
 import { requireUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
 import { ausDatenmodellArt } from '@/domain/aufgabe/art';
-import { istLektionAbgeschlossen, type AufgabenStand } from '@/domain/aufgabe/abschluss';
+import { istLektionAbgeschlossen } from '@/domain/aufgabe/abschluss';
+import {
+  ladeAufgabenstaende,
+  ladeLektionsstand,
+  type Lektionsstand,
+} from '@/server/lernen/lektionsstand';
+import { anzeigereihenfolge } from '@/server/lernen/aufgaben-ansicht';
+import { zurAufLehrplan } from '@/domain/aufgabe/anordnung';
 import { haltAktivitaetFest } from '@/server/lernsitzung';
 import { planeWiederholung } from '@/server/wiederholung';
+import { istSqlRunnerVerfuegbar } from '@/server/env';
+import { fuehreImRunnerAus, stelleSandboxBereit } from '@/server/sql/runner-client';
+import {
+  bewerteAusfuehrung,
+  istAmErgebnisPruefbar,
+  type Ausfuehrungsrueckmeldung,
+  type Versuchsprotokoll,
+} from '@/domain/aufgabe/ausfuehrung';
 import {
   alsVersuchsergebnis,
   bewerteAufgabe,
@@ -15,7 +30,7 @@ import {
   type BewertbareAufgabe,
   type Bewertung,
 } from '@/domain/aufgabe/bewertung';
-import type { Resultset } from '@/domain/sql/resultset';
+import { resultsetAusJson, type Resultset, type VergleichsOptionen } from '@/domain/sql/resultset';
 import type { AnweisungsKlasse } from '@/domain/sql/statement-policy';
 
 /**
@@ -26,6 +41,11 @@ import type { AnweisungsKlasse } from '@/domain/sql/statement-policy';
  * Aufgabe wird **aus der Datenbank** geladen und nicht aus dem, was der Browser
  * mitschickt. Käme die richtige Antwort aus dem Client, wäre die Bewertung eine
  * Auskunft darüber, was der Client behauptet.
+ *
+ * Ist der Übungsserver eingeschaltet, wird eine geschriebene Abfrage in der
+ * Sandbox der Lernenden ausgeführt und am Ergebnis bewertet
+ * (`src/domain/aufgabe/ausfuehrung.ts`). Ohne ihn bleibt es bei „geprüft, aber
+ * nicht ausgeführt".
  *
  * Was ausdrücklich **nicht** passiert: ein Versuch wird nur festgehalten, wenn
  * es ein Urteil gibt. „Selbst vergleichen" und „braucht Ausführung" sind keine
@@ -69,6 +89,10 @@ const abgabeSchema = z.object({
 export type Abgabeantwort = {
   bewertung: Bewertung;
   erwartetesErgebnis?: Resultset;
+  /** Nur bei am Ergebnis bewerteten Schreibaufgaben: eigenes Ergebnis, Abweichungen, Fehler. */
+  ausfuehrung?: Pick<Ausfuehrungsrueckmeldung, 'eigenesErgebnis' | 'abweichungen' | 'fehler'>;
+  /** Neuer Stand der Lektion, wenn der Versuch in den Verlauf ging. */
+  lektion?: Lektionsstand;
 };
 
 export async function gibAufgabeAb(daten: unknown): Promise<Abgabeantwort> {
@@ -86,17 +110,44 @@ export async function gibAufgabeAb(daten: unknown): Promise<Abgabeantwort> {
     return { bewertung: { art: 'abgelehnt', begruendung: 'Diese Aufgabe gibt es nicht (mehr).' } };
   }
 
-  const bewertung = bewerteAufgabe(aufgabe.bewertbar, geprueft.data.antwort as Antwort);
+  // Der Browser kennt nur Anzeigepositionen; zurück auf den Lehrplan, bevor
+  // bewertet und festgehalten wird (src/domain/aufgabe/anordnung.ts).
+  const antwort = zurAufLehrplan(
+    geprueft.data.antwort as Antwort,
+    anzeigereihenfolge(user.id, aufgabe.slug, aufgabe.bewertbar.nutzlast),
+  );
+  let bewertung = bewerteAufgabe(aufgabe.bewertbar, antwort);
+  let ausgefuehrt: Ausfuehrungsrueckmeldung | null = null;
+
+  if (
+    bewertung.art === 'braucht-ausfuehrung' &&
+    antwort.art === 'sql' &&
+    istSqlRunnerVerfuegbar()
+  ) {
+    const ausfuehrung = await fuehreAufgabeAus(user.id, aufgabe, antwort.sql);
+    if ('bewertung' in ausfuehrung) {
+      ausgefuehrt = ausfuehrung;
+      bewertung = ausfuehrung.bewertung;
+    } else {
+      bewertung = { art: 'braucht-ausfuehrung', begruendung: ausfuehrung.hinweis };
+    }
+  }
 
   const ergebnis = alsVersuchsergebnis(bewertung);
   if (ergebnis) {
+    const protokoll: Versuchsprotokoll = ausgefuehrt?.protokoll ?? {
+      errorType: ergebnis === 'PASSED' ? 'NONE' : 'WRONG_RESULT',
+    };
     await prisma.attempt.create({
       data: {
         userId: user.id,
         exerciseId: aufgabe.id,
-        submittedSql: alsText(geprueft.data.antwort as Antwort),
+        submittedSql: alsText(antwort),
         result: ergebnis,
-        errorType: ergebnis === 'PASSED' ? 'NONE' : 'WRONG_RESULT',
+        errorType: protokoll.errorType,
+        errorSignature: protokoll.errorSignature ?? null,
+        returnedRows: protokoll.returnedRows ?? null,
+        executionMs: protokoll.executionMs ?? null,
         hintsUsed: geprueft.data.hinweiseGenutzt,
         durationMs: geprueft.data.dauerMs,
       },
@@ -107,6 +158,12 @@ export async function gibAufgabeAb(daten: unknown): Promise<Abgabeantwort> {
     await pruefeLektionsAbschluss(user.id, aufgabe.lektionId);
   }
 
+  // Nur wenn sich etwas geändert haben kann: Ohne Versuch bleibt der Stand.
+  const lektion =
+    ergebnis && aufgabe.lektionId ? await ladeLektionsstand(user.id, aufgabe.lektionId) : null;
+  const mitLektion = <T extends Abgabeantwort>(antwort: T): T =>
+    lektion ? { ...antwort, lektion } : antwort;
+
   /*
    * Das erwartete Ergebnis wird nach der Abgabe gezeigt - auch, wenn die Zahl
    * daneben lag. Gerade dann: Die Vorhersage lernt man nur, indem man sie mit
@@ -114,11 +171,64 @@ export async function gibAufgabeAb(daten: unknown): Promise<Abgabeantwort> {
    */
   if (aufgabe.bewertbar.art === 'ERGEBNIS_VORHERSAGEN' && aufgabe.bewertbar.erwartetesErgebnis) {
     if (bewertung.art === 'richtig' || bewertung.art === 'falsch') {
-      return { bewertung, erwartetesErgebnis: aufgabe.bewertbar.erwartetesErgebnis };
+      return mitLektion({ bewertung, erwartetesErgebnis: aufgabe.bewertbar.erwartetesErgebnis });
     }
   }
 
-  return { bewertung };
+  if (ausgefuehrt) {
+    const { eigenesErgebnis, abweichungen, fehler } = ausgefuehrt;
+    return mitLektion({
+      bewertung,
+      ausfuehrung: {
+        abweichungen,
+        ...(eigenesErgebnis ? { eigenesErgebnis } : {}),
+        ...(fehler ? { fehler } : {}),
+      },
+    });
+  }
+
+  return mitLektion({ bewertung });
+}
+
+/**
+ * Eine Schreibaufgabe auf dem Übungsserver ausführen und am Ergebnis bewerten.
+ *
+ * Gibt einen Hinweis statt einer Rückmeldung zurück, wenn es kein Urteil geben
+ * kann: Die Aufgabe ist nicht am Ergebnis prüfbar, oder der Dienst ist nicht
+ * erreichbar. In beiden Fällen wird nichts als Versuch festgehalten.
+ */
+async function fuehreAufgabeAus(
+  userId: string,
+  aufgabe: GeladeneAufgabe,
+  sql: string,
+): Promise<Ausfuehrungsrueckmeldung | { hinweis: string }> {
+  const erwartet = aufgabe.bewertbar.erwartetesErgebnis;
+  if (!istAmErgebnisPruefbar(aufgabe.bewertbar) || !erwartet || !aufgabe.datensatz) {
+    const aendert = (aufgabe.bewertbar.erlaubteKlassen ?? ['SELECT']).some((k) => k !== 'SELECT');
+    return {
+      hinweis: aendert
+        ? 'Deine Anweisung ist geprüft und passt zu dem, was diese Aufgabe übt. Aufgaben, die ' +
+          'Daten oder Strukturen ändern, prüft SQLPfad noch nicht automatisch am Ergebnis – ' +
+          'vergleiche deine Anweisung mit der Musterlösung, sobald du die Hinweise durch hast.'
+        : 'Deine Abfrage ist geprüft und passt zu dem, was diese Aufgabe übt. Für diese Aufgabe ' +
+          'ist kein Ergebnis hinterlegt, gegen das sie verglichen werden könnte – vergleiche sie ' +
+          'mit der Musterlösung, sobald du die Hinweise durch hast.',
+    };
+  }
+
+  const sandbox = await stelleSandboxBereit(userId, aufgabe.datensatz);
+  if ('art' in sandbox) return { hinweis: sandbox.hinweis };
+
+  const ausfuehrung = await fuehreImRunnerAus({
+    datenbank: sandbox.datenbank,
+    sql,
+    erlaubteKlassen: aufgabe.bewertbar.erlaubteKlassen ?? ['SELECT'],
+  });
+  if (ausfuehrung.art === 'runner-nicht-erreichbar' || ausfuehrung.art === 'runner-abgewiesen') {
+    return { hinweis: ausfuehrung.hinweis };
+  }
+
+  return bewerteAusfuehrung(ausfuehrung, erwartet, aufgabe.vergleich);
 }
 
 const einschaetzungSchema = z.object({
@@ -140,7 +250,9 @@ const einschaetzungSchema = z.object({
  * seine Antwort neben der Musterantwort liest und selbst entscheidet, hat den
  * Vergleich tatsächlich gezogen – das ist der lernwirksame Teil.
  */
-export async function meldeSelbsteinschaetzung(daten: unknown): Promise<{ gespeichert: boolean }> {
+export async function meldeSelbsteinschaetzung(
+  daten: unknown,
+): Promise<{ gespeichert: boolean; lektion?: Lektionsstand }> {
   const user = await requireUser();
 
   const geprueft = einschaetzungSchema.safeParse(daten);
@@ -172,7 +284,9 @@ export async function meldeSelbsteinschaetzung(daten: unknown): Promise<{ gespei
   await planeWiederholung(user.id, aufgabe.id, ergebnis, geprueft.data.hinweiseGenutzt);
   await pruefeLektionsAbschluss(user.id, aufgabe.lektionId);
 
-  return { gespeichert: true };
+  return aufgabe.lektionId
+    ? { gespeichert: true, lektion: await ladeLektionsstand(user.id, aufgabe.lektionId) }
+    : { gespeichert: true };
 }
 
 const loesungSchema = z.object({
@@ -249,7 +363,11 @@ export async function zeigeLoesung(daten: unknown): Promise<Loesungsantwort> {
 
 interface GeladeneAufgabe {
   id: string;
+  slug: string;
   lektionId: string | null;
+  /** Slug des Übungsdatensatzes, in dessen Sandbox die Aufgabe läuft. */
+  datensatz: string | null;
+  vergleich: VergleichsOptionen;
   bewertbar: BewertbareAufgabe;
   hinweiseGesamt: number;
   loesungSql: string | null;
@@ -257,7 +375,10 @@ interface GeladeneAufgabe {
 }
 
 async function ladeAufgabe(slug: string): Promise<GeladeneAufgabe | null> {
-  const zeile = await prisma.exercise.findUnique({ where: { slug } });
+  const zeile = await prisma.exercise.findUnique({
+    where: { slug },
+    include: { practiceSchema: { select: { slug: true } } },
+  });
   if (!zeile || zeile.status !== 'PUBLISHED') return null;
 
   const art = ausDatenmodellArt(zeile.type);
@@ -267,7 +388,10 @@ async function ladeAufgabe(slug: string): Promise<GeladeneAufgabe | null> {
 
   return {
     id: zeile.id,
+    slug: zeile.slug,
     lektionId: zeile.lessonId,
+    datensatz: zeile.practiceSchema?.slug ?? null,
+    vergleich: alsVergleichsoptionen(zeile.comparisonOptions),
     hinweiseGesamt: hinweise.length,
     loesungSql: zeile.solutionSql,
     loesungsErklaerung: zeile.solutionNotes,
@@ -300,30 +424,11 @@ async function pruefeLektionsAbschluss(userId: string, lektionId: string | null)
   });
   if (vorhanden?.state === 'COMPLETED') return;
 
-  const aufgaben = await prisma.exercise.findMany({
-    where: { lessonId: lektionId, status: 'PUBLISHED' },
-    select: {
-      type: true,
-      attempts: {
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-        select: { result: true },
-      },
-    },
-  });
+  const staende = await ladeAufgabenstaende(userId, lektionId);
 
-  const staende: AufgabenStand[] = [];
-  for (const aufgabe of aufgaben) {
-    const art = ausDatenmodellArt(aufgabe.type);
-    if (!art) continue;
-    staende.push({
-      art,
-      letztesErgebnis: aufgabe.attempts[0]?.result as AufgabenStand['letztesErgebnis'],
-    });
-  }
-
-  if (!istLektionAbgeschlossen(staende)) return;
+  // Mit eingeschaltetem Übungsserver zählen die Schreibaufgaben mit, die er
+  // bewertet – sonst schlösse die Lektion ab, während sie noch offen sind.
+  if (!istLektionAbgeschlossen(staende, { uebungsserver: istSqlRunnerVerfuegbar() })) return;
 
   await prisma.lessonProgress.upsert({
     where: { userId_lessonId: { userId, lessonId: lektionId } },
@@ -347,11 +452,27 @@ function alsNutzlast(wert: unknown): Record<string, unknown> | null {
     : null;
 }
 
+/**
+ * Das erwartete Ergebnis aus der Datenbank. Es liegt dort als JSON, in dem aus
+ * einem Datum ein Text geworden ist – `resultsetAusJson` macht wieder eins
+ * daraus, sonst zeigte die Vorhersageaufgabe `2026-03-02T00:00:00.000Z`.
+ */
 function alsResultset(wert: unknown): Resultset | null {
-  if (typeof wert !== 'object' || wert === null) return null;
-  const kandidat = wert as { spalten?: unknown; zeilen?: unknown };
-  if (!Array.isArray(kandidat.spalten) || !Array.isArray(kandidat.zeilen)) return null;
-  return wert as Resultset;
+  return resultsetAusJson(wert);
+}
+
+function alsVergleichsoptionen(wert: unknown): VergleichsOptionen {
+  const kandidat = (typeof wert === 'object' && wert !== null ? wert : {}) as Record<
+    string,
+    unknown
+  >;
+  return {
+    reihenfolgeZaehlt: kandidat['reihenfolgeZaehlt'] === true,
+    ...(kandidat['spaltennamenZaehlen'] === true ? { spaltennamenZaehlen: true } : {}),
+    ...(kandidat['textUnabhaengigVonGrossschreibung'] === true
+      ? { textUnabhaengigVonGrossschreibung: true }
+      : {}),
+  };
 }
 
 /** Was von der Antwort im Verlauf steht. Bei SQL der Wortlaut, sonst eine Notiz. */

@@ -16,7 +16,11 @@ import {
   type SqlMotor,
   type Zustandsbericht,
 } from '../src/domain/sql/runner';
-import { uebersetzeTreiberfehler, zuResultset } from '../src/domain/sql/treiber-uebersetzung';
+import {
+  type TreiberErgebnis,
+  ersteErgebnismenge,
+  uebersetzeTreiberfehler,
+} from '../src/domain/sql/treiber-uebersetzung';
 import { alsBezeichner, sandboxAnmeldename } from '../src/domain/sql/bezeichner';
 
 /**
@@ -28,14 +32,14 @@ import { alsBezeichner, sandboxAnmeldename } from '../src/domain/sql/bezeichner'
  * einer Umgebung liegen, die von außen erreichbare Anwendungslogik ausführt.
  * Er ist deshalb an keine Route angeschlossen.
  *
- * **Zum Stand der Prüfung, ohne Beschönigung:** Was hier steht, ist gegen
- * keinen laufenden SQL Server gelaufen. Die Teile, die sich ohne Server prüfen
- * lassen – Ergebnisumwandlung, Fehlerzuordnung, Bildung von Bezeichnern –
- * liegen in `src/domain/sql/` und sind dort geprüft. Der Rest, also
- * Verbindungsaufbau, Zeitlimit, Abbruch und das Zurücksetzen einer Sandbox,
- * ist nach der Treiberdokumentation geschrieben und wartet auf die
- * Integrationstests aus docker-compose.yml. Bis die einmal grün gelaufen sind,
- * gilt diese Datei als unbewiesen.
+ * **Zum Stand der Prüfung:** Die Teile, die sich ohne Server prüfen lassen –
+ * Ergebnisumwandlung, Fehlerzuordnung, Bildung von Bezeichnern – liegen in
+ * `src/domain/sql/` und sind dort geprüft. Verbindungsaufbau, Zeitlimit,
+ * Abbruch, das Zurücksetzen einer Sandbox und die Rechtevergabe an den
+ * Sandbox-Anmeldenamen prüfen `tests/sql/` gegen einen echten SQL Server, in
+ * der CI bei jeder Änderung an `sqlpfad/`. Der erste Lauf fand einen Fehler,
+ * den keine Attrappe gezeigt hätte: Jedes SELECT kam ohne Ergebnis zurück
+ * (siehe `ersteErgebnismenge()`).
  *
  * **Zur Benennung:** `Ausfuehrungsauftrag.sandboxId` trägt hier den
  * Datenbanknamen der Sandbox, wie ihn `sandboxDatenbankName()` bildet – nicht
@@ -106,13 +110,6 @@ type AnfrageMitZeitlimit = new (
 function erstelleAnfrage(pool: sql.ConnectionPool, zeitlimitMs: number): sql.Request {
   const Konstruktor = sql.Request as unknown as AnfrageMitZeitlimit;
   return new Konstruktor(pool, { requestTimeout: zeitlimitMs });
-}
-
-/** Ergebnisform des Treibers im `arrayRowMode`. */
-interface TreiberErgebnis {
-  recordsets?: unknown[][][];
-  columns?: Array<Array<{ name?: string; index?: number }>>;
-  rowsAffected?: number[];
 }
 
 export function erstelleMssqlMotor(optionen: MssqlMotorOptionen): SqlMotor {
@@ -309,8 +306,7 @@ export function erstelleMssqlMotor(optionen: MssqlMotorOptionen): SqlMotor {
       try {
         const ergebnis = (await anfrage.batch(auftrag.sql)) as unknown as TreiberErgebnis;
 
-        const ersteZeilen = ergebnis.recordsets?.[0];
-        const ersteSpalten = ergebnis.columns?.[0];
+        const resultset = ersteErgebnismenge(ergebnis);
 
         /*
          * Nur die erste Ergebnismenge wird ausgewertet.
@@ -323,9 +319,7 @@ export function erstelleMssqlMotor(optionen: MssqlMotorOptionen): SqlMotor {
         const betroffene = (ergebnis.rowsAffected ?? []).reduce((summe, zahl) => summe + zahl, 0);
 
         return {
-          ...(ersteZeilen && ersteSpalten
-            ? { resultset: zuResultset(ersteZeilen, ersteSpalten) }
-            : {}),
+          ...(resultset ? { resultset } : {}),
           ...(betroffene > 0 ? { betroffeneZeilen: betroffene } : {}),
         };
       } catch (fehler) {

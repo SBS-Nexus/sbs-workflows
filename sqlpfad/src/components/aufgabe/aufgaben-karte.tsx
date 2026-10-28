@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { SqlEditor } from '@/components/editor/sql-editor';
 import { ErgebnisTabelle } from '@/components/sql/ergebnis-tabelle';
-import { Button, Callout, Card, CodeBlock, inputClass } from '@/components/ui/primitives';
+import { FehlerAnzeige } from '@/components/sql/fehler-anzeige';
+import { Badge, Button, Callout, Card, CodeBlock, inputClass } from '@/components/ui/primitives';
 import { Icon } from '@/components/ui/icon';
 import { Zeilentext } from '@/components/inhalt/lektionstext';
 import { antwortform, type Antwort, type Bewertung } from '@/domain/aufgabe/bewertung';
@@ -14,8 +15,10 @@ import {
   gibAufgabeAb,
   meldeSelbsteinschaetzung,
   zeigeLoesung,
+  type Abgabeantwort,
   type Loesungsantwort,
 } from '@/server/actions/aufgabe-actions';
+import type { Lektionsstand } from '@/server/lernen/lektionsstand';
 
 /**
  * Eine Aufgabe bearbeiten.
@@ -52,10 +55,16 @@ export function AufgabenKarte({
   aufgabe,
   nummer,
   datensatz,
+  geloest = false,
+  beiNeuemStand,
 }: {
   aufgabe: AufgabenAnsicht;
   nummer: number;
   datensatz?: UebungsDatensatz;
+  /** Saß der letzte Versuch? Steht als Marke am Titel, auch beim Wiederkommen. */
+  geloest?: boolean;
+  /** Nach jeder Abgabe, die in den Verlauf ging: der neue Stand der Lektion. */
+  beiNeuemStand?: (stand: Lektionsstand) => void;
 }): React.ReactElement {
   const form = antwortform(aufgabe.art);
 
@@ -70,6 +79,7 @@ export function AufgabenKarte({
   const [offeneHinweise, setOffeneHinweise] = useState(0);
   const [bewertung, setBewertung] = useState<Bewertung | null>(null);
   const [ergebnis, setErgebnis] = useState<Resultset | null>(null);
+  const [ausfuehrung, setAusfuehrung] = useState<Abgabeantwort['ausfuehrung'] | null>(null);
   const [loesung, setLoesung] = useState<Loesungsantwort | null>(null);
   const [eingeschaetzt, setEingeschaetzt] = useState(false);
   const [laeuft, starte] = useTransition();
@@ -117,6 +127,8 @@ export function AufgabenKarte({
       });
       setBewertung(antwort.bewertung);
       setErgebnis(antwort.erwartetesErgebnis ?? null);
+      setAusfuehrung(antwort.ausfuehrung ?? null);
+      if (antwort.lektion) beiNeuemStand?.(antwort.lektion);
       setEingeschaetzt(false);
     });
   }
@@ -131,22 +143,26 @@ export function AufgabenKarte({
 
   function einschaetzen(urteil: 'getroffen' | 'teilweise' | 'daneben'): void {
     starte(async () => {
-      await meldeSelbsteinschaetzung({
+      const antwort = await meldeSelbsteinschaetzung({
         aufgabeSlug: aufgabe.slug,
         urteil,
         hinweiseGenutzt: offeneHinweise,
         dauerMs: bisherigeDauerMs(),
       });
       setEingeschaetzt(true);
+      if (antwort.lektion) beiNeuemStand?.(antwort.lektion);
     });
   }
 
   return (
-    <Card as="li" className="border-2">
+    <Card as="li">
       <div className="flex items-baseline gap-3">
         <span className="text-sm font-bold text-[var(--text-muted)] tabular-nums">{nummer}.</span>
         <div className="min-w-0 flex-1">
-          <h3 className="font-bold tracking-tight">{aufgabe.titel}</h3>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h3 className="font-bold tracking-tight">{aufgabe.titel}</h3>
+            {geloest ? <Badge tone="success">Gelöst</Badge> : null}
+          </div>
           <div className="mt-1 text-[0.95rem] text-[var(--text-muted)]">
             <Zeilentext text={aufgabe.aufgabenstellung} />
           </div>
@@ -250,6 +266,37 @@ export function AufgabenKarte({
                 <div>
                   <p className="mb-2 text-sm font-semibold">Das tatsächliche Ergebnis:</p>
                   <ErgebnisTabelle resultset={ergebnis} />
+                </div>
+              ) : null}
+
+              {/*
+               * Am Ergebnis bewertet: was nicht passt, die Meldung der
+               * Datenbank oder das eigene Ergebnis. Das erwartete Ergebnis
+               * steht bewusst nicht daneben – es wäre die halbe Lösung, und
+               * die liegt hinter der Hinweisleiter.
+               */}
+              {ausfuehrung && ausfuehrung.abweichungen.length > 0 ? (
+                <div>
+                  <p className="text-sm font-semibold">Was noch nicht passt:</p>
+                  <ul className="mt-1.5 list-disc space-y-1 pl-5 text-sm">
+                    {ausfuehrung.abweichungen.map((abweichung) => (
+                      <li key={abweichung}>{abweichung}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {ausfuehrung?.fehler ? <FehlerAnzeige erklaerung={ausfuehrung.fehler} /> : null}
+
+              {ausfuehrung?.eigenesErgebnis ? (
+                <div>
+                  <p className="mb-2 text-sm font-semibold">Dein Ergebnis:</p>
+                  <ErgebnisTabelle
+                    resultset={ausfuehrung.eigenesErgebnis.resultset}
+                    abgeschnitten={ausfuehrung.eigenesErgebnis.abgeschnitten}
+                    gelieferteZeilen={ausfuehrung.eigenesErgebnis.gelieferteZeilen}
+                    dauerMs={ausfuehrung.eigenesErgebnis.dauerMs}
+                  />
                 </div>
               ) : null}
 

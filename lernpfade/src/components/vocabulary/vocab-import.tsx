@@ -5,6 +5,7 @@ import { applyImport, previewImport, type ImportPreview } from '@/domain/vocabul
 import { LIMITS, type VocabStore } from '@/domain/vocabulary/model';
 import { formatDateTime, plural } from './format';
 import type { VocabActions } from './vocab-app';
+import { Button } from '@/components/ui/primitives';
 
 /**
  * Import einer strukturierten JSON-Datei. Die Datei wird nur lokal gelesen
@@ -111,8 +112,7 @@ export function VocabImport({ store, actions }: { store: VocabStore; actions: Vo
             ))}
           </ul>
           <div className="vocab-actions">
-            <button
-              className="button button-primary"
+            <Button
               type="button"
               disabled={actions.locked || actions.saving}
               onClick={async () => {
@@ -133,10 +133,10 @@ export function VocabImport({ store, actions }: { store: VocabStore; actions: Vo
               }}
             >
               Import übernehmen
-            </button>
-            <button className="button button-secondary" type="button" onClick={reset}>
+            </Button>
+            <Button variant="secondary" type="button" onClick={reset}>
               Abbrechen
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}

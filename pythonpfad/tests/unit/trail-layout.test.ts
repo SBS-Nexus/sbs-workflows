@@ -90,10 +90,11 @@ describe('Modulfarben', () => {
     expect(modulfarben.has(REVIEW_THEME.color)).toBe(false);
   });
 
-  it('liefert ein Stilobjekt mit beiden Eigenschaften', () => {
+  it('liefert ein Stilobjekt mit Akzent, heller Fläche und Bereichsfarbe für LP-03C', () => {
     expect(themeStyle(moduleTheme(1))).toEqual({
       '--akzent': 'var(--color-modul-1)',
       '--akzent-soft': 'var(--color-modul-1-soft)',
+      '--lp-ui-area': 'var(--color-modul-1)',
     });
   });
 });

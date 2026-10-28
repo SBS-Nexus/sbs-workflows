@@ -61,6 +61,7 @@ export default async function WiederholenPage(): Promise<React.ReactElement> {
 
         {exercises.length === 0 ? (
           <EmptyState
+            kind="done"
             title="Heute nichts fällig"
             description="Das ist völlig in Ordnung — komm zurück, sobald eine Wiederholung ansteht."
           />

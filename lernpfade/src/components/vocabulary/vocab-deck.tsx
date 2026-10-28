@@ -30,6 +30,7 @@ import {
   type CardDraft,
   type FieldErrorState,
 } from './vocab-fields';
+import { Button, EmptyState } from '@/components/ui/primitives';
 
 function toInput(draft: CardDraft): CardInput {
   return { term: draft.term, translation: draft.translation, context: draft.context, tags: splitTagInput(draft.tags) };
@@ -106,7 +107,11 @@ export function VocabDeckView({
           ) : null}
         </div>
         {cards.length === 0 ? (
-          <p className="vocab-empty">Dieses Deck hat noch keine Karten.</p>
+          <EmptyState
+            size="compact"
+            title="Noch keine Karten"
+            description="Lege oben die erste Karte für dieses Deck an."
+          />
         ) : (
           <>
             <p className="vocab-muted" aria-live="polite">
@@ -148,22 +153,22 @@ export function VocabDeckView({
                       ) : null}
                     </div>
                     <div className="vocab-actions">
-                      <button
-                        className="button button-secondary"
+                      <Button
+                        variant="secondary"
                         type="button"
                         aria-label={`Bearbeiten: ${card.term}`}
                         onClick={() => setEditing(card.id)}
                       >
                         Bearbeiten
-                      </button>
-                      <button
-                        className="button button-ghost-danger"
+                      </Button>
+                      <Button
+                        variant="danger-secondary"
                         type="button"
                         aria-label={`Löschen: ${card.term}`}
                         onClick={() => setPendingCardDelete(card.id)}
                       >
                         Löschen
-                      </button>
+                      </Button>
                     </div>
                   </li>
                 ),
@@ -176,9 +181,9 @@ export function VocabDeckView({
       <section className="vocab-panel vocab-danger-zone" aria-labelledby="deck-delete-title">
         <h2 id="deck-delete-title">Deck löschen</h2>
         <p className="vocab-muted">Entfernt dieses Deck mit allen Karten und dem lokalen Lernfortschritt.</p>
-        <button className="button button-danger" type="button" onClick={() => setPendingDeckDelete(true)}>
+        <Button variant="danger" type="button" onClick={() => setPendingDeckDelete(true)}>
           Deck „{deck.name}" löschen …
-        </button>
+        </Button>
       </section>
 
       <ConfirmDialog
@@ -301,9 +306,9 @@ function DeckSettings({
           {error.text}
         </p>
       ) : null}
-      <button className="button button-secondary" type="submit" disabled={actions.locked || actions.saving}>
+      <Button variant="secondary" type="submit" disabled={actions.locked || actions.saving}>
         Deck speichern
-      </button>
+      </Button>
     </form>
   );
 }
@@ -346,9 +351,9 @@ function NewCardForm({
       <p className="vocab-muted">
         {plural(store.cards.length, 'Karte', 'Karten')} von höchstens {LIMITS.cards} insgesamt.
       </p>
-      <button className="button button-primary" type="submit" disabled={actions.locked || actions.saving}>
+      <Button type="submit" disabled={actions.locked || actions.saving}>
         Karte hinzufügen
-      </button>
+      </Button>
     </form>
   );
 }
@@ -401,12 +406,12 @@ function EditCardForm({
     >
       <CardFields draft={draft} onChange={setDraft} error={error} idPrefix={`edit-${card.id}`} />
       <div className="vocab-actions">
-        <button className="button button-primary" type="submit" disabled={actions.locked || actions.saving}>
+        <Button type="submit" disabled={actions.locked || actions.saving}>
           Änderungen speichern
-        </button>
-        <button className="button button-secondary" type="button" onClick={onDone}>
+        </Button>
+        <Button variant="secondary" type="button" onClick={onDone}>
           Abbrechen
-        </button>
+        </Button>
       </div>
       <ConfirmDialog
         open={confirmReset}

@@ -653,7 +653,7 @@ gekürzt erhalten – ohne sie wäre das Protokoll für die Fehlersuche wertlos.
 
 ### Prüfkette
 
-`.github/workflows/pythonpfad.yml` läuft bei jeder Änderung unterhalb von
+`.github/workflows/pythonpfad-ci.yml` läuft bei jeder Änderung unterhalb von
 `pythonpfad/`: PostgreSQL als Dienst, Migrationen, Seeding, dann Typecheck,
 Lint, Formatprüfung, Vitest, Prüfung aller Musterlösungen, Prüfung der
 Ausführungsaufzeichnung, Produktionsbuild und Playwright.

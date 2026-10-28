@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import '../styles/learning-shell.css';
 @import '../styles/learning-feedback.css';
+@import '../styles/learning-components.css';
 
 /*
  * SQLPfad – Gestaltungsgrundlage
@@ -222,7 +223,8 @@
   --text-inverse: var(--color-ink-950);
   --accent: var(--color-accent-300);
   --accent-hover: var(--color-accent-200);
-  --accent-soft: #16233f;
+  /* Wie im Systemschema unten – Begründung dort. */
+  --accent-soft: #0c2a2a;
   --accent-deep: var(--color-accent-600);
   --success: #5ddba1;
   --success-soft: #102c1f;
@@ -295,8 +297,17 @@
   }
 }
 
-* {
-  border-color: var(--border);
+/*
+ * Vorgabe-Randfarbe in der Basisschicht. Ungeschichtet überstimmte sie jede
+ * Tailwind-Randfarbe (Utilities liegen in `@layer utilities`, und eine
+ * ungeschichtete Regel gewinnt immer): die Modulleiste auf /lernen, der Rahmen
+ * der SQL-Fehleranzeige und hervorgehobene Auswahlfelder blieben deshalb
+ * grau. Gefunden bei LP-03C, siehe ROADMAP.
+ */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 }
 
 html {
@@ -531,10 +542,19 @@ body::before {
   color: var(--alert);
 }
 
-/* Syntaxfarben mit ausreichendem Kontrast in beiden Schemata. */
+/* Syntaxfarben mit ausreichendem Kontrast in beiden Schemata – nachgerechnet
+ * in tests/unit/farbkontrast.test.ts. Datentypen tragen die Leitfarbe ohne
+ * Fettung: verwandt mit den Schlüsselwörtern, aber unterscheidbar. */
 .cm-editor .tok-keyword {
   color: var(--accent);
   font-weight: 600;
+}
+.cm-editor .tok-type {
+  color: var(--accent);
+}
+/* Namen in eckigen Klammern: ein Name, keine Zeichenkette. */
+.cm-editor .tok-name {
+  color: var(--text);
 }
 .cm-editor .tok-string {
   color: var(--success);

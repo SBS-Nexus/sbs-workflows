@@ -161,6 +161,86 @@ describe('Modulfarben', () => {
   });
 });
 
+/**
+ * Die Farbmarken eines Blocks aus globals.css, ohne Kommentare.
+ *
+ * Das dunkle Schema steht zweimal in der Datei: einmal für die ausdrückliche
+ * Wahl (`data-theme='dark'`) und einmal für die Systemeinstellung. CSS kann
+ * die beiden nicht teilen, ohne dass eine der Wege die andere überstimmt.
+ */
+function farbmarken(beginn: string): Map<string, string> {
+  const start = GLOBALS.indexOf(beginn);
+  if (start < 0) throw new Error(`${beginn} steht nicht mehr in globals.css.`);
+  let tiefe = 0;
+  let ende = start;
+  for (let stelle = GLOBALS.indexOf('{', start); stelle < GLOBALS.length; stelle += 1) {
+    if (GLOBALS[stelle] === '{') tiefe += 1;
+    if (GLOBALS[stelle] === '}' && --tiefe === 0) {
+      ende = stelle;
+      break;
+    }
+  }
+  const block = GLOBALS.slice(start, ende).replace(/\/\*[\s\S]*?\*\//g, '');
+  return new Map(
+    [...block.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map(([, n = '', w = '']) => [n, w.trim()]),
+  );
+}
+
+describe('Dunkles Schema: ausdrücklich gewählt und vom System gleich', () => {
+  it('setzt in beiden Wegen dieselben Farbmarken', () => {
+    /*
+     * Gefunden beim Nachmessen des Editors: Die ausdrückliche Wahl trug als
+     * weiche Akzentfläche noch ein Navy aus der blauen Familie, das System-
+     * schema schon das Petrol. Wer „Dunkel" anklickte, sah andere Flächen als
+     * jemand, dessen Rechner dunkel eingestellt ist.
+     */
+    const ausdruecklich = farbmarken(":root[data-theme='dark']");
+    const system = farbmarken('@media (prefers-color-scheme: dark)');
+    expect(ausdruecklich.size).toBeGreaterThan(20);
+    expect(Object.fromEntries(ausdruecklich)).toEqual(Object.fromEntries(system));
+  });
+});
+
+describe('Syntaxfarben im Editor', () => {
+  /*
+   * Die Hervorhebung im SQL-Editor bekommt ihre Farben aus diesen Marken
+   * (`.tok-*` in globals.css). Vorher kamen sie aus CodeMirrors Vorgabe, die
+   * nur für helle Flächen gedacht ist: `SELECT` stand im dunklen Schema mit
+   * 1,6:1 auf der Editorfläche.
+   */
+  const dunkel = farbmarken(":root[data-theme='dark']");
+  const dunkleMarke = (name: string): string => {
+    const wert = dunkel.get(name) ?? '';
+    const verweis = /^var\(--color-([\w-]+)\)$/.exec(wert)?.[1];
+    return verweis ? farbe(verweis) : wert;
+  };
+
+  it.each([
+    ['Schlüsselwort und Datentyp', 'accent-700'],
+    ['Zeichenkette', 'success-700'],
+    ['Zahl, NULL', 'caution-700'],
+    ['Kommentar', 'ink-500'],
+  ])('%s ist im hellen Schema lesbar', (_rolle, marke) => {
+    expect(kontrastverhaeltnis(farbe(marke), KARTE_HELL)).toBeGreaterThanOrEqual(AA_FLIESSTEXT);
+  });
+
+  it.each([
+    ['Schlüsselwort und Datentyp', '--accent'],
+    ['Zeichenkette', '--success'],
+    ['Zahl, NULL', '--caution'],
+    ['Kommentar', '--text-muted'],
+  ])('%s ist im dunklen Schema lesbar', (_rolle, marke) => {
+    expect(
+      kontrastverhaeltnis(dunkleMarke(marke), dunkleMarke('--surface-raised')),
+    ).toBeGreaterThanOrEqual(AA_FLIESSTEXT);
+  });
+
+  it('die frühere Vorgabe wäre im dunklen Schema durchgefallen', () => {
+    // Gegenprobe: CodeMirrors Schlüsselwortfarbe auf derselben Fläche.
+    expect(kontrastverhaeltnis('#770088', dunkleMarke('--surface-raised'))).toBeLessThan(2);
+  });
+});
+
 describe('Kontrastberechnung selbst', () => {
   it('liefert die bekannten Eckwerte', () => {
     // Schwarz auf Weiß ist das Höchstmaß, gleiche Farben ergeben 1:1.

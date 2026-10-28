@@ -4,6 +4,7 @@ import { getEnv } from '@/server/env';
 import { prisma } from '@/server/db/prisma';
 import { sandboxDatenbankName } from '@/domain/sql/bezeichner';
 import type { Ausfuehrungsergebnis, Zustandsbericht } from '@/domain/sql/runner';
+import { resultsetAusJson } from '@/domain/sql/resultset';
 
 /**
  * Die Anwendung spricht mit dem Runner-Dienst – und mit sonst nichts.
@@ -88,7 +89,21 @@ async function rufe(pfad: string, koerper: unknown, zeitlimitMs: number): Promis
     };
   }
 
-  return (await antwort.json()) as Ausfuehrungsergebnis;
+  const ergebnis = (await antwort.json()) as Ausfuehrungsergebnis;
+  if (ergebnis.art !== 'erfolg') return ergebnis;
+
+  // Datum und Binärwerte kommen als Text bzw. Objekt durch JSON – zurück in
+  // Treiberwerte, damit Anzeige und Vergleich sie als das behandeln, was sie sind.
+  const resultset = resultsetAusJson(ergebnis.resultset);
+  if (!resultset) {
+    return {
+      art: 'runner-nicht-erreichbar',
+      hinweis:
+        'Der Übungsserver hat geantwortet, aber nicht in der erwarteten Form. Es liegt nicht an ' +
+        'deiner Eingabe – versuch es gleich noch einmal.',
+    };
+  }
+  return { ...ergebnis, resultset };
 }
 
 /**

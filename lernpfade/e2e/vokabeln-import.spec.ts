@@ -44,7 +44,7 @@ test('gültiger Import: erst Vorschau, erst nach Bestätigung übernommen', asyn
 
   // Vor der Bestätigung ist nichts gespeichert.
   expect(await readVocabStorage(page)).toBeNull();
-  await expect(page.getByText('Noch keine Decks.')).toBeVisible();
+  await expect(page.getByText('Noch keine Decks', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Import übernehmen' }).click();
   await expect(successNotice(page)).toHaveText('1 Deck mit 4 Karten importiert.');

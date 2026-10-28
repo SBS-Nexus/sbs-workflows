@@ -1,6 +1,6 @@
 # Lernpfade — Roadmap
 
-Stand: 2026-10-27\
+Stand: 2026-10-28\
 Repository: `SBS-Nexus/sbs-workflows`
 
 ## Leitbild
@@ -205,7 +205,7 @@ Er entscheidet ausdrücklich **noch nicht**:
 
 ## LP-03 — Design System Contract
 
-Status: **TEILWEISE — Grundlage in PR #41; LP-03A (Shell und Navigation, PR #58) und LP-03B (Statusanzeigen: Badges, Callouts, PR #59) in die Integrationsbranch `claude/lernpfade-unified-hub` übernommen. Buttons, Cards, ProgressBar, EmptyState und ErrorState offen. NICHT IN `main`, NICHT PRODUKTIV VERÖFFENTLICHT**
+Status: **VERTRAG VOLLSTÄNDIG UMGESETZT — Grundlage in PR #41; LP-03A (Shell und Navigation, PR #58) und LP-03B (Statusanzeigen: Badges, Callouts, PR #59) in die Integrationsbranch `claude/lernpfade-unified-hub` übernommen; LP-03C (Button, Card, ProgressBar, EmptyState, ErrorState) als eigener PR gegen die Integrationsbranch, noch nicht übernommen. NICHT IN `main`, NICHT PRODUKTIV VERÖFFENTLICHT**
 
 Priorität: **P0**
 
@@ -231,19 +231,55 @@ docs/
     learning-feedback.css    (Tokens --lp-feedback-*, Badge/Callout)
     learning-feedback.ts     (acht Zustände, Aliasse, Standardtitel, Live-Regel)
     learning-feedback.test.ts
+  learning-components/       ← LP-03C: Button, Card, ProgressBar, Empty-/ErrorState
+    README.md
+    learning-components.css  (Tokens --lp-ui-*, Pfad-Akzent über data-lp-app,
+                              taktile Unterkante, Hell/Dunkel, forced-colors)
+    learning-components.ts   (Varianten, Größen, Kartenarten, Fortschritt,
+                              Leer- und Fehlerzustände)
+    learning-components.test.ts (inkl. aus dem CSS nachgerechneter Kontraste)
 
 <app>/src/styles/learning-shell.css   ┐ bytegleiche Kopien je App,
 <app>/src/lib/learning-shell.ts       ┘ geprüft von scripts/check-learning-shell.mjs
 <app>/src/styles/learning-feedback.css ┐ bytegleich in Python/SQL/AI und Hub,
 <app>/src/lib/learning-feedback.ts     ┘ geprüft von scripts/check-learning-feedback.mjs
+<app>/src/styles/learning-components.css ┐ bytegleich in Python/SQL/AI und Hub,
+<app>/src/lib/learning-components.ts     ┘ geprüft von scripts/check-learning-components.mjs
 ```
 
 Die früher hier genannten Dateien `lernpfade/src/design/tokens.ts`,
 `status.ts` und `navigation.ts` wurden nie angelegt. Der Shell-Teil des
 Vertrags liegt seit LP-03A in `docs/learning-shell/` (siehe dortiges README),
 der Statusvertrag für Badges und Callouts seit LP-03B in
-`docs/learning-feedback/`. Noch offen im allgemeinen Komponentenvertrag:
-Buttons, Cards, ProgressBar, EmptyState und ErrorState.
+`docs/learning-feedback/`, Button, Card, ProgressBar, EmptyState und
+ErrorState seit LP-03C in `docs/learning-components/`. `ReviewCard` bleibt
+eine Fachkomponente des Hubs (Recall-Ablauf), kein Plattformbaustein.
+
+#### LP-03C — Aktionen, Flächen und Zustände
+
+- **Button:** sieben Varianten (`primary`, `secondary`, `ghost`, `danger`,
+  `danger-secondary`, `on-dark`, `on-dark-secondary`), drei Größen; tragende
+  Knöpfe mit taktiler Unterkante, die beim Drücken einsinkt; gesperrt flach;
+  Pfad-Akzent über `data-lp-app` am `<html>` (Python Blau, SQL Petrol, AIPfad
+  Bernstein — jeweils die bisherige Primärfarbe —, Hub Indigo).
+- **Card / CardLink:** Information oder ganze Karte als Ziel; Bereichsfarbe
+  über `--lp-ui-area` (Modulfarben in Python/SQL); Betonung `accent`/`danger`.
+  SQL-Lektionskarten und AIPfad-Labs sind jetzt `CardLink`.
+- **ProgressBar:** sprechbarer Wert „x von y", ungültige Daten → leerer
+  Balken, Abschluss mit einmaligem Lichtstreif; die beiden nativen
+  `<progress>` im Hub sind ersetzt.
+- **EmptyState:** `start`/`done`/`filtered`, `regular`/`compact`; „nichts
+  fällig" ist überall ein erledigter Stand (`done`), kein Mangel.
+- **ErrorState:** Fehler- und 404-Seite in allen vier Apps; SQLPfad und Hub
+  zeigten vorher die englische Next.js-Vorgabe.
+- **Prüfung:** Vertragstest (Logik und aus dem CSS nachgerechnete Kontraste
+  für jeden Pfad hell/dunkel), Drift-Check in der CI, Browser-Suite
+  `komponenten.spec.ts` je App an echten Seiten.
+- **Im selben PR, eigene Commits:** Randfarben-Fix für PythonPfad/SQLPfad (siehe
+  Abschnitt 6) und PythonPfads Lernpfad-Stationen in derselben taktilen Sprache —
+  die nächste Station ist hervorgehoben („Start“/„Weiter“, `aria-current="step"`),
+  das Dauer-Schweben entfällt.
+- Einzelheiten: `docs/learning-components/README.md`.
 
 Langfristig optional:
 
@@ -957,6 +993,9 @@ nicht produktiv):
 - Liquid Sculpture Hero für die Hub-Startseite — PR #60 (mit der nativen
   200-%-Chromium-Zoomprüfung aus PR #61), übernommen; Bildrechte offen (siehe
   `lernpfade/THIRD_PARTY_NOTICES.md`)
+- LP-03C Button, Card, ProgressBar, EmptyState und ErrorState — eigener PR
+  gegen die Integrationsbranch, **noch nicht übernommen** (Vertrag:
+  `docs/learning-components/README.md`)
 
 Übernommen heißt: in der Integrationsbranch, **nicht** in `main` und nicht
 produktiv veröffentlicht. PR #41 bleibt offen; das ist keine Startfreigabe.
@@ -974,19 +1013,76 @@ Offen und jeweils eine eigene Entscheidung:
    (`lernpfade/THIRD_PARTY_NOTICES.md`, Rechtestand offen).
 3. Domain-/DNS-Entscheidung für same-site Hub und Apps — Voraussetzung für
    Live-Daten aus LP-05B und LP-07; ohne sie zeigen beide „nicht angemeldet".
-4. Weitere Teile des Komponentenvertrags (LP-03): Buttons, Cards,
-   ProgressBar, EmptyState, ErrorState.
-5. LP-05C (Abschließen aus dem Hub) und LP-08 (gemeinsame Identität) erst nach
+4. LP-05C (Abschließen aus dem Hub) und LP-08 (gemeinsame Identität) erst nach
    dieser Domain-Entscheidung.
 
 Nicht blockierende technische Nacharbeiten aus dem Integrationsreview:
-- `lernpfade/tsconfig.json`: Next-16-generierte Einstellung gegenprüfen und
-  bewusst einchecken, statt bei jedem Build einen schmutzigen Arbeitsbaum zu erzeugen.
+- ~~`lernpfade/tsconfig.json`: Next-16-generierte Einstellung gegenprüfen und
+  bewusst einchecken~~ — erledigt mit #64 (`bc60042`); Hub-Builds im LP-03C-PR
+  ließen den Arbeitsbaum unverändert.
 - Flaky E2E beim Ausblenden des Touch-Hinweises auf überlastetem Software-Renderer
   (`lernpfade/e2e/liquid-hero-mobil.spec.ts`): CSS-Visibility-Übergang entkoppeln,
   ohne Assertions/Timeouts zu schwächen; danach gezielt und vollständig testen.
-- Reproduzierbarkeit: fehlendes Hub-Lockfile und Python-/SQL-Gates separat priorisieren;
-  Bytegleichheit der HTTP-Quelladapter wird derzeit nicht durch ein eigenes Gate erzwungen.
+- Reproduzierbarkeit: fehlendes Hub-Lockfile separat priorisieren. Die Bytegleichheit
+  der HTTP-Quelladapter erzwingt seit dem LP-03C-PR der Job „Plattformquellen
+  (Drift-Check)" (`scripts/check-platform-sources.mjs`): Adapter bytegleich in den
+  drei Fach-Apps, Schema-Versionen und Quellnamen wie im Hub, jede Route unter dem
+  eigenen Quellnamen; Gegenprobe mit fünf Befunden.
+- **Python-/SQL-Gates — erledigt im LP-03C-PR (eigene Commits):** Der
+  PythonPfad-Workflow lag unter `pythonpfad/.github/workflows/` und ist dort **nie
+  gelaufen** (GitHub erkennt Workflows nur im Wurzelverzeichnis); SQLPfad hatte
+  keinen. Jetzt `.github/workflows/pythonpfad-ci.yml` (PostgreSQL, Migrationen,
+  Typecheck, Lint, Format, Vitest, Musterlösungen, Ausführungsaufzeichnung, Build,
+  Playwright) und `.github/workflows/sqlpfad-ci.yml` mit zwei Jobs: dieselbe Kette
+  für SQLPfad und **„SQL-Motor gegen SQL Server"** (Developer-Edition 2025, auf CU10
+  festgelegt). Der erste echte Lauf von `tests/sql/` fand einen Fehler, den keine
+  Attrappe gezeigt hätte: Der Motor verwarf **jedes** SELECT-Ergebnis (Treiber
+  liefert die Spalten bei `batch()` an der Ergebnismenge). Behoben, dazu neue Tests
+  der Sandbox-Berechtigungsgrenze (`tests/sql/berechtigung.integration.test.ts`)
+  mit Gegenprobe. Nicht produktiv wirksam, solange `FEATURE_SQL_RUNNER` aus ist.
+- **SQLPfad: Schreibaufgaben am Ergebnis bewerten — im selben PR (eigene Commits):**
+  Auch mit eingeschaltetem Runner bekam jede Schreibaufgabe „noch nicht
+  eingeschaltet"; der Vergleich lag fertig in der Fachschicht, war aber nicht
+  angeschlossen. Jetzt „Stimmt" / „Noch nicht" mit Abweichungen / übersetzter
+  Serverfehler, Versuch mit Fehlerart im Verlauf (`src/domain/aufgabe/ausfuehrung.ts`).
+  Vorher geprüft: jede lesende Musterlösung gegen die echten Übungsdaten
+  (`tests/sql/musterloesungen.integration.test.ts`) — fand ein falsches erwartetes
+  Ergebnis (`a-having-schreiben`) und sechs Aufgaben ohne eines; beides behoben.
+  Datumswerte nach dem Weg durch JSON zurückgewandelt (vorher zeigte `/abfrage`
+  `…T00:00:00.000Z`). Neue E2E-Suite mit eingeschaltetem Übungsserver
+  (`npm run test:e2e:uebungsserver`) im CI-Job „SQL Server – Motor, Musterlösungen,
+  Ende zu Ende". Offen: Bewertung von Änderungsaufgaben (DML/DDL) und der Betrieb
+  des Runner-Dienstes; die Lizenzfrage bleibt eine eigene Entscheidung.
+  Folgerichtig zählen bewertete Schreibaufgaben mit Übungsserver jetzt auch für
+  Lektionsabschluss, Wissenslandkarte und die Hub-Fortschrittsquelle
+  (`Beurteilungsrahmen`); ohne Server ändert sich nichts.
+- **SQLPfad: Lektionsverlauf und gemischte Optionen — im selben PR:** Stand je
+  Lektion („x von y gelöst", Komponentenvertrag), Marke „Gelöst" je Aufgabe,
+  Abschlusskarte mit „Weiter: nächste Lektion". Befund dabei: Die richtige Antwort
+  aller 19 Einfachauswahlen stand vorn und wurde so angezeigt, die
+  Reihenfolge-Aufgabe war beim Öffnen gelöst. Jetzt je Person und Aufgabe
+  deterministisch gemischt, nie in Lehrplanreihenfolge (wie AIPfad seit PR #29).
+- Gegengeprüft: PythonPfad mischt Auswahl- und Parsons-Optionen bereits je Aufgabe
+  (`src/domain/content/public-view.ts`), AIPfad seit PR #29 – dort kein Befund.
+- Befund aus LP-03C, **im selben PR behoben** (eigener Commit): In PythonPfad und
+  SQLPfad stand `* { border-color: var(--border) }` ungeschichtet in `globals.css`
+  und überstimmte damit **jede** Tailwind-Randfarbe — im Browser gemessen blieben
+  u. a. die Richtig/Falsch-Ränder der Python-Übungen, der Fehlerrand im Editor und
+  die Modulleisten in SQLPfad grau. Die Regel steht jetzt in `@layer base`;
+  Regressionsprüfungen in `komponenten.spec.ts` werden ohne den Fix rot.
+- Befund aus LP-03C (vorbestehend), **im selben PR behoben** (eigene Commits): Im
+  dunklen Schema waren die SQL-Schlüsselwörter im SQLPfad-Editor kaum lesbar —
+  CodeMirrors Vorgabefarben für helle Flächen, gemessen `SELECT` 1,61:1. Jetzt
+  Hervorhebung über die Farbmarken (`.tok-*`), nachgerechnet im Unit-Test und im
+  Browser (`abfrage.spec.ts`, ≥ 4,5:1 hell und dunkel); der Editor hat zudem einen
+  zugänglichen Namen, axe prüft `/abfrage` jetzt ganz. Die „versetzten
+  Zeilennummern" waren **kein** Fehler im Betrieb: CodeMirror misst einen Editor
+  erst, wenn er sichtbar wird; Ganzseiten-Bildschirmfotos zeigten Editoren
+  außerhalb des Bildschirms ungemessen. Im Browser nach dem Scrollen gemessen
+  liegen Nummern und Zeilen exakt gleich; der neue Test hält das fest.
+- Dabei gefunden und behoben: Das ausdrücklich gewählte Dunkelschema in SQLPfad trug
+  als `--accent-soft` noch Navy statt Petrol (Systemschema). Ein Test vergleicht
+  jetzt beide Dunkelblöcke Marke für Marke.
 
 ---
 

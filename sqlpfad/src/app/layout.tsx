@@ -121,6 +121,7 @@ export default function RootLayout({
   return (
     <html
       lang="de"
+      data-lp-app="sql"
       suppressHydrationWarning
       className={`${plexSans.variable} ${plexMono.variable}`}
     >

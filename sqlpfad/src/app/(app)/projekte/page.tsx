@@ -63,7 +63,7 @@ export default async function ProjekteSeite(): Promise<React.ReactElement> {
           const stand = projekt.submissions[0];
 
           return (
-            <Card as="li" key={projekt.id} className="border-2" style={themeStyle(theme)}>
+            <Card as="li" key={projekt.id} style={themeStyle(theme)}>
               <Link href={`/projekte/${projekt.slug}`} className="block">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-bold uppercase tracking-widest text-[var(--akzent)]">

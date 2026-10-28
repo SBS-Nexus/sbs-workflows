@@ -37,6 +37,7 @@ export function ReferenceSearch({ entries }: { entries: ReferenceEntry[] }): Rea
       {results.length === 0 ? (
         <div className="mt-6">
           <EmptyState
+            kind="filtered"
             title="Nichts gefunden"
             description="Versuch es mit einem kürzeren oder anderen Suchbegriff."
           />
