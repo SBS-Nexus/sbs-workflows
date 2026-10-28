@@ -104,6 +104,24 @@ das, was dasteht.
           loesungsErklaerung:
             'Die ON-Bedingung verbindet den Fremdschlüssel mit dem Primärschlüssel. Ohne sie ' +
             'käme jede Zeile mit jeder – 96 statt 12.',
+          erwartetesErgebnis: {
+            spalten: ['Name', 'Bezeichnung'],
+            zeilen: [
+              ['Anna Brandt', 'Steckdosen im Wohnzimmer erneuern'],
+              ['Anna Brandt', 'Tropfenden Wasserhahn abdichten'],
+              ['Mehmet Kaya', 'Sicherungskasten prüfen'],
+              ['Sofia Adler', 'Heizung macht Geräusche'],
+              ['Bäckerei Lindner', 'Jahreswartung Heizungsanlage'],
+              ['Bäckerei Lindner', 'Beleuchtung Verkaufsraum erweitern'],
+              ['Jonas Brandt', 'Neues Waschbecken einbauen'],
+              ['Praxis Dr. Weiß', 'Notbeleuchtung nachrüsten'],
+              ['Praxis Dr. Weiß', 'Thermostate tauschen'],
+              ['Hausverwaltung Süd', 'Treppenhauslicht auf Bewegungsmelder'],
+              ['Hausverwaltung Süd', 'Rohrbruch im Keller'],
+              ['Hausverwaltung Süd', 'Angebot für Elektroprüfung'],
+            ],
+          },
+          vergleich: { reihenfolgeZaehlt: false },
           hinweise: [
             'Nach FROM folgt INNER JOIN mit der zweiten Tabelle.',
             'Dahinter steht ON und die Bedingung.',
@@ -442,6 +460,24 @@ wissen, dass es passiert.
           loesungsErklaerung:
             'Gerechnet wird je Zeile, summiert wird je Gruppe. Die Klammer um die Rechnung ist ' +
             'wichtig: SUM(Menge) * Einzelpreis wäre etwas ganz anderes und liefe trotzdem.',
+          erwartetesErgebnis: {
+            spalten: ['AuftragId', 'Gesamt'],
+            zeilen: [
+              [1, 339.9],
+              [2, 137.95],
+              [3, 253.6],
+              [4, 35],
+              [5, 225.5],
+              [6, 1165],
+              [7, 412.5],
+              [8, 955],
+              [9, 309.4],
+              [10, 459.2],
+              [11, 438.9],
+            ],
+          },
+          // Der Name „Gesamt" ist Teil der Aufgabe.
+          vergleich: { reihenfolgeZaehlt: false, spaltennamenZaehlen: true },
           hinweise: [
             'Zuerst je Zeile rechnen, dann summieren.',
             'Die Rechnung gehört in die Klammer von SUM.',
@@ -549,13 +585,16 @@ Fehler 512 – dann braucht es \`IN\` statt \`=\`, oder besser einen JOIN.
           loesungsErklaerung:
             'HAVING steht hinter GROUP BY und darf mit Aggregatfunktionen rechnen. In manchen ' +
             'Datenbanken ginge auch der Alias – in T-SQL nicht, weil SELECT erst danach kommt.',
+          /*
+           * Nur Kunde 8 hat mehr als zwei Aufträge; 4 und 6 haben je zwei. Hier
+           * standen früher drei Zeilen – gegen die echten Übungsdaten geprüft
+           * (tests/sql/musterloesungen.integration.test.ts) lieferte die
+           * Musterlösung eine. Mit eingeschaltetem Übungsserver hätte jede
+           * richtige Abgabe „Noch nicht" gehört.
+           */
           erwartetesErgebnis: {
             spalten: ['KundeId', 'Anzahl'],
-            zeilen: [
-              [4, 3],
-              [6, 3],
-              [8, 3],
-            ],
+            zeilen: [[8, 3]],
           },
           vergleich: { reihenfolgeZaehlt: false, spaltennamenZaehlen: true },
           hinweise: [
@@ -580,6 +619,15 @@ Fehler 512 – dann braucht es \`IN\` statt \`=\`, oder besser einen JOIN.
             'Die innere Abfrage liefert einen einzelnen Wert. Ohne Unterabfrage müsste man den ' +
             'Durchschnitt erst ausrechnen und dann von Hand eintragen – und die Abfrage stimmte ' +
             'ab dem nächsten neuen Mitarbeiter nicht mehr.',
+          erwartetesErgebnis: {
+            spalten: ['Name', 'Stundensatz'],
+            zeilen: [
+              ['Katrin Storz', 68],
+              ['Miriam Hoff', 68],
+              ['Paul Denk', 71],
+            ],
+          },
+          vergleich: { reihenfolgeZaehlt: false },
           hinweise: [
             'Der Durchschnitt lässt sich mit AVG berechnen.',
             'Eine Abfrage darf in Klammern innerhalb einer anderen stehen.',
