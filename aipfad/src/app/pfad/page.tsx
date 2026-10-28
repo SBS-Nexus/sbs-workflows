@@ -132,7 +132,15 @@ export default async function PathPage(): Promise<React.ReactElement> {
                         >
                           {lesson.title}
                         </Link>
-                        <Badge tone={state === 'COMPLETED' ? 'success' : 'neutral'}>
+                        <Badge
+                          tone={
+                            state === 'COMPLETED'
+                              ? 'success'
+                              : state === 'IN_PROGRESS'
+                                ? 'in-progress'
+                                : 'neutral'
+                          }
+                        >
                           {state === 'COMPLETED'
                             ? 'Abgeschlossen'
                             : state === 'IN_PROGRESS'

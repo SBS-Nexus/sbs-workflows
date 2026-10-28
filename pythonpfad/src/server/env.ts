@@ -1,5 +1,6 @@
 import 'server-only';
 import { z } from 'zod';
+import { isAllowedHubOriginSetting } from '@/server/platform/review-source-http';
 
 /**
  * Zentrale, validierte Konfiguration.
@@ -26,6 +27,20 @@ const envSchema = z.object({
   AI_TUTOR_MODEL: z.string().default('claude-sonnet-5'),
   AI_TUTOR_BASE_URL: z.string().default(''),
   AI_TUTOR_RATE_LIMIT_PER_HOUR: z.coerce.number().int().min(1).max(1000).default(30),
+
+  /**
+   * Origin des Lernpfade-Hubs, der die schreibgeschützte Wiederholungsquelle
+   * (LP-05B, `/api/platform/review-source`) aus dem Browser lesen darf.
+   *
+   * Leer (Vorgabe) heißt: keine CORS-Freigabe, der Hub kann nichts lesen.
+   * Genau EINE Origin, ohne Pfad und ohne Platzhalter; `http` nur für
+   * `localhost`. Ein ungültiger Wert lässt `getEnv()` scheitern, statt still
+   * eine falsche Herkunft freizugeben. Siehe docs/SICHERHEIT.md.
+   */
+  PLATFORM_HUB_ORIGIN: z.string().trim().default('').refine(isAllowedHubOriginSetting, {
+    message:
+      'PLATFORM_HUB_ORIGIN muss eine einzelne Origin sein (https://host[:port], ohne Pfad) oder leer bleiben.',
+  }),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,6 +1,16 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Icon, type IconName } from '@/components/ui/icon';
+import {
+  FEEDBACK_CLASS,
+  calloutTitle,
+  feedbackBadge,
+  feedbackCallout,
+  feedbackLive,
+  type CalloutTone,
+  type CalloutToneInput,
+  type FeedbackToneInput,
+} from '@/lib/learning-feedback';
 
 /**
  * Kleine, zugängliche Bausteine – kein separates Komponentenpaket, siehe
@@ -117,34 +127,23 @@ export function Card({
 // Callout
 // ---------------------------------------------------------------------------
 
-const TONE_STYLES = {
-  info: {
-    container: 'border-wire-500 bg-wire-100 dark:bg-wire-900/40',
-    icon: 'info' as IconName,
-    label: 'Hinweis',
-    iconColor: 'text-wire-600 dark:text-wire-300',
-  },
-  success: {
-    container: 'border-success-500 bg-success-100 dark:bg-success-900/40',
-    icon: 'check' as IconName,
-    label: 'Erfolg',
-    iconColor: 'text-success-700 dark:text-success-100',
-  },
-  caution: {
-    container: 'border-caution-500 bg-caution-100 dark:bg-caution-900/40',
-    icon: 'warning' as IconName,
-    label: 'Achtung',
-    iconColor: 'text-caution-700 dark:text-caution-100',
-  },
-  alert: {
-    container: 'border-alert-500 bg-alert-100 dark:bg-alert-900/40',
-    icon: 'error' as IconName,
-    label: 'Gefährlich',
-    iconColor: 'text-alert-700 dark:text-alert-100',
-  },
-} as const;
+/** Ältere Tonnamen; Badge und Callout lösen sie über den Statusvertrag auf. */
+export type Tone = 'info' | 'success' | 'caution' | 'alert';
 
-export type Tone = keyof typeof TONE_STYLES;
+/*
+ * Rückmeldung und Status (LP-03B): Darstellung und Bedeutung kommen aus dem
+ * gemeinsamen Statusvertrag (`@/lib/learning-feedback`, Klassen in
+ * `learning-feedback.css`) — gleich in allen Lernpfaden, Titel in der
+ * Produktschrift (Sans). Fachinhalte im Text (Befehle, Code) behalten ihre
+ * eigene Auszeichnung. App-eigen bleibt nur das Symbol.
+ */
+const CALLOUT_ICON: Record<CalloutTone, IconName> = {
+  neutral: 'info',
+  info: 'info',
+  success: 'check',
+  warning: 'warning',
+  danger: 'error',
+};
 
 export function Callout({
   tone = 'info',
@@ -153,27 +152,31 @@ export function Callout({
   live = false,
   className,
 }: {
-  tone?: Tone;
+  tone?: CalloutToneInput;
   title?: string;
   children: ReactNode;
   live?: boolean;
   className?: string;
 }): ReactNode {
-  const style = TONE_STYLES[tone];
+  const feedback = feedbackCallout(tone);
+  const heading = calloutTitle(tone, title);
   return (
     <div
-      className={cx(
-        'rounded-[var(--radius-md)] border-l-4 border px-4 py-3 text-sm',
-        style.container,
-        className,
-      )}
-      {...(live ? { role: 'status', 'aria-live': 'polite' } : {})}
+      className={cx(feedback.className, className)}
+      data-lp-tone={feedback['data-lp-tone']}
+      {...feedbackLive(live)}
     >
-      <p className={cx('flex items-start gap-2 font-mono font-semibold', style.iconColor)}>
-        <Icon name={style.icon} size={18} className="mt-0.5 shrink-0" />
-        <span>{title ?? style.label}</span>
-      </p>
-      <div className="mt-1 pl-[1.625rem] text-[var(--fg)]">{children}</div>
+      {heading ? (
+        <p className={FEEDBACK_CLASS.title}>
+          <Icon
+            name={CALLOUT_ICON[feedback['data-lp-tone'] as CalloutTone]}
+            size={18}
+            className={FEEDBACK_CLASS.icon}
+          />
+          <span>{heading}</span>
+        </p>
+      ) : null}
+      <div className={FEEDBACK_CLASS.body}>{children}</div>
     </div>
   );
 }
@@ -186,25 +189,12 @@ export function Badge({
   tone = 'info',
   children,
 }: {
-  tone?: Tone | 'neutral';
+  tone?: FeedbackToneInput;
   children: ReactNode;
 }): ReactNode {
-  const styles: Record<string, string> = {
-    neutral:
-      'bg-ink-100 text-ink-600 border-ink-300 dark:bg-ink-800 dark:text-ink-300 dark:border-ink-600',
-    info: 'bg-wire-100 text-wire-600 border-wire-500 dark:bg-wire-900/40 dark:text-wire-300',
-    success: 'bg-success-100 text-success-700 border-success-500',
-    caution: 'bg-caution-100 text-caution-700 border-caution-500',
-    alert: 'bg-alert-100 text-alert-700 border-alert-500',
-  };
-
+  const feedback = feedbackBadge(tone);
   return (
-    <span
-      className={cx(
-        'inline-flex items-center rounded-full border px-2.5 py-0.5 font-mono text-xs font-medium',
-        styles[tone],
-      )}
-    >
+    <span className={cx('inline-flex', feedback.className)} data-lp-tone={feedback['data-lp-tone']}>
       {children}
     </span>
   );
