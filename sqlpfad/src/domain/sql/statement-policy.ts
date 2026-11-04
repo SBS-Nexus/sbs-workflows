@@ -105,6 +105,10 @@ export function entferneKommentareUndLiterale(sql: string): string {
           i += 2;
         } else i += 1;
       }
+      // Für SQL Server trennt ein Kommentar wie Leerraum. Ohne das Leerzeichen
+      // würde aus `SELECT 1/**/DELETE` hier `SELECT 1DELETE` – ein Wort, das
+      // keine Wortsuche mehr als DELETE erkennt, das der Server aber ausführt.
+      ergebnis += ' ';
       continue;
     }
     if (sql[i] === "'") {
@@ -243,6 +247,169 @@ export function bestimmeKlasse(sql: string): AnweisungsKlasse {
 }
 
 /**
+ * Wörter, mit denen innerhalb eines SELECT eine weitere Anweisung beginnt.
+ *
+ * T-SQL braucht zwischen zwei Anweisungen kein Semikolon: `SELECT 1 DELETE
+ * FROM Kunden` sind für SQL Server zwei Anweisungen, und beide laufen. Die
+ * Zerlegung an den Semikola sieht davon nur eine, und deren erstes Wort ist
+ * SELECT. Deshalb wird ein SELECT zusätzlich nach diesen Wörtern abgesucht.
+ *
+ * Aufgenommen sind nur **reservierte** Schlüsselwörter. Ein reserviertes Wort
+ * kann ohne Klammern oder Anführungszeichen kein Tabellen-, Spalten- oder
+ * Aliasname sein – kommt es in einem gültigen SELECT vor, dann nur in seiner
+ * Bedeutung als Schlüsselwort, und keines davon gehört zum SELECT selbst.
+ * Damit trifft die Suche keine legitime Abfrage. Einzige Ausnahme ist FETCH
+ * im Seitenumbruch `OFFSET … ROWS FETCH NEXT … ROWS ONLY`; siehe unten.
+ *
+ * Nicht reservierte Anweisungsanfänge (etwa THROW, das ohnehin ein Semikolon
+ * davor verlangt) fehlen bewusst: Sie wären gültige Spaltennamen, und die
+ * Suche würde harmlose Abfragen ablehnen. Hier gilt wie überall in dieser
+ * Datei: Das ist Tiefenstaffelung, nicht die Grenze.
+ *
+ * Die Klasse bestimmt, ob die versteckte Anweisung in der Aufgabe erlaubt
+ * wäre. `SELECT … DELETE …` ist dort, wo DML geübt wird, dasselbe wie
+ * `SELECT …; DELETE …` – und das ist dort ausdrücklich zulässig.
+ */
+const ANWEISUNGSANFAENGE: ReadonlyMap<string, AnweisungsKlasse> = new Map([
+  ['INSERT', 'DML'],
+  ['UPDATE', 'DML'],
+  ['DELETE', 'DML'],
+  ['MERGE', 'DML'],
+  ['WRITETEXT', 'DML'],
+  ['UPDATETEXT', 'DML'],
+  // `SELECT … INTO Neu FROM …` ist keine zweite Anweisung, legt aber eine
+  // Tabelle an. In einer Leseaufgabe hat das denselben Effekt wie CREATE.
+  ['INTO', 'DDL'],
+  ['CREATE', 'DDL'],
+  ['ALTER', 'DDL'],
+  ['DROP', 'DDL'],
+  ['TRUNCATE', 'DDL'],
+  ['BEGIN', 'TRANSAKTION'],
+  ['COMMIT', 'TRANSAKTION'],
+  ['ROLLBACK', 'TRANSAKTION'],
+  ['SAVE', 'TRANSAKTION'],
+  ['DECLARE', 'PROGRAMMIERUNG'],
+  ['SET', 'PROGRAMMIERUNG'],
+  ['IF', 'PROGRAMMIERUNG'],
+  ['WHILE', 'PROGRAMMIERUNG'],
+  ['BREAK', 'PROGRAMMIERUNG'],
+  ['CONTINUE', 'PROGRAMMIERUNG'],
+  ['GOTO', 'PROGRAMMIERUNG'],
+  ['RETURN', 'PROGRAMMIERUNG'],
+  ['EXEC', 'PROGRAMMIERUNG'],
+  ['EXECUTE', 'PROGRAMMIERUNG'],
+  ['PRINT', 'PROGRAMMIERUNG'],
+  ['RAISERROR', 'PROGRAMMIERUNG'],
+  ['OPEN', 'PROGRAMMIERUNG'],
+  ['CLOSE', 'PROGRAMMIERUNG'],
+  ['FETCH', 'PROGRAMMIERUNG'],
+  ['DEALLOCATE', 'PROGRAMMIERUNG'],
+  ['READTEXT', 'PROGRAMMIERUNG'],
+  // Rechte und Serverwerkzeuge sind in keiner Aufgabe vorgesehen.
+  ['GRANT', 'SERVER'],
+  ['DENY', 'SERVER'],
+  ['REVOKE', 'SERVER'],
+  ['SETUSER', 'SERVER'],
+  ['DBCC', 'SERVER'],
+  ['KILL', 'SERVER'],
+  ['CHECKPOINT', 'SERVER'],
+]);
+
+/**
+ * Zerlegt SQL in Wörter, wie SQL Server sie liest.
+ *
+ * Absichtlich ein eigener Abtaster über den Originaltext statt einer Suche im
+ * bereinigten Text: Kommentare trennen Wörter (`1/* *\/DELETE`), Zahlen enden
+ * vor einem Buchstaben (`SELECT 1DELETE` liest der Server als `1` und
+ * `DELETE`), und Bezeichner in `[…]` oder `"…"`, Variablen (`@x`) und
+ * temporäre Tabellen (`#t`) sind Namen, keine Schlüsselwörter – `[Update]`
+ * darf eine Spalte heißen.
+ */
+function woerter(sql: string): string[] {
+  const liste: string[] = [];
+  const n = sql.length;
+  let i = 0;
+
+  const ueberspringeBis = (ende: string): void => {
+    // Ein verdoppelter Begrenzer (`''`, `]]`, `""`) steht für das Zeichen selbst.
+    i += 1;
+    while (i < n) {
+      if (sql[i] === ende) {
+        if (sql[i + 1] === ende) i += 2;
+        else {
+          i += 1;
+          return;
+        }
+      } else i += 1;
+    }
+  };
+
+  while (i < n) {
+    const zeichen = sql[i] as string;
+    const zwei = sql.slice(i, i + 2);
+
+    if (zwei === '--') {
+      while (i < n && sql[i] !== '\n') i += 1;
+    } else if (zwei === '/*') {
+      let tiefe = 1;
+      i += 2;
+      while (i < n && tiefe > 0) {
+        if (sql.slice(i, i + 2) === '/*') {
+          tiefe += 1;
+          i += 2;
+        } else if (sql.slice(i, i + 2) === '*/') {
+          tiefe -= 1;
+          i += 2;
+        } else i += 1;
+      }
+    } else if (zeichen === "'") {
+      ueberspringeBis("'");
+    } else if (zeichen === '[') {
+      ueberspringeBis(']');
+    } else if (zeichen === '"') {
+      ueberspringeBis('"');
+    } else if (/[0-9]/.test(zeichen) || (zeichen === '.' && /[0-9]/.test(sql[i + 1] ?? ''))) {
+      // Zahl: 0x1F, 12, 1.5, 1e5, 1.5E-3 – danach beginnt ein neues Wort.
+      const zahl = /^(?:0x[0-9A-Fa-f]*|[0-9]*\.?[0-9]*(?:[eE][+-]?[0-9]+)?)/.exec(sql.slice(i));
+      i += Math.max(1, zahl?.[0].length ?? 1);
+    } else if (/[\p{L}_@#]/u.test(zeichen)) {
+      const wort = /^[\p{L}_@#][\p{L}\p{N}_@#$]*/u.exec(sql.slice(i))?.[0] ?? zeichen;
+      // Variablen und temporäre Objekte sind Namen, nie Schlüsselwörter.
+      if (!/^[@#]/.test(wort)) liste.push(wort.toUpperCase());
+      i += wort.length;
+    } else {
+      i += 1;
+    }
+  }
+
+  return liste;
+}
+
+/** Eine Anweisung, die innerhalb eines SELECT ohne Semikolon beginnt. */
+export interface VersteckteAnweisung {
+  wort: string;
+  klasse: AnweisungsKlasse;
+}
+
+/**
+ * Sucht in einer Anweisung, deren erstes Wort SELECT ist, nach einem Wort,
+ * das eine andere Anweisung beginnt (siehe `ANWEISUNGSANFAENGE`).
+ */
+export function findeVersteckteAnweisung(sql: string): VersteckteAnweisung | undefined {
+  const liste = woerter(sql);
+  for (let k = 0; k < liste.length; k += 1) {
+    const wort = liste[k] as string;
+    const klasse = ANWEISUNGSANFAENGE.get(wort);
+    if (!klasse) continue;
+    // `OFFSET 10 ROWS FETCH NEXT 5 ROWS ONLY` gehört zum SELECT. Ein FETCH,
+    // das einen Cursor liest, steht dagegen nie direkt hinter ROW oder ROWS.
+    if (wort === 'FETCH' && ['ROW', 'ROWS'].includes(liste[k - 1] ?? '')) continue;
+    return { wort, klasse };
+  }
+  return undefined;
+}
+
+/**
  * Prüft eine Eingabe gegen die für die Aufgabe erlaubten Klassen.
  *
  * Die Begründung ist an die Lernende gerichtet und erklärt, was die Aufgabe
@@ -282,6 +449,25 @@ export function pruefeAnweisung(
 
   if (!erlaubteKlassen.includes(klasse)) {
     return { erlaubt: false, klasse, begruendung: begruendeAblehnung(klasse, erlaubteKlassen) };
+  }
+
+  // Ein SELECT kann ohne Semikolon eine weitere Anweisung mitbringen, die der
+  // Server ebenfalls ausführt. Sie muss in der Aufgabe genauso erlaubt sein,
+  // als stünde sie für sich.
+  if (klasse === 'SELECT') {
+    const versteckt = findeVersteckteAnweisung(sql);
+    if (versteckt && !erlaubteKlassen.includes(versteckt.klasse)) {
+      const hinweis =
+        versteckt.wort === 'INTO'
+          ? 'Mit SELECT … INTO legt SQL Server eine neue Tabelle an. '
+          : `Mit ${versteckt.wort} beginnt hier eine weitere Anweisung – SQL Server braucht ` +
+            'dafür kein Semikolon und würde sie mit ausführen. ';
+      return {
+        erlaubt: false,
+        klasse: versteckt.klasse,
+        begruendung: hinweis + begruendeAblehnung(versteckt.klasse, erlaubteKlassen),
+      };
+    }
   }
 
   return { erlaubt: true, klasse, begruendung: '' };

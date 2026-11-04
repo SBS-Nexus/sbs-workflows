@@ -92,6 +92,16 @@ andere Aufgaben:
 2. **Tiefenstaffelung.** Falls eine Berechtigung je falsch gesetzt ist, ist eine
    zweite Hürde besser als keine.
 
+Ein Beispiel, warum das so sein muss: T-SQL braucht zwischen zwei Anweisungen
+kein Semikolon. `SELECT 1 DELETE FROM Kunden` sind für SQL Server zwei
+Anweisungen, und beide laufen. Die Prüfung zerlegte früher nur an Semikola und
+sah ein einziges `SELECT`. Seitdem sucht sie in jedem `SELECT` zusätzlich nach
+reservierten Schlüsselwörtern, mit denen eine weitere Anweisung beginnt (und
+nach `SELECT … INTO`), und verlangt, dass deren Klasse in der Aufgabe erlaubt
+ist. Gehalten hat in diesem Fall trotzdem die Berechtigung: Auch versteckt
+hinter einem `SELECT` erreicht nichts eine fremde Sandbox
+(`tests/sql/mehrfachanweisung.integration.test.ts`).
+
 ---
 
 ## 5. Ressourcengrenzen
@@ -187,7 +197,7 @@ festgelegt, damit ein neues Abbild nicht unbemerkt das Verhalten ändert.
 Developer heißt: nur Entwicklung und Test; an der Lizenzfrage aus Abschnitt 6
 ändert der Lauf nichts.
 
-Drei Dateien:
+Vier Dateien:
 
 - `motor.integration.test.ts` – Ergebnisse, NULL, doppelte Spaltennamen,
   Fehlernummern, Zeitlimit, Abbruch, Zurücksetzen samt Struktur.
@@ -200,6 +210,12 @@ Drei Dateien:
   selbst, kein `xp_cmdshell`, und die fremde Sandbox bleibt danach unberührt.
   Gegenprobe: Mit `db_owner` statt `db_ddladmin` oder ohne
   `DENY VIEW ANY DATABASE` werden drei dieser Tests rot.
+- `mehrfachanweisung.integration.test.ts` – mehrere Anweisungen ohne
+  Semikolon: Am Motor vorbei führt der Server `SELECT 1 DELETE FROM Kunden`
+  vollständig aus und verändert die eigene Sandbox; die fremde bleibt
+  unerreichbar. Über den Runner werden dieselben Eingaben abgelehnt und ändern
+  nichts, legitime Abfragen mit Schlüsselwörtern in Texten, Kommentaren und
+  Bezeichnern laufen weiter.
 
 Dazu der ganze Weg mit eingeschaltetem Übungsserver:
 `npm run test:e2e:uebungsserver` (`playwright.uebungsserver.config.ts`,
