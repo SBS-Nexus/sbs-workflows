@@ -197,7 +197,7 @@ festgelegt, damit ein neues Abbild nicht unbemerkt das Verhalten ändert.
 Developer heißt: nur Entwicklung und Test; an der Lizenzfrage aus Abschnitt 6
 ändert der Lauf nichts.
 
-Vier Dateien:
+Fünf Dateien:
 
 - `motor.integration.test.ts` – Ergebnisse, NULL, doppelte Spaltennamen,
   Fehlernummern, Zeitlimit, Abbruch, Zurücksetzen samt Struktur.
@@ -209,13 +209,21 @@ Vier Dateien:
   Sandboxes, kein `CREATE DATABASE`/`CREATE LOGIN`, keine Rechte an sich
   selbst, kein `xp_cmdshell`, und die fremde Sandbox bleibt danach unberührt.
   Gegenprobe: Mit `db_owner` statt `db_ddladmin` oder ohne
-  `DENY VIEW ANY DATABASE` werden drei dieser Tests rot.
+  `DENY VIEW ANY DATABASE` werden drei dieser Tests rot. Dazu `EXECUTE AS`:
+  Eine Prozedur `WITH EXECUTE AS OWNER` lässt sich gar nicht erst anlegen
+  (kein `IMPERSONATE` auf `dbo`), und `TRUSTWORTHY` ist aus.
 - `mehrfachanweisung.integration.test.ts` – mehrere Anweisungen ohne
   Semikolon: Am Motor vorbei führt der Server `SELECT 1 DELETE FROM Kunden`
   vollständig aus und verändert die eigene Sandbox; die fremde bleibt
   unerreichbar. Über den Runner werden dieselben Eingaben abgelehnt und ändern
   nichts, legitime Abfragen mit Schlüsselwörtern in Texten, Kommentaren und
   Bezeichnern laufen weiter.
+- `bewertung-verwerfen.integration.test.ts` – Bewertungsläufe verändern die
+  Sandbox nicht (Abschnitt 12): `SELECT … DELETE`, `SELECT INTO`, Struktur,
+  Änderung mit Laufzeitfehler, `COMMIT`, `ROLLBACK; DELETE`,
+  `COMMIT; BEGIN TRANSACTION`, dynamisches SQL – danach ist alles wie vorher.
+  Gegenprobe: ohne Transaktion zehn Fälle rot, ohne Zurücksetzen die Fälle,
+  in denen das eingereichte SQL die Transaktion selbst beendet.
 
 Dazu der ganze Weg mit eingeschaltetem Übungsserver:
 `npm run test:e2e:uebungsserver` (`playwright.uebungsserver.config.ts`,
@@ -393,7 +401,14 @@ Datumswerte daraus. Vorher zeigte `/abfrage` ein Datum als
 `2026-01-08T00:00:00.000Z`.
 
 **Zur Sandbox:** Bewertet wird in derselben Sandbox, in der die Lernende auf
-`/abfrage` übt. Dort laufen heute nur lesende Anweisungen, ihr Stand ist also
-der eingespielte. Sobald Änderungsaufgaben ausgeführt werden, muss die
-Bewertung lesender Aufgaben gegen einen bekannten Stand laufen – etwa nach
-einem Zurücksetzen oder in einer eigenen Bewertungs-Sandbox.
+`/abfrage` übt. Dass dort nur gelesen wird, sichert die Anweisungsprüfung –
+und die ist keine Grenze. Ein Bewertungslauf behält deshalb nichts
+(`verwerfen` am Auftrag, Review DEV-01): Der Motor führt ihn in einer
+Transaktion aus, die immer zurückgerollt wird. Hat das eingereichte SQL diese
+Transaktion selbst beendet (`COMMIT`, `ROLLBACK`, vom Server abgebrochen),
+erkennt der Motor das an der geänderten `CURRENT_TRANSACTION_ID()` und setzt
+die Sandbox zurück. Eine Bewertung kann den Stand also weder für die nächste
+Bewertung noch für die Werkbank verändern. Dasselbe gilt für die Werkbank auf
+`/abfrage`: Sie erlaubt nur `SELECT`, ihre Läufe werden trotzdem verworfen –
+so bleibt der Stand, gegen den bewertet wird, auch dann der eingespielte, wenn
+eine Änderung an der Anweisungsprüfung vorbeikommt.

@@ -1,3 +1,4 @@
+import sql from 'mssql';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type SqlMotor, SqlMotorFehler, STANDARDGRENZEN } from '@/domain/sql/runner';
 import { erstelleMssqlMotor } from '../../runner/mssql-motor';
@@ -109,6 +110,54 @@ beschreibe('Berechtigungsgrenze der Sandbox gegen SQL Server', () => {
     ['eine fremde Sandbox verwerfen', `DROP DATABASE ${FREMDE}`],
   ])('darf nicht %s', async (_was, sqlText) => {
     await expect(inEigener(sqlText)).rejects.toBeInstanceOf(SqlMotorFehler);
+  });
+
+  /*
+   * Ausweitung über EXECUTE AS (Review DEV-01, F3).
+   *
+   * Mit db_ddladmin darf der Sandbox-Name Prozeduren anlegen. Eine Prozedur
+   * WITH EXECUTE AS OWNER im Schema dbo liefe als dbo. Am Server nachgesehen:
+   * SQL Server lehnt schon das Anlegen ab, weil dem Sandbox-Namen IMPERSONATE
+   * auf dbo fehlt – die Ausweitung gibt es nicht einmal in der eigenen
+   * Datenbank. Gälte das eines Tages nicht mehr, hielte TRUSTWORTHY = aus den
+   * Kontext weiter in der eigenen Datenbank; geprüft wird deshalb beides.
+   */
+  it.each([
+    [
+      'eine Prozedur mit EXECUTE AS OWNER anlegen',
+      'CREATE PROCEDURE dbo.grenze_als_besitzer WITH EXECUTE AS OWNER AS SELECT 1',
+    ],
+    [
+      'eine Prozedur als dbo ausführen lassen',
+      "CREATE PROCEDURE dbo.grenze_als_dbo WITH EXECUTE AS 'dbo' AS SELECT 1",
+    ],
+    ['den Kontext auf dbo wechseln', "EXECUTE AS USER = 'dbo'; SELECT USER_NAME()"],
+  ])('darf nicht %s', async (_was, sqlText) => {
+    await expect(inEigener(sqlText)).rejects.toBeInstanceOf(SqlMotorFehler);
+  });
+
+  it('lässt TRUSTWORTHY aus – die eigene Datenbank bleibt eine Grenze für jeden Kontext', async () => {
+    // Gelesen über die Verwaltung: Der Sandbox-Name sieht die Eigenschaft
+    // wegen DENY VIEW ANY DATABASE nicht einmal.
+    const verwaltung = await new sql.ConnectionPool({
+      server: host as string,
+      port: Number(process.env.SQL_SERVER_PORT ?? 1433),
+      user: 'sa',
+      password: passwort as string,
+      database: 'master',
+      options: { encrypt: true, trustServerCertificate: true },
+    }).connect();
+    try {
+      const antwort = await verwaltung
+        .request()
+        .input('name', sql.NVarChar, EIGENE)
+        .query<{ vertrauenswuerdig: boolean }>(
+          'SELECT is_trustworthy_on AS vertrauenswuerdig FROM sys.databases WHERE name = @name',
+        );
+      expect(antwort.recordset).toEqual([{ vertrauenswuerdig: false }]);
+    } finally {
+      await verwaltung.close();
+    }
   });
 
   it('lässt die fremde Sandbox nach all dem unberührt', async () => {
