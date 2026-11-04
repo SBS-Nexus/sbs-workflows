@@ -23,14 +23,22 @@ describe('Anzeigereihenfolge der Optionen', () => {
     }
   });
 
-  it('ist nie die Lehrplanreihenfolge', () => {
+  it('ist für Reihenfolge-Aufgaben nie die Lehrplanreihenfolge', () => {
     // Sonst wäre eine Reihenfolge-Aufgabe beim Öffnen schon gelöst.
     for (const anzahl of [2, 3, 4]) {
       for (const schluessel of SCHLUESSEL) {
-        const reihenfolge = anordnung(anzahl, schluessel);
+        const reihenfolge = anordnung(anzahl, schluessel, { nieLehrplanreihenfolge: true });
         expect(reihenfolge.every((wert, index) => wert === index)).toBe(false);
       }
     }
+  });
+
+  it('lässt bei Auswahlaufgaben jede Reihenfolge zu, auch bei zwei Optionen', () => {
+    // Mit der Regel für Reihenfolge-Aufgaben stünde bei zwei Optionen die im
+    // Lehrplan vorn stehende richtige Antwort für alle hinten (Review DEV-01).
+    const vorn = SCHLUESSEL.filter((schluessel) => anordnung(2, schluessel)[0] === 0).length;
+    expect(vorn / SCHLUESSEL.length).toBeGreaterThan(0.4);
+    expect(vorn / SCHLUESSEL.length).toBeLessThan(0.6);
   });
 
   it('setzt die im Lehrplan erste Antwort nicht mehr bevorzugt nach vorn', () => {
@@ -96,7 +104,9 @@ describe('Der ganze Weg mit echten Aufgaben', () => {
     for (const aufgabe of aufgaben.filter((a) => a.art === 'REIHENFOLGE')) {
       const optionen = (aufgabe.nutzlast as { optionen: string[] }).optionen;
       for (const schluessel of SCHLUESSEL.slice(0, 300)) {
-        const reihenfolge = anordnung(optionen.length, schluessel);
+        const reihenfolge = anordnung(optionen.length, schluessel, {
+          nieLehrplanreihenfolge: true,
+        });
         // Unveränderte Abgabe: die Anzeigepositionen in ihrer Reihenfolge.
         const unveraendert = zurAufLehrplan(
           { art: 'reihenfolge', reihenfolge: optionen.map((_o, i) => i) },

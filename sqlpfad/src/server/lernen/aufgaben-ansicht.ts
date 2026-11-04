@@ -1,6 +1,7 @@
 import 'server-only';
 import type { AufgabenAnsicht } from '@/components/aufgabe/aufgaben-karte';
 import { ausDatenmodellArt } from '@/domain/aufgabe/art';
+import type { Aufgabenart } from '@/content/typen';
 import { anordnung, anordnungsSchluessel, ordneAn } from '@/domain/aufgabe/anordnung';
 
 /**
@@ -40,10 +41,15 @@ export function optionenAus(nutzlast: unknown): string[] {
 /** Die Anzeigereihenfolge dieser Optionen für diese Person. */
 export function anzeigereihenfolge(
   userId: string,
-  aufgabeSlug: string,
+  aufgabe: { slug: string; art: Aufgabenart },
   nutzlast: unknown,
 ): number[] {
-  return anordnung(optionenAus(nutzlast).length, anordnungsSchluessel(userId, aufgabeSlug));
+  return anordnung(
+    optionenAus(nutzlast).length,
+    anordnungsSchluessel(userId, aufgabe.slug),
+    // Nur dort ist die Lehrplanreihenfolge die Lösung.
+    { nieLehrplanreihenfolge: aufgabe.art === 'REIHENFOLGE' },
+  );
 }
 
 export function baueAufgabenAnsicht(zeile: AufgabenZeile, userId: string): AufgabenAnsicht | null {
@@ -56,7 +62,10 @@ export function baueAufgabenAnsicht(zeile: AufgabenZeile, userId: string): Aufga
     art,
     titel: zeile.title,
     aufgabenstellung: zeile.prompt,
-    optionen: ordneAn(optionen, anzeigereihenfolge(userId, zeile.slug, zeile.payload)),
+    optionen: ordneAn(
+      optionen,
+      anzeigereihenfolge(userId, { slug: zeile.slug, art }, zeile.payload),
+    ),
     startSql: zeile.starterSql ?? '',
     hinweise: Array.isArray(zeile.hints)
       ? zeile.hints.filter((eintrag): eintrag is string => typeof eintrag === 'string')

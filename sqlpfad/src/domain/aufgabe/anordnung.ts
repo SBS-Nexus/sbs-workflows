@@ -14,8 +14,11 @@ import type { Antwort } from './bewertung';
  *
  *  - **deterministisch** aus Konto und Aufgabe: Beim Neuladen springt nichts,
  *    und der Server kann die Antwort ohne gespeicherten Zustand zurückrechnen;
- *  - **nie die Lehrplanreihenfolge** (bei mehr als einer Option): sonst wäre
- *    die Reihenfolge-Aufgabe in einem von n! Fällen schon gelöst;
+ *  - bei Reihenfolge-Aufgaben **nie die Lehrplanreihenfolge**: Sie ist dort
+ *    die Lösung, die Aufgabe wäre sonst in einem von n! Fällen beim Öffnen
+ *    gelöst. Bei Auswahlaufgaben gilt diese Regel ausdrücklich nicht – bei
+ *    zwei Optionen hieße sie „immer vertauscht", und die im Lehrplan vorn
+ *    stehende richtige Antwort stünde für alle hinten (Review DEV-01);
  *  - der Browser bekommt **nur Anzeigepositionen**. Welche Lehrplanposition
  *    dahintersteht, rechnet allein der Server aus. Im Quelltext der Seite steht
  *    damit weiterhin nichts, woran sich die richtige Antwort ablesen ließe.
@@ -25,7 +28,11 @@ import type { Antwort } from './bewertung';
  *
  * `anordnung(...)[anzeigeposition]` ist die Position im Lehrplan.
  */
-export function anordnung(anzahl: number, schluessel: string): number[] {
+export function anordnung(
+  anzahl: number,
+  schluessel: string,
+  { nieLehrplanreihenfolge = false }: { nieLehrplanreihenfolge?: boolean } = {},
+): number[] {
   const positionen = Array.from({ length: anzahl }, (_x, index) => index);
   if (anzahl < 2) return positionen;
 
@@ -36,8 +43,8 @@ export function anordnung(anzahl: number, schluessel: string): number[] {
     [positionen[i], positionen[j]] = [positionen[j] as number, positionen[i] as number];
   }
 
-  // Nie die Lehrplanreihenfolge: um eins verschieben, falls der Zufall sie traf.
-  if (positionen.every((wert, index) => wert === index)) {
+  // Um eins verschieben, falls der Zufall die Lehrplanreihenfolge traf.
+  if (nieLehrplanreihenfolge && positionen.every((wert, index) => wert === index)) {
     return [...positionen.slice(1), positionen[0] as number];
   }
   return positionen;

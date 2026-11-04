@@ -114,7 +114,11 @@ export async function gibAufgabeAb(daten: unknown): Promise<Abgabeantwort> {
   // bewertet und festgehalten wird (src/domain/aufgabe/anordnung.ts).
   const antwort = zurAufLehrplan(
     geprueft.data.antwort as Antwort,
-    anzeigereihenfolge(user.id, aufgabe.slug, aufgabe.bewertbar.nutzlast),
+    anzeigereihenfolge(
+      user.id,
+      { slug: aufgabe.slug, art: aufgabe.bewertbar.art },
+      aufgabe.bewertbar.nutzlast,
+    ),
   );
   let bewertung = bewerteAufgabe(aufgabe.bewertbar, antwort);
   let ausgefuehrt: Ausfuehrungsrueckmeldung | null = null;
