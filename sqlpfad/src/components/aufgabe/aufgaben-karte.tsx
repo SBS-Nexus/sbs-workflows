@@ -118,6 +118,15 @@ export function AufgabenKarte({
   }
 
   function absenden(): void {
+    /*
+     * Die alte Rückmeldung verschwindet sofort. Bliebe sie stehen, bis die neue
+     * da ist, stünde unter der neuen Antwort kurz das Urteil über die alte –
+     * für Lernende verwirrend, und ein Test, der auf „Stimmt" oder „Noch nicht"
+     * wartet, nähme das alte Urteil für das neue (Review DEV-01, F2).
+     */
+    setBewertung(null);
+    setErgebnis(null);
+    setAusfuehrung(null);
     starte(async () => {
       const antwort = await gibAufgabeAb({
         aufgabeSlug: aufgabe.slug,
