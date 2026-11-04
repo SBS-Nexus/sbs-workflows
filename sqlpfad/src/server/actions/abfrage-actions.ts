@@ -122,6 +122,13 @@ export async function fuehreAbfrageAus(daten: {
     datenbank: sandbox.datenbank,
     sql: geprueft.data.sql,
     erlaubteKlassen: geprueft.data.erlaubteKlassen,
+    /*
+     * Auch die Werkbank behält nichts. Sie erlaubt nur SELECT, das Verwerfen
+     * kostet also nichts – aber käme eine Änderung an der Anweisungsprüfung
+     * vorbei, veränderte sie sonst den Stand, gegen den Schreibaufgaben
+     * bewertet werden (Review DEV-01, F1).
+     */
+    verwerfen: true,
   });
 
   /*

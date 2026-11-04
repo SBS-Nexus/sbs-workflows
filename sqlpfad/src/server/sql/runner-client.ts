@@ -187,6 +187,8 @@ export async function fuehreImRunnerAus(daten: {
   datenbank: string;
   sql: string;
   erlaubteKlassen: readonly string[];
+  /** Für Bewertungsläufe: Der Motor behält nichts davon (siehe Ausfuehrungsauftrag). */
+  verwerfen?: boolean;
 }): Promise<RunnerAntwort> {
   const env = getEnv();
 
@@ -199,6 +201,7 @@ export async function fuehreImRunnerAus(daten: {
       ausfuehrungId: randomUUID(),
       sql: daten.sql,
       erlaubteKlassen: daten.erlaubteKlassen,
+      ...(daten.verwerfen ? { verwerfen: true } : {}),
       grenzen: {
         zeitlimitMs: env.SQL_ZEITLIMIT_MS,
         maxZeilen: env.SQL_MAX_ZEILEN,

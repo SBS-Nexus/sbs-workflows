@@ -227,6 +227,9 @@ async function fuehreAufgabeAus(
     datenbank: sandbox.datenbank,
     sql,
     erlaubteKlassen: aufgabe.bewertbar.erlaubteKlassen ?? ['SELECT'],
+    // Eine Bewertung verändert die Sandbox nicht – auch nicht an der
+    // Anweisungsprüfung vorbei (Review DEV-01, F1).
+    verwerfen: true,
   });
   if (ausfuehrung.art === 'runner-nicht-erreichbar' || ausfuehrung.art === 'runner-abgewiesen') {
     return { hinweis: ausfuehrung.hinweis };
