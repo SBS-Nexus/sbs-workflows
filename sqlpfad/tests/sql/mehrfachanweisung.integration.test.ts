@@ -84,6 +84,18 @@ beschreibe('Mehrfachanweisungen ohne Semikolon gegen SQL Server', () => {
       erlaubteKlassen: ['SELECT'],
     });
 
+  /**
+   * Über den Runner, wie eine Änderungsaufgabe aus Modul 4. Ohne `verwerfen`,
+   * damit sichtbar bleibt, was die Anweisungsprüfung allein leistet.
+   */
+  const alsAenderungsaufgabe = (sqlText: string): ReturnType<SqlRunner['execute']> =>
+    runner.execute({
+      sandboxId: EIGENE,
+      ausfuehrungId: 'mehrfach-runner-dml',
+      sql: sqlText,
+      erlaubteKlassen: ['SELECT', 'DML'],
+    });
+
   const anzahlKunden = async (sandboxId = EIGENE): Promise<unknown> =>
     (await amMotorVorbei('SELECT COUNT(*) FROM Kunden', sandboxId)).resultset?.zeilen[0]?.[0];
 
@@ -135,6 +147,9 @@ beschreibe('Mehrfachanweisungen ohne Semikolon gegen SQL Server', () => {
       ['Zeilenumbruch', 'SELECT 1\nDELETE FROM Kunden'],
       ['Blockkommentar ohne Leerraum', 'SELECT 1/**/DELETE FROM Kunden'],
       ['Zahl direkt davor', 'SELECT 1DELETE FROM Kunden'],
+      ['Exponent ohne Ziffern davor', 'SELECT 1eDELETE FROM Kunden'],
+      ['Punkt und Exponent davor', 'SELECT 1.eDELETE FROM Kunden'],
+      ['Zeilenkommentar bis Wagenrücklauf', 'SELECT 1 --x\rDELETE FROM Kunden'],
       ['Zeichenfolge direkt davor', "SELECT 'a'DELETE FROM Kunden"],
       ['Klammer direkt davor', 'SELECT (1)DELETE FROM Kunden'],
       ['hinter einem CTE', 'WITH k AS (SELECT 1 AS a) SELECT * FROM k DELETE FROM Kunden'],
@@ -160,6 +175,24 @@ beschreibe('Mehrfachanweisungen ohne Semikolon gegen SQL Server', () => {
     it('verwirft mit DROP TABLE hinter dem SELECT eine Tabelle', async () => {
       await amMotorVorbei('SELECT 1 DROP TABLE Auftraege');
       expect(await tabellen()).toEqual(['Kunden']);
+    });
+
+    // Review DEV-02, N2: dasselbe hinter einer Änderung statt hinter einem SELECT.
+    it.each([
+      'DELETE FROM Kunden WHERE 1 = 0 DROP TABLE Auftraege',
+      'SELECT 1 DELETE FROM Kunden WHERE 1 = 0 DROP TABLE Auftraege',
+      "UPDATE Kunden SET Name = Name WHERE 1 = 0 EXEC('DROP TABLE Auftraege')",
+    ])('verwirft auch hinter einer Änderung eine Tabelle: %s', async (sqlText) => {
+      await amMotorVorbei(sqlText);
+      expect(await tabellen()).toEqual(['Kunden']);
+    });
+
+    it('leert mit TRUNCATE hinter INSERT … SELECT eine Tabelle', async () => {
+      await amMotorVorbei(
+        'INSERT INTO Kunden SELECT * FROM Kunden WHERE 1 = 0 TRUNCATE TABLE Auftraege',
+      );
+      const ergebnis = await amMotorVorbei('SELECT COUNT(*) FROM Auftraege');
+      expect(ergebnis.resultset?.zeilen).toEqual([[0]]);
     });
 
     it('legt mit SELECT … INTO eine Tabelle an', async () => {
@@ -220,6 +253,9 @@ beschreibe('Mehrfachanweisungen ohne Semikolon gegen SQL Server', () => {
       'SELECT 1\nDELETE FROM Kunden',
       'SELECT 1/**/DELETE FROM Kunden',
       'SELECT 1DELETE FROM Kunden',
+      'SELECT 1eDELETE FROM Kunden',
+      'SELECT 1.eDELETE FROM Kunden',
+      'SELECT 1 --x\rDELETE FROM Kunden',
       "SELECT 'a'DELETE FROM Kunden",
       'SELECT (1)DELETE FROM Kunden',
       'WITH k AS (SELECT 1 AS a) SELECT * FROM k DELETE FROM Kunden',
@@ -262,10 +298,63 @@ beschreibe('Mehrfachanweisungen ohne Semikolon gegen SQL Server', () => {
       ['SELECT TOP 1 WITH TIES KundeId FROM Auftraege ORDER BY KundeId', 2],
       ["SELECT * FROM OPENJSON(N'[1,2,3]')", 3],
       ['SELECT 0xDE AS Wert, $1.50 AS Preis, 1e2 AS Hundert', 1],
+      ['SELECT Name FROM Kunden -- delete\r\nWHERE Aktiv = 1', 2],
     ])('lässt laufen: %s', async (sqlText, zeilen) => {
       const ergebnis = await alsLeseaufgabe(sqlText);
       expect(ergebnis.art, JSON.stringify(ergebnis)).toBe('erfolg');
       if (ergebnis.art === 'erfolg') expect(ergebnis.resultset.zeilen).toHaveLength(zeilen);
+    });
+  });
+
+  /*
+   * Review DEV-02: In einer Änderungsaufgabe darf DML laufen, aber nichts, was
+   * die Aufgabe nicht freigibt – auch nicht hinter dem erlaubten DML.
+   */
+  describe('Prüfung in einer Änderungsaufgabe', () => {
+    it.each([
+      'SELECT 1 DELETE FROM Kunden WHERE 1 = 0 DROP TABLE Auftraege',
+      'DELETE FROM Kunden WHERE 1 = 0 DROP TABLE Auftraege',
+      'INSERT INTO Kunden SELECT * FROM Kunden WHERE 1 = 0 TRUNCATE TABLE Auftraege',
+      "UPDATE Kunden SET Name = Name WHERE 1 = 0 EXEC('DROP TABLE Auftraege')",
+      'DELETE FROM Kunden WHERE 1 = 0 SELECT * INTO Kopie FROM Kunden',
+      'DELETE FROM Kunden WHERE 1 = 0 --x\rDROP TABLE Auftraege',
+    ])('lehnt ab, ohne etwas zu ändern: %s', async (sqlText) => {
+      const ergebnis = await alsAenderungsaufgabe(sqlText);
+      expect(ergebnis.art).toBe('abgelehnt');
+      expect(await anzahlKunden()).toBe(3);
+      expect(await tabellen()).toEqual(['Auftraege', 'Kunden']);
+      const auftraege = await amMotorVorbei('SELECT COUNT(*) FROM Auftraege');
+      expect(auftraege.resultset?.zeilen).toEqual([[3]]);
+    });
+
+    /*
+     * Die Gegenseite: INTO und SET gehören hier zur Änderung selbst. Jede
+     * dieser Anweisungen läuft und wirkt wie erwartet.
+     */
+    it.each([
+      ["INSERT INTO Kunden (KundeId, Name, Stadt, Aktiv) VALUES (9, N'neu', NULL, 1)", 4],
+      ["UPDATE Kunden SET Stadt = N'Mannheim' WHERE KundeId = 3", 3],
+      [
+        'INSERT INTO Kunden (KundeId, Name, Stadt, Aktiv) ' +
+          'SELECT KundeId + 100, Name, Stadt, Aktiv FROM Kunden WHERE Aktiv = 1',
+        5,
+      ],
+      [
+        "UPDATE TOP (1) k SET Stadt = (SELECT TOP 1 N'x' FROM Auftraege a WHERE a.KundeId = k.KundeId) " +
+          'FROM Kunden k WHERE k.KundeId IN (SELECT KundeId FROM Auftraege)',
+        3,
+      ],
+      ['DELETE FROM Kunden OUTPUT deleted.KundeId WHERE Aktiv = 0', 2],
+      [
+        "MERGE INTO Kunden AS z USING (SELECT 4 AS Id, N'neu' AS Name) AS q ON z.KundeId = q.Id " +
+          "WHEN MATCHED THEN UPDATE SET Name = q.Name, Stadt = N'x' " +
+          'WHEN NOT MATCHED THEN INSERT (KundeId, Name, Aktiv) VALUES (q.Id, q.Name, 1);',
+        4,
+      ],
+    ])('lässt laufen: %s', async (sqlText, kunden) => {
+      const ergebnis = await alsAenderungsaufgabe(sqlText);
+      expect(ergebnis.art, JSON.stringify(ergebnis)).toBe('erfolg');
+      expect(await anzahlKunden()).toBe(kunden);
     });
   });
 });

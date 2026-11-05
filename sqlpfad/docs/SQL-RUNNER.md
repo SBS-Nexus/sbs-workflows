@@ -95,12 +95,17 @@ andere Aufgaben:
 Ein Beispiel, warum das so sein muss: T-SQL braucht zwischen zwei Anweisungen
 kein Semikolon. `SELECT 1 DELETE FROM Kunden` sind für SQL Server zwei
 Anweisungen, und beide laufen. Die Prüfung zerlegte früher nur an Semikola und
-sah ein einziges `SELECT`. Seitdem sucht sie in jedem `SELECT` zusätzlich nach
-reservierten Schlüsselwörtern, mit denen eine weitere Anweisung beginnt (und
-nach `SELECT … INTO`), und verlangt, dass deren Klasse in der Aufgabe erlaubt
-ist. Gehalten hat in diesem Fall trotzdem die Berechtigung: Auch versteckt
-hinter einem `SELECT` erreicht nichts eine fremde Sandbox
-(`tests/sql/mehrfachanweisung.integration.test.ts`).
+sah ein einziges `SELECT`. Seitdem sucht sie in jedem `SELECT`, jeder Änderung
+und jeder Transaktion zusätzlich nach reservierten Schlüsselwörtern, mit denen
+eine weitere Anweisung beginnt (und nach `SELECT … INTO`), und verlangt, dass
+die Klasse **jeder** davon in der Aufgabe erlaubt ist – sonst käme
+`DELETE … WHERE 1 = 0 DROP TABLE Kunden` in jeder Änderungsaufgabe durch.
+Wie der Server Wörter trennt, ist dabei am Server nachgemessen: `1e`, `1.e`
+und `.5e` sind Zahlen, und ein einzelnes `\r` beendet einen `--`-Kommentar.
+DDL und Prozedurrümpfe werden nicht durchsucht; dort stehen diese Wörter
+regulär (`ON DELETE SET NULL`). Gehalten hat in diesem Fall trotzdem die
+Berechtigung: Auch versteckt hinter einem `SELECT` erreicht nichts eine fremde
+Sandbox (`tests/sql/mehrfachanweisung.integration.test.ts`).
 
 ---
 
@@ -217,7 +222,10 @@ Fünf Dateien:
   vollständig aus und verändert die eigene Sandbox; die fremde bleibt
   unerreichbar. Über den Runner werden dieselben Eingaben abgelehnt und ändern
   nichts, legitime Abfragen mit Schlüsselwörtern in Texten, Kommentaren und
-  Bezeichnern laufen weiter.
+  Bezeichnern laufen weiter. Ebenso in einer Änderungsaufgabe: DDL oder
+  dynamisches SQL hinter einem erlaubten `DELETE`, `UPDATE` oder `INSERT` wird
+  abgelehnt, `INSERT … SELECT`, `UPDATE … SET … (SELECT …)`, `OUTPUT` und
+  `MERGE` laufen.
 - `bewertung-verwerfen.integration.test.ts` – Bewertungsläufe verändern die
   Sandbox nicht (Abschnitt 12): `SELECT … DELETE`, `SELECT INTO`, Struktur,
   Änderung mit Laufzeitfehler, `COMMIT`, `ROLLBACK; DELETE`,

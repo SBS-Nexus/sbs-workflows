@@ -71,6 +71,22 @@ const SERVER_MUSTER: ReadonlyArray<readonly [RegExp, string]> = [
 ];
 
 /**
+ * Wo ein Zeilenkommentar (`--`) endet.
+ *
+ * SQL Server beendet ihn nicht nur beim Zeilenvorschub, sondern auch bei
+ * einem einzelnen Wagenrücklauf: `SELECT 1 --x\rDELETE FROM Kunden` führt das
+ * DELETE aus (Review DEV-02, am Server nachgestellt). Andere Zeichen wie
+ * `\v`, `\f`, U+0085 oder U+2028 beenden ihn nicht – dort bleibt der Rest
+ * Kommentar und wird auch nicht ausgeführt.
+ *
+ * Alle drei Abtaster dieser Datei benutzen diese eine Regel. Wiche einer ab,
+ * sähe er Text als Kommentar, den der Server ausführt.
+ */
+function istZeilenende(zeichen: string | undefined): boolean {
+  return zeichen === '\n' || zeichen === '\r';
+}
+
+/**
  * Entfernt Kommentare und Zeichenfolgenliterale.
  *
  * Ohne diesen Schritt löst das Wort `DELETE` in einem Kommentar oder in
@@ -89,7 +105,7 @@ export function entferneKommentareUndLiterale(sql: string): string {
     const zwei = sql.slice(i, i + 2);
 
     if (zwei === '--') {
-      while (i < n && sql[i] !== '\n') i += 1;
+      while (i < n && !istZeilenende(sql[i])) i += 1;
       continue;
     }
     if (zwei === '/*') {
@@ -171,7 +187,7 @@ export function teileAnweisungen(sql: string): string[] {
     const zwei = sql.slice(i, i + 2);
 
     if (zwei === '--') {
-      while (i < n && sql[i] !== '\n') i += 1;
+      while (i < n && !istZeilenende(sql[i])) i += 1;
       continue;
     }
     if (zwei === '/*') {
@@ -247,19 +263,22 @@ export function bestimmeKlasse(sql: string): AnweisungsKlasse {
 }
 
 /**
- * Wörter, mit denen innerhalb eines SELECT eine weitere Anweisung beginnt.
+ * Wörter, mit denen innerhalb einer Anweisung eine weitere beginnt.
  *
  * T-SQL braucht zwischen zwei Anweisungen kein Semikolon: `SELECT 1 DELETE
  * FROM Kunden` sind für SQL Server zwei Anweisungen, und beide laufen. Die
  * Zerlegung an den Semikola sieht davon nur eine, und deren erstes Wort ist
- * SELECT. Deshalb wird ein SELECT zusätzlich nach diesen Wörtern abgesucht.
+ * SELECT. Deshalb wird jede Anweisung zusätzlich nach diesen Wörtern
+ * abgesucht – nicht nur ein SELECT, sondern auch eine Änderung oder eine
+ * Transaktion (siehe `MIT_SUCHE`).
  *
  * Aufgenommen sind nur **reservierte** Schlüsselwörter. Ein reserviertes Wort
  * kann ohne Klammern oder Anführungszeichen kein Tabellen-, Spalten- oder
  * Aliasname sein – kommt es in einem gültigen SELECT vor, dann nur in seiner
  * Bedeutung als Schlüsselwort, und keines davon gehört zum SELECT selbst.
- * Damit trifft die Suche keine legitime Abfrage. Einzige Ausnahme ist FETCH
- * im Seitenumbruch `OFFSET … ROWS FETCH NEXT … ROWS ONLY`; siehe unten.
+ * Damit trifft die Suche keine legitime Abfrage. Ausnahmen sind FETCH im
+ * Seitenumbruch `OFFSET … ROWS FETCH NEXT … ROWS ONLY` sowie INTO und SET,
+ * die zu INSERT, MERGE und UPDATE selbst gehören; siehe unten.
  *
  * Nicht reservierte Anweisungsanfänge (etwa THROW, das ohnehin ein Semikolon
  * davor verlangt) fehlen bewusst: Sie wären gültige Spaltennamen, und die
@@ -324,6 +343,9 @@ const ANWEISUNGSANFAENGE: ReadonlyMap<string, AnweisungsKlasse> = new Map([
  * `DELETE`), und Bezeichner in `[…]` oder `"…"`, Variablen (`@x`) und
  * temporäre Tabellen (`#t`) sind Namen, keine Schlüsselwörter – `[Update]`
  * darf eine Spalte heißen.
+ *
+ * Runde Klammern kommen als eigene Einträge `(` und `)` mit: Sie zeigen, ob
+ * ein SELECT eine Unterabfrage ist oder auf oberster Ebene steht.
  */
 function woerter(sql: string): string[] {
   const liste: string[] = [];
@@ -349,7 +371,7 @@ function woerter(sql: string): string[] {
     const zwei = sql.slice(i, i + 2);
 
     if (zwei === '--') {
-      while (i < n && sql[i] !== '\n') i += 1;
+      while (i < n && !istZeilenende(sql[i])) i += 1;
     } else if (zwei === '/*') {
       let tiefe = 1;
       i += 2;
@@ -370,8 +392,14 @@ function woerter(sql: string): string[] {
       ueberspringeBis('"');
     } else if (/[0-9]/.test(zeichen) || (zeichen === '.' && /[0-9]/.test(sql[i + 1] ?? ''))) {
       // Zahl: 0x1F, 12, 1.5, 1e5, 1.5E-3 – danach beginnt ein neues Wort.
-      const zahl = /^(?:0x[0-9A-Fa-f]*|[0-9]*\.?[0-9]*(?:[eE][+-]?[0-9]+)?)/.exec(sql.slice(i));
+      // Der Exponent darf ohne Ziffern stehen: SQL Server liest `1e`, `1E+`,
+      // `1.e` und `.5e` als Zahl, und `SELECT 1eDELETE FROM Kunden` führt das
+      // DELETE aus (Review DEV-02, am Server nachgestellt).
+      const zahl = /^(?:0x[0-9A-Fa-f]*|[0-9]*\.?[0-9]*(?:[eE][+-]?[0-9]*)?)/.exec(sql.slice(i));
       i += Math.max(1, zahl?.[0].length ?? 1);
+    } else if (zeichen === '(' || zeichen === ')') {
+      liste.push(zeichen);
+      i += 1;
     } else if (/[\p{L}_@#]/u.test(zeichen)) {
       const wort = /^[\p{L}_@#][\p{L}\p{N}_@#$]*/u.exec(sql.slice(i))?.[0] ?? zeichen;
       // Variablen und temporäre Objekte sind Namen, nie Schlüsselwörter.
@@ -385,29 +413,100 @@ function woerter(sql: string): string[] {
   return liste;
 }
 
-/** Eine Anweisung, die innerhalb eines SELECT ohne Semikolon beginnt. */
+/** Eine Anweisung, die innerhalb einer anderen ohne Semikolon beginnt. */
 export interface VersteckteAnweisung {
   wort: string;
   klasse: AnweisungsKlasse;
 }
 
+/** Wörter, mit denen eine Abfrage oder Änderung beginnt. */
+const KOEPFE: ReadonlySet<string> = new Set(['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'MERGE']);
+
+/** Was auf einer Klammerebene gerade läuft. */
+interface Ebene {
+  /** Das letzte Wort aus `KOEPFE` auf dieser Ebene. */
+  kopf?: string;
+  /** Ob das UPDATE dieser Ebene sein SET schon hat. */
+  setVergeben: boolean;
+}
+
 /**
- * Sucht in einer Anweisung, deren erstes Wort SELECT ist, nach einem Wort,
- * das eine andere Anweisung beginnt (siehe `ANWEISUNGSANFAENGE`).
+ * Findet jedes Wort, das eine weitere Anweisung beginnt, in Lesereihenfolge
+ * (siehe `ANWEISUNGSANFAENGE`).
+ *
+ * Alle, nicht nur das erste: In `SELECT 1 DELETE … DROP TABLE Kunden` ist das
+ * DELETE dort, wo DML geübt wird, erlaubt – das DROP dahinter nicht. Wer nur
+ * den ersten Treffer prüft, lässt es durch (Review DEV-02, N1).
+ *
+ * Drei Wörter gehören dabei zur Anweisung selbst und beginnen keine neue:
+ *
+ *  - **FETCH** hinter ROW/ROWS – der Seitenumbruch eines SELECT.
+ *  - **INTO** hinter INSERT, MERGE oder im OUTPUT-Teil einer Änderung. Nur
+ *    hinter einem SELECT legt es eine neue Tabelle an.
+ *  - **SET** als erstes SET eines UPDATE (auch `THEN UPDATE SET` im MERGE).
+ *    Ein zweites SET ist eine eigene Anweisung wie `SET NOCOUNT ON`.
+ *
+ * Wozu ein INTO oder SET gehört, entscheidet das letzte INSERT, UPDATE,
+ * DELETE, MERGE oder SELECT **auf derselben Klammerebene**. So bleibt
+ * `UPDATE … SET a = (SELECT …) OUTPUT … INTO @t` eine einzige Änderung,
+ * während `DELETE … SELECT * INTO Kopie FROM Kunden` eine Tabelle anlegt.
  */
-export function findeVersteckteAnweisung(sql: string): VersteckteAnweisung | undefined {
+export function findeVersteckteAnweisungen(sql: string): VersteckteAnweisung[] {
   const liste = woerter(sql);
+  const funde: VersteckteAnweisung[] = [];
+  const ebenen: Ebene[] = [{ setVergeben: false }];
+
   for (let k = 0; k < liste.length; k += 1) {
     const wort = liste[k] as string;
-    const klasse = ANWEISUNGSANFAENGE.get(wort);
-    if (!klasse) continue;
+
+    if (wort === '(') {
+      ebenen.push({ setVergeben: false });
+      continue;
+    }
+    if (wort === ')') {
+      if (ebenen.length > 1) ebenen.pop();
+      continue;
+    }
+
+    const ebene = ebenen[ebenen.length - 1] as Ebene;
+
     // `OFFSET 10 ROWS FETCH NEXT 5 ROWS ONLY` gehört zum SELECT. Ein FETCH,
     // das einen Cursor liest, steht dagegen nie direkt hinter ROW oder ROWS.
     if (wort === 'FETCH' && ['ROW', 'ROWS'].includes(liste[k - 1] ?? '')) continue;
-    return { wort, klasse };
+    if (wort === 'INTO' && ebene.kopf !== undefined && ebene.kopf !== 'SELECT') continue;
+    if (wort === 'SET' && ebene.kopf === 'UPDATE' && !ebene.setVergeben) {
+      ebene.setVergeben = true;
+      continue;
+    }
+
+    if (KOEPFE.has(wort)) {
+      ebene.kopf = wort;
+      ebene.setVergeben = false;
+    }
+
+    const klasse = ANWEISUNGSANFAENGE.get(wort);
+    if (klasse) funde.push({ wort, klasse });
   }
-  return undefined;
+
+  return funde;
 }
+
+/**
+ * Anweisungsklassen, in denen nach weiteren Anweisungen gesucht wird.
+ *
+ * SELECT, Änderungen und Transaktionen: Hinter jeder davon kann ohne
+ * Semikolon eine weitere Anweisung stehen, und keine davon enthält die
+ * Wörter aus `ANWEISUNGSANFAENGE` in anderer Bedeutung als oben beschrieben.
+ * `DELETE … WHERE 1 = 0 DROP TABLE Kunden` kommt sonst in jeder Aufgabe
+ * durch, die DML erlaubt (Review DEV-02, N2).
+ *
+ * DDL und Programmierung bleiben bewusst draußen: Ihr Text enthält diese
+ * Wörter regulär – `ON DELETE SET NULL` in einem Fremdschlüssel, der Rumpf
+ * einer Prozedur oder eines Triggers. Die Suche lehnte dort legitime
+ * Lösungen ab. Gewähr gegen bleibende Änderungen ist ohnehin nicht diese
+ * Datei, sondern das Verwerfen des Laufs (`verwerfen` am Auftrag).
+ */
+const MIT_SUCHE: ReadonlySet<AnweisungsKlasse> = new Set(['SELECT', 'DML', 'TRANSAKTION']);
 
 /**
  * Prüft eine Eingabe gegen die für die Aufgabe erlaubten Klassen.
@@ -451,12 +550,14 @@ export function pruefeAnweisung(
     return { erlaubt: false, klasse, begruendung: begruendeAblehnung(klasse, erlaubteKlassen) };
   }
 
-  // Ein SELECT kann ohne Semikolon eine weitere Anweisung mitbringen, die der
-  // Server ebenfalls ausführt. Sie muss in der Aufgabe genauso erlaubt sein,
-  // als stünde sie für sich.
-  if (klasse === 'SELECT') {
-    const versteckt = findeVersteckteAnweisung(sql);
-    if (versteckt && !erlaubteKlassen.includes(versteckt.klasse)) {
+  // Eine Anweisung kann ohne Semikolon weitere mitbringen, die der Server
+  // ebenfalls ausführt. Jede davon muss in der Aufgabe genauso erlaubt sein,
+  // als stünde sie für sich; gemeldet wird die erste, die es nicht ist.
+  if (MIT_SUCHE.has(klasse)) {
+    const versteckt = findeVersteckteAnweisungen(sql).find(
+      (fund) => !erlaubteKlassen.includes(fund.klasse),
+    );
+    if (versteckt) {
       const hinweis =
         versteckt.wort === 'INTO'
           ? 'Mit SELECT … INTO legt SQL Server eine neue Tabelle an. '
