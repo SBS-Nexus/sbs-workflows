@@ -3,8 +3,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/server/auth/session';
 import { listLabsWithStatus } from '@/server/services/lab-service';
 import { AppHeader } from '@/components/app/app-header';
-import { Badge, Card, SectionHeading } from '@/components/ui/primitives';
-import Link from 'next/link';
+import { Badge, CardLink, SectionHeading } from '@/components/ui/primitives';
 
 export const metadata: Metadata = { title: 'Labs', alternates: { canonical: '/labs' } };
 
@@ -35,17 +34,15 @@ export default async function LabsPage(): Promise<React.ReactElement> {
 
         <div className="grid gap-4 sm:grid-cols-2">
           {labs.map((lab) => (
-            <Link key={lab.slug} href={`/labs/${lab.slug}`}>
-              <Card className="h-full transition-colors hover:border-signal-500">
-                <div className="flex items-start justify-between gap-2">
-                  <Badge tone="info">{KIND_LABELS[lab.kind] ?? lab.kind}</Badge>
-                  {lab.completed ? <Badge tone="success">Abgeschlossen</Badge> : null}
-                </div>
-                <p className="mt-3 font-mono font-semibold">{lab.title}</p>
-                <p className="mt-1.5 text-sm text-[var(--fg-muted)]">{lab.summary}</p>
-                <p className="mt-3 text-xs text-[var(--fg-muted)]">~{lab.estimatedMinutes} Min.</p>
-              </Card>
-            </Link>
+            <CardLink key={lab.slug} href={`/labs/${lab.slug}`} className="h-full">
+              <div className="flex items-start justify-between gap-2">
+                <Badge tone="info">{KIND_LABELS[lab.kind] ?? lab.kind}</Badge>
+                {lab.completed ? <Badge tone="success">Abgeschlossen</Badge> : null}
+              </div>
+              <p className="mt-3 font-mono font-semibold">{lab.title}</p>
+              <p className="mt-1.5 text-sm text-[var(--fg-muted)]">{lab.summary}</p>
+              <p className="mt-3 text-xs text-[var(--fg-muted)]">~{lab.estimatedMinutes} Min.</p>
+            </CardLink>
           ))}
         </div>
       </main>

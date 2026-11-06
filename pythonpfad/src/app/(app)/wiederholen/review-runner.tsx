@@ -52,7 +52,7 @@ export function ReviewRunner({
         <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--text-muted)]">
           {info.lessonTitle ? <Badge tone="neutral">aus: {info.lessonTitle}</Badge> : null}
           {info.overdueDays > 0 ? (
-            <Badge tone="caution">
+            <Badge tone="due">
               seit {info.overdueDays} {info.overdueDays === 1 ? 'Tag' : 'Tagen'} fällig
             </Badge>
           ) : null}

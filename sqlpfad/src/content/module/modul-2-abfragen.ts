@@ -457,6 +457,25 @@ Unterstrich \`_\` steht für genau ein Zeichen.
           loesungsErklaerung:
             'DESC dreht die Reihenfolge um. Bei Datumsangaben heißt „größer" später – der ' +
             'jüngste Auftrag steht damit oben.',
+          erwartetesErgebnis: {
+            spalten: ['Bezeichnung', 'Eingegangen'],
+            zeilen: [
+              ['Angebot für Elektroprüfung', new Date('2026-03-10T00:00:00Z')],
+              ['Heizung macht Geräusche', new Date('2026-03-02T00:00:00Z')],
+              ['Thermostate tauschen', new Date('2026-03-01T00:00:00Z')],
+              ['Neues Waschbecken einbauen', new Date('2026-02-25T00:00:00Z')],
+              ['Beleuchtung Verkaufsraum erweitern', new Date('2026-02-18T00:00:00Z')],
+              ['Tropfenden Wasserhahn abdichten', new Date('2026-02-02T00:00:00Z')],
+              ['Sicherungskasten prüfen', new Date('2026-01-20T00:00:00Z')],
+              ['Notbeleuchtung nachrüsten', new Date('2026-01-12T00:00:00Z')],
+              ['Steckdosen im Wohnzimmer erneuern', new Date('2026-01-08T00:00:00Z')],
+              ['Jahreswartung Heizungsanlage', new Date('2026-01-05T00:00:00Z')],
+              ['Rohrbruch im Keller', new Date('2026-01-02T00:00:00Z')],
+              ['Treppenhauslicht auf Bewegungsmelder', new Date('2025-11-14T00:00:00Z')],
+            ],
+          },
+          // Die Sortierung ist die Aufgabe – hier zählt die Reihenfolge.
+          vergleich: { reihenfolgeZaehlt: true },
           hinweise: [
             'Für absteigend gibt es ein eigenes Wort.',
             'Es steht hinter der Spalte, nach der sortiert wird.',
@@ -653,6 +672,39 @@ keinen. In der Anzeige stünde dann eine Überschrift wie „Spalte1".
           loesungsErklaerung:
             'Die Rechnung steht im SELECT und verändert nichts in der Tabelle. Ohne AS hätte die ' +
             'Spalte im Ergebnis keinen Namen.',
+          erwartetesErgebnis: {
+            spalten: ['Bezeichnung', 'Zeilensumme'],
+            zeilen: [
+              ['Arbeitszeit', 272],
+              ['Steckdose Unterputz', 53.4],
+              ['Kleinmaterial', 14.5],
+              ['Arbeitszeit', 96.75],
+              ['Dichtungssatz', 6.2],
+              ['Arbeitszeit', 204],
+              ['Sicherungsautomat', 49.6],
+              ['Arbeitszeit', 177.5],
+              ['Wartungssatz', 48],
+              ['Arbeitszeit', 748],
+              ['LED-Panel', 336],
+              ['Kabel NYM 3x1,5', 81],
+              ['Arbeitszeit', 510],
+              ['Notleuchte', 445],
+              ['Arbeitszeit', 340],
+              ['Bewegungsmelder', 104.7],
+              ['Kleinmaterial', 14.5],
+              ['Arbeitszeit', 387],
+              ['Rohrstück Kupfer', 37.4],
+              ['Kleinmaterial', 14.5],
+              ['Anfahrt', 35],
+              ['Waschbecken', 219],
+              ['Arbeitszeit', 193.5],
+              ['Thermostat', 167.4],
+              ['Arbeitszeit', 142],
+              ['Anfahrt', 35],
+            ],
+          },
+          // Der Name „Zeilensumme" ist Teil der Aufgabe.
+          vergleich: { reihenfolgeZaehlt: false, spaltennamenZaehlen: true },
           hinweise: [
             'Gerechnet wird mit dem Stern zwischen den beiden Spalten.',
             'Die neue Spalte braucht einen Namen – dafür gibt es AS.',
@@ -700,6 +752,40 @@ keinen. In der Anzeige stünde dann eine Überschrift wie „Spalte1".
           loesungsErklaerung:
             'ORDER BY wird nach SELECT ausgewertet. Zu diesem Zeitpunkt gibt es den Alias – ' +
             'anders als im WHERE.',
+          erwartetesErgebnis: {
+            spalten: ['Bezeichnung', 'Zeilensumme'],
+            zeilen: [
+              ['Arbeitszeit', 748],
+              ['Arbeitszeit', 510],
+              ['Notleuchte', 445],
+              ['Arbeitszeit', 387],
+              ['Arbeitszeit', 340],
+              ['LED-Panel', 336],
+              ['Arbeitszeit', 272],
+              ['Waschbecken', 219],
+              ['Arbeitszeit', 204],
+              ['Arbeitszeit', 193.5],
+              ['Arbeitszeit', 177.5],
+              ['Thermostat', 167.4],
+              ['Arbeitszeit', 142],
+              ['Bewegungsmelder', 104.7],
+              ['Arbeitszeit', 96.75],
+              ['Kabel NYM 3x1,5', 81],
+              ['Steckdose Unterputz', 53.4],
+              ['Sicherungsautomat', 49.6],
+              ['Wartungssatz', 48],
+              ['Rohrstück Kupfer', 37.4],
+              ['Anfahrt', 35],
+              ['Anfahrt', 35],
+              ['Kleinmaterial', 14.5],
+              ['Kleinmaterial', 14.5],
+              ['Kleinmaterial', 14.5],
+              ['Dichtungssatz', 6.2],
+            ],
+          },
+          // Sortierung und Alias sind die Aufgabe. Gleiche Summen stehen nur bei
+          // gleichen Zeilen nebeneinander; ihre Reihenfolge ist damit eindeutig.
+          vergleich: { reihenfolgeZaehlt: true, spaltennamenZaehlen: true },
           hinweise: [
             'Die Sortierung steht am Ende.',
             'An welcher Stelle der Verarbeitung ist der Alias schon bekannt?',

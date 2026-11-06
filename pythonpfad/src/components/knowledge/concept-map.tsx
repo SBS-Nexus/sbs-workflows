@@ -187,7 +187,7 @@ function NodeDetails({ node }: { node: KnowledgeNode }): React.ReactElement {
               : node.band === 'new'
                 ? 'neutral'
                 : node.band === 'building'
-                  ? 'caution'
+                  ? 'in-progress'
                   : 'info'
           }
         >

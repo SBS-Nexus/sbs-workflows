@@ -269,7 +269,7 @@ Protokollzeilen.
 
 ### Prüfkette
 
-`.github/workflows/pythonpfad.yml` läuft bei jeder Änderung unterhalb von
+`.github/workflows/pythonpfad-ci.yml` läuft bei jeder Änderung unterhalb von
 `pythonpfad/` und deckt die vollständige Kette ab: Migrationen, Seeding,
 Typecheck, Lint, Formatprüfung, Vitest, Prüfung aller Musterlösungen gegen ihre
 eigenen Tests, Prüfung der Ausführungsaufzeichnung gegen das echte Gerüst,

@@ -4,6 +4,7 @@ import './globals.css';
 import { getCurrentUser } from '@/server/auth/session';
 import { BRAND } from '@/lib/brand';
 import { siteUrl } from '@/server/site';
+import { LearningPlatformBar } from '@/components/app/learning-platform-bar';
 
 /*
  * Schriften. IBM Plex wird selbst ausgeliefert statt über ein Schriftennetz:
@@ -89,6 +90,7 @@ export default async function RootLayout({
   return (
     <html
       lang="de"
+      data-lp-app="ai"
       {...(user?.theme === 'light' || user?.theme === 'dark' ? { 'data-theme': user.theme } : {})}
       {...(user?.reduceMotion ? { 'data-reduce-motion': 'true' } : {})}
       suppressHydrationWarning
@@ -101,6 +103,7 @@ export default async function RootLayout({
         <a href="#hauptinhalt" className="skip-link">
           Direkt zum Hauptinhalt springen
         </a>
+        <LearningPlatformBar app="ai" />
         {children}
       </body>
     </html>

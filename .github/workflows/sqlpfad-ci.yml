@@ -1,0 +1,198 @@
+name: SQLPfad
+
+# Läuft nur für Änderungen unterhalb von sqlpfad/ — das Repository enthält
+# weitere Projekte mit eigenen Prüfketten, ein Lauf bei jeder fremden
+# Änderung wäre reine Wartezeit. Die Datei liegt im Wurzelverzeichnis des
+# Repositorys, weil GitHub Actions Workflows nur dort erkennt.
+on:
+  push:
+    branches: [main]
+    paths: ['sqlpfad/**', '.github/workflows/sqlpfad-ci.yml']
+  pull_request:
+    paths: ['sqlpfad/**', '.github/workflows/sqlpfad-ci.yml']
+
+# Der Lauf prüft nur und schreibt nichts ins Repository. Die Rechte stehen
+# deshalb hier, statt sich auf die Vorgabe der Organisation zu verlassen.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: sqlpfad
+
+jobs:
+  pruefen:
+    name: Format, Lint, Typecheck, Tests, Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sqlpfad
+          POSTGRES_PASSWORD: sqlpfad
+          POSTGRES_DB: sqlpfad
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U sqlpfad"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://sqlpfad:sqlpfad@localhost:5432/sqlpfad
+      TEST_DATABASE_URL: postgresql://sqlpfad:sqlpfad@localhost:5432/sqlpfad_test
+      # Nur für den Lauf. Ein Wert, der nichts schützt und nichts öffnet.
+      AUTH_SECRET: ci-lauf-geheimnis-ohne-jede-bedeutung-0123456789
+      APP_URL: http://localhost:3000
+      # Wie in Produktion, solange die Lizenzfrage offen ist (docs/SQL-RUNNER.md,
+      # Abschnitt 6): Abfragen werden geprüft, aber nicht ausgeführt. Den Motor
+      # gegen einen echten SQL Server prüft der zweite Job.
+      FEATURE_SQL_RUNNER: 'false'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sqlpfad/package-lock.json
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Testdatenbank anlegen
+        run: |
+          PGPASSWORD=sqlpfad psql -h localhost -U sqlpfad -d sqlpfad \
+            -c "CREATE DATABASE sqlpfad_test OWNER sqlpfad;"
+
+      - name: Formatprüfung
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit-Tests
+        run: npm run test:unit
+
+      # Migriert und befüllt die Testdatenbank selbst (tests/integration/setup.ts).
+      - name: Integrationstests
+        run: npm run test:integration
+
+      - name: Hauptdatenbank migrieren und befüllen
+        run: |
+          npm run db:deploy
+          npm run db:seed
+
+      - name: Produktionsbuild
+        run: npm run build
+
+      - name: Browser für die E2E-Tests
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-End- und Accessibility-Tests
+        run: npm run test:e2e
+
+      - name: Testbericht sichern
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlpfad-playwright-report
+          path: sqlpfad/playwright-report/
+          retention-days: 7
+
+  # Der einzige Ort, an dem sich T-SQL-Semantik, das Berechtigungsmodell der
+  # Sandboxes und die Musterlösungen gegen die echten Übungsdaten nachweisen
+  # lassen (docs/SQL-RUNNER.md, Abschnitte 4, 8 und 12) — und der ganze Weg
+  # Anwendung → Runner → SQL Server mit eingeschaltetem Übungsserver. Ohne
+  # Server würden diese Tests übersprungen statt bestanden; hier ist einer da.
+  sql-motor:
+    name: SQL Server – Motor, Musterlösungen, Ende zu Ende
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sqlpfad
+          POSTGRES_PASSWORD: sqlpfad
+          POSTGRES_DB: sqlpfad
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U sqlpfad"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      sqlserver:
+        # Developer-Edition: nur Entwicklung und Test. Auf einen kumulativen
+        # Stand festgelegt, damit ein neues Abbild nicht unbemerkt das
+        # Verhalten ändert; Aktualisieren ist ein eigener, sichtbarer Commit.
+        image: mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-24.04
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: Developer
+          # Nur für diesen Lauf; der Server ist außerhalb des Runners nicht
+          # erreichbar und wird danach verworfen.
+          MSSQL_SA_PASSWORD: Ci-Lauf_2026-kein-Geheimnis
+        ports: ['1433:1433']
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $MSSQL_SA_PASSWORD -C -Q 'SELECT 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+          --health-start-period 30s
+
+    env:
+      SQL_SERVER_HOST: 127.0.0.1
+      SQL_SERVER_PORT: '1433'
+      SQL_SERVER_SA_PASSWORD: Ci-Lauf_2026-kein-Geheimnis
+      DATABASE_URL: postgresql://sqlpfad:sqlpfad@localhost:5432/sqlpfad
+      AUTH_SECRET: ci-lauf-geheimnis-ohne-jede-bedeutung-0123456789
+      APP_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sqlpfad/package-lock.json
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      # Motor, Berechtigungsgrenze, Musterlösungen gegen die echten Übungsdaten.
+      - name: SQL-Integrationstests
+        run: npm run test:sql
+
+      - name: Plattformdatenbank migrieren und befüllen
+        run: |
+          npm run db:deploy
+          npm run db:seed
+
+      - name: Produktionsbuild
+        run: npm run build
+
+      - name: Browser für die E2E-Tests
+        run: npx playwright install --with-deps chromium
+
+      # Startet Runner-Dienst und Anwendung selbst (playwright.uebungsserver.config.ts),
+      # FEATURE_SQL_RUNNER eingeschaltet.
+      - name: Ende zu Ende mit Übungsserver
+        run: npm run test:e2e:uebungsserver
+
+      - name: Testbericht sichern
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlpfad-uebungsserver-report
+          path: sqlpfad/playwright-report/
+          retention-days: 7

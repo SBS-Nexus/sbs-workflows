@@ -76,6 +76,17 @@ export interface Ausfuehrungsauftrag {
   /** Was die Aufgabe übt – alles andere wird erklärt, nicht ausgeführt. */
   erlaubteKlassen: readonly AnweisungsKlasse[];
   grenzen?: Partial<Ausfuehrungsgrenzen>;
+  /**
+   * Nichts von dieser Ausführung behalten – für Bewertungsläufe.
+   *
+   * Bewertet wird in derselben Sandbox, in der geübt wird. Die
+   * Anweisungsprüfung hält Änderungen aus lesenden Aufgaben heraus, ist aber
+   * ausdrücklich keine Grenze. Diese Angabe ist die Gewähr: Der Motor führt
+   * in einer Transaktion aus, die immer zurückgerollt wird, und setzt die
+   * Sandbox zurück, wenn das eingereichte SQL diese Transaktion selbst
+   * beendet hat (Review DEV-01, F1).
+   */
+  verwerfen?: boolean;
 }
 
 export type Ausfuehrungsergebnis =

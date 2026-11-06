@@ -76,6 +76,7 @@ export default async function WiederholenSeite(): Promise<React.ReactElement> {
       {anstehend.length === 0 ? (
         <>
           <EmptyState
+            kind="done"
             title="Nichts offen"
             description={
               nochNichts

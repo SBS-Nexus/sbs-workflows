@@ -124,7 +124,7 @@ export default async function ProfilPage(): Promise<React.ReactElement> {
 
       <section aria-labelledby="loeschen">
         <SectionHeading id="loeschen">Konto löschen</SectionHeading>
-        <Card className="border-2 border-[var(--alert)]">
+        <Card emphasis="danger">
           <KontoLoeschen />
         </Card>
       </section>
