@@ -419,4 +419,6 @@ die Sandbox zurück. Eine Bewertung kann den Stand also weder für die nächste
 Bewertung noch für die Werkbank verändern. Dasselbe gilt für die Werkbank auf
 `/abfrage`: Sie erlaubt nur `SELECT`, ihre Läufe werden trotzdem verworfen –
 so bleibt der Stand, gegen den bewertet wird, auch dann der eingespielte, wenn
-eine Änderung an der Anweisungsprüfung vorbeikommt.
+eine Änderung an der Anweisungsprüfung vorbeikommt. Dass es bei `SELECT`
+bleibt, legt der Server fest: Der Browser schickt nur den Text der Abfrage,
+jede weitere Angabe wird zurückgewiesen (Review DEV-03).
