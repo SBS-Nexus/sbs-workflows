@@ -20,15 +20,16 @@ import type { UebungsDatensatz } from '@/domain/sql/schema';
  * Der Bereich trägt `aria-live="polite"`. Ohne das bliebe das Ergebnis für
  * jemanden, der einen Screenreader benutzt, unbemerkt – der Knopf sagt dann
  * nichts, und die Seite scheint nicht zu reagieren.
+ *
+ * Welche Anweisungen ausgeführt werden, entscheidet der Server; die Werkbank
+ * schickt nur den Text der Abfrage (Review DEV-03).
  */
 export function AbfrageWerkbank({
   datensatz,
   startSql = '',
-  erlaubteKlassen = ['SELECT'],
 }: {
   datensatz: UebungsDatensatz;
   startSql?: string;
-  erlaubteKlassen?: string[];
 }): React.ReactElement {
   const [sql, setSql] = useState(startSql);
   const [ergebnis, setErgebnis] = useState<AbfrageErgebnis | null>(null);
@@ -39,7 +40,7 @@ export function AbfrageWerkbank({
     // Ablehnung wäre eine Antwort auf eine Frage, die niemand gestellt hat.
     if (sql.trim() === '') return;
     starte(async () => {
-      setErgebnis(await fuehreAbfrageAus({ sql, erlaubteKlassen }));
+      setErgebnis(await fuehreAbfrageAus({ sql }));
     });
   }
 

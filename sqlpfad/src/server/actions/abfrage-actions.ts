@@ -4,7 +4,12 @@ import { z } from 'zod';
 import { requireUser } from '@/server/auth/session';
 import { getEnv, istSqlRunnerVerfuegbar } from '@/server/env';
 import { erklaereSqlFehler, type Fehlererklaerung } from '@/domain/sql/fehler';
-import { pruefeAnweisung, teileAnweisungen } from '@/domain/sql/statement-policy';
+import {
+  pruefeAnweisung,
+  teileAnweisungen,
+  type AnweisungsKlasse,
+} from '@/domain/sql/statement-policy';
+import { HANDWERK } from '@/content/uebungsdaten/handwerk';
 import type { Resultset } from '@/domain/sql/resultset';
 import { fuehreImRunnerAus, stelleSandboxBereit } from '@/server/sql/runner-client';
 
@@ -24,20 +29,31 @@ import { fuehreImRunnerAus, stelleSandboxBereit } from '@/server/sql/runner-clie
  * Sicherheitsprüfung, sondern Didaktik: Wer in einer SELECT-Lektion ein UPDATE
  * schreibt, soll die Erklärung sofort bekommen und nicht erst, wenn irgendwann
  * ein Server bereitsteht.
+ *
+ * **Was die Werkbank zulässt, bestimmt der Server** (Review DEV-03). Vorher
+ * schickte der Browser die erlaubten Anweisungsklassen mit, und sie gingen
+ * ungeprüft in die Policy und an den Runner – wer den Aufruf nachbaute, schaltete
+ * sich DML und DDL selbst frei. Jetzt schickt der Browser nur noch den Text der
+ * Abfrage; jede weitere Angabe wird zurückgewiesen statt stillschweigend
+ * übergangen, damit kein Aufrufer glaubt, er steuere damit etwas.
  */
 
-const eingabe = z.object({
-  sql: z.string().min(1).max(20_000),
-  /** Anweisungsklassen, die die aktuelle Aufgabe zulässt. */
-  erlaubteKlassen: z.array(z.enum(['SELECT', 'DML', 'DDL', 'TRANSAKTION', 'PROGRAMMIERUNG'])),
-  /**
-   * Gegen welchen Übungsdatensatz gearbeitet wird.
-   *
-   * Er kommt aus der Aufgabe und bestimmt, welche Sandbox gemeint ist. Der
-   * Standardwert hält ältere Aufrufe am Leben, die ihn noch nicht mitschicken.
-   */
-  datensatz: z.string().min(1).max(80).default('handwerk'),
-});
+/** Die Werkbank liest nur. Gilt für die eigene Prüfung und für den Runner. */
+const WERKBANK_KLASSEN: readonly AnweisungsKlasse[] = ['SELECT'];
+
+/** Der Datensatz, den `/abfrage` zeigt – und damit die einzige Sandbox, die gemeint sein kann. */
+const WERKBANK_DATENSATZ = HANDWERK.slug;
+
+const eingabe = z
+  .object({
+    sql: z.string().min(1).max(20_000),
+    /**
+     * Nur noch für ältere Aufrufe, die den Datensatz mitschickten: Angenommen
+     * wird ausschließlich der der Werkbank. Ausgewählt wird damit nichts.
+     */
+    datensatz: z.literal(WERKBANK_DATENSATZ).optional(),
+  })
+  .strict();
 
 export type AbfrageErgebnis =
   | { art: 'nicht-verfuegbar'; hinweis: string }
@@ -52,11 +68,11 @@ export type AbfrageErgebnis =
   | { art: 'fehler'; erklaerung: Fehlererklaerung }
   | { art: 'zeitlimit'; hinweis: string };
 
-export async function fuehreAbfrageAus(daten: {
-  sql: string;
-  erlaubteKlassen: string[];
-  datensatz?: string;
-}): Promise<AbfrageErgebnis> {
+/**
+ * `unknown` und nicht ein Objekttyp: Eine Server Action ist ein öffentlicher
+ * Endpunkt, und was ankommt, hat der Typ im Browser nie gesehen.
+ */
+export async function fuehreAbfrageAus(daten: unknown): Promise<AbfrageErgebnis> {
   const user = await requireUser();
 
   const geprueft = eingabe.safeParse(daten);
@@ -84,7 +100,7 @@ export async function fuehreAbfrageAus(daten: {
   // Jede einzelne Anweisung, nicht nur die erste: Sonst käme ein UPDATE hinter
   // einem harmlosen SELECT ungesehen durch.
   for (const anweisung of anweisungen) {
-    const ergebnis = pruefeAnweisung(anweisung, geprueft.data.erlaubteKlassen);
+    const ergebnis = pruefeAnweisung(anweisung, WERKBANK_KLASSEN);
     if (!ergebnis.erlaubt) return { art: 'abgelehnt', begruendung: ergebnis.begruendung };
   }
 
@@ -113,7 +129,7 @@ export async function fuehreAbfrageAus(daten: {
    * Abfrage laufen könnte. Sie wird beim ersten Mal angelegt und danach nur
    * noch angefasst, wenn sich die Fassung des Übungsdatensatzes geändert hat.
    */
-  const sandbox = await stelleSandboxBereit(user.id, geprueft.data.datensatz);
+  const sandbox = await stelleSandboxBereit(user.id, WERKBANK_DATENSATZ);
   if ('art' in sandbox) {
     return { art: 'nicht-verfuegbar', hinweis: sandbox.hinweis };
   }
@@ -121,7 +137,9 @@ export async function fuehreAbfrageAus(daten: {
   const ergebnis = await fuehreImRunnerAus({
     datenbank: sandbox.datenbank,
     sql: geprueft.data.sql,
-    erlaubteKlassen: geprueft.data.erlaubteKlassen,
+    // Dieselben Klassen wie oben: Der Runner prüft noch einmal, und zwar
+    // gegen dieselbe Regel, nicht gegen eine, die der Browser genannt hat.
+    erlaubteKlassen: WERKBANK_KLASSEN,
     /*
      * Auch die Werkbank behält nichts. Sie erlaubt nur SELECT, das Verwerfen
      * kostet also nichts – aber käme eine Änderung an der Anweisungsprüfung
