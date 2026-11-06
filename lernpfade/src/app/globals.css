@@ -1,4 +1,5 @@
 @import '../styles/learning-feedback.css';
+@import '../styles/learning-components.css';
 @import '../styles/liquid-sculpture-hero.css';
 
 * {
@@ -163,38 +164,6 @@ a {
   flex-wrap: wrap;
   gap: 0.8rem;
   margin-top: 2rem;
-}
-
-.button {
-  min-height: 3rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  padding: 0.75rem 1.05rem;
-  border: 1px solid transparent;
-  border-radius: 0.85rem;
-  font-weight: 800;
-  text-decoration: none;
-}
-
-.button-primary {
-  background: var(--navy);
-  color: white;
-}
-
-.button-primary:hover {
-  background: #26324a;
-}
-
-.button-secondary {
-  border-color: var(--border-strong);
-  background: white;
-  color: var(--text);
-}
-
-.button-secondary:hover {
-  background: var(--surface-muted);
 }
 
 .path-mark {
@@ -927,36 +896,6 @@ footer {
   border: 0;
 }
 
-.vocab-app .button,
-.vocab-dialog .button {
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.button-danger {
-  background: #a3253d;
-  color: white;
-}
-
-.button-danger:hover {
-  background: #861b30;
-}
-
-.button-ghost-danger {
-  border-color: #e7b9c3;
-  background: white;
-  color: #8c1d33;
-}
-
-.button-ghost-danger:hover {
-  background: #fdf0f3;
-}
 
 .vocab-page {
   padding-block: 3rem 6rem;
@@ -1039,13 +978,6 @@ footer {
   font-size: 0.92rem;
   line-height: 1.6;
   overflow-wrap: anywhere;
-}
-
-.vocab-empty {
-  padding: 1rem;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--muted);
 }
 
 .vocab-state {
@@ -1392,12 +1324,6 @@ footer {
   font-weight: 650;
 }
 
-.vocab-progress {
-  width: 100%;
-  height: 0.6rem;
-  accent-color: var(--navy);
-}
-
 .vocab-import-preview {
   padding: 1rem 1.1rem;
   border: 1px solid #c9d6f5;
@@ -1495,7 +1421,7 @@ footer {
     padding-top: 1.6rem;
   }
 
-  .vocab-actions .button {
+  .vocab-actions .lp-ui-button {
     flex: 1 1 auto;
   }
 }
@@ -1630,11 +1556,7 @@ footer {
 }
 
 .progress-bar {
-  display: block;
-  width: 100%;
-  height: 0.5rem;
   margin-top: 0.45rem;
-  accent-color: var(--indigo);
 }
 
 .progress-actions {
@@ -1650,4 +1572,12 @@ footer {
     flex: 1 1 100%;
     text-align: center;
   }
+}
+
+/* --- LP-03C: Fehler- und 404-Seite ------------------------------------------- */
+
+.state-page {
+  display: flex;
+  justify-content: center;
+  padding-block: 4rem 6rem;
 }

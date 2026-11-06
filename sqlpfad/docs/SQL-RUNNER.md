@@ -92,6 +92,21 @@ andere Aufgaben:
 2. **Tiefenstaffelung.** Falls eine Berechtigung je falsch gesetzt ist, ist eine
    zweite Hürde besser als keine.
 
+Ein Beispiel, warum das so sein muss: T-SQL braucht zwischen zwei Anweisungen
+kein Semikolon. `SELECT 1 DELETE FROM Kunden` sind für SQL Server zwei
+Anweisungen, und beide laufen. Die Prüfung zerlegte früher nur an Semikola und
+sah ein einziges `SELECT`. Seitdem sucht sie in jedem `SELECT`, jeder Änderung
+und jeder Transaktion zusätzlich nach reservierten Schlüsselwörtern, mit denen
+eine weitere Anweisung beginnt (und nach `SELECT … INTO`), und verlangt, dass
+die Klasse **jeder** davon in der Aufgabe erlaubt ist – sonst käme
+`DELETE … WHERE 1 = 0 DROP TABLE Kunden` in jeder Änderungsaufgabe durch.
+Wie der Server Wörter trennt, ist dabei am Server nachgemessen: `1e`, `1.e`
+und `.5e` sind Zahlen, und ein einzelnes `\r` beendet einen `--`-Kommentar.
+DDL und Prozedurrümpfe werden nicht durchsucht; dort stehen diese Wörter
+regulär (`ON DELETE SET NULL`). Gehalten hat in diesem Fall trotzdem die
+Berechtigung: Auch versteckt hinter einem `SELECT` erreicht nichts eine fremde
+Sandbox (`tests/sql/mehrfachanweisung.integration.test.ts`).
+
 ---
 
 ## 5. Ressourcengrenzen
@@ -179,6 +194,50 @@ npm run test:sql
 
 Läuft kein Server, meldet der Lauf ausdrücklich, dass die T-SQL-Semantik in
 diesem Durchgang nicht geprüft wurde.
+
+In der CI (`.github/workflows/sqlpfad-ci.yml`, Job „SQL-Motor gegen SQL
+Server") laufen sie bei jeder Änderung an `sqlpfad/` gegen die
+Developer-Edition von SQL Server 2025 – auf einen kumulativen Stand
+festgelegt, damit ein neues Abbild nicht unbemerkt das Verhalten ändert.
+Developer heißt: nur Entwicklung und Test; an der Lizenzfrage aus Abschnitt 6
+ändert der Lauf nichts.
+
+Fünf Dateien:
+
+- `motor.integration.test.ts` – Ergebnisse, NULL, doppelte Spaltennamen,
+  Fehlernummern, Zeitlimit, Abbruch, Zurücksetzen samt Struktur.
+- `musterloesungen.integration.test.ts` – jede lesende Musterlösung gegen ihr
+  erwartetes Ergebnis, auf den echten Übungsdaten (Abschnitt 12).
+- `berechtigung.integration.test.ts` – die Grenze aus Abschnitt 4. Der
+  Motor wird **an der Anweisungsprüfung vorbei** aufgerufen, als hätte jemand
+  eine Lücke in ihr gefunden: kein Lesen und kein Auflisten fremder
+  Sandboxes, kein `CREATE DATABASE`/`CREATE LOGIN`, keine Rechte an sich
+  selbst, kein `xp_cmdshell`, und die fremde Sandbox bleibt danach unberührt.
+  Gegenprobe: Mit `db_owner` statt `db_ddladmin` oder ohne
+  `DENY VIEW ANY DATABASE` werden drei dieser Tests rot. Dazu `EXECUTE AS`:
+  Eine Prozedur `WITH EXECUTE AS OWNER` lässt sich gar nicht erst anlegen
+  (kein `IMPERSONATE` auf `dbo`), und `TRUSTWORTHY` ist aus.
+- `mehrfachanweisung.integration.test.ts` – mehrere Anweisungen ohne
+  Semikolon: Am Motor vorbei führt der Server `SELECT 1 DELETE FROM Kunden`
+  vollständig aus und verändert die eigene Sandbox; die fremde bleibt
+  unerreichbar. Über den Runner werden dieselben Eingaben abgelehnt und ändern
+  nichts, legitime Abfragen mit Schlüsselwörtern in Texten, Kommentaren und
+  Bezeichnern laufen weiter. Ebenso in einer Änderungsaufgabe: DDL oder
+  dynamisches SQL hinter einem erlaubten `DELETE`, `UPDATE` oder `INSERT` wird
+  abgelehnt, `INSERT … SELECT`, `UPDATE … SET … (SELECT …)`, `OUTPUT` und
+  `MERGE` laufen.
+- `bewertung-verwerfen.integration.test.ts` – Bewertungsläufe verändern die
+  Sandbox nicht (Abschnitt 12): `SELECT … DELETE`, `SELECT INTO`, Struktur,
+  Änderung mit Laufzeitfehler, `COMMIT`, `ROLLBACK; DELETE`,
+  `COMMIT; BEGIN TRANSACTION`, dynamisches SQL – danach ist alles wie vorher.
+  Gegenprobe: ohne Transaktion zehn Fälle rot, ohne Zurücksetzen die Fälle,
+  in denen das eingereichte SQL die Transaktion selbst beendet.
+
+Dazu der ganze Weg mit eingeschaltetem Übungsserver:
+`npm run test:e2e:uebungsserver` (`playwright.uebungsserver.config.ts`,
+`e2e-uebungsserver/`) startet Runner-Dienst und Anwendung selbst und prüft
+Werkbank, Fehlerübersetzung, Bewertung von Schreibaufgaben und die Trennung
+zweier Konten. In der CI läuft beides im selben Job.
 
 ---
 
@@ -271,18 +330,20 @@ schnell" ist meist ein doppelter Klick, kein Angriff.
 Ehrlichkeitshalber, damit dieses Dokument nicht mehr verspricht als der Code
 hält:
 
-- **Ein grün gelaufener Durchgang der SQL-Integrationstests.** Bis dahin gilt
-  `runner/mssql-motor.ts` als unbewiesen: Er ist nach der Treiberdokumentation
-  geschrieben und **gegen keinen laufenden SQL Server gelaufen**. Das gilt
-  ausdrücklich auch für die Vergabe der Anmeldenamen und die Rechtevergabe aus
-  Abschnitt 10 – das T-SQL dafür ist geschrieben, nicht erprobt.
+- **Der Betrieb.** Der Weg Anwendung → Runner → SQL Server ist durchgehend
+  geprüft (Abschnitt 8), aber nur gegen die Developer-Edition in der CI.
+  Lastverhalten, Aufräumen alter Sandboxes und der Betrieb des Dienstes in
+  einer eigenen Umgebung sind nicht erprobt.
 
-  Was **geprüft** ist: die Schnittstelle des Dienstes, die Token-Prüfung, die
-  Grenzen, die Übersetzung von Fehlern und Zeitlimits sowie das Freigeben
-  belegter Plätze. `tests/unit/runner-dienst.test.ts` startet dafür den
-  echten Dienstprozess und spricht ihn über HTTP an; nur der Motor dahinter
-  ist ein Prüfstand. Die Trennlinie verläuft genau dort, wo T-SQL-Semantik
-  beginnt.
+- **Bewertung von Aufgaben, die Daten oder Strukturen ändern** (Abschnitt 12).
+
+  Der erste echte Lauf der SQL-Integrationstests (Oktober 2026) fand einen
+  Fehler, den kein Prüfstand gezeigt hätte: Der Treiber liefert die
+  Spaltenangaben bei `batch()` an der Ergebnismenge, nicht im Gesamtergebnis.
+  Der Motor las nur das Gesamtergebnis und verwarf damit **jedes**
+  Abfrageergebnis. Behoben in `ersteErgebnismenge()`
+  (`src/domain/sql/treiber-uebersetzung.ts`), mit Unit-Test in der echten
+  Treiberform.
 
 - die Entscheidung aus Abschnitt 6
 
@@ -304,3 +365,58 @@ Antworten in eigenen Worten bewertet die Lernende selbst neben der
 Musterantwort. Das ist keine Ersatzhandlung für fehlende Technik: Ein
 Textvergleich, der „ungefähr richtig" behauptet, wäre eine Anmaßung, und der
 eigene Vergleich ist ohnehin der lernwirksamere Teil.
+
+---
+
+## 12. Schreibaufgaben am Ergebnis bewerten
+
+Ist der Übungsserver eingeschaltet, wird eine geschriebene Abfrage in der
+Sandbox der Lernenden ausgeführt und ihr Ergebnis mit dem erwarteten verglichen
+(`vergleicheResultsets`, Regeln je Aufgabe in `vergleich`). Bis Oktober 2026
+landete jede Schreibaufgabe auch mit eingeschaltetem Server bei „noch nicht
+eingeschaltet": Der Vergleich lag fertig in der Fachschicht, war aber nirgends
+angeschlossen.
+
+| Ergebnis der Ausführung                                                   | Rückmeldung                                                    | Im Verlauf                          |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------- |
+| stimmt überein                                                            | „Stimmt" mit Zeilen- und Spaltenzahl, dazu das eigene Ergebnis | `PASSED`                            |
+| läuft, liefert anderes                                                    | „Noch nicht", bis zu vier Abweichungen, das eigene Ergebnis    | `FAILED`, `WRONG_RESULT`            |
+| Fehler des Servers                                                        | „Noch nicht" und die übersetzte Meldung samt Original          | `FAILED`, Fehlerart aus der Meldung |
+| Zeitlimit                                                                 | „Noch nicht" mit dem Hinweis des Dienstes                      | `FAILED`, `TIMEOUT`                 |
+| von der Anweisungsprüfung abgelehnt, abgebrochen, Dienst nicht erreichbar | Erklärung, kein Urteil                                         | nichts                              |
+
+**Das erwartete Ergebnis wird nicht angezeigt.** Es wäre die halbe Lösung, und
+die liegt hinter der Hinweisleiter.
+
+**Am Ergebnis bewertet werden nur lesende Aufgaben mit erwartetem Ergebnis**
+(`istAmErgebnisPruefbar`). Aufgaben, die Daten oder Strukturen ändern, würden
+die Sandbox verändern, und ihr Ergebnis ist ein Zustand, keine Ergebnismenge.
+Sie bekommen mit eingeschaltetem Server die ehrliche Auskunft, dass sie noch
+nicht automatisch geprüft werden – nicht die für ausgeschaltete Server.
+
+**Die erwarteten Ergebnisse sind selbst geprüft.**
+`tests/sql/musterloesungen.integration.test.ts` führt jede lesende
+Musterlösung gegen die echten Übungsdaten aus. Der erste Lauf fand
+`a-having-schreiben`: Erwartet waren drei Zeilen, die Daten geben eine her –
+jede richtige Abgabe hätte „Noch nicht" gehört. Sechs lesende Schreibaufgaben
+hatten gar kein erwartetes Ergebnis; es ist nachgetragen, mit ausdrücklicher
+Regel, wo Sortierung oder Spaltenname Teil der Aufgabe sind.
+
+**Datumswerte überleben JSON nicht von selbst.** Die Antwort des Dienstes und
+das erwartete Ergebnis in der Plattformdatenbank gehen durch JSON; aus einem
+Datum wird dort Text. `resultsetAusJson` macht an beiden Grenzen wieder
+Datumswerte daraus. Vorher zeigte `/abfrage` ein Datum als
+`2026-01-08T00:00:00.000Z`.
+
+**Zur Sandbox:** Bewertet wird in derselben Sandbox, in der die Lernende auf
+`/abfrage` übt. Dass dort nur gelesen wird, sichert die Anweisungsprüfung –
+und die ist keine Grenze. Ein Bewertungslauf behält deshalb nichts
+(`verwerfen` am Auftrag, Review DEV-01): Der Motor führt ihn in einer
+Transaktion aus, die immer zurückgerollt wird. Hat das eingereichte SQL diese
+Transaktion selbst beendet (`COMMIT`, `ROLLBACK`, vom Server abgebrochen),
+erkennt der Motor das an der geänderten `CURRENT_TRANSACTION_ID()` und setzt
+die Sandbox zurück. Eine Bewertung kann den Stand also weder für die nächste
+Bewertung noch für die Werkbank verändern. Dasselbe gilt für die Werkbank auf
+`/abfrage`: Sie erlaubt nur `SELECT`, ihre Läufe werden trotzdem verworfen –
+so bleibt der Stand, gegen den bewertet wird, auch dann der eingespielte, wenn
+eine Änderung an der Anweisungsprüfung vorbeikommt.

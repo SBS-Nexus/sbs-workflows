@@ -1,5 +1,10 @@
 /** Kopfzeile der Unterseiten des Hubs mit Rückweg zur Startseite. */
-export function SiteHeader({ current }: { current: 'vokabeln' | 'wiederholen' | 'fortschritt' }): React.ReactElement {
+export function SiteHeader({
+  current,
+}: {
+  /** Ohne Angabe (etwa auf der 404-Seite) ist kein Eintrag aktuell. */
+  current?: 'vokabeln' | 'wiederholen' | 'fortschritt';
+}): React.ReactElement {
   return (
     <header className="site-header site-header-sub">
       <div className="shell header-inner">

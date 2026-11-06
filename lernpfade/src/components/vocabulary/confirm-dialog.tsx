@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef } from 'react';
+import { Button } from '@/components/ui/primitives';
 
 /**
  * Zugänglicher Bestätigungsdialog auf Basis des nativen `<dialog>`:
@@ -52,16 +53,16 @@ export function ConfirmDialog({
         {children}
       </div>
       <div className="vocab-dialog-actions">
-        <button className="button button-secondary" type="button" onClick={onCancel} autoFocus>
+        <Button variant="secondary" type="button" onClick={onCancel} autoFocus>
           Abbrechen
-        </button>
-        <button
-          className={`button ${danger ? 'button-danger' : 'button-primary'}`}
+        </Button>
+        <Button
+          variant={danger ? 'danger' : 'primary'}
           type="button"
           onClick={onConfirm}
         >
           {confirmLabel}
-        </button>
+        </Button>
       </div>
     </dialog>
   );

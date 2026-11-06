@@ -44,7 +44,7 @@ test('vom Hub: eigenes Deck mit drei Karten anlegen und beide Richtungen vollst�
   await page.getByRole('navigation', { name: 'Seitennavigation' }).getByRole('link', { name: 'Vokabeln' }).click();
   await expect(page).toHaveURL(/\/vokabeln$/);
   await expect(page.getByText('Nur in diesem Browser gespeichert.')).toBeVisible();
-  await expect(page.getByText('Noch keine Decks.')).toBeVisible();
+  await expect(page.getByText('Noch keine Decks', { exact: true })).toBeVisible();
   await expectNoSeriousA11yViolations(page, 'leere Übersicht');
 
   await createDeck(page, 'Mein Englisch');
@@ -423,7 +423,7 @@ test('beschädigte und künftige Daten werden nicht überschrieben', async ({ pa
   expect(await readVocabStorage(page)).toBe('{"version":1,"decks":"kaputt"');
   await page.getByRole('button', { name: 'VokabelPfad zurücksetzen …' }).click();
   await dialog.getByRole('button', { name: 'Endgültig zurücksetzen' }).click();
-  await expect(page.getByText('Noch keine Decks.')).toBeVisible();
+  await expect(page.getByText('Noch keine Decks', { exact: true })).toBeVisible();
   expect(await readVocabStorage(page)).toBeNull();
   expect(await page.evaluate(() => window.localStorage.getItem('lernpfade-review-state-v1'))).toBe('demo-bleibt');
 

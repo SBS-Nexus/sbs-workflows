@@ -1,5 +1,6 @@
 import { LernpfadeHero } from '@/components/home/lernpfade-hero';
 import { CORE_PATHS, NEXT_PATHS, STATUS_LABEL, type LearningPath } from '@/lib/catalog';
+import { ButtonLink } from '@/components/ui/primitives';
 
 function ArrowIcon(): React.ReactElement {
   return (
@@ -154,12 +155,12 @@ export default function Home(): React.ReactElement {
                 deinem Browser.
               </p>
               <div className="hero-actions">
-                <a className="button button-primary vocab-cta" href="/vokabeln">
+                <ButtonLink className="vocab-cta" href="/vokabeln">
                   VokabelPfad öffnen <ArrowIcon />
-                </a>
-                <a className="button button-secondary vocab-cta" href="/wiederholen">
+                </ButtonLink>
+                <ButtonLink variant="secondary" className="vocab-cta" href="/wiederholen">
                   Alle Wiederholungen
-                </a>
+                </ButtonLink>
               </div>
             </div>
             <div className="vocab-stack" aria-label="Beispielkarten">

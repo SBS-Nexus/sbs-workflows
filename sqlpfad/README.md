@@ -62,6 +62,11 @@ Die Datenbank ist die Kopie, nicht die Quelle – siehe
    daneben im Schema-Explorer.
 3. **Vier Aufgaben** verschiedener Art: erkennen, vorhersagen, ergänzen,
    selbst schreiben, einen Fehler erklären.
+4. **Der Stand darüber und der Abschluss darunter.** Ein Balken zählt, was
+   sitzt – nach derselben Regel wie der Abschluss (ohne Übungsserver ohne die
+   Schreibaufgaben). Gelöste Aufgaben tragen eine Marke, auch beim
+   Wiederkommen. Ist die Lektion durch, sagt eine Karte das und führt direkt
+   zur nächsten Lektion.
 
 ### Aufgabenarten
 
@@ -71,7 +76,7 @@ Die Datenbank ist die Kopie, nicht die Quelle – siehe
 | Reihenfolge                                          | vollständig, ohne Datenbank                                  |
 | Ergebnis vorhersagen                                 | Zeilenzahl geprüft, danach das echte Ergebnis daneben        |
 | Freitext, Fehler erklären                            | kein maschinelles Urteil – Musterantwort zum Selbstvergleich |
-| Abfrage schreiben, ergänzen, Fehler finden, Transfer | Policy geprüft; das Ergebnis braucht den Übungsserver        |
+| Abfrage schreiben, ergänzen, Fehler finden, Transfer | Policy geprüft; mit Übungsserver am Ergebnis bewertet        |
 
 Warum ein Teil davon absichtlich **nicht** maschinell bewertet wird, steht in
 [SQL-Ausführung](#11-sql-ausführung).
@@ -220,8 +225,9 @@ npm run dev
 
 ```bash
 npm run test:unit    # Domänenlogik, Inhalte, Kontraste
-npm run test:sql     # T-SQL-Semantik gegen einen echten SQL Server
-npm run test:e2e     # der ganze Weg im Produktionsbuild
+npm run test:sql     # T-SQL-Semantik, Rechte, Musterlösungen gegen einen echten SQL Server
+npm run test:e2e     # der ganze Weg im Produktionsbuild, Übungsserver aus
+npm run test:e2e:uebungsserver   # dasselbe mit eingeschaltetem Übungsserver
 npm run verify       # typecheck + lint + unit + build
 
 npm run auslieferung:pruefen -- https://sqlpfad.de   # eine laufende Installation
@@ -321,6 +327,12 @@ auffällt, und ohne Ersatzweg, der ein Ergebnis herbeirechnet. Eine
 geschriebene Abfrage bekommt dann „geprüft, aber nicht ausgeführt". Es wird
 nicht behauptet, sie sei richtig, weil sie richtig aussieht.
 
+**Mit Runner wird am Ergebnis bewertet.** Lesende Schreibaufgaben laufen in
+der eigenen Sandbox und werden mit dem erwarteten Ergebnis verglichen –
+„Stimmt", „Noch nicht" mit den Abweichungen, oder die übersetzte Meldung der
+Datenbank. Einzelheiten und Grenzen: [docs/SQL-RUNNER.md](docs/SQL-RUNNER.md),
+Abschnitt 12.
+
 Was trotzdem geht: Auswahl, Mehrfachauswahl, Reihenfolge und die Vorhersage
 der Zeilenzahl werden vollständig bewertet, ohne dass eine einzige Anweisung
 läuft. Das ist keine Notlösung – wer vorhersagt, bevor er ausführt, lernt mehr
@@ -354,7 +366,16 @@ npm run db:seed       # einspielen
 Der Validator meldet unter anderem: eine Musterlösung, die die eigene Policy
 der Aufgabe verletzt; einen Hinweis, der die Lösung im Wortlaut nennt; ein
 erwartetes Ergebnis mit schiefer Zeilenbreite; ein Konzept ohne eine einzige
-Aufgabe; einen doppelten Slug.
+Aufgabe; einen doppelten Slug. Ob jede lesende Musterlösung auf den echten
+Übungsdaten ihr erwartetes Ergebnis liefert, prüft `npm run test:sql`
+(braucht einen SQL Server, läuft in der CI).
+
+**Optionen in beliebiger Reihenfolge eintragen.** Die richtige Antwort darf im
+Lehrplan vorn stehen, die Bausteine einer Reihenfolge-Aufgabe in der richtigen
+Reihenfolge: Angezeigt werden sie je Person und Aufgabe gemischt
+(`src/domain/aufgabe/anordnung.ts`), nie in Lehrplanreihenfolge, und der
+Server rechnet die Antwort zurück. Vorher war die erste Option immer richtig
+und die Reihenfolge-Aufgabe beim Öffnen gelöst.
 
 ---
 
@@ -476,14 +497,12 @@ umständlicher und genau deshalb richtig.
 
 Damit dieses Dokument nicht mehr verspricht als der Code hält:
 
-- **Der Runner-Dienst läuft, ist aber nicht gegen einen echten SQL Server
-  bewiesen.** Er liegt unter `runner/` und startet mit `npm run runner`;
-  Schnittstelle, Token-Prüfung, Grenzen und Fehlerübersetzung sind geprüft
-  (`tests/unit/runner-dienst.test.ts` startet den echten Prozess). Unbewiesen
-  bleibt `runner/mssql-motor.ts` samt der Vergabe der Anmeldenamen: Das T-SQL
-  dafür ist nach der Treiberdokumentation geschrieben und **gegen keinen
-  laufenden SQL Server gelaufen**. Dafür braucht es `npm run test:sql` mit
-  Zugangsdaten – siehe [docs/SQL-RUNNER.md](docs/SQL-RUNNER.md), Abschnitt 11.
+- **Aufgaben, die Daten oder Strukturen ändern, werden nicht automatisch
+  bewertet** – auch nicht mit eingeschaltetem Übungsserver. Sie bekommen eine
+  ehrliche Auskunft statt eines Urteils ([docs/SQL-RUNNER.md](docs/SQL-RUNNER.md),
+  Abschnitt 12). Der Weg Anwendung → Runner → SQL Server selbst ist durchgehend
+  geprüft (`npm run test:e2e:uebungsserver`, in der CI), der Betrieb des Dienstes
+  nicht (Abschnitt 11).
 - **Die Lizenzfrage** für den Produktionsbetrieb ist offen
   ([docs/SQL-RUNNER.md](docs/SQL-RUNNER.md), Abschnitt 6). Bis sie entschieden
   ist, bleibt `FEATURE_SQL_RUNNER` aus.

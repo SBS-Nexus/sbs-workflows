@@ -128,6 +128,7 @@ export default async function RootLayout({
   return (
     <html
       lang="de"
+      data-lp-app="python"
       {...(user?.theme === 'light' || user?.theme === 'dark' ? { 'data-theme': user.theme } : {})}
       {...(user?.reduceMotion ? { 'data-reduce-motion': 'true' } : {})}
       suppressHydrationWarning

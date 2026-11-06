@@ -1,0 +1,917 @@
+/*
+ * Lernpfade — gemeinsame Darstellung von Button, Card, ProgressBar,
+ * EmptyState und ErrorState (LP-03C).
+ *
+ * KANONISCH ist `docs/learning-components/learning-components.css`. Jede App
+ * führt eine bytegleiche Kopie unter `src/styles/learning-components.css` und
+ * bindet sie in `src/app/globals.css` ein; `node
+ * scripts/check-learning-components.mjs` prüft beides.
+ *
+ * Zwei Ebenen, mit Absicht:
+ *
+ *  1. UNGESCHICHTET steht das Aussehen — Farben, Ränder, Rundung, Schrift,
+ *     Unterkante, Fokus, Bewegung. Nur ungeschichtete Regeln setzen sich gegen
+ *     die ungeschichteten Grundregeln der Apps durch (PythonPfad/SQLPfad:
+ *     `* { border-color }` und `:focus-visible { border-radius: 4px }`; Hub:
+ *     `a { color: inherit }`). Diese Werte sind Vertrag; eine Aufrufstelle
+ *     ändert sie nicht.
+ *  2. In `@layer components` steht die Anordnung — Anzeigeart, Ausrichtung,
+ *     Innenabstand, Mindesthöhe, Schriftgröße. Tailwind-Klassen einer
+ *     Aufrufstelle (`w-full`, `px-0`, `justify-start`) liegen in `utilities`
+ *     und bleiben damit wirksam. Im Hub ohne Tailwind ist es die einzige
+ *     Schicht; dort stehen keine widersprechenden Regeln mehr.
+ *
+ * Jede Regel hängt an einer `.lp-ui…`-Klasse — keine Regel für bloße
+ * Elemente, kein `:root`-Wert und kein Außenabstand der Komponenten selbst
+ * (Abstände nach außen bleiben bei den Apps; nur Kinder innerhalb von Leer-
+ * und Fehlerzustand haben feste Abstände zueinander). App-Tokens werden weder gelesen
+ * noch umdefiniert; einzig `--font-sans` dient als Schriftquelle und
+ * `--lp-ui-area` als freiwillige Bereichsfarbe (siehe README).
+ *
+ * Pfad-Akzent: `data-lp-app` am Wurzelelement (`python`, `sql`, `ai`, `hub`).
+ * Statusfarben (Gefahr, Erfolg, Warnung) sind in allen Apps gleich und
+ * entsprechen dem Statusvertrag aus LP-03B.
+ */
+
+/* =========================================================================
+ * Tokens
+ * ========================================================================= */
+
+.lp-ui {
+  --lp-ui-font: var(--font-sans, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif);
+
+  /* Neutral (hell) */
+  --lp-ui-surface: #ffffff;
+  --lp-ui-surface-sunken: #f3f5f9;
+  --lp-ui-track: #e3e7ee;
+  --lp-ui-text: #111827;
+  --lp-ui-text-muted: #4b5563;
+  --lp-ui-border: #dfe3eb;
+  --lp-ui-border-strong: #b9c0cc;
+  --lp-ui-focus: #1d4ed8;
+  --lp-ui-disabled-bg: #e5e7eb;
+  --lp-ui-disabled-fg: #6b7280;
+
+  /* Sekundär: helle Fläche, dunklere Unterkante */
+  --lp-ui-secondary-bg: #ffffff;
+  --lp-ui-secondary-hover: #f3f5f9;
+  --lp-ui-secondary-border: #c9cfda;
+  --lp-ui-secondary-edge: #aeb6c4;
+
+  /* Pfad-Akzent; ohne `data-lp-app` der Plattformwert des Hubs */
+  --lp-ui-accent: #3155d5;
+  --lp-ui-accent-hover: #2744b0;
+  --lp-ui-accent-edge: #1f3690;
+  --lp-ui-accent-soft: #eef2ff;
+  --lp-ui-accent-text: #3155d5;
+  --lp-ui-on-accent: #ffffff;
+
+  /* Status (wie LP-03B) */
+  --lp-ui-danger: #c0281c;
+  --lp-ui-danger-hover: #a32116;
+  --lp-ui-danger-edge: #7f1a12;
+  --lp-ui-on-danger: #ffffff;
+  --lp-ui-danger-text: #981c12;
+  --lp-ui-danger-soft: #fdeeed;
+  --lp-ui-danger-border: #e7b3ad;
+  --lp-ui-danger-soft-edge: #d98f87;
+  --lp-ui-success: #1d7a46;
+  --lp-ui-success-text: #155c35;
+  --lp-ui-success-soft: #e7f5ec;
+  --lp-ui-success-border: #9fd3b4;
+  --lp-ui-warning: #a16207;
+  --lp-ui-warning-text: #734805;
+  --lp-ui-warning-soft: #fdf4dd;
+  --lp-ui-info-text: #1c4f86;
+  --lp-ui-info-soft: #e8f1fb;
+  --lp-ui-neutral: #6b7280;
+
+  /* Form */
+  --lp-ui-radius-sm: 0.75rem;
+  --lp-ui-radius-md: 0.875rem;
+  --lp-ui-radius-lg: 1rem;
+  --lp-ui-radius-card: 1.25rem;
+  --lp-ui-edge: 4px;
+  --lp-ui-press: 2px;
+  --lp-ui-focus-width: 3px;
+  --lp-ui-focus-offset: 2px;
+
+  /* Bewegung */
+  --lp-ui-duration-press: 90ms;
+  --lp-ui-duration-fast: 140ms;
+  --lp-ui-duration-fill: 480ms;
+  --lp-ui-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Bereichsfarbe: von einem Vorfahren geerbt (`--lp-ui-area`), sonst Akzent */
+  --lp-ui-tint: var(--lp-ui-area, var(--lp-ui-accent));
+}
+
+:root[data-lp-app='python'] .lp-ui {
+  --lp-ui-accent: #1d3fc4;
+  --lp-ui-accent-hover: #1e379f;
+  --lp-ui-accent-edge: #1d337d;
+  --lp-ui-accent-soft: #eef4ff;
+  --lp-ui-accent-text: #1d3fc4;
+  --lp-ui-on-accent: #ffffff;
+}
+
+:root[data-lp-app='sql'] .lp-ui {
+  --lp-ui-accent: #095d56;
+  --lp-ui-accent-hover: #0a4a45;
+  --lp-ui-accent-edge: #062f2c;
+  --lp-ui-accent-soft: #ecfbf8;
+  --lp-ui-accent-text: #095d56;
+  --lp-ui-on-accent: #ffffff;
+}
+
+:root[data-lp-app='ai'] .lp-ui {
+  --lp-ui-accent: #b45309;
+  --lp-ui-accent-hover: #8a3e07;
+  --lp-ui-accent-edge: #6b3105;
+  --lp-ui-accent-soft: #fdecd2;
+  --lp-ui-accent-text: #8a3e07;
+  --lp-ui-on-accent: #ffffff;
+}
+
+/* Dunkel: `data-theme="dark"` (bzw. `.dark`) oder System-Dunkel, solange nicht
+ * ausdrücklich `data-theme="light"` — dieselbe Regel wie in den Apps. Der Hub
+ * setzt `data-theme="light"` und bleibt hell. */
+:root[data-theme='dark'] .lp-ui,
+:root.dark .lp-ui {
+  --lp-ui-surface: #151a24;
+  --lp-ui-surface-sunken: #0f131b;
+  --lp-ui-track: #2a3140;
+  --lp-ui-text: #f3f4f6;
+  --lp-ui-text-muted: #c4cad5;
+  --lp-ui-border: #2e3646;
+  --lp-ui-border-strong: #465063;
+  --lp-ui-focus: #93c5fd;
+  --lp-ui-disabled-bg: #262c38;
+  --lp-ui-disabled-fg: #9aa3b2;
+  --lp-ui-secondary-bg: #1d2330;
+  --lp-ui-secondary-hover: #252c3b;
+  --lp-ui-secondary-border: #3a4354;
+  --lp-ui-secondary-edge: #0b0e14;
+  --lp-ui-accent: #a5b8f5;
+  --lp-ui-accent-hover: #c7d3fa;
+  --lp-ui-accent-edge: #6f86d8;
+  --lp-ui-accent-soft: #1c2547;
+  --lp-ui-accent-text: #a5b8f5;
+  --lp-ui-on-accent: #0b1220;
+  --lp-ui-danger: #f2867c;
+  --lp-ui-danger-hover: #f9b9b3;
+  --lp-ui-danger-edge: #b8524a;
+  --lp-ui-on-danger: #2a0b08;
+  --lp-ui-danger-text: #f9b9b3;
+  --lp-ui-danger-soft: #371614;
+  --lp-ui-danger-border: #6b2f2a;
+  --lp-ui-danger-soft-edge: #4a1f1b;
+  --lp-ui-success: #4cc38a;
+  --lp-ui-success-text: #9be3bd;
+  --lp-ui-success-soft: #0f2b1c;
+  --lp-ui-success-border: #1f5a3a;
+  --lp-ui-warning: #e2a83c;
+  --lp-ui-warning-text: #f5d38f;
+  --lp-ui-warning-soft: #30240b;
+  --lp-ui-info-text: #b3d6f6;
+  --lp-ui-info-soft: #11263d;
+  --lp-ui-neutral: #8b95a5;
+}
+
+:root[data-theme='dark'][data-lp-app='python'] .lp-ui,
+:root.dark[data-lp-app='python'] .lp-ui {
+  --lp-ui-accent: #93b4fd;
+  --lp-ui-accent-hover: #bfd3fe;
+  --lp-ui-accent-edge: #5a7fe6;
+  --lp-ui-accent-soft: #16233f;
+  --lp-ui-accent-text: #93b4fd;
+  --lp-ui-on-accent: #0b1220;
+}
+
+:root[data-theme='dark'][data-lp-app='sql'] .lp-ui,
+:root.dark[data-lp-app='sql'] .lp-ui {
+  --lp-ui-accent: #6ed3c7;
+  --lp-ui-accent-hover: #a3e6dd;
+  --lp-ui-accent-edge: #2f9c8f;
+  --lp-ui-accent-soft: #0c2a2a;
+  --lp-ui-accent-text: #6ed3c7;
+  --lp-ui-on-accent: #04201d;
+}
+
+:root[data-theme='dark'][data-lp-app='ai'] .lp-ui,
+:root.dark[data-lp-app='ai'] .lp-ui {
+  --lp-ui-accent: #efb26a;
+  --lp-ui-accent-hover: #f8d5a4;
+  --lp-ui-accent-edge: #b97b34;
+  --lp-ui-accent-soft: #3a2510;
+  --lp-ui-accent-text: #efb26a;
+  --lp-ui-on-accent: #1d1a15;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .lp-ui {
+    --lp-ui-surface: #151a24;
+    --lp-ui-surface-sunken: #0f131b;
+    --lp-ui-track: #2a3140;
+    --lp-ui-text: #f3f4f6;
+    --lp-ui-text-muted: #c4cad5;
+    --lp-ui-border: #2e3646;
+    --lp-ui-border-strong: #465063;
+    --lp-ui-focus: #93c5fd;
+    --lp-ui-disabled-bg: #262c38;
+    --lp-ui-disabled-fg: #9aa3b2;
+    --lp-ui-secondary-bg: #1d2330;
+    --lp-ui-secondary-hover: #252c3b;
+    --lp-ui-secondary-border: #3a4354;
+    --lp-ui-secondary-edge: #0b0e14;
+    --lp-ui-accent: #a5b8f5;
+    --lp-ui-accent-hover: #c7d3fa;
+    --lp-ui-accent-edge: #6f86d8;
+    --lp-ui-accent-soft: #1c2547;
+    --lp-ui-accent-text: #a5b8f5;
+    --lp-ui-on-accent: #0b1220;
+    --lp-ui-danger: #f2867c;
+    --lp-ui-danger-hover: #f9b9b3;
+    --lp-ui-danger-edge: #b8524a;
+    --lp-ui-on-danger: #2a0b08;
+    --lp-ui-danger-text: #f9b9b3;
+    --lp-ui-danger-soft: #371614;
+    --lp-ui-danger-border: #6b2f2a;
+    --lp-ui-danger-soft-edge: #4a1f1b;
+    --lp-ui-success: #4cc38a;
+    --lp-ui-success-text: #9be3bd;
+    --lp-ui-success-soft: #0f2b1c;
+    --lp-ui-success-border: #1f5a3a;
+    --lp-ui-warning: #e2a83c;
+    --lp-ui-warning-text: #f5d38f;
+    --lp-ui-warning-soft: #30240b;
+    --lp-ui-info-text: #b3d6f6;
+    --lp-ui-info-soft: #11263d;
+    --lp-ui-neutral: #8b95a5;
+  }
+
+  :root:not([data-theme='light'])[data-lp-app='python'] .lp-ui {
+    --lp-ui-accent: #93b4fd;
+    --lp-ui-accent-hover: #bfd3fe;
+    --lp-ui-accent-edge: #5a7fe6;
+    --lp-ui-accent-soft: #16233f;
+    --lp-ui-accent-text: #93b4fd;
+    --lp-ui-on-accent: #0b1220;
+  }
+
+  :root:not([data-theme='light'])[data-lp-app='sql'] .lp-ui {
+    --lp-ui-accent: #6ed3c7;
+    --lp-ui-accent-hover: #a3e6dd;
+    --lp-ui-accent-edge: #2f9c8f;
+    --lp-ui-accent-soft: #0c2a2a;
+    --lp-ui-accent-text: #6ed3c7;
+    --lp-ui-on-accent: #04201d;
+  }
+
+  :root:not([data-theme='light'])[data-lp-app='ai'] .lp-ui {
+    --lp-ui-accent: #efb26a;
+    --lp-ui-accent-hover: #f8d5a4;
+    --lp-ui-accent-edge: #b97b34;
+    --lp-ui-accent-soft: #3a2510;
+    --lp-ui-accent-text: #efb26a;
+    --lp-ui-on-accent: #1d1a15;
+  }
+}
+
+/* =========================================================================
+ * Button — Aussehen
+ *
+ * Tragende Knöpfe haben eine sichtbare Unterkante, die beim Drücken
+ * einsinkt. Der Zustand „gedrückt" ist damit an der Geometrie erkennbar und
+ * nicht allein an einem Farbwechsel — bei Farbsehschwäche, hellem
+ * Umgebungslicht und auch unter „Bewegung reduzieren" (dann ohne Übergang).
+ * Zurückhaltende Varianten (`ghost`, `on-dark-secondary`) bekommen keine
+ * Kante: Wenn jeder Knopf hervortritt, tritt keiner hervor.
+ * ========================================================================= */
+
+.lp-ui-button {
+  --lp-ui-button-bg: var(--lp-ui-accent);
+  --lp-ui-button-hover: var(--lp-ui-accent-hover);
+  --lp-ui-button-fg: var(--lp-ui-on-accent);
+  --lp-ui-button-border: var(--lp-ui-accent);
+  --lp-ui-button-edge: var(--lp-ui-accent-edge);
+  --lp-ui-button-edge-width: var(--lp-ui-edge);
+  --lp-ui-button-focus: var(--lp-ui-focus);
+  --lp-ui-button-radius: var(--lp-ui-radius-md);
+
+  border-style: solid;
+  border-width: 1px 1px var(--lp-ui-button-edge-width);
+  border-color: var(--lp-ui-button-border);
+  border-bottom-color: var(--lp-ui-button-edge);
+  border-radius: var(--lp-ui-button-radius);
+  background-color: var(--lp-ui-button-bg);
+  color: var(--lp-ui-button-fg);
+  font-family: var(--lp-ui-font);
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  text-transform: none;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--lp-ui-duration-fast) var(--lp-ui-ease),
+    border-color var(--lp-ui-duration-fast) var(--lp-ui-ease),
+    color var(--lp-ui-duration-fast) var(--lp-ui-ease),
+    transform var(--lp-ui-duration-press) var(--lp-ui-ease),
+    border-bottom-width var(--lp-ui-duration-press) var(--lp-ui-ease);
+}
+
+.lp-ui-button[data-lp-size='sm'] {
+  --lp-ui-edge: 3px;
+  --lp-ui-button-radius: var(--lp-ui-radius-sm);
+}
+
+.lp-ui-button[data-lp-size='lg'] {
+  --lp-ui-button-radius: var(--lp-ui-radius-lg);
+}
+
+.lp-ui-button[data-lp-variant='secondary'] {
+  --lp-ui-button-bg: var(--lp-ui-secondary-bg);
+  --lp-ui-button-hover: var(--lp-ui-secondary-hover);
+  --lp-ui-button-fg: var(--lp-ui-text);
+  --lp-ui-button-border: var(--lp-ui-secondary-border);
+  --lp-ui-button-edge: var(--lp-ui-secondary-edge);
+}
+
+.lp-ui-button[data-lp-variant='ghost'] {
+  --lp-ui-button-bg: transparent;
+  --lp-ui-button-hover: var(--lp-ui-accent-soft);
+  --lp-ui-button-fg: var(--lp-ui-accent-text);
+  --lp-ui-button-border: transparent;
+  --lp-ui-button-edge: transparent;
+  --lp-ui-button-edge-width: 1px;
+}
+
+.lp-ui-button[data-lp-variant='danger'] {
+  --lp-ui-button-bg: var(--lp-ui-danger);
+  --lp-ui-button-hover: var(--lp-ui-danger-hover);
+  --lp-ui-button-fg: var(--lp-ui-on-danger);
+  --lp-ui-button-border: var(--lp-ui-danger);
+  --lp-ui-button-edge: var(--lp-ui-danger-edge);
+}
+
+.lp-ui-button[data-lp-variant='danger-secondary'] {
+  --lp-ui-button-bg: var(--lp-ui-secondary-bg);
+  --lp-ui-button-hover: var(--lp-ui-danger-soft);
+  --lp-ui-button-fg: var(--lp-ui-danger-text);
+  --lp-ui-button-border: var(--lp-ui-danger-border);
+  --lp-ui-button-edge: var(--lp-ui-danger-soft-edge);
+}
+
+/* Auf dunklen Kopfflächen: unabhängig vom Farbschema, weißer Fokusring. */
+.lp-ui-button[data-lp-variant='on-dark'] {
+  --lp-ui-button-bg: #ffffff;
+  --lp-ui-button-hover: #eef1f6;
+  --lp-ui-button-fg: #111827;
+  --lp-ui-button-border: #ffffff;
+  --lp-ui-button-edge: #c3cad6;
+  --lp-ui-button-focus: #ffffff;
+}
+
+.lp-ui-button[data-lp-variant='on-dark-secondary'] {
+  --lp-ui-button-bg: rgb(255 255 255 / 0.08);
+  --lp-ui-button-hover: rgb(255 255 255 / 0.18);
+  --lp-ui-button-fg: #ffffff;
+  --lp-ui-button-border: rgb(255 255 255 / 0.6);
+  --lp-ui-button-edge: rgb(255 255 255 / 0.6);
+  --lp-ui-button-edge-width: 1px;
+  --lp-ui-button-focus: #ffffff;
+}
+
+@media (hover: hover) {
+  .lp-ui-button:hover:not(:disabled):not([aria-disabled='true']) {
+    background-color: var(--lp-ui-button-hover);
+  }
+}
+
+.lp-ui-button:active:not(:disabled):not([aria-disabled='true']) {
+  transform: translateY(var(--lp-ui-press));
+  border-bottom-width: calc(var(--lp-ui-button-edge-width) - var(--lp-ui-press));
+}
+
+/* Ohne Kante sinkt der Knopf nur einen Pixel — derselbe Zustand, kleiner. */
+.lp-ui-button[data-lp-variant='ghost']:active:not(:disabled):not([aria-disabled='true']),
+.lp-ui-button[data-lp-variant='on-dark-secondary']:active:not(:disabled):not(
+    [aria-disabled='true']
+  ) {
+  transform: translateY(1px);
+  border-bottom-width: 1px;
+}
+
+/* Gesperrt ist flach: keine Kante, kein Einsinken, eigene Fläche statt
+ * bloßer Transparenz — erkennbar auch ohne Farbunterscheidung. */
+.lp-ui-button:disabled,
+.lp-ui-button[aria-disabled='true'] {
+  --lp-ui-button-bg: var(--lp-ui-disabled-bg);
+  --lp-ui-button-hover: var(--lp-ui-disabled-bg);
+  --lp-ui-button-fg: var(--lp-ui-disabled-fg);
+  --lp-ui-button-border: var(--lp-ui-disabled-bg);
+  --lp-ui-button-edge: var(--lp-ui-disabled-bg);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.lp-ui-button[data-lp-variant='ghost']:disabled,
+.lp-ui-button[data-lp-variant='ghost'][aria-disabled='true'] {
+  --lp-ui-button-bg: transparent;
+  --lp-ui-button-border: transparent;
+  --lp-ui-button-edge: transparent;
+}
+
+.lp-ui-button:focus-visible {
+  outline: var(--lp-ui-focus-width) solid var(--lp-ui-button-focus);
+  outline-offset: var(--lp-ui-focus-offset);
+  border-radius: var(--lp-ui-button-radius);
+}
+
+.lp-ui-button svg {
+  flex-shrink: 0;
+}
+
+/* =========================================================================
+ * Card — Aussehen
+ *
+ * Fläche und Rand nehmen die Bereichsfarbe ganz leicht an (4 % / 16 %). Eine
+ * interaktive Card ist als Ganzes ein Ziel: Sie trägt die taktile Unterkante
+ * und sinkt beim Drücken ein wie ein Knopf.
+ * ========================================================================= */
+
+.lp-ui-card {
+  border: 1px solid color-mix(in oklab, var(--lp-ui-tint) 16%, var(--lp-ui-border));
+  border-radius: var(--lp-ui-radius-card);
+  background-color: color-mix(in oklab, var(--lp-ui-tint) 4%, var(--lp-ui-surface));
+}
+
+.lp-ui-card[data-lp-emphasis='accent'] {
+  border-color: var(--lp-ui-tint);
+  border-width: 2px;
+}
+
+.lp-ui-card[data-lp-emphasis='danger'] {
+  border-color: var(--lp-ui-danger);
+  border-width: 2px;
+}
+
+.lp-ui-card[data-lp-card='interactive'] {
+  border-bottom-width: var(--lp-ui-edge);
+  border-bottom-color: color-mix(in oklab, var(--lp-ui-tint) 24%, var(--lp-ui-border-strong));
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--lp-ui-duration-fast) var(--lp-ui-ease),
+    border-color var(--lp-ui-duration-fast) var(--lp-ui-ease),
+    transform var(--lp-ui-duration-press) var(--lp-ui-ease),
+    border-bottom-width var(--lp-ui-duration-press) var(--lp-ui-ease);
+}
+
+@media (hover: hover) {
+  .lp-ui-card[data-lp-card='interactive']:hover {
+    border-color: color-mix(in oklab, var(--lp-ui-tint) 55%, var(--lp-ui-border));
+    border-bottom-color: color-mix(in oklab, var(--lp-ui-tint) 70%, var(--lp-ui-border-strong));
+    background-color: color-mix(in oklab, var(--lp-ui-tint) 8%, var(--lp-ui-surface));
+  }
+}
+
+.lp-ui-card[data-lp-card='interactive']:active {
+  transform: translateY(var(--lp-ui-press));
+  border-bottom-width: calc(var(--lp-ui-edge) - var(--lp-ui-press));
+}
+
+.lp-ui-card[data-lp-card='interactive']:focus-visible {
+  outline: var(--lp-ui-focus-width) solid var(--lp-ui-focus);
+  outline-offset: var(--lp-ui-focus-offset);
+  border-radius: var(--lp-ui-radius-card);
+}
+
+/* =========================================================================
+ * ProgressBar — Aussehen
+ *
+ * Kräftige, runde Spur; die Füllung trägt eine Glanzkante, damit sie auch bei
+ * kleinem Wert als Fläche lesbar ist. Ein abgeschlossener Balken bekommt
+ * einmal einen Lichtstreif — Rückmeldung für den Moment, kein Dauereffekt.
+ * Der Wert steht immer zusätzlich als Text (Aufrufstelle) und als
+ * `aria-valuetext` (Vertrag); Farbe allein trägt keine Bedeutung.
+ * ========================================================================= */
+
+.lp-ui-progress {
+  --lp-ui-progress-fill: var(--lp-ui-tint);
+
+  border-radius: 999px;
+  background-color: var(--lp-ui-track);
+}
+
+.lp-ui-progress[data-lp-tone='success'] {
+  --lp-ui-progress-fill: var(--lp-ui-success);
+}
+
+.lp-ui-progress[data-lp-tone='warning'] {
+  --lp-ui-progress-fill: var(--lp-ui-warning);
+}
+
+.lp-ui-progress[data-lp-tone='neutral'] {
+  --lp-ui-progress-fill: var(--lp-ui-neutral);
+}
+
+.lp-ui-progress-fill {
+  border-radius: inherit;
+  background-color: var(--lp-ui-progress-fill);
+  transition: width var(--lp-ui-duration-fill) var(--lp-ui-ease);
+}
+
+.lp-ui-progress-fill::before {
+  content: '';
+  position: absolute;
+  top: 22%;
+  right: 0.375rem;
+  left: 0.375rem;
+  height: 24%;
+  border-radius: 999px;
+  background-color: rgb(255 255 255 / 0.32);
+}
+
+.lp-ui-progress[data-lp-complete='true'] .lp-ui-progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgb(255 255 255 / 0.45) 50%,
+    transparent 80%
+  );
+  background-size: 250% 100%;
+  background-position: 200% 0;
+  animation: var(--lp-ui-sheen, lp-ui-progress-done 900ms var(--lp-ui-ease) 200ms 1 both);
+}
+
+@keyframes lp-ui-progress-done {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* =========================================================================
+ * EmptyState — Aussehen
+ *
+ * `start` lädt zum ersten Schritt ein (gestrichelt: hier entsteht etwas),
+ * `done` meldet einen erledigten Stand (ruhig, Erfolgston), `filtered` sagt
+ * nur, dass die Auswahl nichts trifft (zurückgenommen, ohne Fläche).
+ * ========================================================================= */
+
+.lp-ui-empty {
+  --lp-ui-empty-art-bg: var(--lp-ui-accent-soft);
+  --lp-ui-empty-art-fg: var(--lp-ui-accent-text);
+
+  border: 2px dashed color-mix(in oklab, var(--lp-ui-tint) 30%, var(--lp-ui-border-strong));
+  border-radius: var(--lp-ui-radius-card);
+  background-color: color-mix(in oklab, var(--lp-ui-tint) 5%, var(--lp-ui-surface));
+}
+
+.lp-ui-empty[data-lp-empty='done'] {
+  --lp-ui-empty-art-bg: var(--lp-ui-success-soft);
+  --lp-ui-empty-art-fg: var(--lp-ui-success-text);
+
+  border-style: solid;
+  border-color: var(--lp-ui-success-border);
+  background-color: color-mix(in oklab, var(--lp-ui-success-soft) 55%, var(--lp-ui-surface));
+}
+
+.lp-ui-empty[data-lp-empty='filtered'] {
+  --lp-ui-empty-art-bg: var(--lp-ui-surface-sunken);
+  --lp-ui-empty-art-fg: var(--lp-ui-text-muted);
+
+  border-color: var(--lp-ui-border-strong);
+  background-color: transparent;
+}
+
+.lp-ui-empty-art {
+  border-radius: var(--lp-ui-radius-card);
+  background-color: var(--lp-ui-empty-art-bg);
+  color: var(--lp-ui-empty-art-fg);
+}
+
+.lp-ui-empty-art[data-lp-art='illustration'] {
+  background-color: transparent;
+}
+
+.lp-ui-empty-title {
+  color: inherit;
+  font-family: var(--lp-ui-font);
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.lp-ui-empty-text {
+  color: var(--lp-ui-text-muted);
+}
+
+/* =========================================================================
+ * ErrorState — Aussehen
+ *
+ * Seitenweiter Zustand mit Überschrift, Erklärung, Ausweg. Eine fehlende
+ * Seite ist kein Fehler der Person: `not-found` trägt den Hinweiston,
+ * `unavailable` den Warnton, nur `unexpected` den Fehlerton.
+ * ========================================================================= */
+
+.lp-ui-error {
+  --lp-ui-error-art-bg: var(--lp-ui-danger-soft);
+  --lp-ui-error-art-fg: var(--lp-ui-danger-text);
+
+  border: 1px solid var(--lp-ui-border);
+  border-radius: 1.5rem;
+  background-color: var(--lp-ui-surface);
+  color: var(--lp-ui-text);
+  box-shadow: 0 18px 44px rgb(17 24 39 / 0.08);
+}
+
+.lp-ui-error[data-lp-error='not-found'] {
+  --lp-ui-error-art-bg: var(--lp-ui-info-soft);
+  --lp-ui-error-art-fg: var(--lp-ui-info-text);
+}
+
+.lp-ui-error[data-lp-error='unavailable'] {
+  --lp-ui-error-art-bg: var(--lp-ui-warning-soft);
+  --lp-ui-error-art-fg: var(--lp-ui-warning-text);
+}
+
+.lp-ui-error-art {
+  border-radius: var(--lp-ui-radius-lg);
+  background-color: var(--lp-ui-error-art-bg);
+  color: var(--lp-ui-error-art-fg);
+}
+
+.lp-ui-error-title {
+  color: var(--lp-ui-text);
+  font-family: var(--lp-ui-font);
+  font-weight: 750;
+  letter-spacing: -0.015em;
+}
+
+.lp-ui-error-text,
+.lp-ui-error-reference {
+  color: var(--lp-ui-text-muted);
+}
+
+.lp-ui-error-reference code {
+  color: var(--lp-ui-text);
+}
+
+/* =========================================================================
+ * Bewegung reduzieren — System (`prefers-reduced-motion`) und Konto
+ * (`data-reduce-motion`). Zustände bleiben sichtbar (der gedrückte Knopf
+ * sinkt weiterhin ein), nur ohne Übergang; der Lichtstreif entfällt. Die
+ * Dauern sind Tokens, deshalb genügt es, sie hier auf `.lp-ui` umzustellen —
+ * jede Komponente und ihre Kinder erben sie.
+ * ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-ui {
+    --lp-ui-duration-press: 0.01ms;
+    --lp-ui-duration-fast: 0.01ms;
+    --lp-ui-duration-fill: 0.01ms;
+    --lp-ui-sheen: none;
+  }
+}
+
+:root[data-reduce-motion='true'] .lp-ui {
+  --lp-ui-duration-press: 0.01ms;
+  --lp-ui-duration-fast: 0.01ms;
+  --lp-ui-duration-fill: 0.01ms;
+  --lp-ui-sheen: none;
+}
+
+/* =========================================================================
+ * Erzwungene Farben (Windows-Kontrastmodus): Hintergründe fallen weg, also
+ * bekommen Spur und Füllung Systemfarben, Knöpfe ihren Rand.
+ * ========================================================================= */
+
+@media (forced-colors: active) {
+  .lp-ui-button {
+    border-color: ButtonText;
+  }
+
+  .lp-ui-button:disabled,
+  .lp-ui-button[aria-disabled='true'] {
+    border-color: GrayText;
+    color: GrayText;
+  }
+
+  .lp-ui-progress {
+    border: 1px solid CanvasText;
+  }
+
+  .lp-ui-progress-fill {
+    background-color: Highlight;
+    forced-color-adjust: none;
+  }
+
+  .lp-ui-progress-fill::before,
+  .lp-ui-progress-fill::after {
+    content: none;
+  }
+}
+
+/* =========================================================================
+ * Anordnung — geschichtet, damit Aufrufstellen sie mit Tailwind-Klassen
+ * anpassen können (`w-full`, `justify-start`, Abstände).
+ * ========================================================================= */
+
+@layer components {
+  .lp-ui-button {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.5rem 1.125rem;
+    font-size: 0.9375rem;
+    line-height: 1.25;
+    text-align: center;
+  }
+
+  .lp-ui-button[data-lp-size='sm'] {
+    min-height: 2.25rem;
+    padding: 0.375rem 0.875rem;
+    font-size: 0.875rem;
+  }
+
+  .lp-ui-button[data-lp-size='lg'] {
+    min-height: 3.25rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 1.0625rem;
+  }
+
+  .lp-ui-card {
+    box-sizing: border-box;
+    padding: 1.25rem;
+  }
+
+  .lp-ui-card[data-lp-card='interactive'] {
+    display: block;
+  }
+
+  .lp-ui-progress {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 0.75rem;
+    overflow: hidden;
+  }
+
+  .lp-ui-progress-fill {
+    position: relative;
+    display: block;
+    height: 100%;
+    max-width: 100%;
+  }
+
+  .lp-ui-empty {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+  }
+
+  .lp-ui-empty-art {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 4rem;
+    height: 4rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .lp-ui-empty-art[data-lp-art='illustration'] {
+    width: 100%;
+    max-width: 13rem;
+    height: auto;
+  }
+
+  .lp-ui-empty-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .lp-ui-empty-title {
+    margin: 0;
+    font-size: 1.125rem;
+    line-height: 1.35;
+  }
+
+  .lp-ui-empty-text {
+    max-width: 60ch;
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .lp-ui-empty-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  /* Kompakt: eine Zeile im Panel, linksbündig, kleines Symbol. */
+  .lp-ui-empty[data-lp-size='compact'] {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.875rem;
+    padding: 1rem 1.25rem;
+    text-align: left;
+  }
+
+  .lp-ui-empty[data-lp-size='compact'] .lp-ui-empty-art {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    margin-bottom: 0;
+  }
+
+  .lp-ui-empty[data-lp-size='compact'] .lp-ui-empty-body {
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .lp-ui-empty[data-lp-size='compact'] .lp-ui-empty-title {
+    font-size: 1rem;
+  }
+
+  .lp-ui-empty[data-lp-size='compact'] .lp-ui-empty-actions {
+    justify-content: flex-start;
+    margin-top: 0.5rem;
+  }
+
+  .lp-ui-error {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.875rem;
+    width: 100%;
+    max-width: 36rem;
+    padding: 2rem 1.5rem;
+  }
+
+  .lp-ui-error-art {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+
+  .lp-ui-error-title {
+    margin: 0;
+    font-size: 1.5rem;
+    line-height: 1.25;
+  }
+
+  .lp-ui-error-text {
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .lp-ui-error-reference {
+    margin: 0;
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+  }
+
+  .lp-ui-error-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .lp-ui-card {
+      padding: 1.5rem;
+    }
+
+    .lp-ui-error {
+      padding: 2.5rem;
+    }
+  }
+}

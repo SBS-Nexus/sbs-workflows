@@ -4,6 +4,7 @@ import { SiteHeader } from '@/components/site-header';
 import { ReviewSession } from '@/components/review/review-session';
 import { normalizeSourceBaseUrl, parseEnabledSources } from '@/domain/review/fetch-source';
 import { REVIEW_SOURCE_APP_URLS } from '@/lib/catalog';
+import { ButtonLink } from '@/components/ui/primitives';
 
 /**
  * Welche Apps als Live-Quelle angefragt werden: nur ausdrücklich
@@ -48,9 +49,9 @@ export default function ReviewPage(): React.ReactElement {
               Vokabeldaten bleiben getrennt von den Live-Quellen und vom Demo-Deck – nur in diesem Browser.
             </p>
           </div>
-          <a className="button button-primary" href="/vokabeln">
+          <ButtonLink href="/vokabeln">
             Zum VokabelPfad
-          </a>
+          </ButtonLink>
         </section>
         <ReviewSession />
       </main>

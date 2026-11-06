@@ -609,7 +609,9 @@ request → Origin/CORS prüfen → Sitzung der App prüfen
   `Vary: Origin, Cookie`, `force-dynamic`. Fehler ohne Meldung, Stack oder
   Datenbankdetail.
 - `src/server/platform/progress-source-http.ts` ist in allen drei Apps
-  wortgleich.
+  wortgleich; `scripts/check-platform-sources.mjs` erzwingt das in der CI,
+  zusammen mit Schema-Version und Quellnamen wie im Hub (gilt ebenso für
+  `review-source-http.ts`).
 - **Freischaltung im Hub:** `PROGRESS_FEDERATION_SOURCES=python,sql,ai`
   (Vorgabe leer = aus), getrennt von `NEXT_PUBLIC_REVIEW_FEDERATION_SOURCES`,
   plus die vorhandenen `NEXT_PUBLIC_*_URL`. Der Schalter wird zur Laufzeit

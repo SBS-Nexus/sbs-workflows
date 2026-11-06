@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DEMO_REVIEW_ITEMS } from '@/domain/review/deck';
 import { initialReviewState, isDue, scheduleReview } from '@/domain/review/scheduler';
 import type { ReviewDomain, ReviewRating, ReviewState } from '@/domain/review/model';
+import { Button } from '@/components/ui/primitives';
 
 const STORAGE_KEY = 'lernpfade-review-state-v1';
 
@@ -114,13 +115,13 @@ export function ReviewSession(): React.ReactElement {
             {current.example ? <p>{current.example}</p> : null}
           </div>
         ) : (
-          <button
-            className="button button-primary review-reveal"
+          <Button
+            className="review-reveal"
             type="button"
             onClick={() => setRevealed(true)}
           >
             Antwort zeigen
-          </button>
+          </Button>
         )}
 
         {revealed ? (

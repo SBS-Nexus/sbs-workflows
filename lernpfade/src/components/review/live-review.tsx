@@ -10,6 +10,7 @@ import {
   type SourceHealth,
 } from '@/domain/review/federation';
 import { fetchReviewSource, type SourceEndpoint } from '@/domain/review/fetch-source';
+import { ButtonLink } from '@/components/ui/primitives';
 
 /**
  * LP-05B — fällige Wiederholungen aus den Lernpfaden, schreibgeschützt.
@@ -117,9 +118,9 @@ function LiveCard({
           {open ? 'Konzept verbergen' : 'Konzept zeigen'}
         </button>
         {config.baseUrl ? (
-          <a className="button button-primary" href={`${config.baseUrl}/wiederholen`}>
+          <ButtonLink href={`${config.baseUrl}/wiederholen`}>
             In {config.appName} wiederholen
-          </a>
+          </ButtonLink>
         ) : null}
       </div>
 

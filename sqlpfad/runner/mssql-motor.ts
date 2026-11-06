@@ -16,7 +16,11 @@ import {
   type SqlMotor,
   type Zustandsbericht,
 } from '../src/domain/sql/runner';
-import { uebersetzeTreiberfehler, zuResultset } from '../src/domain/sql/treiber-uebersetzung';
+import {
+  type TreiberErgebnis,
+  ersteErgebnismenge,
+  uebersetzeTreiberfehler,
+} from '../src/domain/sql/treiber-uebersetzung';
 import { alsBezeichner, sandboxAnmeldename } from '../src/domain/sql/bezeichner';
 
 /**
@@ -28,14 +32,14 @@ import { alsBezeichner, sandboxAnmeldename } from '../src/domain/sql/bezeichner'
  * einer Umgebung liegen, die von außen erreichbare Anwendungslogik ausführt.
  * Er ist deshalb an keine Route angeschlossen.
  *
- * **Zum Stand der Prüfung, ohne Beschönigung:** Was hier steht, ist gegen
- * keinen laufenden SQL Server gelaufen. Die Teile, die sich ohne Server prüfen
- * lassen – Ergebnisumwandlung, Fehlerzuordnung, Bildung von Bezeichnern –
- * liegen in `src/domain/sql/` und sind dort geprüft. Der Rest, also
- * Verbindungsaufbau, Zeitlimit, Abbruch und das Zurücksetzen einer Sandbox,
- * ist nach der Treiberdokumentation geschrieben und wartet auf die
- * Integrationstests aus docker-compose.yml. Bis die einmal grün gelaufen sind,
- * gilt diese Datei als unbewiesen.
+ * **Zum Stand der Prüfung:** Die Teile, die sich ohne Server prüfen lassen –
+ * Ergebnisumwandlung, Fehlerzuordnung, Bildung von Bezeichnern – liegen in
+ * `src/domain/sql/` und sind dort geprüft. Verbindungsaufbau, Zeitlimit,
+ * Abbruch, das Zurücksetzen einer Sandbox und die Rechtevergabe an den
+ * Sandbox-Anmeldenamen prüfen `tests/sql/` gegen einen echten SQL Server, in
+ * der CI bei jeder Änderung an `sqlpfad/`. Der erste Lauf fand einen Fehler,
+ * den keine Attrappe gezeigt hätte: Jedes SELECT kam ohne Ergebnis zurück
+ * (siehe `ersteErgebnismenge()`).
  *
  * **Zur Benennung:** `Ausfuehrungsauftrag.sandboxId` trägt hier den
  * Datenbanknamen der Sandbox, wie ihn `sandboxDatenbankName()` bildet – nicht
@@ -99,20 +103,16 @@ interface LaufenderAuftrag {
  * haben als die nächste.
  */
 type AnfrageMitZeitlimit = new (
-  parent: sql.ConnectionPool,
+  parent: sql.ConnectionPool | sql.Transaction,
   overrides?: { requestTimeout?: number },
 ) => sql.Request;
 
-function erstelleAnfrage(pool: sql.ConnectionPool, zeitlimitMs: number): sql.Request {
+function erstelleAnfrage(
+  pool: sql.ConnectionPool | sql.Transaction,
+  zeitlimitMs: number,
+): sql.Request {
   const Konstruktor = sql.Request as unknown as AnfrageMitZeitlimit;
   return new Konstruktor(pool, { requestTimeout: zeitlimitMs });
-}
-
-/** Ergebnisform des Treibers im `arrayRowMode`. */
-interface TreiberErgebnis {
-  recordsets?: unknown[][][];
-  columns?: Array<Array<{ name?: string; index?: number }>>;
-  rowsAffected?: number[];
 }
 
 export function erstelleMssqlMotor(optionen: MssqlMotorOptionen): SqlMotor {
@@ -274,6 +274,116 @@ export function erstelleMssqlMotor(optionen: MssqlMotorOptionen): SqlMotor {
     kennwoerter.delete(sandbox);
   }
 
+  /**
+   * Eine Anweisungsfolge ausführen – im Pool oder in einer Transaktion.
+   */
+  async function fuehreBatchAus(
+    ziel: sql.ConnectionPool | sql.Transaction,
+    auftrag: Ausfuehrungsauftrag,
+    grenzen: Ausfuehrungsgrenzen,
+  ): Promise<RohAusfuehrung> {
+    const anfrage = erstelleAnfrage(ziel, grenzen.zeitlimitMs);
+
+    /*
+     * `arrayRowMode` liefert Zeilen als Arrays statt als Objekte. Notwendig,
+     * nicht bequem: Als Objekt gingen die Spaltenreihenfolge und doppelte
+     * Spaltennamen verloren – siehe zuResultset().
+     */
+    anfrage.arrayRowMode = true;
+
+    laufende.set(auftrag.ausfuehrungId, { anfrage, abgebrochen: false });
+
+    try {
+      const ergebnis = (await anfrage.batch(auftrag.sql)) as unknown as TreiberErgebnis;
+
+      const resultset = ersteErgebnismenge(ergebnis);
+
+      /*
+       * Nur die erste Ergebnismenge wird ausgewertet.
+       *
+       * Eine Aufgabe hat genau ein erwartetes Ergebnis. Mehrere Mengen
+       * entstehen, wenn jemand mehrere SELECT hintereinander schreibt – das
+       * ist eine eigene Rückmeldung wert und nicht die stille Auswahl der
+       * letzten.
+       */
+      const betroffene = (ergebnis.rowsAffected ?? []).reduce((summe, zahl) => summe + zahl, 0);
+
+      return {
+        ...(resultset ? { resultset } : {}),
+        ...(betroffene > 0 ? { betroffeneZeilen: betroffene } : {}),
+      };
+    } catch (fehler) {
+      throw uebersetzeTreiberfehler(fehler, grenzen.zeitlimitMs);
+    } finally {
+      laufende.delete(auftrag.ausfuehrungId);
+    }
+  }
+
+  /**
+   * Die Kennung der laufenden Transaktion, oder null, wenn keine läuft.
+   *
+   * `CURRENT_TRANSACTION_ID()` und nicht nur `@@TRANCOUNT`: Nach
+   * `COMMIT; BEGIN TRANSACTION` steht die Tiefe wieder auf eins, die erste
+   * Transaktion ist aber festgeschrieben. Die Kennung verrät es.
+   */
+  async function transaktionsKennung(transaktion: sql.Transaction): Promise<string | null> {
+    const antwort = await new sql.Request(transaktion).query<{ kennung: string; tiefe: number }>(
+      'SELECT CAST(CURRENT_TRANSACTION_ID() AS nvarchar(40)) AS kennung, @@TRANCOUNT AS tiefe',
+    );
+    const zeile = antwort.recordset[0];
+    return zeile && zeile.tiefe > 0 ? zeile.kennung : null;
+  }
+
+  async function setzeSandboxZurueck(sandboxId: string): Promise<void> {
+    /*
+     * Zurücksetzen heißt: verwerfen und neu aufbauen.
+     *
+     * Der naheliegende Weg wäre, alle Tabellen zu leeren und neu zu füllen.
+     * Er ist der falsche: Wer in einer Übung eine Tabelle anlegt, eine Spalte
+     * ändert oder einen Index setzt, bekäme eine Datenbank zurück, die zwar
+     * die richtigen Zeilen enthält, aber nicht mehr die richtige Struktur.
+     * Genau dann ist „Zurücksetzen" das Versprechen, das gebrochen wird.
+     */
+    const name = alsBezeichner(sandboxId);
+
+    // Das Skript zuerst holen. Schlägt das fehl, ist die Sandbox noch heil –
+    // besser als eine verworfene Datenbank ohne Inhalt.
+    const skript = await optionen.ladeSchemaSkript(sandboxId);
+
+    // Eigene Verbindungen schließen, sonst blockiert das Verwerfen an der
+    // eigenen offenen Sitzung.
+    await schliessePools(sandboxId);
+
+    const verwaltung = await holeVerwaltungsPool('master');
+
+    /*
+     * SINGLE_USER WITH ROLLBACK IMMEDIATE trennt verbliebene Sitzungen.
+     * Ohne das wartet DROP DATABASE auf eine Verbindung, die vielleicht nie
+     * von selbst geht – und die Lernende sieht einen Knopf, der nichts tut.
+     *
+     * Der Name steht zweimal in unterschiedlicher Form im Text: `DB_ID`
+     * erwartet eine Zeichenfolge, `ALTER`/`DROP` einen Bezeichner. Beide
+     * Formen stammen aus derselben geprüften Quelle.
+     */
+    await verwaltung.request().batch(
+      `IF DB_ID(N'${sandboxId}') IS NOT NULL
+       BEGIN
+         ALTER DATABASE ${name} SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+         DROP DATABASE ${name};
+       END;
+       CREATE DATABASE ${name};`,
+    );
+
+    /*
+     * Struktur und Beispieldaten legt die **Verwaltung** an, nicht die
+     * Lernende. Ihr Anmeldename existiert in der frisch erzeugten Datenbank
+     * noch gar nicht – `DROP DATABASE` hat den Benutzer darin mitgenommen.
+     * Er entsteht beim nächsten `holeAusfuehrungsPool` neu.
+     */
+    const frisch = await holeVerwaltungsPool(sandboxId);
+    await frisch.request().batch(skript);
+  }
+
   return {
     async fuehreAus(
       auftrag: Ausfuehrungsauftrag,
@@ -295,43 +405,46 @@ export function erstelleMssqlMotor(optionen: MssqlMotorOptionen): SqlMotor {
        * ausdrücklich nicht als Sicherheitsgrenze gedacht; diese Zeile ist es.
        */
       const pool = await holeAusfuehrungsPool(auftrag.sandboxId);
-      const anfrage = erstelleAnfrage(pool, grenzen.zeitlimitMs);
+      if (!auftrag.verwerfen) return fuehreBatchAus(pool, auftrag, grenzen);
 
       /*
-       * `arrayRowMode` liefert Zeilen als Arrays statt als Objekte. Notwendig,
-       * nicht bequem: Als Objekt gingen die Spaltenreihenfolge und doppelte
-       * Spaltennamen verloren – siehe zuResultset().
+       * Ein Bewertungslauf: nichts davon behalten (Review DEV-01, F1).
+       *
+       * Bewertet wird in der Sandbox, in der die Lernende auch übt. Die
+       * Anweisungsprüfung hält Änderungen aus lesenden Aufgaben heraus, ist
+       * aber keine Grenze – also läuft die Abgabe in einer Transaktion, die
+       * hinterher immer zurückgerollt wird.
+       *
+       * Das allein genügte nicht: Ein `COMMIT` oder `ROLLBACK` im eingereichten
+       * SQL beendet diese Transaktion, und was danach kommt, bleibt. Deshalb
+       * wird vor und nach dem Lauf die Kennung der Transaktion gelesen. Ist es
+       * nicht mehr dieselbe – oder hat der Server sie selbst beendet –, wird
+       * die Sandbox zurückgesetzt. Das kostet eine Sekunde, aber nur in genau
+       * dem Fall, in dem jemand an der Prüfung vorbeigekommen ist.
        */
-      anfrage.arrayRowMode = true;
+      const transaktion = new sql.Transaction(pool);
+      let vomServerBeendet = false;
+      transaktion.on('rollback', (abgebrochen: boolean) => {
+        if (abgebrochen) vomServerBeendet = true;
+      });
+      await transaktion.begin();
 
-      laufende.set(auftrag.ausfuehrungId, { anfrage, abgebrochen: false });
-
+      let unberuehrt = false;
       try {
-        const ergebnis = (await anfrage.batch(auftrag.sql)) as unknown as TreiberErgebnis;
-
-        const ersteZeilen = ergebnis.recordsets?.[0];
-        const ersteSpalten = ergebnis.columns?.[0];
-
-        /*
-         * Nur die erste Ergebnismenge wird ausgewertet.
-         *
-         * Eine Aufgabe hat genau ein erwartetes Ergebnis. Mehrere Mengen
-         * entstehen, wenn jemand mehrere SELECT hintereinander schreibt – das
-         * ist eine eigene Rückmeldung wert und nicht die stille Auswahl der
-         * letzten.
-         */
-        const betroffene = (ergebnis.rowsAffected ?? []).reduce((summe, zahl) => summe + zahl, 0);
-
-        return {
-          ...(ersteZeilen && ersteSpalten
-            ? { resultset: zuResultset(ersteZeilen, ersteSpalten) }
-            : {}),
-          ...(betroffene > 0 ? { betroffeneZeilen: betroffene } : {}),
-        };
-      } catch (fehler) {
-        throw uebersetzeTreiberfehler(fehler, grenzen.zeitlimitMs);
+        const vorher = await transaktionsKennung(transaktion);
+        try {
+          return await fuehreBatchAus(transaktion, auftrag, grenzen);
+        } finally {
+          const nachher = vomServerBeendet
+            ? null
+            : await transaktionsKennung(transaktion).catch(() => null);
+          unberuehrt = vorher !== null && nachher === vorher;
+        }
       } finally {
-        laufende.delete(auftrag.ausfuehrungId);
+        await transaktion.rollback().catch(() => {
+          unberuehrt = false;
+        });
+        if (!unberuehrt) await setzeSandboxZurueck(auftrag.sandboxId);
       }
     },
 
@@ -342,55 +455,7 @@ export function erstelleMssqlMotor(optionen: MssqlMotorOptionen): SqlMotor {
       eintrag.anfrage.cancel();
     },
 
-    async setzeSandboxZurueck(sandboxId: string): Promise<void> {
-      /*
-       * Zurücksetzen heißt: verwerfen und neu aufbauen.
-       *
-       * Der naheliegende Weg wäre, alle Tabellen zu leeren und neu zu füllen.
-       * Er ist der falsche: Wer in einer Übung eine Tabelle anlegt, eine Spalte
-       * ändert oder einen Index setzt, bekäme eine Datenbank zurück, die zwar
-       * die richtigen Zeilen enthält, aber nicht mehr die richtige Struktur.
-       * Genau dann ist „Zurücksetzen" das Versprechen, das gebrochen wird.
-       */
-      const name = alsBezeichner(sandboxId);
-
-      // Das Skript zuerst holen. Schlägt das fehl, ist die Sandbox noch heil –
-      // besser als eine verworfene Datenbank ohne Inhalt.
-      const skript = await optionen.ladeSchemaSkript(sandboxId);
-
-      // Eigene Verbindungen schließen, sonst blockiert das Verwerfen an der
-      // eigenen offenen Sitzung.
-      await schliessePools(sandboxId);
-
-      const verwaltung = await holeVerwaltungsPool('master');
-
-      /*
-       * SINGLE_USER WITH ROLLBACK IMMEDIATE trennt verbliebene Sitzungen.
-       * Ohne das wartet DROP DATABASE auf eine Verbindung, die vielleicht nie
-       * von selbst geht – und die Lernende sieht einen Knopf, der nichts tut.
-       *
-       * Der Name steht zweimal in unterschiedlicher Form im Text: `DB_ID`
-       * erwartet eine Zeichenfolge, `ALTER`/`DROP` einen Bezeichner. Beide
-       * Formen stammen aus derselben geprüften Quelle.
-       */
-      await verwaltung.request().batch(
-        `IF DB_ID(N'${sandboxId}') IS NOT NULL
-         BEGIN
-           ALTER DATABASE ${name} SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-           DROP DATABASE ${name};
-         END;
-         CREATE DATABASE ${name};`,
-      );
-
-      /*
-       * Struktur und Beispieldaten legt die **Verwaltung** an, nicht die
-       * Lernende. Ihr Anmeldename existiert in der frisch erzeugten Datenbank
-       * noch gar nicht – `DROP DATABASE` hat den Benutzer darin mitgenommen.
-       * Er entsteht beim nächsten `holeAusfuehrungsPool` neu.
-       */
-      const frisch = await holeVerwaltungsPool(sandboxId);
-      await frisch.request().batch(skript);
-    },
+    setzeSandboxZurueck,
 
     async zustand(): Promise<Zustandsbericht> {
       const begonnen = Date.now();

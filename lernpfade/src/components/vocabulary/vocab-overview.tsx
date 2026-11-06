@@ -13,6 +13,7 @@ import { formatDateTime, originLabel, plural } from './format';
 import type { VocabActions } from './vocab-app';
 import { VocabImport } from './vocab-import';
 import { FieldError, useFocusOnMount } from './vocab-fields';
+import { Button, EmptyState } from '@/components/ui/primitives';
 
 type DirectionChoice = 'en-de' | 'de-en' | 'both';
 
@@ -161,15 +162,17 @@ export function VocabOverview({
         <div className="vocab-panel-head">
           <h2 id="decks-title">Deine Decks</h2>
           {store.decks.length > 0 ? (
-            <button className="button button-secondary" type="button" onClick={exportAll}>
+            <Button variant="secondary" type="button" onClick={exportAll}>
               Alle Decks exportieren
-            </button>
+            </Button>
           ) : null}
         </div>
         {store.decks.length === 0 ? (
-          <p className="vocab-empty">
-            Noch keine Decks. Lege unten ein eigenes Deck an, übernimm ein Starterdeck oder importiere eine Datei.
-          </p>
+          <EmptyState
+            size="compact"
+            title="Noch keine Decks"
+            description="Lege unten ein eigenes Deck an, übernimm ein Starterdeck oder importiere eine Datei."
+          />
         ) : (
           <ul className="vocab-deck-list">
             {store.decks.map((deck) => {
@@ -185,30 +188,29 @@ export function VocabOverview({
                     </p>
                   </div>
                   <div className="vocab-actions">
-                    <button
-                      className="button button-primary"
+                    <Button
                       type="button"
                       aria-label={`Öffnen: ${deck.name}`}
                       onClick={() => actions.openDeck(deck.id)}
                     >
                       Öffnen
-                    </button>
-                    <button
-                      className="button button-secondary"
+                    </Button>
+                    <Button
+                      variant="secondary"
                       type="button"
                       aria-label={`Exportieren: ${deck.name}`}
                       onClick={() => exportDecksToFile([deck.id], `„${deck.name}"`)}
                     >
                       Exportieren
-                    </button>
-                    <button
-                      className="button button-ghost-danger"
+                    </Button>
+                    <Button
+                      variant="danger-secondary"
                       type="button"
                       aria-label={`Löschen: ${deck.name}`}
                       onClick={() => setPendingDelete(deck.id)}
                     >
                       Löschen
-                    </button>
+                    </Button>
                   </div>
                 </li>
               );
@@ -232,8 +234,8 @@ export function VocabOverview({
                 <h3>{starter.name}</h3>
                 <p>{starter.description}</p>
                 <p className="vocab-muted">{plural(starter.cards.length, 'Karte', 'Karten')} · Englisch → Deutsch</p>
-                <button
-                  className="button button-secondary"
+                <Button
+                  variant="secondary"
                   type="button"
                   disabled={adopted || actions.saving}
                   aria-label={`${adopted ? 'Bereits übernommen' : 'Als eigenes Deck übernehmen'}: ${starter.name}`}
@@ -247,7 +249,7 @@ export function VocabOverview({
                   }}
                 >
                   {adopted ? 'Bereits übernommen' : 'Als eigenes Deck übernehmen'}
-                </button>
+                </Button>
               </li>
             );
           })}
@@ -294,7 +296,11 @@ function SessionSetup({ store, actions }: { store: VocabStore; actions: VocabAct
     return (
       <section className="vocab-panel" aria-labelledby="session-title">
         <h2 id="session-title">Daily Review</h2>
-        <p className="vocab-empty">Sobald ein Deck Karten enthält, kannst du hier eine Session starten.</p>
+        <EmptyState
+          size="compact"
+          title="Noch nichts abzufragen"
+          description="Sobald ein Deck Karten enthält, kannst du hier eine Session starten."
+        />
       </section>
     );
   }
@@ -356,9 +362,9 @@ function SessionSetup({ store, actions }: { store: VocabStore; actions: VocabAct
               : 'Nichts fällig.'
             : `${plural(dueCount, 'Abfrage', 'Abfragen')} fällig. Die Session umfasst ${sessionSize} davon (höchstens ${LIMITS.sessionSize}).`}
         </p>
-        <button className="button button-primary" type="submit" disabled={dueCount === 0}>
+        <Button type="submit" disabled={dueCount === 0}>
           Session starten
-        </button>
+        </Button>
       </form>
     </section>
   );
@@ -426,9 +432,9 @@ function CreateDeckForm({ store, actions }: { store: VocabStore; actions: VocabA
           {error.text}
         </p>
       ) : null}
-      <button className="button button-primary" type="submit" disabled={actions.locked || actions.saving}>
+      <Button type="submit" disabled={actions.locked || actions.saving}>
         Deck anlegen
-      </button>
+      </Button>
     </form>
   );
 }

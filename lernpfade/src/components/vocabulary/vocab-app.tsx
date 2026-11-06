@@ -16,6 +16,7 @@ import { downloadText } from './download';
 import { VocabDeckView } from './vocab-deck';
 import { VocabOverview } from './vocab-overview';
 import { VocabSession } from './vocab-session';
+import { Button } from '@/components/ui/primitives';
 
 /**
  * LP-06 — VokabelPfad. Ein Client-Baustein, weil alle Daten ausschließlich im
@@ -285,9 +286,9 @@ export function VocabApp(): React.ReactElement {
             <strong>In einem anderen Tab wurde VokabelPfad geändert.</strong> Damit nichts überschrieben
             wird, speichert dieser Tab erst wieder, wenn du den aktuellen Stand lädst.
           </p>
-          <button className="button button-secondary" type="button" onClick={() => void load()}>
+          <Button variant="secondary" type="button" onClick={() => void load()}>
             Aktuellen Stand laden
-          </button>
+          </Button>
         </div>
       ) : null}
 
@@ -304,9 +305,9 @@ export function VocabApp(): React.ReactElement {
             Dieser Browser erlaubt VokabelPfad gerade keinen Zugriff auf seinen lokalen Speicher (zum Beispiel
             im privaten Modus oder bei blockierten Website-Daten). Ohne ihn kann nichts gespeichert werden.
           </p>
-          <button className="button button-secondary" type="button" onClick={() => void load()}>
+          <Button variant="secondary" type="button" onClick={() => void load()}>
             Erneut versuchen
-          </button>
+          </Button>
         </div>
       ) : null}
 
@@ -320,16 +321,16 @@ export function VocabApp(): React.ReactElement {
           </p>
           {phase.kind === 'corrupt' ? <p className="vocab-muted">Technischer Grund: {phase.detail}</p> : null}
           <div className="vocab-actions">
-            <button
-              className="button button-secondary"
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => downloadText('vokabelpfad-rohdaten-sicherung.json', phase.raw)}
             >
               Rohdaten sichern
-            </button>
-            <button className="button button-danger" type="button" onClick={() => setConfirmReset(true)}>
+            </Button>
+            <Button variant="danger" type="button" onClick={() => setConfirmReset(true)}>
               VokabelPfad zurücksetzen …
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}

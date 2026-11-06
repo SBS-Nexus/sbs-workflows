@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { requireUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
-import { EmptyState } from '@/components/ui/primitives';
+import { CardLink, EmptyState } from '@/components/ui/primitives';
 import { Icon } from '@/components/ui/icon';
 import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
 
@@ -85,10 +84,7 @@ export default async function LernenSeite(): Promise<React.ReactElement> {
                 const stand = fortschritt.get(lektion.id) ?? 'NOT_STARTED';
                 return (
                   <li key={lektion.id}>
-                    <Link
-                      href={`/lernen/${lektion.slug}`}
-                      className="karte-flaeche hover-lift group block h-full rounded-2xl border-2 p-5 hover:border-[var(--akzent)]"
-                    >
+                    <CardLink href={`/lernen/${lektion.slug}`} className="group h-full">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-sm font-bold uppercase tracking-widest text-[var(--akzent)]">
                           Lektion {lektionsIndex + 1}
@@ -124,7 +120,7 @@ export default async function LernenSeite(): Promise<React.ReactElement> {
                           {lektion._count.exercises} Aufgaben
                         </span>
                       </p>
-                    </Link>
+                    </CardLink>
                   </li>
                 );
               })}

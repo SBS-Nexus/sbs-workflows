@@ -70,6 +70,7 @@ export default async function ReviewPage(): Promise<React.ReactElement> {
         </section>
       ) : (
         <EmptyState
+          kind="done"
           illustration={<IllustrationRuhe />}
           title="Heute steht keine Wiederholung an"
           description="Das ist kein Versäumnis – der Plan richtet sich nach deinem Verlauf. Nutze die Zeit für eine neue Lektion oder ein Projekt."

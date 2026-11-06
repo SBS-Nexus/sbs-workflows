@@ -1,6 +1,6 @@
 # Lernpfade — Design System Contract
 
-Stand: 2026-10-01
+Stand: 2026-10-28
 
 ## Zweck
 
@@ -113,6 +113,21 @@ Details, Farbwerte und gemessene Kontraste: `docs/learning-feedback/README.md`.
 - Ghost: Navigation oder niedrige Priorität
 - Danger: nur für destruktive Aktion
 
+Seit LP-03C ist dieser Abschnitt ausführbar: `docs/learning-components/`
+(`learning-components.ts`, `learning-components.css` mit den Tokens
+`--lp-ui-*`), bytegleich in PythonPfad, SQLPfad, AIPfad und im Hub. Zu den
+vier Absichten kommen `danger-secondary` (Einstieg in eine destruktive
+Handlung, öffnet erst die Bestätigung) und `on-dark`/`on-dark-secondary`
+(dunkle Kopfflächen). Größen `sm`/`md`/`lg` mit mindestens 36/44/52 px.
+
+Tragende Knöpfe haben eine **taktile Unterkante**, die beim Drücken um 2 px
+einsinkt — der Zustand „gedrückt" ist an der Geometrie erkennbar, nicht nur
+an einer Farbe, und bleibt unter „Bewegung reduzieren" erhalten. Gesperrt ist
+flach (eigene graue Fläche, keine Kante), nicht bloß durchscheinend. Primär
+trägt den Pfad-Akzent (`data-lp-app` am `<html>`), Gefahr die Statusfarbe
+aus LP-03B. Beschriftung in der Produktschrift, Satzschreibung, keine
+Großbuchstaben.
+
 ### Cards
 
 Eine Card ist entweder:
@@ -122,6 +137,12 @@ Eine Card ist entweder:
 
 Keine Card mit mehreren konkurrierenden Click-Zonen ohne fachlichen Grund.
 
+Seit LP-03C: `Card` (Information) und `CardLink` (die ganze Karte ist der
+Link, mit derselben taktilen Unterkante wie ein Knopf). Betonung `accent`
+(nächster Schritt) oder `danger` (destruktiver Bereich) nur zusätzlich zum
+Text. Fläche und Rand nehmen eine Bereichsfarbe leicht an; sie kommt über
+`--lp-ui-area`, das PythonPfad und SQLPfad aus der Modulfarbe setzen.
+
 ### Progress
 
 Fortschritt zeigt immer:
@@ -129,6 +150,12 @@ Fortschritt zeigt immer:
 - numerischen Wert
 - verständliche Beschriftung
 - keine reine Farbcodierung
+
+Seit LP-03C kommt der Balken aus dem Komponentenvertrag: kräftige, runde
+Spur (12 px), `aria-valuetext` „3 von 10" bzw. „62 %", abgerundete Prozente
+(99,6 % sind nicht fertig), und ungültige Daten ergeben einen leeren Balken,
+nie einen vollen. Ein abgeschlossener Balken bekommt einmal einen
+Lichtstreif — nicht unter „Bewegung reduzieren".
 
 **Progress Cards (LP-07, `/fortschritt`):** eine Karte je Pfad mit fester
 Reihenfolge (Python, SQL, AI, Vokabeln). Jede Kennzahl ist ein Paar aus
@@ -149,6 +176,20 @@ Zustand einer Quelle immer als Text, nie als leere Karte oder 0:
 
 Seit LP-03B kommen diese Hinweise aus dem gemeinsamen Statusvertrag
 (`docs/learning-feedback/README.md`, Zuordnung dort).
+
+### Leer- und Fehlerzustände
+
+Ein leerer Bereich sagt eines von drei Dingen, und die Gestaltung
+unterscheidet sie (LP-03C): `start` — hier ist noch nichts, `done` — gerade
+nichts zu tun, weil alles erledigt ist (Erfolgston, kein Mangel), `filtered`
+— die Auswahl trifft nichts. Größe `regular` für einen eigenen Bereich,
+`compact` für einen Hinweis im Panel. Leerzustände sind keine Live-Region.
+
+Fehler- und 404-Seiten aller Apps zeigen denselben `ErrorState`
+(`unexpected`, `not-found`, `unavailable`). Eine fehlende Seite ist kein
+Fehler der Person und trägt deshalb den Hinweiston. Technische Details
+erscheinen nie; eine Kennung für die Fehlersuche nur, wenn sie wie eine
+Kennung aussieht.
 
 ### Wiederholung
 
@@ -221,6 +262,10 @@ Gemeinsame Regel:
 - Shell (Dachleiste, Kopf, Navigation, Menüs): 120 ms / 200 ms, unter
   „Bewegung reduzieren“ (System oder Konto) 0,01 ms; Fachanimationen behalten
   ihre eigenen Zeiten
+- Komponenten (LP-03C): Einsinken 90 ms, Farbwechsel 140 ms, Füllung eines
+  Fortschrittsbalkens 480 ms, ein einmaliger Lichtstreif beim Abschluss;
+  unter „Bewegung reduzieren“ 0,01 ms und kein Lichtstreif — der gedrückte
+  Zustand bleibt sichtbar
 
 ## 8. Responsive Contract
 
@@ -251,9 +296,15 @@ Ein echtes `packages/learning-ui` wird erst eingeführt, wenn:
 4. kein Fachpfad unnötig sein Bundle vergrößert.
 
 Bis dahin gilt: gemeinsame Semantik, kleine bewusst synchronisierte
-Plattformkomponenten, automatisierte Regressionen. Für die Shell ist das
-umgesetzt: kanonische Dateien in `docs/learning-shell/`, bytegleiche Kopien je
-App, Drift-Check `node scripts/check-learning-shell.mjs` in der CI.
+Plattformkomponenten, automatisierte Regressionen. Umgesetzt in drei
+Verträgen mit je kanonischen Dateien, bytegleichen Kopien und eigenem
+Drift-Check in der CI:
+
+| Vertrag                          | Ordner                     | Drift-Check                                |
+| -------------------------------- | -------------------------- | ------------------------------------------ |
+| Shell und Navigation (LP-03A)    | `docs/learning-shell/`     | `node scripts/check-learning-shell.mjs`    |
+| Badges und Callouts (LP-03B)     | `docs/learning-feedback/`  | `node scripts/check-learning-feedback.mjs` |
+| Button, Card, ProgressBar, Empty-/ErrorState (LP-03C) | `docs/learning-components/` | `node scripts/check-learning-components.mjs` |
 
 ## 10. Review-Regel für neue UI
 
