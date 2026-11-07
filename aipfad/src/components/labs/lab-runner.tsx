@@ -8,6 +8,7 @@ import { TerminalLab } from './terminal-lab';
 import { GitStateLab } from './git-state-lab';
 import { BranchLab } from './branch-lab';
 import { MergeConflictLab } from './merge-conflict-lab';
+import { SemanticRetrievalLab } from './semantic-retrieval-lab';
 
 export function LabRunner({
   slug,
@@ -15,7 +16,14 @@ export function LabRunner({
   config,
 }: {
   slug: string;
-  kind: 'TERMINAL' | 'TOKENIZER' | 'CONTEXT_WINDOW' | 'GIT_STATE' | 'BRANCH' | 'MERGE_CONFLICT';
+  kind:
+    | 'TERMINAL'
+    | 'TOKENIZER'
+    | 'CONTEXT_WINDOW'
+    | 'GIT_STATE'
+    | 'BRANCH'
+    | 'MERGE_CONFLICT'
+    | 'SEMANTIC_RETRIEVAL';
   config: unknown;
 }): React.ReactElement {
   const [saved, setSaved] = useState(false);
@@ -49,5 +57,7 @@ export function LabRunner({
       return <BranchLab config={config} onCompleteAction={complete} />;
     case 'MERGE_CONFLICT':
       return <MergeConflictLab config={config} onCompleteAction={complete} />;
+    case 'SEMANTIC_RETRIEVAL':
+      return <SemanticRetrievalLab config={config} onCompleteAction={complete} />;
   }
 }

@@ -322,3 +322,68 @@ kein Element breiter ist als der Bildschirm, ohne in einem eigenen
 scrollbaren Behälter zu stecken. Zusätzlich unter Last: Commit-Graph nach
 sieben Befehlen, Konflikteditor mit einer sehr langen eigenen Zeile,
 Git-State-Lab nach mehreren Befehlen. Ergebnis: kein Überlauf.
+
+## Stufe 9 (LP-10A, Embeddings & semantische Suche)
+
+Ausgeführt am 2026-11-07 gegen eigene, synthetische Datenbanken im lokalen
+Docker-Postgres (`aipfad_lp10a` für Build und E2E, `aipfad_lp10a_test` für
+die Integrationstests).
+
+### Unit
+
+`tests/unit/retrieval-math.test.ts` (55 Tests): Skalarprodukt, Vektornorm
+und Kosinusähnlichkeit gegen von Hand gerechnete Werte; Nullvektoren auf
+beiden Seiten, unterschiedliche Dimensionen, NaN/±Infinity/Nicht-Zahlen,
+Überlauf großer Komponenten (Wert bleibt berechenbar, ein nicht
+darstellbarer Rechenweg wird als `UEBERLAUF` gemeldet); deterministischer
+Tie-Break über die Kennung in Codepunkt-Reihenfolge, auch bei
+Gleitkomma-Rauschen; Top-k-Grenzen; Schwelle; Precision/Recall mit `null`
+für nicht definierte Werte; keine Mutation eingefrorener Eingaben.
+
+`tests/unit/semantic-retrieval-content.test.ts`: vier Lektionen mit
+gestuften Hilfen, jedes neue Konzept genau einmal eingeführt und über
+`embedding` am Graphen, keine Anbieter- oder Preisangaben, jede Aufgabe mit
+Musterlösung bestanden und mit falscher Antwort nicht; das Lab zeigt den
+irreführenden Treffer, den fehlenden Treffer und den Treffer ohne
+gemeinsames Wort; die in den Lektionen zitierten Scores stimmen mit dem
+überein, was das Lab berechnet; 18 Negativfälle für die Lab-Konfiguration,
+auch über `validateCourseGraph()`.
+
+### Integration
+
+`tests/integration/semantic-retrieval-lab.test.ts`: Seed von Modul, Konzepten
+und Lab; Aufgaben durch die bestehende Bewertung; Abschluss über die
+bestehende Server Action `recordLabCompletionAction` (nur die Sitzung ist
+ersetzt), Zuordnung allein zum angemeldeten Konto, kein Abschluss ohne
+Sitzung, unbekannter Lab-Slug abgewiesen ohne Schreibzugriff, kein stilles
+Speichern ohne gültigen Zeitstempel, bestehende Abschlüsse unverändert,
+alle bisherigen Labs weiter abrufbar; erneutes Seeden erhält Lab-Abschluss
+und Lektionsfortschritt.
+
+### Migration
+
+`20261107120000_semantic_retrieval_lab` auf einer Datenbank im Stand des
+Basis-Commits mit sieben Labs und sieben Lab-Abschlüssen eingespielt:
+Enum erweitert, alle bestehenden Zeilen in `labs` und `lab_attempts`
+zeilengenau identisch (Kennungen, Konfigurations-Hash, Ergebnis), ein
+zweites `migrate deploy` ohne Wirkung, `migrate diff` ohne Drift.
+
+### End-to-End
+
+`e2e/stage9-retrieval.spec.ts` (5 Tests, Desktop-Projekt): Modul in der
+Bibliothek, unbekannter Lab-Slug ergibt 404; eine Lektion samt teilweise
+richtiger und richtiger Rechenaufgabe; das Lab mit Rangliste, Top-k,
+Rechenweg, Suchbestand, beiden Entscheidungen, keinem Schreib- oder
+Fremdaufruf vor dem Abschluss und gespeichertem Abschluss in `/labs`;
+Bedienung allein mit der Tastatur; 375 px ohne horizontales Scrollen der
+Seite; axe ohne serious/critical Befunde; keine Konsolenfehler.
+
+Gesamtlauf: 54 von 55 bestanden. Der eine Fehler ist
+`shell-navigation.spec.ts:129` („700 → 640 px: linke Kante im Bild"); er
+tritt im unveränderten Basis-Commit 3da3dde mit derselben Signatur auf
+(dort 3 von 4 grün, hier 3 von 4 grün) und betrifft keinen Code aus LP-10A.
+
+Ein vollständiger E2E-Lauf legt 49 Konten an (vorher 44). Die
+Registrierungsgrenze je Herkunft liegt bei 60 pro Stunde und wird in der
+Datenbank gezählt — wer die Suite mehrfach innerhalb einer Stunde gegen
+dieselbe Datenbank laufen lässt, trifft sie.

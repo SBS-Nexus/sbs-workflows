@@ -298,4 +298,78 @@ export const concepts: ConceptDraft[] = [
     difficulty: 4,
     prerequisiteSlugs: ['aenderungen-zuruecknehmen'],
   },
+
+  // --- Stufe 9: Embeddings & semantische Suche (LP-10A) ---------------------
+  {
+    slug: 'vektor-und-dimension',
+    name: 'Vektor und Dimension',
+    description:
+      'Ein Vektor ist eine geordnete Liste von Zahlen; jede Position heißt Dimension. Zwei Vektoren lassen sich nur vergleichen, wenn sie gleich viele Dimensionen haben und jede Position dasselbe bedeutet. Ein Vektor hat eine Richtung und eine Länge.',
+    difficulty: 2,
+    prerequisiteSlugs: ['embedding'],
+  },
+  {
+    slug: 'text-embedding',
+    name: 'Text-Embedding',
+    description:
+      'Ein Text-Embedding bildet einen ganzen Satz, Absatz oder ein Dokument auf einen einzigen Vektor ab — anders als ein Token-Embedding, das zu einem einzelnen Token gehört. Ähnlich gemeinte Texte sollen nahe beieinanderliegen. Was "ähnlich" heißt, hat das Modell aus seinen Trainingsdaten gelernt, nicht aus einer Definition.',
+    difficulty: 3,
+    prerequisiteSlugs: ['vektor-und-dimension'],
+  },
+  {
+    slug: 'skalarprodukt-und-vektorlaenge',
+    name: 'Skalarprodukt und Vektorlänge',
+    description:
+      'Das Skalarprodukt multipliziert zwei Vektoren Position für Position und addiert die Produkte. Die Vektorlänge (Norm) ist die Wurzel aus dem Skalarprodukt eines Vektors mit sich selbst. Beide zusammen sind die Bausteine der Kosinusähnlichkeit.',
+    difficulty: 2,
+    prerequisiteSlugs: ['vektor-und-dimension'],
+  },
+  {
+    slug: 'kosinus-aehnlichkeit',
+    name: 'Kosinusähnlichkeit',
+    description:
+      'Die Kosinusähnlichkeit teilt das Skalarprodukt durch das Produkt beider Vektorlängen. Sie misst nur die Richtung, nicht die Länge, und liegt zwischen −1 und 1: 1 heißt gleiche Richtung, 0 heißt senkrecht. Für einen Nullvektor ist sie nicht definiert.',
+    difficulty: 3,
+    prerequisiteSlugs: ['skalarprodukt-und-vektorlaenge'],
+  },
+  {
+    slug: 'semantische-suche',
+    name: 'Semantische Suche',
+    description:
+      'Semantische Suche vergleicht das Embedding einer Anfrage mit den Embeddings vieler Dokumente und sortiert die Dokumente nach Ähnlichkeit. Sie findet auch Treffer ohne gemeinsames Wort, kann aber Dokumente hoch einstufen, die nur thematisch verwandt sind.',
+    difficulty: 3,
+    prerequisiteSlugs: ['text-embedding', 'kosinus-aehnlichkeit'],
+  },
+  {
+    slug: 'top-k-retrieval',
+    name: 'Top-k und Schwelle',
+    description:
+      'Top-k nimmt die k Dokumente mit den höchsten Scores aus der Rangliste. Eine Rangliste hat immer einen ersten Platz, auch wenn nichts passt; erst eine Mindestähnlichkeit (Schwelle) erlaubt die Antwort "nichts Passendes gefunden". Beide Werte müssen an den eigenen Daten geprüft werden.',
+    difficulty: 3,
+    prerequisiteSlugs: ['semantische-suche'],
+  },
+  {
+    slug: 'relevanz-vs-aehnlichkeit',
+    name: 'Relevanz ist nicht Ähnlichkeit',
+    description:
+      'Ähnlichkeit ist eine berechnete Zahl, Relevanz ein fachliches Urteil: Beantwortet dieses Dokument die Frage? Ein Treffer kann sehr ähnlich und trotzdem nutzlos sein (False Positive), ein passendes Dokument kann zu niedrig landen (False Negative).',
+    difficulty: 3,
+    prerequisiteSlugs: ['semantische-suche', 'halluzination'],
+  },
+  {
+    slug: 'precision-und-recall',
+    name: 'Precision und Recall',
+    description:
+      'Precision ist der Anteil relevanter Dokumente unter den gelieferten Treffern; Recall ist der Anteil der gefundenen unter allen relevanten Dokumenten. Ein größeres k hebt meist den Recall und senkt die Precision. Beide brauchen ein fachliches Urteil, welche Dokumente relevant sind.',
+    difficulty: 4,
+    prerequisiteSlugs: ['top-k-retrieval', 'relevanz-vs-aehnlichkeit'],
+  },
+  {
+    slug: 'chunking',
+    name: 'Chunking',
+    description:
+      'Lange Dokumente werden vor dem Einbetten in Abschnitte (Chunks) geteilt, weil ein einziger Vektor für ein langes Dokument viele Themen vermischt. Zu kleine Chunks verlieren den Zusammenhang, etwa wenn eine Regel und ihre Ausnahme getrennt werden; zu große verwässern die Bedeutung.',
+    difficulty: 4,
+    prerequisiteSlugs: ['text-embedding', 'context-window'],
+  },
 ];
