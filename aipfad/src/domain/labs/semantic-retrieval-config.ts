@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { anSchwelleTeilen, rangliste } from '@/domain/retrieval/ranking';
+import { anSchwelleTeilen, rangliste, type RanglistenEintrag } from '@/domain/retrieval/ranking';
+import { VektorFehler } from '@/domain/retrieval/vektor';
 
 /**
  * Kanonischer Vertrag für das Lab "Semantische Suche verstehen".
@@ -186,7 +187,22 @@ export const semanticRetrievalConfigSchema = z
     if (!vektorenGueltig || !schwelleGueltig || !allesEndlich) return;
 
     for (const [i, anfrage] of config.anfragen.entries()) {
-      const liste = rangliste(anfrage.vektor, config.dokumente).eintraege;
+      // Endliche Komponenten reichen nicht: Bei sehr großen Werten läuft das
+      // erklärende Komponentenprodukt über, und `rangliste()` meldet das zu
+      // Recht als `VektorFehler`. Hier wird daraus ein Befund für genau diese
+      // Anfrage — kein Ersatz-Score, keine weitere Prüfung auf einer
+      // Rangliste, die es nicht gibt (Review 5812621557).
+      let liste: RanglistenEintrag[];
+      try {
+        liste = rangliste(anfrage.vektor, config.dokumente).eintraege;
+      } catch (fehler) {
+        if (!(fehler instanceof VektorFehler)) throw fehler;
+        melde(
+          ['anfragen', i],
+          `Für Anfrage "${anfrage.id}" lässt sich die Rangliste nicht berechnen: ${fehler.message}`,
+        );
+        continue;
+      }
       const ueber = anSchwelleTeilen(liste, config.schwelle).ueber;
 
       if (anfrage.irrefuehrend) {

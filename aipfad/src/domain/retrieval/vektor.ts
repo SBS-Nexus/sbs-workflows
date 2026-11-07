@@ -177,11 +177,14 @@ export function kosinusRechnung(
   const { normA, normB, kosinus } = normenUndKosinus(paar);
 
   const produkte = paar.va.map((wert, index) =>
-    endlichOderFehler(wert * (paar.vb[index] as number), `Das Produkt in Dimension ${index}`),
+    endlichOderFehler(
+      wert * (paar.vb[index] as number),
+      `Das Produkt von ${paar.nameA} und ${paar.nameB} in Dimension ${index}`,
+    ),
   );
   const summe = endlichOderFehler(
     produkte.reduce((acc, produkt) => acc + produkt, 0),
-    'Das Skalarprodukt',
+    `Das Skalarprodukt von ${paar.nameA} und ${paar.nameB}`,
   );
 
   return { produkte, skalarprodukt: summe, normA, normB, kosinus };

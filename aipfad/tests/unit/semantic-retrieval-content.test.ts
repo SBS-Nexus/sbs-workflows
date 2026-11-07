@@ -383,6 +383,42 @@ describe('Ungültige Lab-Konfigurationen werden abgelehnt', () => {
     expect(fehler).toContainEqual(expect.stringMatching(/^anfragen\.0\.vektor: .*Nullvektor/));
   });
 
+  it('meldet einen endlichen, aber nicht darstellbaren Rechenweg als Befund statt abzustürzen', () => {
+    // Alle Komponenten sind endlich, beide Normen auch, der Kosinus ist 1 —
+    // aber 1e200 · 1e200 läuft im erklärenden Komponentenprodukt über.
+    // Review 5812621557 (P2): safeParse warf hier, statt ein Ergebnis zu liefern.
+    const config = kopie();
+    const anfrage = config.anfragen[0];
+    const dokument = config.dokumente[0];
+    if (!anfrage || !dokument) throw new Error('Daten fehlen');
+    anfrage.vektor = [1e200, 0, 0, 0, 0];
+    dokument.vektor = [1e200, 0, 0, 0, 0];
+
+    expect(() => semanticRetrievalConfigSchema.safeParse(config)).not.toThrow();
+    expect(fehlerpfade(config)).toContainEqual(
+      expect.stringMatching(
+        /^anfragen\.0: Für Anfrage "urlaub" lässt sich die Rangliste nicht berechnen: .*zu groß/,
+      ),
+    );
+
+    // Auch die Gesamtprüfung meldet den Befund, statt abzubrechen.
+    const labs: LabContent[] = parsedLabs.map((l) =>
+      l.slug === 'semantische-suche-lab' ? { ...l, config } : l,
+    );
+    const ergebnis = validateCourseGraph({
+      course: parsedCourse,
+      concepts: parsedConcepts,
+      labs,
+    });
+    expect(ergebnis.ok).toBe(false);
+    expect(ergebnis.issues).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        where: 'lab:semantische-suche-lab.config.anfragen.0',
+      }),
+    );
+  });
+
   it('lehnt doppelte Dokumentkennungen ab, ohne beim Rechnen abzustürzen', () => {
     const config = kopie();
     if (config.dokumente[1] && config.dokumente[0]) config.dokumente[1].id = config.dokumente[0].id;
