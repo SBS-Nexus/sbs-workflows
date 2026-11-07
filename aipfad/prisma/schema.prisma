@@ -141,6 +141,8 @@ enum LabKind {
   BRANCH
   /// Einen echten Merge-Konflikt lesen und auflösen.
   MERGE_CONFLICT
+  /// Semantische Suche: Kosinusähnlichkeit, Ranking, Top-k (Stufe 9).
+  SEMANTIC_RETRIEVAL
 }
 
 // ---------------------------------------------------------------------------

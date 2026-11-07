@@ -12,6 +12,7 @@ const KIND_LABELS: Record<string, string> = {
   TOKENIZER: 'Tokenizer',
   CONTEXT_WINDOW: 'Kontextfenster',
   PROMPT_REPAIR: 'Prompt-Reparatur',
+  SEMANTIC_RETRIEVAL: 'Semantische Suche',
 };
 
 export default async function LabsPage(): Promise<React.ReactElement> {

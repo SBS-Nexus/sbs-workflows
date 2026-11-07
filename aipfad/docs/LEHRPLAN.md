@@ -32,7 +32,7 @@ Wissenslandkarte, Nachschlagen, Glossar, Setup-Center.
 | 6 — HTTP & APIs                       | Voraussetzung für Stufe 7 (AI-APIs), noch nicht erreicht.                                                                                                                                                                                       |
 | 7 — AI-APIs & SDKs                    | Würde Provider-Beispielcode brauchen, aktuell gegen offizielle Doku zu verifizieren — bewusst zurückgestellt statt aus dem Gedächtnis erfunden.                                                                                                 |
 | 8 — Structured Outputs & Tool Calling | Baut auf Stufe 7 auf.                                                                                                                                                                                                                           |
-| 9 — Embeddings (volle Tiefe)          | Diese Runde deckt die Grundidee in Stufe 4 ab; Vektor-Suche/Ähnlichkeitsmaße im Detail folgen hier.                                                                                                                                             |
+| 9 — Embeddings (volle Tiefe)          | **In LP-10A umgesetzt** (siehe unten "Stand der Umsetzung: Stufe 9"). RAG bleibt bewusst Stufe 10.                                                                                                                                              |
 | 10 — RAG                              | Baut auf Stufe 9 auf.                                                                                                                                                                                                                           |
 | 11 — Agents                           | Baut auf Tool Calling (Stufe 8) auf.                                                                                                                                                                                                            |
 | 12 — MCP                              | Baut auf Agents auf.                                                                                                                                                                                                                            |
@@ -105,3 +105,36 @@ gehören didaktisch hinter einen sicheren Umgang mit den Grundlagen. Ebenso
 GitHub-Themen wie Branch Protection, CODEOWNERS, Secrets, Environments,
 Deployments und Dependabot: Sie sind im Lernstoff eingeordnet, aber nicht
 vertieft. Das ist Stoff für eine spätere Stufe, nicht ein Versehen.
+
+## Stand der Umsetzung: Stufe 9 (LP-10A, Embeddings & semantische Suche)
+
+Ein Modul mit vier Lektionen und dreizehn bewertbaren Aufgaben, angehängt
+an das Ende des Kurses (die Reihenfolge bestehender Module bleibt
+unverändert). Es setzt die Grundidee aus Stufe 4 voraus und wiederholt sie
+nicht:
+
+1. **Vektoren und Embeddings** — Text als Zahlenvektor, Dimensionen,
+   Token- gegen Text-Embedding, Grenzen und Fehlerquellen.
+2. **Ähnlichkeit berechnen** — Skalarprodukt, Vektorlänge,
+   Kosinusähnlichkeit von Hand; warum Ähnlichkeit keine Wahrheit ist.
+3. **Semantisches Retrieval** — Ablauf, Top-k, Schwelle, Schlüsselwort-
+   gegen semantische Suche, Umgang mit fehlenden Treffern.
+4. **Retrieval richtig beurteilen** — Relevanz gegen Ähnlichkeit, False
+   Positives/Negatives, Precision und Recall, Chunking, Wahl eines anderen
+   Verfahrens.
+
+Neun neue Konzepte hängen über `embedding` am bestehenden Graphen. Dazu das
+Lab **„Semantische Suche verstehen"** (`SEMANTIC_RETRIEVAL`, additive
+Migration `20261107120000_semantic_retrieval_lab`): Anfrage und Suchbestand
+wählen, didaktische Beispielvektoren ansehen, Kosinusähnlichkeit samt
+Rechenweg, Rangliste, Top-k von 1 bis 5, Schwelle, Treffer mit Quelltext,
+ein bewusst irreführender Treffer und zwei inhaltliche Entscheidungen, ohne
+die sich das Lab nicht abschließen lässt. Die Mathematik liegt rein in
+`src/domain/retrieval/`.
+
+### Bewusst noch nicht enthalten
+
+Kein vollständiges RAG, keine echte Embedding-API, keine Vektordatenbank,
+keine LLM-Generierung, keine Modellnamen, Preise oder API-Parameter.
+Hybride Suche und Re-Ranking sind als Begriff angerissen (Lektion 4), nicht
+als eigenes Verfahren ausgearbeitet — das gehört zu Stufe 10.

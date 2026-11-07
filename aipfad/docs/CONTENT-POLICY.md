@@ -43,8 +43,10 @@ Rechtsberatung."
 Kein "Coming soon" an Kernfunktionen, die als implementiert dargestellt
 werden. Kein Platzhaltertext, keine Fake-Zahlen, keine simulierten
 KI-Antworten außer ausdrücklich als Simulator/Lab gekennzeichnet (Terminal-
-Simulator, Tokenizer, Context-Window, Prompt-Repair – alle vier sind
-deterministisch und als Lab erkennbar beschriftet).
+Simulator, Tokenizer, Context-Window, Prompt-Repair, die drei Git-Labs und
+das Retrieval-Lab – alle sind deterministisch und als Lab erkennbar
+beschriftet; das Retrieval-Lab kennzeichnet seine Vektoren zusätzlich
+ausdrücklich als didaktische Beispielvektoren).
 
 ## Validierung
 

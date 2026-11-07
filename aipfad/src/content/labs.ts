@@ -237,4 +237,175 @@ export const labs: LabDraft[] = [
     estimatedMinutes: 15,
     relatedConceptSlugs: ['merge-konflikt', 'merge'],
   },
+  {
+    slug: 'semantische-suche-lab',
+    kind: 'SEMANTIC_RETRIEVAL',
+    title: 'Semantische Suche verstehen',
+    summary:
+      'Rechne Kosinusähnlichkeiten nach, verändere Top-k und finde heraus, wann der ähnlichste Treffer trotzdem der falsche ist.',
+    instructions:
+      'Wähle eine Suchanfrage und die Dokumente des Suchbestands. Das Lab berechnet für jedes Dokument die Kosinusähnlichkeit, sortiert danach und zeigt die besten k Treffer. Die Vektoren sind didaktische Beispielvektoren mit benannten Dimensionen — redaktionell festgelegt, nicht von einem Embedding-Modell berechnet. Abschließen kannst du das Lab, sobald du beide Entscheidungen fachlich richtig getroffen hast.',
+    config: {
+      vektorHerkunft: 'didaktisch',
+      dimensionen: [
+        { id: 'abwesenheit', bezeichnung: 'Abwesenheit' },
+        { id: 'geld', bezeichnung: 'Geld' },
+        { id: 'it-zugang', bezeichnung: 'IT-Zugang' },
+        { id: 'reise', bezeichnung: 'Reise' },
+        { id: 'verpflegung', bezeichnung: 'Verpflegung' },
+      ],
+      dokumente: [
+        {
+          id: 'urlaubsantrag',
+          titel: 'Urlaub beantragen',
+          text: 'Urlaub beantragst du mindestens zwei Wochen vorher im Personalportal. Die Teamleitung bestätigt den Antrag.',
+          quelle: 'Personalhandbuch, Abschnitt Urlaub',
+          vektor: [0.9, 0.1, 0.1, 0.2, 0],
+        },
+        {
+          id: 'krankmeldung',
+          titel: 'Krankmeldung',
+          text: 'Bist du krank, meldest du dich am ersten Tag bis 9 Uhr bei deiner Teamleitung. Ab dem vierten Tag brauchst du eine Bescheinigung.',
+          quelle: 'Personalhandbuch, Abschnitt Krankheit',
+          vektor: [0.8, 0, 0, 0, 0],
+        },
+        {
+          id: 'reisekosten',
+          titel: 'Reisekosten abrechnen',
+          text: 'Belege einer Dienstreise reichst du innerhalb von vier Wochen über das Abrechnungsformular zur Erstattung ein.',
+          quelle: 'Finanzrichtlinie, Abschnitt Dienstreisen',
+          vektor: [0.1, 0.8, 0, 0.7, 0],
+        },
+        {
+          id: 'passwort',
+          titel: 'Passwort zurücksetzen',
+          text: 'Über das Self-Service-Portal setzt du dein Passwort selbst zurück. Danach meldest du dich mit dem neuen Passwort an.',
+          quelle: 'IT-Hilfeseite, Zugänge',
+          vektor: [0, 0, 0.9, 0, 0],
+        },
+        {
+          id: 'teamausflug',
+          titel: 'Rückblick Teamausflug',
+          text: 'Rückblick auf unseren Sommerausflug: ein gemeinsamer Urlaubstag am See mit Picknick, Fotos und vielen Eindrücken.',
+          quelle: 'Mitarbeitenden-Blog',
+          vektor: [0.7, 0.1, 0, 0.6, 0.1],
+        },
+        {
+          id: 'mobiles-arbeiten',
+          titel: 'Mobiles Arbeiten',
+          text: 'Nach Absprache mit der Teamleitung arbeitest du bis zu drei Tage pro Woche von zu Hause. Den Laptop richtet die IT ein.',
+          quelle: 'Personalhandbuch, Abschnitt Arbeitsort',
+          vektor: [0.3, 0, 0.3, 0, 0],
+        },
+      ],
+      anfragen: [
+        {
+          id: 'urlaub',
+          text: 'Wie beantrage ich Urlaub für eine Reise im August?',
+          vektor: [0.8, 0, 0, 0.5, 0],
+          relevanteDokumentIds: ['urlaubsantrag'],
+          irrefuehrend: {
+            dokumentId: 'teamausflug',
+            erklaerung:
+              'Der Blogbeitrag spricht über Urlaub und eine Reise — deshalb zeigt sein Vektor fast in dieselbe Richtung wie die Anfrage. Er beschreibt aber einen Ausflug und enthält keine Regel, wie man Urlaub beantragt. Ähnlich im Thema heißt nicht: beantwortet die Frage.',
+          },
+          lernpunkt:
+            'Der ähnlichste Treffer ist hier nicht der relevante. Mit k = 1 fände die Suche die Antwort gar nicht.',
+        },
+        {
+          id: 'belege',
+          text: 'Bis wann muss ich die Belege einer Dienstreise abgeben?',
+          vektor: [0, 0.7, 0, 0.6, 0],
+          relevanteDokumentIds: ['reisekosten'],
+          lernpunkt:
+            'Hier liegen Schlüsselwortsuche und semantische Suche beide richtig — der Abstand zum zweiten Platz ist groß.',
+        },
+        {
+          id: 'konto',
+          text: 'Ich komme nicht mehr in mein Konto. Was kann ich tun?',
+          vektor: [0, 0, 0.8, 0.1, 0],
+          relevanteDokumentIds: ['passwort'],
+          lernpunkt:
+            'Kein einziges Wort der Anfrage steht im passenden Dokument. Eine Schlüsselwortsuche ginge leer aus, die semantische Suche findet es trotzdem.',
+        },
+        {
+          id: 'kantine',
+          text: 'Was gibt es heute in der Kantine zu essen?',
+          vektor: [0.1, 0.1, 0, 0, 0.9],
+          relevanteDokumentIds: [],
+          lernpunkt:
+            'Kein Dokument beantwortet diese Frage. Die Rangliste hat trotzdem einen Platz 1 — erst die Schwelle macht sichtbar, dass nichts passt.',
+        },
+      ],
+      topK: { min: 1, max: 5, start: 3 },
+      schwelle: 0.55,
+      entscheidungen: [
+        {
+          id: 'irrefuehrender-treffer',
+          anfrageId: 'urlaub',
+          frage:
+            'Welches Dokument beantwortet die Frage „Wie beantrage ich Urlaub für eine Reise im August?“ tatsächlich?',
+          optionen: [
+            {
+              id: 'teamausflug',
+              text: 'Rückblick Teamausflug — er hat den höchsten Score.',
+              korrekt: false,
+              feedback:
+                'Der höchste Score heißt nur: Der Vektor zeigt am ehesten in dieselbe Richtung. Der Blogbeitrag erzählt von einem Ausflug, eine Antragsregel enthält er nicht.',
+            },
+            {
+              id: 'urlaubsantrag',
+              text: 'Urlaub beantragen — Platz 2.',
+              korrekt: true,
+              feedback:
+                'Richtig. Nur dieses Dokument sagt, wie und wo man Urlaub beantragt. Platz 2 ist hier die Antwort, Platz 1 ein Scheintreffer.',
+            },
+            {
+              id: 'krankmeldung',
+              text: 'Krankmeldung — Abwesenheit ist schließlich das Thema.',
+              korrekt: false,
+              feedback:
+                'Krankheit und Urlaub liegen beide auf der Dimension Abwesenheit, deshalb ist der Score hoch. Die Krankmeldung regelt aber etwas anderes.',
+            },
+          ],
+        },
+        {
+          id: 'kein-treffer',
+          anfrageId: 'kantine',
+          frage:
+            'Für „Was gibt es heute in der Kantine zu essen?“ liegt kein Dokument über der Schwelle. Was sollte ein Suchsystem jetzt tun?',
+          optionen: [
+            {
+              id: 'besten-ausgeben',
+              text: 'Den Platz-1-Treffer trotzdem als Antwort ausgeben — irgendetwas ist immer am ähnlichsten.',
+              korrekt: false,
+              feedback:
+                'Eine Rangliste hat immer einen ersten Platz, auch wenn alles unpassend ist. Wer ihn ausgibt, beantwortet die Frage mit einem Teamausflug-Bericht.',
+            },
+            {
+              id: 'offen-sagen',
+              text: 'Offen melden, dass im Suchbestand nichts Passendes steht, und auf eine zuständige Stelle verweisen.',
+              korrekt: true,
+              feedback:
+                'Richtig. „Nichts gefunden“ ist ein gültiges und nützliches Ergebnis. Es zeigt außerdem eine Lücke im Suchbestand, die jemand schließen kann.',
+            },
+            {
+              id: 'schwelle-senken',
+              text: 'Die Schwelle so lange senken, bis ein Treffer erscheint.',
+              korrekt: false,
+              feedback:
+                'Dann richtet sich die Schwelle nach der Anfrage statt nach der Qualität. Sie ließe genau die Scheintreffer durch, die sie abhalten soll.',
+            },
+          ],
+        },
+      ],
+    },
+    estimatedMinutes: 15,
+    relatedConceptSlugs: [
+      'kosinus-aehnlichkeit',
+      'semantische-suche',
+      'top-k-retrieval',
+      'relevanz-vs-aehnlichkeit',
+    ],
+  },
 ];
