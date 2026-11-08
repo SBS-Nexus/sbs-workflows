@@ -535,6 +535,82 @@ describe('Ungültige RAG-Lab-Konfigurationen werden abgelehnt', () => {
     expect(f).toContainEqual(expect.stringMatching(/Unbekannte Strategie/));
   });
 
+  // Review 5818387760 (P2): Zod-Grenzen wie `.min()` brechen nicht ab, die
+  // Rechenphase lief trotzdem an und warf eine RangeError aus `topK()` bzw.
+  // `chunkeDokument()` — safeParse lieferte dann kein Ergebnis.
+  it.each([
+    [
+      'topK.start = 0',
+      (c: RagPipelineConfig) => {
+        c.topK.start = 0;
+      },
+      'topK.start',
+    ],
+    [
+      'strategien[0].overlap = -1',
+      (c: RagPipelineConfig) => {
+        if (c.strategien[0]) c.strategien[0].overlap = -1;
+      },
+      'strategien.0.overlap',
+    ],
+  ])(
+    '%s: safeParse wirft nicht und liefert success:false mit Feldbefund',
+    (_name, aendern, pfad) => {
+      const c = kopie();
+      aendern(c);
+      let ergebnis: ReturnType<typeof ragPipelineConfigSchema.safeParse> | undefined;
+      expect(() => {
+        ergebnis = ragPipelineConfigSchema.safeParse(c);
+      }).not.toThrow();
+      expect(ergebnis?.success).toBe(false);
+      expect(ergebnis?.error?.issues.map((i) => i.path.join('.'))).toContain(pfad);
+
+      const labs: LabContent[] = parsedLabs.map((l) =>
+        l.slug === 'rag-pipeline-lab' ? { ...l, config: c } : l,
+      );
+      let gesamt: ReturnType<typeof validateCourseGraph> | undefined;
+      expect(() => {
+        gesamt = validateCourseGraph({ course: parsedCourse, concepts: parsedConcepts, labs });
+      }).not.toThrow();
+      expect(gesamt?.ok).toBe(false);
+      expect(gesamt?.issues).toContainEqual(
+        expect.objectContaining({
+          severity: 'error',
+          where: `lab:rag-pipeline-lab.config.${pfad}`,
+        }),
+      );
+    },
+  );
+
+  it('wirft bei keiner fehlerhaften Zahlengrenze, sondern liefert immer ein Ergebnis', () => {
+    type Setzer = (c: RagPipelineConfig, wert: number) => void;
+    const felder: [string, Setzer][] = [
+      ['topK.start', (c, w) => void (c.topK.start = w)],
+      ['topK.max', (c, w) => void (c.topK.max = w)],
+      ['budget.min', (c, w) => void (c.budget.min = w)],
+      ['budget.max', (c, w) => void (c.budget.max = w)],
+      ['budget.start', (c, w) => void (c.budget.start = w)],
+      ['budget.schritt', (c, w) => void (c.budget.schritt = w)],
+      ['strategien.0.saetzeProChunk', (c, w) => void (c.strategien[0]!.saetzeProChunk = w)],
+      ['strategien.1.overlap', (c, w) => void (c.strategien[1]!.overlap = w)],
+      [
+        'anfragen.0.aussagen.0.belege.0.0.satz',
+        (c, w) => void (c.anfragen[0]!.aussagen[0]!.belege[0]![0]!.satz = w),
+      ],
+    ];
+    for (const [feld, setze] of felder) {
+      for (const wert of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+        const c = kopie();
+        setze(c, wert);
+        let ergebnis: ReturnType<typeof ragPipelineConfigSchema.safeParse> | undefined;
+        expect(() => {
+          ergebnis = ragPipelineConfigSchema.safeParse(c);
+        }, `${feld} = ${wert}`).not.toThrow();
+        expect(ergebnis, `${feld} = ${wert}`).toBeDefined();
+      }
+    }
+  });
+
   it('meldet einen Überlauf in der Pipeline als Befund statt abzustürzen', () => {
     const c = kopie();
     for (const dok of c.dokumente)
