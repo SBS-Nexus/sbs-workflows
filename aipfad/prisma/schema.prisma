@@ -143,6 +143,8 @@ enum LabKind {
   MERGE_CONFLICT
   /// Semantische Suche: Kosinusähnlichkeit, Ranking, Top-k (Stufe 9).
   SEMANTIC_RETRIEVAL
+  /// RAG-Pipeline: Chunking, Kontextbudget, belegte Antworten (Stufe 10).
+  RAG_PIPELINE
 }
 
 // ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@ const KIND_LABELS: Record<string, string> = {
   CONTEXT_WINDOW: 'Kontextfenster',
   PROMPT_REPAIR: 'Prompt-Reparatur',
   SEMANTIC_RETRIEVAL: 'Semantische Suche',
+  RAG_PIPELINE: 'RAG-Pipeline',
 };
 
 export default async function LabsPage(): Promise<React.ReactElement> {

@@ -372,4 +372,74 @@ export const concepts: ConceptDraft[] = [
     difficulty: 4,
     prerequisiteSlugs: ['text-embedding', 'context-window'],
   },
+
+  // --- Stufe 10: RAG – Wissen mit Quellen nutzen (LP-10B) -------------------
+  {
+    slug: 'chunk-overlap-und-trennstellen',
+    name: 'Chunk-Größe, Overlap und Trennstellen',
+    description:
+      'Chunk-Größe legt fest, wie viel Text ein Abschnitt umfasst; Overlap lässt aufeinanderfolgende Chunks einen Teil teilen. Trennstellen entlang inhaltlicher Grenzen halten zusammen, was zusammengehört — etwa eine Regel und ihre Ausnahme. Eine ungünstige Trennstelle macht einen Satz unverständlich.',
+    difficulty: 3,
+    prerequisiteSlugs: ['chunking'],
+  },
+  {
+    slug: 'chunk-metadaten',
+    name: 'Metadaten und Quellen eines Chunks',
+    description:
+      'Jeder Chunk trägt mit, woher er stammt: Quellenkennung, Version, Gültigkeit und Position im Dokument. Ohne diese Metadaten lässt sich eine Antwort nicht belegen und eine veraltete Fassung nicht von der aktuellen unterscheiden.',
+    difficulty: 2,
+    prerequisiteSlugs: ['chunking'],
+  },
+  {
+    slug: 'rag-pipeline',
+    name: 'RAG-Pipeline',
+    description:
+      'Retrieval-Augmented Generation verbindet Suche und Antwort: Chunks werden nach Ähnlichkeit zur Frage gerankt, die besten landen im Kontext, und nur auf dieser Grundlage darf geantwortet werden. Das Ranking findet Kandidaten; ob sie die Frage beantworten, ist eine eigene Prüfung.',
+    difficulty: 3,
+    prerequisiteSlugs: ['top-k-retrieval', 'chunk-metadaten'],
+  },
+  {
+    slug: 'quellenidentifikation',
+    name: 'Quellenidentifikation',
+    description:
+      'Zu jedem Treffer gehört die Frage, aus welchem Dokument, welcher Version und welcher Stelle er stammt. Erst damit lässt sich ein Beleg nachprüfen, ein Widerspruch auflösen und eine veraltete Quelle aussortieren.',
+    difficulty: 3,
+    prerequisiteSlugs: ['rag-pipeline'],
+  },
+  {
+    slug: 'kontextbudget',
+    name: 'Kontextbudget',
+    description:
+      'Der Kontext für eine Antwort ist begrenzt. Welche Chunks hineinpassen, hängt von ihrer Größe, ihrem Rang und dem verfügbaren Budget ab. Was nicht hineinpasst, steht für die Antwort nicht zur Verfügung — auch wenn es gefunden wurde.',
+    difficulty: 3,
+    prerequisiteSlugs: ['rag-pipeline', 'context-window'],
+  },
+  {
+    slug: 'belegte-antwort',
+    name: 'Belegte Antwort',
+    description:
+      'Eine belegte Antwort enthält nur Aussagen, die ein Chunk im Kontext tatsächlich stützt, und verweist auf genau diesen Chunk. Was sich nicht belegen lässt, wird als unbelegt gekennzeichnet oder weggelassen. "Nicht genügend Informationen" ist ein korrektes Ergebnis.',
+    difficulty: 3,
+    prerequisiteSlugs: ['quellenidentifikation', 'kontextbudget', 'halluzination'],
+  },
+  {
+    slug: 'rag-fehlerbilder',
+    name: 'RAG-Fehlerbilder',
+    description:
+      'Typische Fehler einer RAG-Antwort: erfundene Quellenverweise, veraltete oder widersprüchliche Dokumente, zerschnittene Belege, fehlende Treffer durch Top-k oder Budget und Antworten, die nur einen Teil der Frage abdecken. Jeder Fehler hat eine andere Ursache in der Pipeline.',
+    difficulty: 4,
+    prerequisiteSlugs: [
+      'belegte-antwort',
+      'chunk-overlap-und-trennstellen',
+      'relevanz-vs-aehnlichkeit',
+    ],
+  },
+  {
+    slug: 'rag-evaluation',
+    name: 'RAG-Evaluation',
+    description:
+      'RAG wird an zwei Stellen geprüft: Hat das Retrieval die nötigen Belege in den Kontext gebracht, und stützt die Antwort jede ihrer Aussagen? Eine gute Suche mit schlechter Antwort ist ein anderer Fehler als eine gute Antwort auf schlechter Grundlage.',
+    difficulty: 4,
+    prerequisiteSlugs: ['rag-fehlerbilder', 'precision-und-recall'],
+  },
 ];

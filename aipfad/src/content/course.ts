@@ -6,12 +6,13 @@ import { promptingModule } from './modules/prompting';
 import { gitGrundlagenModule } from './modules/git-grundlagen';
 import { gitZusammenarbeitModule } from './modules/git-zusammenarbeit';
 import { embeddingsRetrievalModule } from './modules/embeddings-retrieval';
+import { ragModule } from './modules/rag';
 
 export const course: CourseDraft = {
   slug: 'aipfad-grundlagen',
   title: 'AIPfad Grundlagen',
   description:
-    'Der Einstieg in AIPfad: Orientierung, technischer Arbeitsplatz, LLM-Grundlagen, Prompting, Git und GitHub sowie Embeddings und semantische Suche. Der vollständige Lehrplan geht weit darüber hinaus — siehe docs/LEHRPLAN.md.',
+    'Der Einstieg in AIPfad: Orientierung, technischer Arbeitsplatz, LLM-Grundlagen, Prompting, Git und GitHub, Embeddings und semantische Suche sowie RAG. Der vollständige Lehrplan geht weit darüber hinaus — siehe docs/LEHRPLAN.md.',
   version: '1.0.0',
   modules: [
     orientierungModule,
@@ -21,5 +22,6 @@ export const course: CourseDraft = {
     gitGrundlagenModule,
     gitZusammenarbeitModule,
     embeddingsRetrievalModule,
+    ragModule,
   ],
 };

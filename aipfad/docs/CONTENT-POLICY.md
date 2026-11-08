@@ -44,9 +44,17 @@ Kein "Coming soon" an Kernfunktionen, die als implementiert dargestellt
 werden. Kein Platzhaltertext, keine Fake-Zahlen, keine simulierten
 KI-Antworten außer ausdrücklich als Simulator/Lab gekennzeichnet (Terminal-
 Simulator, Tokenizer, Context-Window, Prompt-Repair, die drei Git-Labs und
-das Retrieval-Lab – alle sind deterministisch und als Lab erkennbar
-beschriftet; das Retrieval-Lab kennzeichnet seine Vektoren zusätzlich
-ausdrücklich als didaktische Beispielvektoren).
+das Retrieval-Lab und das RAG-Pipeline-Lab – alle sind deterministisch und
+als Lab erkennbar beschriftet; die beiden Retrieval-Labs kennzeichnen ihre
+Vektoren zusätzlich ausdrücklich als didaktische Beispielvektoren).
+
+Das RAG-Pipeline-Lab enthält einen **Antwort-Simulator**, keine KI-Antwort:
+Er zeigt vorgegebene Aussagen und prüft, ob ein Chunk im Kontext sie belegt.
+Als Tatsache erscheint nur, was belegt ist; jeder Quellenverweis zeigt auf
+einen Chunk, der tatsächlich im Kontext liegt. Unbelegte, veraltete,
+widersprüchliche Aussagen und erfundene Quellen werden sichtbar
+zurückgehalten. Dokumenttexte sind Daten: Sie werden nur als Text
+dargestellt und nie ausgewertet oder ausgeführt.
 
 ## Validierung
 
