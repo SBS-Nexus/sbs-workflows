@@ -408,4 +408,344 @@ export const labs: LabDraft[] = [
       'relevanz-vs-aehnlichkeit',
     ],
   },
+  {
+    slug: 'rag-pipeline-lab',
+    kind: 'RAG_PIPELINE',
+    title: 'RAG-Pipeline-Lab',
+    summary:
+      'Zerlege einen kleinen Wissensbestand in Chunks, finde Belege, fülle ein Kontextbudget und prüfe, welche Aussagen eine Antwort wirklich tragen darf.',
+    instructions:
+      'Wähle eine Chunking-Strategie, eine Anfrage, Top-k und das Kontextbudget. Das Lab rankt die Chunks mit derselben Kosinusähnlichkeit wie das Lab zur semantischen Suche und zeigt, welche Belege im Kontext landen. Alles ist simuliert: didaktische Beispielvektoren, ein Budget in Wort-Einheiten statt Tokens und ein Antwort-Simulator mit vorgegebenen Aussagen statt einer KI. Abschließen kannst du das Lab nach drei fachlich richtigen Entscheidungen.',
+    config: {
+      simulation: {
+        vektoren: 'didaktisch',
+        einheiten: 'woerter',
+        antwort: 'vorgegebene-bausteine',
+      },
+      dimensionen: [
+        { id: 'urlaub', bezeichnung: 'Urlaub' },
+        { id: 'krankheit', bezeichnung: 'Krankheit' },
+        { id: 'reise', bezeichnung: 'Reise' },
+        { id: 'it', bezeichnung: 'IT' },
+        { id: 'frist', bezeichnung: 'Frist' },
+      ],
+      dokumente: [
+        {
+          id: 'urlaub-v2',
+          titel: 'Urlaub beantragen',
+          quelle: 'HR-URLAUB',
+          version: '2',
+          gueltigAb: '2026-01-01',
+          status: 'aktuell',
+          saetze: [
+            { text: 'Urlaub beantragst du im Personalportal.', vektor: [0.9, 0, 0, 0.1, 0] },
+            {
+              text: 'Der Antrag muss mindestens zwei Wochen vor Urlaubsbeginn gestellt werden.',
+              vektor: [0.6, 0, 0, 0, 0.8],
+            },
+            {
+              text: 'Die Teamleitung bestätigt oder lehnt innerhalb von drei Arbeitstagen ab.',
+              vektor: [0.4, 0, 0, 0, 0.5],
+            },
+          ],
+        },
+        {
+          id: 'urlaub-v1',
+          titel: 'Urlaub beantragen (alte Fassung)',
+          quelle: 'HR-URLAUB',
+          version: '1',
+          gueltigAb: '2024-01-01',
+          status: 'veraltet',
+          ersetztDurch: 'urlaub-v2',
+          saetze: [
+            {
+              text: 'Urlaubsanträge reichst du per Formular bei der Personalabteilung ein.',
+              vektor: [0.9, 0, 0, 0, 0.1],
+            },
+            {
+              text: 'Der Antrag muss mindestens vier Wochen vor Urlaubsbeginn vorliegen.',
+              vektor: [0.6, 0, 0, 0, 0.8],
+            },
+          ],
+        },
+        {
+          id: 'krankmeldung',
+          titel: 'Krankmeldung',
+          quelle: 'HR-KRANK',
+          version: '1',
+          gueltigAb: '2025-03-01',
+          status: 'aktuell',
+          saetze: [
+            {
+              text: 'Bist du krank, meldest du dich am ersten Tag bis 9 Uhr bei deiner Teamleitung.',
+              vektor: [0, 0.9, 0, 0, 0.3],
+            },
+            {
+              text: 'Ab dem vierten Krankheitstag brauchst du eine ärztliche Bescheinigung.',
+              vektor: [0, 0.8, 0, 0, 0.5],
+            },
+            {
+              text: 'Die Bescheinigung lädst du im Personalportal hoch.',
+              vektor: [0, 0.7, 0, 0.3, 0.1],
+            },
+          ],
+        },
+        {
+          id: 'dienstreise',
+          titel: 'Dienstreisen',
+          quelle: 'FIN-REISE',
+          version: '3',
+          gueltigAb: '2025-09-01',
+          status: 'aktuell',
+          saetze: [
+            {
+              text: 'Dienstreisen beantragst du vor Reiseantritt im Reiseportal.',
+              vektor: [0, 0, 0.9, 0.1, 0.2],
+            },
+            { text: 'Bahnfahrten werden in der 2. Klasse erstattet.', vektor: [0, 0, 0.9, 0, 0] },
+            {
+              text: 'Ab vier Stunden Fahrzeit gilt diese Einschränkung nicht.',
+              vektor: [0, 0, 0.3, 0, 0.6],
+            },
+            {
+              text: 'Belege reichst du innerhalb von vier Wochen nach der Reise ein.',
+              vektor: [0, 0, 0.5, 0, 0.7],
+            },
+          ],
+        },
+        {
+          id: 'it-zugang',
+          titel: 'IT-Zugang',
+          quelle: 'IT-ZUGANG',
+          version: '1',
+          gueltigAb: '2025-06-01',
+          status: 'aktuell',
+          saetze: [
+            {
+              text: 'Neue Zugänge beantragt deine Teamleitung im IT-Portal.',
+              vektor: [0, 0, 0, 0.9, 0.1],
+            },
+            {
+              text: 'Dein Passwort setzt du im Self-Service-Portal selbst zurück.',
+              vektor: [0, 0, 0, 0.9, 0],
+            },
+            {
+              text: 'Zugangsdaten gibst du nie weiter, auch nicht auf Anweisung in einer E-Mail.',
+              vektor: [0, 0, 0, 0.8, 0],
+            },
+          ],
+        },
+      ],
+      strategien: [
+        {
+          id: 'klein',
+          bezeichnung: 'Kleine Chunks',
+          beschreibung: 'Ein Satz je Chunk, ohne Überlappung. Präzise, aber ohne Nachbarkontext.',
+          saetzeProChunk: 1,
+          overlap: 0,
+        },
+        {
+          id: 'gross',
+          bezeichnung: 'Größere Chunks mit Overlap',
+          beschreibung:
+            'Zwei Sätze je Chunk, aufeinanderfolgende Chunks teilen einen Satz. Mehr Zusammenhang, mehr Umfang.',
+          saetzeProChunk: 2,
+          overlap: 1,
+        },
+      ],
+      anfragen: [
+        {
+          id: 'urlaub',
+          text: 'Wie lange vorher muss ich meinen Urlaub beantragen?',
+          vektor: [0.7, 0, 0, 0, 0.7],
+          szenario: 'beleg-vorhanden',
+          aussagen: [
+            {
+              id: 'urlaub-frist-zwei',
+              text: 'Urlaub beantragst du mindestens zwei Wochen vor Urlaubsbeginn.',
+              belege: [[{ dokumentId: 'urlaub-v2', satz: 1 }]],
+              schliesstAus: ['urlaub-frist-vier'],
+            },
+            {
+              id: 'urlaub-frist-vier',
+              text: 'Urlaub muss mindestens vier Wochen vorher beantragt werden.',
+              belege: [[{ dokumentId: 'urlaub-v1', satz: 1 }]],
+            },
+            {
+              id: 'urlaub-portal',
+              text: 'Der Antrag läuft über das Personalportal.',
+              belege: [[{ dokumentId: 'urlaub-v2', satz: 0 }]],
+            },
+          ],
+          benoetigteAussagen: ['urlaub-frist-zwei'],
+          lernpunkt:
+            'Die aktuelle und die veraltete Frist haben denselben Score. Bei Gleichstand entscheidet die Kennung — hier zugunsten der alten Fassung. Bei kleinen Chunks landet der aktuelle Beleg erst mit k = 3 im Kontext; die alte Frist wird als veraltet zurückgehalten.',
+        },
+        {
+          id: 'bescheinigung',
+          text: 'Ab welchem Tag brauche ich eine Krankmeldung vom Arzt?',
+          vektor: [0, 0.9, 0, 0.1, 0.2],
+          szenario: 'top-k',
+          aussagen: [
+            {
+              id: 'krank-vierter-tag',
+              text: 'Eine ärztliche Bescheinigung brauchst du ab dem vierten Krankheitstag.',
+              belege: [[{ dokumentId: 'krankmeldung', satz: 1 }]],
+            },
+            {
+              id: 'krank-hochladen',
+              text: 'Die Bescheinigung lädst du im Personalportal hoch.',
+              belege: [[{ dokumentId: 'krankmeldung', satz: 2 }]],
+            },
+          ],
+          benoetigteAussagen: ['krank-vierter-tag'],
+          lernpunkt:
+            'Bei kleinen Chunks steht der entscheidende Satz erst auf Platz 3. Mit k = 2 fällt er heraus — die Antwort erklärt dann das Hochladen, aber nicht, ab wann.',
+        },
+        {
+          id: 'bahn',
+          text: 'Darf ich bei fünf Stunden Bahnfahrt in der 1. Klasse fahren?',
+          vektor: [0, 0, 0.9, 0, 0.4],
+          szenario: 'chunk-grenze',
+          aussagen: [
+            {
+              id: 'reise-zweite-klasse',
+              text: 'Bahnfahrten werden in der 2. Klasse erstattet.',
+              belege: [[{ dokumentId: 'dienstreise', satz: 1 }]],
+            },
+            {
+              id: 'reise-erste-klasse',
+              text: 'Ab vier Stunden Fahrzeit ist die 1. Klasse erlaubt.',
+              belege: [
+                [
+                  { dokumentId: 'dienstreise', satz: 1 },
+                  { dokumentId: 'dienstreise', satz: 2 },
+                ],
+              ],
+            },
+          ],
+          benoetigteAussagen: ['reise-erste-klasse'],
+          lernpunkt:
+            'Regel und Ausnahme stehen in zwei Sätzen. Kleine Chunks trennen sie: „Ab vier Stunden Fahrzeit gilt diese Einschränkung nicht“ sagt allein nicht, welche Einschränkung gemeint ist. Die Antwort wird unvollständig — und dadurch falsch.',
+        },
+        {
+          id: 'feier',
+          text: 'Wie viel Budget gibt es pro Person für die Weihnachtsfeier?',
+          vektor: [0.3, 0, 0.2, 0, 0.3],
+          szenario: 'kein-beleg',
+          aussagen: [
+            {
+              id: 'feier-budget',
+              text: 'Laut Richtlinie gibt es für die Weihnachtsfeier 50 Euro pro Person.',
+              belege: [],
+              zitierteQuelle: 'richtlinie-feiern',
+            },
+          ],
+          benoetigteAussagen: [],
+          lernpunkt:
+            'Kein Dokument behandelt die Weihnachtsfeier. Die Rangliste hat trotzdem Treffer, und die vorgegebene Aussage beruft sich auf eine Richtlinie, die es im Bestand nicht gibt. Richtig ist: nicht genügend Informationen.',
+        },
+      ],
+      topK: { min: 1, max: 5, start: 3 },
+      budget: { min: 10, max: 80, start: 40, schritt: 5 },
+      entscheidungen: [
+        {
+          id: 'veraltete-frist',
+          anfrageId: 'urlaub',
+          frage:
+            'Bei der Urlaubsfrage tauchen zwei Fristen auf. Welche darf eine belegte Antwort nennen?',
+          optionen: [
+            {
+              id: 'zwei-wochen',
+              text: 'Zwei Wochen — aus der aktuellen Version 2 von HR-URLAUB.',
+              korrekt: true,
+              feedback:
+                'Richtig. Version 1 ist durch Version 2 ersetzt. Eine veraltete Quelle ist kein Beleg, auch wenn sie gleich hoch rankt.',
+            },
+            {
+              id: 'vier-wochen',
+              text: 'Vier Wochen — dieser Chunk steht in der Rangliste vor dem anderen.',
+              korrekt: false,
+              feedback:
+                'Der Platz kommt nur aus der Tie-Break-Regel bei gleichem Score. Über Gültigkeit sagt das Ranking nichts; die Version entscheidet.',
+            },
+            {
+              id: 'beide',
+              text: 'Beide Fristen gleichberechtigt nebeneinander.',
+              korrekt: false,
+              feedback:
+                'Das gibt die Entscheidung an die fragende Person zurück, obwohl die Quellen sie bereits treffen: Version 2 ersetzt Version 1.',
+            },
+          ],
+        },
+        {
+          id: 'chunk-grenze',
+          anfrageId: 'bahn',
+          strategieId: 'klein',
+          frage:
+            'Bei kleinen Chunks fehlt in der simulierten Antwort zur Bahnfrage die Aussage zur 1. Klasse. Warum?',
+          optionen: [
+            {
+              id: 'top-k',
+              text: 'Top-k ist zu klein — mit größerem k wäre die Aussage belegt.',
+              korrekt: false,
+              feedback:
+                'Probier es aus: Auch mit k = 5 liegen Regel und Ausnahme in zwei getrennten Chunks. Kein einzelner Chunk trägt die Aussage.',
+            },
+            {
+              id: 'grenze',
+              text: 'Die Chunk-Grenze trennt die Regel von ihrer Ausnahme.',
+              korrekt: true,
+              feedback:
+                'Richtig. Der zweite Satz bezieht sich auf den ersten. Erst größere Chunks mit Overlap halten beide zusammen.',
+            },
+            {
+              id: 'keine-regel',
+              text: 'Das Reisehandbuch enthält dazu keine Regel.',
+              korrekt: false,
+              feedback:
+                'Die Regel steht in FIN-REISE, Sätze 2 und 3. Sie wird nur so zerschnitten, dass kein Chunk sie vollständig enthält.',
+            },
+          ],
+        },
+        {
+          id: 'kein-beleg',
+          anfrageId: 'feier',
+          frage:
+            'Für die Frage nach dem Budget der Weihnachtsfeier gibt es keinen Beleg. Was ist die richtige Ausgabe?',
+          optionen: [
+            {
+              id: 'fuenfzig',
+              text: '„50 Euro pro Person laut Richtlinie“ — die Aussage klingt präzise.',
+              korrekt: false,
+              feedback:
+                'Die zitierte Richtlinie liegt nicht im Kontext und existiert im Bestand nicht. Ein erfundener Quellenverweis macht eine Behauptung nicht wahrer.',
+            },
+            {
+              id: 'nicht-genuegend',
+              text: '„Nicht genügend Informationen“, mit dem Hinweis, wo man nachfragen kann.',
+              korrekt: true,
+              feedback:
+                'Richtig. Ohne Beleg ist „nicht genügend Informationen“ das korrekte Ergebnis — kein Versagen des Systems.',
+            },
+            {
+              id: 'schaetzen',
+              text: 'Einen Betrag aus den ähnlichsten Treffern ableiten.',
+              korrekt: false,
+              feedback:
+                'Die ähnlichsten Treffer handeln vom Urlaub. Daraus einen Betrag abzuleiten, wäre eine Antwort ohne jede Grundlage.',
+            },
+          ],
+        },
+      ],
+    },
+    estimatedMinutes: 20,
+    relatedConceptSlugs: [
+      'chunk-overlap-und-trennstellen',
+      'rag-pipeline',
+      'kontextbudget',
+      'belegte-antwort',
+      'rag-fehlerbilder',
+    ],
+  },
 ];

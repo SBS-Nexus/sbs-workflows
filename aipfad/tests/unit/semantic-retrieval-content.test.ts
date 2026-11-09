@@ -58,13 +58,15 @@ function fehlerpfade(config: unknown): string[] {
 }
 
 describe('Modul „Embeddings & semantische Suche“', () => {
-  it('ist im Kurs veröffentlicht, nach den LLM-Grundlagen und am Ende angehängt', () => {
+  it('ist im Kurs veröffentlicht, nach den LLM-Grundlagen und hinter den bestehenden Modulen angehängt', () => {
     expect(modul).toBeDefined();
     expect(modul?.status).toBe('PUBLISHED');
     expect(modul?.prerequisiteModuleSlugs).toEqual(['llm-grundlagen']);
     // Angehängt, nicht eingeschoben: Die Reihenfolge bestehender Module und
     // damit der bestehende Lernpfad bleibt unverändert.
-    expect(parsedCourse.modules.at(-1)?.slug).toBe('embeddings-semantische-suche');
+    // Seit LP-10B folgt RAG dahinter; die Position direkt nach den sechs
+    // bestehenden Modulen bleibt fest.
+    expect(parsedCourse.modules[6]?.slug).toBe('embeddings-semantische-suche');
     expect(parsedCourse.modules.slice(0, 6).map((m) => m.slug)).toEqual([
       'orientierung',
       'technischer-arbeitsplatz',

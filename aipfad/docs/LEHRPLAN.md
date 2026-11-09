@@ -33,7 +33,7 @@ Wissenslandkarte, Nachschlagen, Glossar, Setup-Center.
 | 7 — AI-APIs & SDKs                    | Würde Provider-Beispielcode brauchen, aktuell gegen offizielle Doku zu verifizieren — bewusst zurückgestellt statt aus dem Gedächtnis erfunden.                                                                                                 |
 | 8 — Structured Outputs & Tool Calling | Baut auf Stufe 7 auf.                                                                                                                                                                                                                           |
 | 9 — Embeddings (volle Tiefe)          | **In LP-10A umgesetzt** (siehe unten "Stand der Umsetzung: Stufe 9"). RAG bleibt bewusst Stufe 10.                                                                                                                                              |
-| 10 — RAG                              | Baut auf Stufe 9 auf.                                                                                                                                                                                                                           |
+| 10 — RAG                              | **In LP-10B umgesetzt** (siehe unten "Stand der Umsetzung: Stufe 10"). Didaktische Pipeline ohne Modell, Embedding-API oder Vektordatenbank.                                                                                                    |
 | 11 — Agents                           | Baut auf Tool Calling (Stufe 8) auf.                                                                                                                                                                                                            |
 | 12 — MCP                              | Baut auf Agents auf.                                                                                                                                                                                                                            |
 | 13 — AI-Coding                        | Baut auf Git/GitHub (Stufe 2) auf — ergibt ohne diese keinen Sinn.                                                                                                                                                                              |
@@ -137,4 +137,52 @@ die sich das Lab nicht abschließen lässt. Die Mathematik liegt rein in
 Kein vollständiges RAG, keine echte Embedding-API, keine Vektordatenbank,
 keine LLM-Generierung, keine Modellnamen, Preise oder API-Parameter.
 Hybride Suche und Re-Ranking sind als Begriff angerissen (Lektion 4), nicht
-als eigenes Verfahren ausgearbeitet — das gehört zu Stufe 10.
+als eigenes Verfahren ausgearbeitet.
+
+## Stand der Umsetzung: Stufe 10 (LP-10B, RAG – Wissen mit Quellen nutzen)
+
+Ein Modul mit vier Lektionen und dreizehn bewertbaren Aufgaben, angehängt
+hinter Stufe 9. Es setzt Kosinusähnlichkeit, Ranking und Top-k voraus und
+wiederholt sie nicht:
+
+1. **Von Dokumenten zu Chunks** — Aufbereitung, Chunk-Größe, Overlap,
+   Trennstellen, Metadaten und Quellen, Kontextverlust.
+2. **Retrieval für RAG** — Pipeline, Top-k, Relevanz gegen Ranking-Score,
+   Quellenidentifikation.
+3. **Kontext und belegte Antworten** — Kontextbudget, Auswahl und
+   Reihenfolge, Quellenbelege, „nicht genügend Informationen".
+4. **RAG-Fehler erkennen** — erfundene Quellen, veraltete und
+   widersprüchliche Dokumente, unvollständige Antworten, zerschnittene
+   Belege, Retrieval- gegen Antwortqualität, Evaluation.
+
+Acht neue Konzepte hängen über `chunking` an Stufe 9 und über
+`halluzination` an Stufe 4. Dazu das **RAG-Pipeline-Lab** (`RAG_PIPELINE`,
+additive Migration `20261108120000_rag_pipeline_lab`).
+
+### Was echt und was simuliert ist
+
+| Baustein                                   | Stand                                                                                       |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Chunking nach Sätzen mit Größe und Overlap | echte, deterministische Rechnung (`domain/rag/chunking.ts`)                                 |
+| Ranking und Top-k                          | echte Rechnung, unverändert aus LP-10A (`domain/retrieval/`)                                |
+| Kontextauswahl unter Budget                | echte Rechnung (`domain/rag/kontext.ts`)                                                    |
+| Belegprüfung und Evaluation                | echte Rechnung gegen redaktionelle Belegverweise (`domain/rag/antwort.ts`, `evaluation.ts`) |
+| Satzvektoren                               | **simuliert**: didaktische Beispielvektoren, kein Embedding-Modell                          |
+| Chunk-Vektor                               | **vereinfacht**: Summe der Satzvektoren                                                     |
+| Kontextbudget                              | **simuliert**: Wort-Einheiten, keine Tokens eines Modells                                   |
+| Antwort                                    | **simuliert**: vorgegebene Aussagen mit verknüpften Belegen, keine generierte Antwort       |
+
+### Bewusste didaktische Vereinfachungen
+
+Chunks bestehen aus ganzen Sätzen. Ein Beleg zählt nur, wenn alle Sätze
+seiner Belegsgruppe im selben Chunk stehen — zwei getrennte Chunks werden
+nicht zusammengelesen. Das Budget überspringt einen zu großen Chunk und lässt
+kleinere nachrücken. Widerspruch und Veraltung sind redaktionell markiert,
+nicht erkannt.
+
+### Offen für einen produktiven Einsatz
+
+Echte Embeddings und ein Vektorindex, ein Modellaufruf mit Belegpflicht,
+Zugriffsrechte je Dokument, automatische Versionierung des Bestands, eine
+Evaluationsmenge aus echten Fragen und ein Schutz gegen Anweisungen in
+Dokumenttexten (Prompt Injection) gehören nicht zu diesem Lernmodul.

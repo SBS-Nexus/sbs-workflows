@@ -65,7 +65,7 @@ describe('LP-10A: Embeddings & semantische Suche (echte Datenbank)', () => {
   afterAll(aufraeumen);
 
   describe('Seed', () => {
-    it('legt das Modul mit vier veröffentlichten Lektionen am Ende des Kurses an', async () => {
+    it('legt das Modul mit vier veröffentlichten Lektionen hinter den bestehenden Modulen an', async () => {
       const modul = await prisma.courseModule.findUniqueOrThrow({
         where: { slug: 'embeddings-semantische-suche' },
         include: { lessons: { orderBy: { order: 'asc' }, include: { exercises: true } } },
@@ -82,11 +82,12 @@ describe('LP-10A: Embeddings & semantische Suche (echte Datenbank)', () => {
         expect(lektion.exercises.length).toBeGreaterThanOrEqual(3);
       }
 
-      const spaeteste = await prisma.courseModule.findFirstOrThrow({
-        where: { courseId: modul.courseId },
-        orderBy: { order: 'desc' },
+      // Direkt hinter den sechs bestehenden Modulen; seit LP-10B folgt RAG.
+      expect(modul.order).toBe(6);
+      const davor = await prisma.courseModule.count({
+        where: { courseId: modul.courseId, order: { lt: modul.order } },
       });
-      expect(spaeteste.slug).toBe('embeddings-semantische-suche');
+      expect(davor).toBe(6);
     });
 
     it('verknüpft die neuen Konzepte mit ihren Voraussetzungen', async () => {

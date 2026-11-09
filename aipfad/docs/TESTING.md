@@ -387,3 +387,65 @@ Ein vollständiger E2E-Lauf legt 49 Konten an (vorher 44). Die
 Registrierungsgrenze je Herkunft liegt bei 60 pro Stunde und wird in der
 Datenbank gezählt — wer die Suite mehrfach innerhalb einer Stunde gegen
 dieselbe Datenbank laufen lässt, trifft sie.
+
+## Stufe 10 (LP-10B, RAG – Wissen mit Quellen nutzen)
+
+Ausgeführt am 2026-11-08 gegen eigene, synthetische Datenbanken im lokalen
+Docker-Postgres (`aipfad_lp10b` für Build und E2E, `aipfad_lp10b_test` für
+die Integrationstests). Gesamtstand: 824 Unit-, 140 Integrations- und 59
+E2E-Tests bestanden.
+
+### Unit
+
+`tests/unit/rag-domain.test.ts` (37 Tests): Chunk-Grenzen mit und ohne
+Overlap, Abdeckung jedes Satzes, deterministische Chunk-Kennungen,
+Quellzuordnung, Chunk-Vektor als Summe, Wort-Einheiten, ungültige
+Strategien; Kontextauswahl mit Top-k aus LP-10A, Budget mit Nachrücken,
+Budget 0, stabile Auswahl bei Gleichstand; Belegprüfung für belegt,
+veraltet, widersprüchlich, unbelegt, zerschnitten und erfundene Quelle;
+kein Verweis auf einen Chunk außerhalb des Kontexts; Evaluation mit `null`
+für nicht definierte Maße; keine Mutation der Eingaben.
+
+`tests/unit/rag-content.test.ts`: vier Lektionen, 13 Aufgaben (jede mit
+Musterlösung bestanden, mit falscher Antwort nicht), acht Konzepte über
+`chunking` und `halluzination` angebunden; die vier Szenarien des Labs treten
+mit den echten Daten ein; die in den Lektionen zitierten Scores, Einheiten
+und Kennzahlen stimmen mit der Lab-Rechnung überein; 20 Negativfälle für
+die Lab-Konfiguration, darunter ein Überlauf und ein Overlap ≥ Chunkgröße,
+die beide als Befund statt als Absturz zurückkommen; Dokumenttexte werden
+nie als HTML gesetzt oder ausgewertet.
+
+Zwei LP-10A-Tests prüften, dass das Embeddings-Modul das letzte Modul ist.
+Ihre Absicht — bestehende Module bleiben in ihrer Reihenfolge — prüfen sie
+jetzt über die feste Position direkt hinter den sechs älteren Modulen.
+
+### Integration
+
+`tests/integration/rag-pipeline-lab.test.ts`: Seed von Modul, Konzepten und
+Lab; Konfiguration übersteht die JSON-Spalte; LP-10A und alle älteren Labs
+bleiben abrufbar; Abschluss über die bestehende Server Action nur für das
+angemeldete Konto, ohne Nutzerkennung aus dem Ergebnis, nicht ohne Sitzung,
+nicht für einen unbekannten Slug; bestehende Abschlüsse unverändert;
+erneutes Seeden erhält Fortschritt.
+
+### Migration
+
+`20261108120000_rag_pipeline_lab` auf einer Datenbank im Stand des Parents
+f3e9f59 (mit LP-10A) eingespielt, nachdem dort acht Lab-Abschlüsse und zwei
+Lektionsfortschritte angelegt waren: Enum erweitert, alle bestehenden Zeilen
+zeilengenau identisch, zweites `migrate deploy` ohne Wirkung, `migrate diff`
+ohne Drift. Produktiv ist die Migration nicht angewendet.
+
+### End-to-End
+
+`e2e/stage10-rag.spec.ts` (4 Tests, seriell, **ein** Konto für alle):
+Modul und Lektionen, Aufgabenfeedback, 404 für einen unbekannten Lab-Slug;
+im Lab Chunking, Top-k, Kontextbudget, Quellbelege, alle vier Fehlerfälle,
+drei Entscheidungen, kein Schreib- oder Fremdaufruf vor dem Abschluss und
+gespeicherter Abschluss; Tastatur und Screenreader-Beschriftungen; 375 px in
+dunklem und hellem Schema; axe ohne serious/critical Befunde; keine
+Konsolenfehler außer der erwarteten Browsermeldung zur absichtlichen
+404-Antwort.
+
+Ein vollständiger E2E-Lauf legt 50 Konten an (vorher 49). Die Grenze
+`registerPerIp` liegt bei 60 pro Stunde und wird in der Datenbank gezählt.
