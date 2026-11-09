@@ -20,44 +20,62 @@ test.beforeAll(async ({ browser }, testInfo) => {
   await onboardingAbschliessen(page);
 });
 
-test.afterAll(async () => { await kontext.close(); });
+test.afterAll(async () => {
+  await kontext.close();
+});
 
 test('Modul und Lab sind erreichbar; die sechs Entscheidungen führen zu gespeichertem Abschluss', async () => {
   await page.goto('/lernen');
-  await expect(page.getByRole('heading', {
-    name: 'Structured Outputs & Tool Calling – Offline-Grundlagen',
-  })).toBeVisible();
+  await expect(
+    page.getByRole('heading', {
+      name: 'Structured Outputs & Tool Calling – Offline-Grundlagen',
+    }),
+  ).toBeVisible();
 
   await page.goto('/labs/tool-calling-offline-lab');
-  await expect(page.getByRole('heading', { name: 'JSON & Tool-Calling – Vertragslabor' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'JSON & Tool-Calling – Vertragslabor' }),
+  ).toBeVisible();
   await expect(page.getByText('Hier wird kein Modell aufgerufen')).toBeVisible();
 
-  const ausgabe = page.locator('section').filter({ has: page.getByRole('heading', { name: '1. Strukturierte Ausgabe' }) });
+  const ausgabe = page
+    .locator('section')
+    .filter({ has: page.getByRole('heading', { name: '1. Strukturierte Ausgabe' }) });
   for (const [id, gueltig] of [
     ['antwort-mit-beleg', true],
     ['beleg-fehlt', false],
     ['zusatzfeld', false],
   ] as const) {
     await ausgabe.getByLabel('Beispiel auswählen').selectOption(id);
-    await ausgabe.getByRole('radio', { name: gueltig ? 'Ja, formal gültig' : 'Nein, ablehnen' }).check();
+    await ausgabe
+      .getByRole('radio', { name: gueltig ? 'Ja, formal gültig' : 'Nein, ablehnen' })
+      .check();
     await ausgabe.getByRole('button', { name: 'Entscheidung prüfen' }).click();
     await expect(ausgabe.getByText('Dein Urteil stimmt mit der Prüfung überein.')).toBeVisible();
   }
-  const tools = page.locator('section').filter({ has: page.getByRole('heading', { name: '2. Tool-Aufruf' }) });
+  const tools = page
+    .locator('section')
+    .filter({ has: page.getByRole('heading', { name: '2. Tool-Aufruf' }) });
   for (const [id, gueltig] of [
     ['lesen-erlaubt', true],
     ['schreiben-verboten', false],
     ['argumente-fremd', false],
   ] as const) {
     await tools.getByLabel('Beispiel auswählen').selectOption(id);
-    await tools.getByRole('radio', { name: gueltig ? 'Ja, formal gültig' : 'Nein, ablehnen' }).check();
+    await tools
+      .getByRole('radio', { name: gueltig ? 'Ja, formal gültig' : 'Nein, ablehnen' })
+      .check();
     await tools.getByRole('button', { name: 'Entscheidung prüfen' }).click();
     await expect(tools.getByText('Dein Urteil stimmt mit der Prüfung überein.')).toBeVisible();
   }
   await page.getByRole('button', { name: 'Lab abschließen' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Lab abgeschlossen.' })).toBeVisible();
   await page.goto('/labs');
-  await expect(page.getByRole('link', { name: /JSON & Tool-Calling – Vertragslabor/ }).getByText('Abgeschlossen')).toBeVisible();
+  await expect(
+    page
+      .getByRole('link', { name: /JSON & Tool-Calling – Vertragslabor/ })
+      .getByText('Abgeschlossen'),
+  ).toBeVisible();
 });
 
 test('375 px: keine Seitenbreitenüberläufe und keine ernsten Accessibility-Verstöße', async () => {
@@ -65,6 +83,10 @@ test('375 px: keine Seitenbreitenüberläufe und keine ernsten Accessibility-Ver
   await page.goto('/labs/tool-calling-offline-lab');
   const breite = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(breite).toBeLessThanOrEqual(375);
-  const bericht = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag22a', 'wcag22aa']).analyze();
-  expect(bericht.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')).toEqual([]);
+  const bericht = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag22a', 'wcag22aa'])
+    .analyze();
+  expect(
+    bericht.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical'),
+  ).toEqual([]);
 });

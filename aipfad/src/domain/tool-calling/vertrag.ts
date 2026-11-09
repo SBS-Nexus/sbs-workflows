@@ -10,15 +10,26 @@ const ausgabeSchema = z
   .object({
     antwort: z.string().min(3).max(240),
     status: z.enum(['belegt', 'nicht-belegt']),
-    belegId: z.string().regex(/^[a-z0-9-]+$/).nullable(),
+    belegId: z
+      .string()
+      .regex(/^[a-z0-9-]+$/)
+      .nullable(),
   })
   .strict()
   .superRefine((wert, ctx) => {
     if (wert.status === 'belegt' && wert.belegId === null) {
-      ctx.addIssue({ code: 'custom', path: ['belegId'], message: 'Eine belegte Antwort braucht eine Beleg-ID.' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['belegId'],
+        message: 'Eine belegte Antwort braucht eine Beleg-ID.',
+      });
     }
     if (wert.status === 'nicht-belegt' && wert.belegId !== null) {
-      ctx.addIssue({ code: 'custom', path: ['belegId'], message: 'Ohne Beleg darf keine Beleg-ID angegeben werden.' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['belegId'],
+        message: 'Ohne Beleg darf keine Beleg-ID angegeben werden.',
+      });
     }
   });
 
@@ -56,7 +67,9 @@ export function pruefeStrukturierteAusgabe(text: unknown): PruefResultat {
   if (!ergebnis.success) {
     return {
       ok: false,
-      meldungen: ergebnis.error.issues.map((i) => (i.path.join('.') || 'Objekt') + ': ' + i.message),
+      meldungen: ergebnis.error.issues.map(
+        (i) => (i.path.join('.') || 'Objekt') + ': ' + i.message,
+      ),
       urteil: 'Ausgabe abgelehnt',
     };
   }
@@ -74,14 +87,18 @@ export function pruefeSimuliertenToolAufruf(text: unknown): PruefResultat {
   if (!ergebnis.success) {
     return {
       ok: false,
-      meldungen: ergebnis.error.issues.map((i) => (i.path.join('.') || 'Aufruf') + ': ' + i.message),
+      meldungen: ergebnis.error.issues.map(
+        (i) => (i.path.join('.') || 'Aufruf') + ': ' + i.message,
+      ),
       urteil: 'Aufruf abgelehnt',
     };
   }
   if (ergebnis.data.werkzeug !== 'suche_richtlinie') {
     return {
       ok: false,
-      meldungen: ['Das Werkzeug ist nicht auf der erlaubten Leseliste. Schreibaktionen werden niemals simuliert.'],
+      meldungen: [
+        'Das Werkzeug ist nicht auf der erlaubten Leseliste. Schreibaktionen werden niemals simuliert.',
+      ],
       urteil: 'Aufruf abgelehnt – keine Ausführung',
     };
   }
@@ -89,13 +106,17 @@ export function pruefeSimuliertenToolAufruf(text: unknown): PruefResultat {
   if (!argumente.success) {
     return {
       ok: false,
-      meldungen: argumente.error.issues.map((i) => (i.path.join('.') || 'argumente') + ': ' + i.message),
+      meldungen: argumente.error.issues.map(
+        (i) => (i.path.join('.') || 'argumente') + ': ' + i.message,
+      ),
       urteil: 'Aufruf abgelehnt – Argumentvertrag verletzt',
     };
   }
   return {
     ok: true,
-    meldungen: ['Werkzeug und Argumente erfüllen den Lesekontrakt. Kein externer Dienst wurde aufgerufen.'],
+    meldungen: [
+      'Werkzeug und Argumente erfüllen den Lesekontrakt. Kein externer Dienst wurde aufgerufen.',
+    ],
     urteil: 'Aufruf formal erlaubt (Simulation ohne Ausführung)',
   };
 }

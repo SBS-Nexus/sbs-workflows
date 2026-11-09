@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  courseSchema, conceptSchema, labSchema, validateCourseGraph,
+  courseSchema,
+  conceptSchema,
+  labSchema,
+  validateCourseGraph,
 } from '@/domain/content/schema';
 import { toolCallingConfigSchema } from '@/domain/labs/tool-calling-config';
 import { course } from '@/content/course';
@@ -34,7 +37,7 @@ describe('LP-11A – Offline-Grundlagen', () => {
     const modul = parsedCourse.modules.find((m) => m.slug === 'structured-outputs-tool-calling');
     for (const aufgabe of modul?.lessons.flatMap((l) => l.exercises) ?? []) {
       if (aufgabe.payload.kind !== 'ordering') continue;
-      const oeffentlich = toPublicPayload(aufgabe.payload);
+      const oeffentlich = toPublicPayload(aufgabe.payload) as { items: { id: string }[] };
       expect(oeffentlich.items.map((i) => i.id)).not.toEqual(aufgabe.payload.correctOrder);
       expect(JSON.stringify(oeffentlich)).not.toContain('correctOrder');
     }
@@ -58,6 +61,7 @@ describe('LP-11A – Offline-Grundlagen', () => {
       'tool-aufruf',
       'tool-berechtigung',
       'tool-resultat-untrusted',
-    ]) expect(bekannt.has(slug)).toBe(true);
+    ])
+      expect(bekannt.has(slug)).toBe(true);
   });
 });

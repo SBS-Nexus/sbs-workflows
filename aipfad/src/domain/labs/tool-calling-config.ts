@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { pruefeSimuliertenToolAufruf, pruefeStrukturierteAusgabe } from '@/domain/tool-calling/vertrag';
+import {
+  pruefeSimuliertenToolAufruf,
+  pruefeStrukturierteAusgabe,
+} from '@/domain/tool-calling/vertrag';
 
 /** Redaktionell begrenzte Beispiele. Kein Provider, kein Netzwerk. */
 const beispiel = z.object({
@@ -25,19 +28,28 @@ export const toolCallingConfigSchema = z
       const ids = new Set<string>();
       for (const [index, e] of liste.entries()) {
         if (ids.has(e.id)) {
-          ctx.addIssue({ code: 'custom', path: [name, index, 'id'], message: 'Doppelte Beispielkennung.' });
+          ctx.addIssue({
+            code: 'custom',
+            path: [name, index, 'id'],
+            message: 'Doppelte Beispielkennung.',
+          });
         }
         ids.add(e.id);
         if (pruefen(e.json).ok !== e.erwartetGueltig) {
           ctx.addIssue({
             code: 'custom',
             path: [name, index, 'erwartetGueltig'],
-            message: 'Die redaktionelle Erwartung stimmt nicht mit dem tatsächlichen Validator überein.',
+            message:
+              'Die redaktionelle Erwartung stimmt nicht mit dem tatsächlichen Validator überein.',
           });
         }
       }
       if (!liste.some((e) => e.erwartetGueltig) || !liste.some((e) => !e.erwartetGueltig)) {
-        ctx.addIssue({ code: 'custom', path: [name], message: 'Jeweils gültige UND ungültige Beispiele erforderlich.' });
+        ctx.addIssue({
+          code: 'custom',
+          path: [name],
+          message: 'Jeweils gültige UND ungültige Beispiele erforderlich.',
+        });
       }
     }
   });
