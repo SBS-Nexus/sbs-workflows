@@ -55,7 +55,7 @@ function PruefStation({
     });
     // Nur die originalen redaktionellen Fälle zählen zum Abschluss.
     // Bei freiem Experimentieren gibt es Feedback, aber keinen Lernnachweis.
-    if (richtig && text === beispiel.json) onRichtig(beispiel.id);
+    if (richtig && beispiel && text === beispiel.json) onRichtig(beispiel.id);
   }
 
   return (
