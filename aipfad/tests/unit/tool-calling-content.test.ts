@@ -6,7 +6,7 @@ import { toolCallingConfigSchema } from '@/domain/labs/tool-calling-config';
 import { course } from '@/content/course';
 import { concepts } from '@/content/concepts';
 import { labs } from '@/content/labs';
-import { toPublicPayload } from '@/domain/content/exercise-payload';
+import { toPublicPayload } from '@/domain/grading/grade';
 
 const parsedCourse = courseSchema.parse(course);
 const parsedConcepts = concepts.map((c) => conceptSchema.parse(c));
