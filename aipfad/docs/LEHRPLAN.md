@@ -186,3 +186,9 @@ Echte Embeddings und ein Vektorindex, ein Modellaufruf mit Belegpflicht,
 Zugriffsrechte je Dokument, automatische Versionierung des Bestands, eine
 Evaluationsmenge aus echten Fragen und ein Schutz gegen Anweisungen in
 Dokumenttexten (Prompt Injection) gehören nicht zu diesem Lernmodul.
+
+## LP-11A – Structured Outputs und Tool Calling (Offline-Grundlagen)
+
+**Stand:** Für den isolierten Draft-Slice implementiert, noch nicht vollständig freigegeben. Die Stufen 6 (HTTP & APIs) und 7 (AI-APIs) sind weiterhin offen. Dieser Abschnitt ist deshalb **nicht** die vollständige Umsetzung der Lehrplanstufe 8 und erfüllt nicht deren API-Voraussetzungen.
+
+Das Modul enthält drei einführende Lektionen zu JSON-Ausgabeverträgen, Tool-Aufruf-Vorschlägen sowie der Vertrauensgrenze von Tool-Ergebnissen. Das interaktive Vertragslabor validiert Beispiel-JSON und erlaubte, ausschließlich lesende Werkzeugaufrufe; es führt **keine** echte Funktion aus. Es nutzt die bestehende Lab-Persistenz und ein zusätzliches Prisma-Enum `TOOL_CALLING`, dessen additive Migration vor einer späteren produktiven Bereitstellung notwendig wäre. Alle Ergebnisse sind deterministisch. Die reguläre Behandlung von Authentifizierung, Berechtigung, Fehlern und Kosten einer realen Provider-Integration bleibt für die Stufen 6/7 und einen späteren praktischen Stufe-8-Slice offen.
