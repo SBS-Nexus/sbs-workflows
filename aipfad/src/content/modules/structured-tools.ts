@@ -146,7 +146,7 @@ export const structuredToolsModule: ModuleDraft = {
           payload: {
             kind: 'scenarioDecision',
             scenario:
-              'Eine Antwort liegt als korrektes JSON mit einer angeblichen Quellenkennung vor, die im bereitgestellten Kontext nicht vorkommt.',
+              'Eine Antwort liegt als wohlgeformtes JSON mit einer angeblichen Quellenkennung vor, die im bereitgestellten Kontext nicht vorkommt.',
             options: [
               {
                 id: 'verwerfen',

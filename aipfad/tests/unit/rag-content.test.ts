@@ -78,10 +78,10 @@ const status = (r: ReturnType<typeof pipeline>): Record<string, string> =>
   Object.fromEntries(r.geprueft.map((g) => [g.aussage.id, g.status]));
 
 describe('Modul „RAG – Wissen mit Quellen nutzen“', () => {
-  it('ist veröffentlicht, setzt Stufe 9 voraus und ist am Kursende angehängt', () => {
+  it('ist veröffentlicht und folgt unmittelbar auf die Embeddings-Stufe', () => {
     expect(modul?.status).toBe('PUBLISHED');
     expect(modul?.prerequisiteModuleSlugs).toEqual(['embeddings-semantische-suche']);
-    expect(parsedCourse.modules.map((m) => m.slug).slice(-2)).toEqual([
+    expect(parsedCourse.modules.slice(6, 8).map((m) => m.slug)).toEqual([
       'embeddings-semantische-suche',
       'rag-wissen-mit-quellen',
     ]);
