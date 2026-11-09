@@ -26,6 +26,34 @@ describe('Offline-Vertrag für strukturierte Antworten', () => {
     ).toBe(false);
   });
 
+  it.each([
+    [
+      'Zusatzfeld einer strukturierten Ausgabe',
+      pruefeStrukturierteAusgabe,
+      '{"antwort":"Eine Aussage","status":"nicht-belegt","belegId":null,"__proto__":{"admin":true}}',
+    ],
+    [
+      'Kontrollfeld im Tool-Aufruf',
+      pruefeSimuliertenToolAufruf,
+      '{"werkzeug":"suche_richtlinie","argumente":{"suchbegriff":"urlaub"},"__proto__":{"ausfuehren":true}}',
+    ],
+    [
+      'verschachtelte fremde Nutzerkennung',
+      pruefeSimuliertenToolAufruf,
+      '{"werkzeug":"suche_richtlinie","argumente":{"suchbegriff":"urlaub","__proto__":{"userId":"fremd"}}}',
+    ],
+    [
+      'auch tiefer verschachtelte Schlüssel',
+      pruefeSimuliertenToolAufruf,
+      '{"werkzeug":"suche_richtlinie","argumente":{"suchbegriff":"urlaub","hinweis":{"__proto__":{"admin":true}}}}',
+    ],
+  ] as const)('lehnt __proto__ ohne Ausnahme ab: %s', (_name, pruefen, json) => {
+    expect(() => pruefen(json)).not.toThrow();
+    const ergebnis = pruefen(json);
+    expect(ergebnis.ok).toBe(false);
+    expect(ergebnis.meldungen.join(' ')).toContain('__proto__');
+  });
+
   it('lehnt Beleg ohne Quelle und Quelle ohne Beleg ab', () => {
     expect(
       pruefeStrukturierteAusgabe('{"antwort":"Eine Aussage","status":"belegt","belegId":null}').ok,

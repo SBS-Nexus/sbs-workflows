@@ -43,6 +43,24 @@ describe('LP-11A – Offline-Grundlagen', () => {
     }
   });
 
+  it('verteilt die richtigen Auswahlpositionen und verhindert den Immer-erstes-Musterfehler', () => {
+    const modul = parsedCourse.modules.find((m) => m.slug === 'structured-outputs-tool-calling');
+    expect(modul).toBeDefined();
+    const positionen: number[] = [];
+    for (const aufgabe of modul?.lessons.flatMap((l) => l.exercises) ?? []) {
+      const payload = aufgabe.payload;
+      if (payload.kind === 'singleChoice') {
+        positionen.push(payload.options.findIndex((o) => o.id === payload.correctOptionId));
+      }
+      if (payload.kind === 'scenarioDecision') {
+        positionen.push(payload.options.findIndex((o) => o.quality === 'optimal'));
+      }
+    }
+    expect(positionen).toHaveLength(6);
+    expect(new Set(positionen)).toEqual(new Set([0, 1, 2]));
+    expect(positionen.filter((pos) => pos === 0)).toHaveLength(2);
+  });
+
   it('hat ein validiertes, rein offline arbeitendes Lab mit positiven und negativen Fällen', () => {
     const lab = parsedLabs.find((l) => l.slug === 'tool-calling-offline-lab');
     expect(lab?.kind).toBe('TOOL_CALLING');

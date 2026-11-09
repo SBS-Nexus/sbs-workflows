@@ -49,13 +49,23 @@ export interface PruefResultat {
   urteil: string;
 }
 
+/** Kennungen wie __proto__ müssen vor Zod auf dem Roh-JSON abgefangen werden. */
+class VerbotenerJsonSchluessel extends Error {}
+
 function parseJson(text: unknown): { wert?: unknown; fehler?: string } {
   if (typeof text !== 'string' || text.length > 2000) {
     return { fehler: 'Die Eingabe muss ein Text mit höchstens 2.000 Zeichen sein.' };
   }
   try {
-    return { wert: JSON.parse(text) as unknown };
-  } catch {
+    const wert = JSON.parse(text, (schluessel: string, inhalt: unknown): unknown => {
+      if (schluessel === '__proto__') throw new VerbotenerJsonSchluessel();
+      return inhalt;
+    }) as unknown;
+    return { wert };
+  } catch (fehler) {
+    if (fehler instanceof VerbotenerJsonSchluessel) {
+      return { fehler: 'Nicht erlaubter JSON-Schlüssel "__proto__" (auch in verschachtelten Objekten).' };
+    }
     return { fehler: 'Ungültiges JSON: Der Text lässt sich nicht als JSON lesen.' };
   }
 }
