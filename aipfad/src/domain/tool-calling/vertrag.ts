@@ -64,7 +64,9 @@ function parseJson(text: unknown): { wert?: unknown; fehler?: string } {
     return { wert };
   } catch (fehler) {
     if (fehler instanceof VerbotenerJsonSchluessel) {
-      return { fehler: 'Nicht erlaubter JSON-Schlüssel "__proto__" (auch in verschachtelten Objekten).' };
+      return {
+        fehler: 'Nicht erlaubter JSON-Schlüssel "__proto__" (auch in verschachtelten Objekten).',
+      };
     }
     return { fehler: 'Ungültiges JSON: Der Text lässt sich nicht als JSON lesen.' };
   }
