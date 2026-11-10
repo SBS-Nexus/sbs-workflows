@@ -21,7 +21,10 @@ describe('LP-11A – Offline-Grundlagen', () => {
     expect(modul?.status).toBe('PUBLISHED');
     expect(modul?.lessons).toHaveLength(3);
     expect(modul?.lessons.flatMap((l) => l.exercises)).toHaveLength(9);
-    expect(modul?.prerequisiteModuleSlugs).toContain('prompting-grundlagen');
+    expect(modul?.prerequisiteModuleSlugs).toEqual([
+      'prompting-grundlagen',
+      'rag-wissen-mit-quellen',
+    ]);
   });
 
   it('hält die vollständige Inhalts- und Konzeptvalidierung ein', () => {
@@ -59,6 +62,20 @@ describe('LP-11A – Offline-Grundlagen', () => {
     expect(positionen).toHaveLength(6);
     expect(new Set(positionen)).toEqual(new Set([0, 1, 2]));
     expect(positionen.filter((pos) => pos === 0)).toHaveLength(2);
+  });
+
+  it('definiert den Tool-Ergebnis-Ablauf in eindeutiger fachlicher Reihenfolge', () => {
+    const modul = parsedCourse.modules.find((m) => m.slug === 'structured-outputs-tool-calling');
+    const aufgabe = modul?.lessons
+      .flatMap((l) => l.exercises)
+      .find((e) => e.slug === 'tc-tool-grenze');
+    expect(aufgabe?.payload.kind).toBe('ordering');
+    if (aufgabe?.payload.kind !== 'ordering') throw new Error('Ordering-Aufgabe fehlt.');
+    expect(aufgabe.payload.correctOrder).toEqual(['lesen', 'pruefen', 'belegen', 'entscheiden']);
+    expect(aufgabe.payload.instruction).toContain('Vorgängers');
+    const nachId = new Map(aufgabe.payload.items.map((i) => [i.id, i.text]));
+    expect(nachId.get('belegen')).toMatch(/Nach der Quellenprüfung/);
+    expect(nachId.get('entscheiden')).toMatch(/Erst nach dieser Belegzuordnung/);
   });
 
   it('hat ein validiertes, rein offline arbeitendes Lab mit positiven und negativen Fällen', () => {
