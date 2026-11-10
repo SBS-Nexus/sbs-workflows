@@ -3,7 +3,10 @@ import {
   pruefeSimuliertenToolAufruf,
   pruefeStrukturierteAusgabe,
 } from '@/domain/tool-calling/vertrag';
-import { toolCallingConfigSchema, toToolCallingClientConfig } from '@/domain/labs/tool-calling-config';
+import {
+  toolCallingConfigSchema,
+  toToolCallingClientConfig,
+} from '@/domain/labs/tool-calling-config';
 
 describe('Offline-Vertrag für strukturierte Antworten', () => {
   it('akzeptiert korrekt belegte Aussagen', () => {
@@ -106,7 +109,8 @@ describe('Lab-Konfiguration', () => {
     betriebsart: 'offline-deterministisch',
     toolErgebnis: {
       quelle: 'TEST-QUELLE',
-      auszug: 'Das ist ein synthetischer Beispieltext. Er enthält keinerlei verbindliche Anweisungen.',
+      auszug:
+        'Das ist ein synthetischer Beispieltext. Er enthält keinerlei verbindliche Anweisungen.',
       frage: 'Was darf dieser Text in der Anwendung steuern?',
     },
     strukturierteAusgaben: [
@@ -151,7 +155,9 @@ describe('Lab-Konfiguration', () => {
     const full = toolCallingConfigSchema.parse(grund);
     const client = toToolCallingClientConfig(full);
     expect(JSON.stringify(client)).not.toContain('erwartetGueltig');
-    expect(client.strukturierteAusgaben[0]?.erklaerung).toBe(full.strukturierteAusgaben[0]?.erklaerung);
+    expect(client.strukturierteAusgaben[0]?.erklaerung).toBe(
+      full.strukturierteAusgaben[0]?.erklaerung,
+    );
     expect(client.toolErgebnis.quelle).toBe(full.toolErgebnis.quelle);
   });
 

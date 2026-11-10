@@ -62,7 +62,6 @@ Primärquellen existieren.
 
 Die Beispiele lehren die allgemein überprüfbaren Prinzipien von JSON-Syntax, strikten Feldverträgen, serverseitiger Berechtigungsprüfung und der Trennung von Tool-Vorschlag und Tool-Ausführung. Sie stellen **keine** dokumentierte Anbieter-API, kein vollständiges JSON-Schema-Protokoll und keine Live-Modellantwort dar. Codequelle der didaktischen Regeln ist `src/domain/tool-calling/vertrag.ts`; die einzige erlaubte Beispiel-Funktion `suche_richtlinie` wird lediglich validiert, niemals ausgeführt. Für eine spätere echte API-Lehre sind aktuelle Primärquellen und Stufen 6/7 separat nachzutragen.
 
-
 ## LP-11B.2 – Zusätzliches Szenario und JSON-Duplikate
 
 Das synthetische Quellenkürzel HR-URLAUB-SYNTHETISCH und der manipulierte

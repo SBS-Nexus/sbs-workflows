@@ -169,7 +169,8 @@ export function ToolCallingLab({
   const alleBearbeitet =
     cfg.strukturierteAusgaben.every((e) => ausgaben.has(e.id)) &&
     cfg.werkzeugAufrufe.every((e) => aufrufe.has(e.id)) &&
-    toolResultatGeprueft && toolResultatUrteil === 'daten';
+    toolResultatGeprueft &&
+    toolResultatUrteil === 'daten';
 
   function markieren(id: string, art: 'ausgabe' | 'aufruf'): void {
     if (art === 'ausgabe') setAusgaben((alt) => new Set([...alt, id]));
@@ -198,12 +199,10 @@ export function ToolCallingLab({
         onRichtig={(id) => markieren(id, 'aufruf')}
       />
       <section className="space-y-3 rounded-[var(--radius-md)] border border-[var(--border)] p-4">
-        <h2 className="font-mono text-base font-semibold">
-          3. Tool-Ergebnis und Vertrauensgrenze
-        </h2>
+        <h2 className="font-mono text-base font-semibold">3. Tool-Ergebnis und Vertrauensgrenze</h2>
         <p className="text-sm text-[var(--fg-muted)]">
-          Ein Suchwerkzeug liefert Daten zurück. Selbst wenn diese Daten eine Anweisung
-          enthalten, entsteht dadurch keine neue Berechtigung.
+          Ein Suchwerkzeug liefert Daten zurück. Selbst wenn diese Daten eine Anweisung enthalten,
+          entsteht dadurch keine neue Berechtigung.
         </p>
         <p className="text-xs font-semibold">Quelle: {cfg.toolErgebnis.quelle} (synthetisch)</p>
         <blockquote className="whitespace-pre-wrap rounded-[var(--radius-md)] border border-[var(--border)] p-3 text-sm">
@@ -246,7 +245,9 @@ export function ToolCallingLab({
         {toolResultatGeprueft ? (
           <Callout
             tone={toolResultatUrteil === 'daten' ? 'success' : 'warning'}
-            title={toolResultatUrteil === 'daten' ? 'Richtige Vertrauensgrenze' : 'Nicht freigegeben'}
+            title={
+              toolResultatUrteil === 'daten' ? 'Richtige Vertrauensgrenze' : 'Nicht freigegeben'
+            }
             live
           >
             {toolResultatUrteil === 'daten'

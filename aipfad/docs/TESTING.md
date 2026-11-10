@@ -474,7 +474,6 @@ Trennung von Lab-Abschlüssen nach Nutzer.
 Die Änderungen werden nur gegen synthetische CI-Datenbanken geprüft. Die
 produktive Anwendung von `20261109190000_tool_calling_lab` bleibt offen.
 
-
 ## LP-11B.2 – JSON-Verträge und Lernqualität
 
 - Der JSON-Rohparser verweigert nun doppelte Objektschlüssel (auch in

@@ -193,7 +193,6 @@ Dokumenttexten (Prompt Injection) gehören nicht zu diesem Lernmodul.
 
 Das Modul enthält drei einführende Lektionen zu JSON-Ausgabeverträgen, Tool-Aufruf-Vorschlägen sowie der Vertrauensgrenze von Tool-Ergebnissen. Das interaktive Vertragslabor validiert Beispiel-JSON und erlaubte, ausschließlich lesende Werkzeugaufrufe; es führt **keine** echte Funktion aus. Es nutzt die bestehende Lab-Persistenz und ein zusätzliches Prisma-Enum `TOOL_CALLING`, dessen additive Migration vor einer späteren produktiven Bereitstellung notwendig wäre. Alle Ergebnisse sind deterministisch. Die reguläre Behandlung von Authentifizierung, Berechtigung, Fehlern und Kosten einer realen Provider-Integration bleibt für die Stufen 6/7 und einen späteren praktischen Stufe-8-Slice offen.
 
-
 ## LP-11B.2 – Nacharbeit am Offline-Vertragslabor
 
 Die zusätzliche Offline-Lab-Station behandelt eine manipulierte

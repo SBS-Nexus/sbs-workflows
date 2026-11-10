@@ -58,9 +58,7 @@ export default async function LabPage({ params }: LabPageProps): Promise<React.R
             slug={lab.slug}
             kind={lab.kind}
             config={
-              lab.kind === 'TOOL_CALLING'
-                ? toToolCallingClientConfig(lab.config)
-                : lab.config
+              lab.kind === 'TOOL_CALLING' ? toToolCallingClientConfig(lab.config) : lab.config
             }
           />
         )}

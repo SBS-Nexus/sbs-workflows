@@ -63,8 +63,7 @@ class VerbotenerJsonSchluessel extends Error {}
  */
 function doppelterObjektschluessel(text: string): string | null {
   const stack: Array<
-    | { typ: 'objekt'; schluessel: Set<string>; erwartetSchluessel: boolean }
-    | { typ: 'liste' }
+    { typ: 'objekt'; schluessel: Set<string>; erwartetSchluessel: boolean } | { typ: 'liste' }
   > = [];
 
   for (let i = 0; i < text.length; i++) {
