@@ -16,9 +16,9 @@ test('lässt sich auf dem Telefon vollständig bedienen', async ({ page }) => {
   await test.step('Die untere Navigationsleiste ist erreichbar', async () => {
     const navigation = page.getByRole('navigation', { name: 'Hauptnavigation' }).last();
     await expect(navigation.getByRole('link', { name: 'Lernen' })).toBeVisible();
-    await expect(navigation.getByRole('link', { name: 'Fortschritt' })).toBeVisible();
+    await expect(navigation.getByRole('link', { name: 'Überblick' })).toBeVisible();
 
-    await navigation.getByRole('link', { name: 'Fortschritt' }).click();
+    await navigation.getByRole('link', { name: 'Überblick' }).click();
     await page.waitForURL('**/fortschritt');
     await expect(page.getByRole('heading', { name: 'Dein Lernstand' })).toBeVisible();
   });

@@ -78,7 +78,7 @@ export function DataControls(): React.ReactElement {
         ) : null}
       </Card>
 
-      <Card className="border-[var(--alert)]">
+      <Card emphasis="danger">
         <h3 className="font-semibold">Konto löschen</h3>
         <p className="mt-1 text-[0.95rem] text-[var(--text-muted)]">
           Damit werden dein Konto und sämtliche Lerndaten sofort und vollständig entfernt. Das lässt
@@ -96,7 +96,7 @@ export function DataControls(): React.ReactElement {
 
         {!confirmOpen ? (
           <div className="mt-3">
-            <Button type="button" variant="secondary" onClick={() => setConfirmOpen(true)}>
+            <Button type="button" variant="danger-secondary" onClick={() => setConfirmOpen(true)}>
               Löschung vorbereiten
             </Button>
           </div>

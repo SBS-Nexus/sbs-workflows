@@ -9,6 +9,7 @@ import { LabRunner } from '@/components/labs/lab-runner';
 import { ExerciseRunner } from '@/components/exercise/exercise-runner';
 import { recordLabCompletionAction } from '@/server/actions/lab-actions';
 import { promptRepairConfigSchema } from '@/domain/labs/prompt-repair-config';
+import { toToolCallingClientConfig } from '@/domain/labs/tool-calling-config';
 
 interface LabPageProps {
   params: Promise<{ slug: string }>;
@@ -53,7 +54,13 @@ export default async function LabPage({ params }: LabPageProps): Promise<React.R
         {lab.kind === 'PROMPT_REPAIR' ? (
           <PromptRepairLabBody labSlug={lab.slug} config={lab.config} userId={user.id} />
         ) : (
-          <LabRunner slug={lab.slug} kind={lab.kind} config={lab.config} />
+          <LabRunner
+            slug={lab.slug}
+            kind={lab.kind}
+            config={
+              lab.kind === 'TOOL_CALLING' ? toToolCallingClientConfig(lab.config) : lab.config
+            }
+          />
         )}
       </main>
     </>

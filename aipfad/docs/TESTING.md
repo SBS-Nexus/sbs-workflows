@@ -322,3 +322,177 @@ kein Element breiter ist als der Bildschirm, ohne in einem eigenen
 scrollbaren Behälter zu stecken. Zusätzlich unter Last: Commit-Graph nach
 sieben Befehlen, Konflikteditor mit einer sehr langen eigenen Zeile,
 Git-State-Lab nach mehreren Befehlen. Ergebnis: kein Überlauf.
+
+## Stufe 9 (LP-10A, Embeddings & semantische Suche)
+
+Ausgeführt am 2026-11-07 gegen eigene, synthetische Datenbanken im lokalen
+Docker-Postgres (`aipfad_lp10a` für Build und E2E, `aipfad_lp10a_test` für
+die Integrationstests).
+
+### Unit
+
+`tests/unit/retrieval-math.test.ts` (55 Tests): Skalarprodukt, Vektornorm
+und Kosinusähnlichkeit gegen von Hand gerechnete Werte; Nullvektoren auf
+beiden Seiten, unterschiedliche Dimensionen, NaN/±Infinity/Nicht-Zahlen,
+Überlauf großer Komponenten (Wert bleibt berechenbar, ein nicht
+darstellbarer Rechenweg wird als `UEBERLAUF` gemeldet); deterministischer
+Tie-Break über die Kennung in Codepunkt-Reihenfolge, auch bei
+Gleitkomma-Rauschen; Top-k-Grenzen; Schwelle; Precision/Recall mit `null`
+für nicht definierte Werte; keine Mutation eingefrorener Eingaben.
+
+`tests/unit/semantic-retrieval-content.test.ts`: vier Lektionen mit
+gestuften Hilfen, jedes neue Konzept genau einmal eingeführt und über
+`embedding` am Graphen, keine Anbieter- oder Preisangaben, jede Aufgabe mit
+Musterlösung bestanden und mit falscher Antwort nicht; das Lab zeigt den
+irreführenden Treffer, den fehlenden Treffer und den Treffer ohne
+gemeinsames Wort; die in den Lektionen zitierten Scores stimmen mit dem
+überein, was das Lab berechnet; 18 Negativfälle für die Lab-Konfiguration,
+auch über `validateCourseGraph()`.
+
+### Integration
+
+`tests/integration/semantic-retrieval-lab.test.ts`: Seed von Modul, Konzepten
+und Lab; Aufgaben durch die bestehende Bewertung; Abschluss über die
+bestehende Server Action `recordLabCompletionAction` (nur die Sitzung ist
+ersetzt), Zuordnung allein zum angemeldeten Konto, kein Abschluss ohne
+Sitzung, unbekannter Lab-Slug abgewiesen ohne Schreibzugriff, kein stilles
+Speichern ohne gültigen Zeitstempel, bestehende Abschlüsse unverändert,
+alle bisherigen Labs weiter abrufbar; erneutes Seeden erhält Lab-Abschluss
+und Lektionsfortschritt.
+
+### Migration
+
+`20261107120000_semantic_retrieval_lab` auf einer Datenbank im Stand des
+Basis-Commits mit sieben Labs und sieben Lab-Abschlüssen eingespielt:
+Enum erweitert, alle bestehenden Zeilen in `labs` und `lab_attempts`
+zeilengenau identisch (Kennungen, Konfigurations-Hash, Ergebnis), ein
+zweites `migrate deploy` ohne Wirkung, `migrate diff` ohne Drift.
+
+### End-to-End
+
+`e2e/stage9-retrieval.spec.ts` (5 Tests, Desktop-Projekt): Modul in der
+Bibliothek, unbekannter Lab-Slug ergibt 404; eine Lektion samt teilweise
+richtiger und richtiger Rechenaufgabe; das Lab mit Rangliste, Top-k,
+Rechenweg, Suchbestand, beiden Entscheidungen, keinem Schreib- oder
+Fremdaufruf vor dem Abschluss und gespeichertem Abschluss in `/labs`;
+Bedienung allein mit der Tastatur; 375 px ohne horizontales Scrollen der
+Seite; axe ohne serious/critical Befunde; keine Konsolenfehler.
+
+Gesamtlauf: 54 von 55 bestanden. Der eine Fehler ist
+`shell-navigation.spec.ts:129` („700 → 640 px: linke Kante im Bild"); er
+tritt im unveränderten Basis-Commit 3da3dde mit derselben Signatur auf
+(dort 3 von 4 grün, hier 3 von 4 grün) und betrifft keinen Code aus LP-10A.
+
+Ein vollständiger E2E-Lauf legt 49 Konten an (vorher 44). Die
+Registrierungsgrenze je Herkunft liegt bei 60 pro Stunde und wird in der
+Datenbank gezählt — wer die Suite mehrfach innerhalb einer Stunde gegen
+dieselbe Datenbank laufen lässt, trifft sie.
+
+## Stufe 10 (LP-10B, RAG – Wissen mit Quellen nutzen)
+
+Ausgeführt am 2026-11-08 gegen eigene, synthetische Datenbanken im lokalen
+Docker-Postgres (`aipfad_lp10b` für Build und E2E, `aipfad_lp10b_test` für
+die Integrationstests). Gesamtstand: 824 Unit-, 140 Integrations- und 59
+E2E-Tests bestanden.
+
+### Unit
+
+`tests/unit/rag-domain.test.ts` (37 Tests): Chunk-Grenzen mit und ohne
+Overlap, Abdeckung jedes Satzes, deterministische Chunk-Kennungen,
+Quellzuordnung, Chunk-Vektor als Summe, Wort-Einheiten, ungültige
+Strategien; Kontextauswahl mit Top-k aus LP-10A, Budget mit Nachrücken,
+Budget 0, stabile Auswahl bei Gleichstand; Belegprüfung für belegt,
+veraltet, widersprüchlich, unbelegt, zerschnitten und erfundene Quelle;
+kein Verweis auf einen Chunk außerhalb des Kontexts; Evaluation mit `null`
+für nicht definierte Maße; keine Mutation der Eingaben.
+
+`tests/unit/rag-content.test.ts`: vier Lektionen, 13 Aufgaben (jede mit
+Musterlösung bestanden, mit falscher Antwort nicht), acht Konzepte über
+`chunking` und `halluzination` angebunden; die vier Szenarien des Labs treten
+mit den echten Daten ein; die in den Lektionen zitierten Scores, Einheiten
+und Kennzahlen stimmen mit der Lab-Rechnung überein; 20 Negativfälle für
+die Lab-Konfiguration, darunter ein Überlauf und ein Overlap ≥ Chunkgröße,
+die beide als Befund statt als Absturz zurückkommen; Dokumenttexte werden
+nie als HTML gesetzt oder ausgewertet.
+
+Zwei LP-10A-Tests prüften, dass das Embeddings-Modul das letzte Modul ist.
+Ihre Absicht — bestehende Module bleiben in ihrer Reihenfolge — prüfen sie
+jetzt über die feste Position direkt hinter den sechs älteren Modulen.
+
+### Integration
+
+`tests/integration/rag-pipeline-lab.test.ts`: Seed von Modul, Konzepten und
+Lab; Konfiguration übersteht die JSON-Spalte; LP-10A und alle älteren Labs
+bleiben abrufbar; Abschluss über die bestehende Server Action nur für das
+angemeldete Konto, ohne Nutzerkennung aus dem Ergebnis, nicht ohne Sitzung,
+nicht für einen unbekannten Slug; bestehende Abschlüsse unverändert;
+erneutes Seeden erhält Fortschritt.
+
+### Migration
+
+`20261108120000_rag_pipeline_lab` auf einer Datenbank im Stand des Parents
+f3e9f59 (mit LP-10A) eingespielt, nachdem dort acht Lab-Abschlüsse und zwei
+Lektionsfortschritte angelegt waren: Enum erweitert, alle bestehenden Zeilen
+zeilengenau identisch, zweites `migrate deploy` ohne Wirkung, `migrate diff`
+ohne Drift. Produktiv ist die Migration nicht angewendet.
+
+### End-to-End
+
+`e2e/stage10-rag.spec.ts` (4 Tests, seriell, **ein** Konto für alle):
+Modul und Lektionen, Aufgabenfeedback, 404 für einen unbekannten Lab-Slug;
+im Lab Chunking, Top-k, Kontextbudget, Quellbelege, alle vier Fehlerfälle,
+drei Entscheidungen, kein Schreib- oder Fremdaufruf vor dem Abschluss und
+gespeicherter Abschluss; Tastatur und Screenreader-Beschriftungen; 375 px in
+dunklem und hellem Schema; axe ohne serious/critical Befunde; keine
+Konsolenfehler außer der erwarteten Browsermeldung zur absichtlichen
+404-Antwort.
+
+Bis einschließlich LP-10B legt ein vollständiger E2E-Lauf 50 Konten an (vorher 49).
+Mit LP-11A kommt **ein** weiteres Konto hinzu: aktuell 51 Registrierungen je
+vollständigem seriellen E2E-Lauf. Die Grenze `registerPerIp` liegt bei
+60 pro Stunde und wird in der Datenbank gezählt. Wiederholte komplette
+Läufe in derselben Stunde können deshalb regulär gedrosselt werden.
+
+## LP-11A – integrierte Testabdeckung
+
+`tests/unit/tool-calling-vertrag.test.ts` prüft JSON-Syntax, Belegregel, strikte Felder, unerlaubte Tool-Namen, manipulierte Argumente und die statische Lab-Konfiguration. Ein zusätzlicher Inhalts-/Interaktionstest überprüft die neuen Lektionen und den Lab-Vertrag. Die Migration `20261109190000_tool_calling_lab` fügt dem Enum `LabKind` ausschließlich den neuen Wert `TOOL_CALLING` hinzu. Die CI-/E2E-Prüfungen für den integrierten LP-11A-Stand sind abgeschlossen; produktive Migrationen sind weiterhin nicht erfolgt.
+
+## LP-11B.1 – Qualität des Tool-Vertragslabs
+
+Die CI für den integrierten LP-11A-Stand auf PR #70 (`42730437226`) war erfolgreich;
+vor dem Merge wurden 871 Unit-, 140 Integrations- und 61 E2E-Tests bestanden.
+
+LP-11B.1 behebt Rückmeldungen zu richtig abgelehnten Eingaben: Die Farbe
+kennzeichnet die fachliche Richtigkeit der Lernentscheidung, nicht die Gültigkeit
+von JSON. Die Erklärung des redaktionellen Beispiels erscheint nur bei unverändertem
+JSON. Der Playwright-Test prüft jetzt auch die sichtbaren Ergebnisse mit axe bei
+375 px. Die Modulvoraussetzung `rag-wissen-mit-quellen` und die eindeutige
+Reihenfolge von `tc-tool-grenze` sind per Unit-Test geschützt. Ein dedizierter
+Integrationstest für die neue Lab-Art prüft den Seed, die Konfiguration und die
+Trennung von Lab-Abschlüssen nach Nutzer.
+
+Die Änderungen werden nur gegen synthetische CI-Datenbanken geprüft. Die
+produktive Anwendung von `20261109190000_tool_calling_lab` bleibt offen.
+
+## LP-11B.2 – JSON-Verträge und Lernqualität
+
+- Der JSON-Rohparser verweigert nun doppelte Objektschlüssel (auch in
+  verschachtelten Objekten und bei gleichwertigen Unicode-Escapes), bevor
+  JavaScript JSON.parse sonst den jeweils letzten Wert beibehält.
+  Gleiche Schlüssel in unterschiedlichen Objekten bleiben erlaubt.
+- Die serverseitige Projektion sendet die öffentlichen Lab-Beispiele ohne
+  das redaktionelle Gültigkeitskennzeichen erwartetGueltig an den Browser.
+  Das Erklärungstextfeld bleibt bewusst öffentlich, weil es als
+  Selbstkontroll-Feedback benötigt wird. Dies ersetzt keine serverseitige
+  Autorisierung oder Leistungsbewertung.
+- Unbekannte Werkzeugnamen erhalten neutrale Allowlist-Rückmeldungen.
+- Neun Aufgaben besitzen drei gestufte, fachlich individuelle Hilfen.
+  Lernziele, Fehlerbilder und Reflexionen sind für jede Lektion präzisiert.
+- Eine weitere Lab-Entscheidung zu einer synthetischen Tool-Rückgabe
+  behandelt eingebettete Handlungsaufforderungen als fremde Daten.
+- Der bestehende serielle Browser-Test nutzt weiterhin dasselbe Testkonto;
+  durch den zusätzlichen Lab-Schritt entsteht keine weitere Registrierung.
+
+Alle Änderungen sind ohne externe Modell- oder Werkzeugaufrufe konzipiert.
+Es wird keine neue Prisma-Migration benötigt. Vollständige CI-Nachweise
+gelten erst nach einem erfolgreichen Run auf dem finalen Feature-Tree.

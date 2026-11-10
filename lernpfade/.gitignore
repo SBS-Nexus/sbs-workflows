@@ -1,0 +1,6 @@
+# Build-Ausgaben von Next.js
+.next/
+next-env.d.ts
+*.tsbuildinfo
+test-results/
+playwright-report/

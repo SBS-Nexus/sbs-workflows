@@ -53,7 +53,7 @@ export default async function AbfrageSeite(): Promise<React.ReactElement> {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="min-w-0">
-          <AbfrageWerkbank datensatz={HANDWERK} startSql={START_SQL} erlaubteKlassen={['SELECT']} />
+          <AbfrageWerkbank datensatz={HANDWERK} startSql={START_SQL} />
         </div>
 
         <div className="min-w-0">

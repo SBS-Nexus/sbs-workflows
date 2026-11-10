@@ -1,6 +1,35 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Icon, type IconName } from '@/components/ui/icon';
+import {
+  FEEDBACK_CLASS,
+  calloutTitle,
+  feedbackBadge,
+  feedbackCallout,
+  feedbackLive,
+  type CalloutTone,
+  type CalloutToneInput,
+  type FeedbackToneInput,
+} from '@/lib/learning-feedback';
+import {
+  COMPONENT_CLASS,
+  buttonAttributes,
+  cardAttributes,
+  emptyAttributes,
+  errorAttributes,
+  errorReference,
+  errorTitle,
+  progressAttributes,
+  progressFillWidth,
+  progressValue,
+  type ButtonSize,
+  type ButtonVariantInput,
+  type CardEmphasis,
+  type EmptyKind,
+  type EmptySize,
+  type ErrorKind,
+  type ProgressToneInput,
+} from '@/lib/learning-components';
 
 /**
  * Kleine, zugängliche Bausteine – kein separates Komponentenpaket, siehe
@@ -16,28 +45,16 @@ export function cx(...values: Array<string | false | null | undefined>): string 
 // Button
 // ---------------------------------------------------------------------------
 
-const BUTTON_BASE =
-  'inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] font-mono font-semibold ' +
-  'tracking-tight transition-colors duration-[var(--duration-fast)] ' +
-  'disabled:cursor-not-allowed disabled:opacity-50';
-
-const BUTTON_SIZES = {
-  sm: 'min-h-8 px-3 text-xs',
-  md: 'min-h-11 px-4 text-sm',
-  lg: 'min-h-13 px-6 text-base',
-} as const;
-
-export type ButtonSize = keyof typeof BUTTON_SIZES;
-
-const BUTTON_VARIANTS = {
-  primary: 'bg-signal-500 text-ink-50 hover:bg-signal-600',
-  secondary:
-    'border border-[var(--border-strong)] bg-[var(--bg-raised)] text-[var(--fg)] hover:bg-ink-100 dark:hover:bg-ink-800',
-  ghost: 'text-signal-500 hover:bg-signal-100 dark:hover:bg-signal-900/40',
-  danger: 'bg-alert-500 text-ink-50 hover:bg-alert-700',
-} as const;
-
-export type ButtonVariant = keyof typeof BUTTON_VARIANTS;
+/*
+ * Knöpfe (LP-03C): Aussehen, Größen und die taktile Unterkante kommen aus dem
+ * gemeinsamen Komponentenvertrag (`@/lib/learning-components`, Darstellung in
+ * `learning-components.css`) — gleich in allen Lernpfaden, Pfad-Akzent
+ * (Bernstein) über `data-lp-app` am Wurzelelement, Beschriftung in der
+ * Produktschrift (Sans) wie bei Callouts. Monospace bleibt Fachinhalten
+ * vorbehalten (`docs/LEARNING-DESIGN-SYSTEM.md` §6).
+ */
+export type ButtonVariant = ButtonVariantInput;
+export type { ButtonSize };
 
 export function Button({
   variant = 'primary',
@@ -48,11 +65,15 @@ export function Button({
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  ref?: React.Ref<HTMLButtonElement>;
 }): ReactNode {
+  const ui = buttonAttributes(variant, size);
   return (
     <button
       {...props}
-      className={cx(BUTTON_BASE, BUTTON_SIZES[size], BUTTON_VARIANTS[variant], className)}
+      className={cx(ui.className, className)}
+      data-lp-variant={ui['data-lp-variant']}
+      data-lp-size={ui['data-lp-size']}
     >
       {children}
     </button>
@@ -70,11 +91,14 @@ export function ButtonLink({
   variant?: ButtonVariant;
   size?: ButtonSize;
 }): ReactNode {
+  const ui = buttonAttributes(variant, size);
   return (
     <Link
       {...props}
       href={href}
-      className={cx(BUTTON_BASE, BUTTON_SIZES[size], BUTTON_VARIANTS[variant], className)}
+      className={cx(ui.className, className)}
+      data-lp-variant={ui['data-lp-variant']}
+      data-lp-size={ui['data-lp-size']}
     >
       {children}
     </Link>
@@ -85,31 +109,61 @@ export function ButtonLink({
 // Card
 // ---------------------------------------------------------------------------
 
+/*
+ * Karten (LP-03C): Eine Karte ist entweder Information (`Card`) oder als
+ * Ganzes ein Ziel (`CardLink`) — nie beides. Eine klickbare Karte trägt die
+ * taktile Unterkante wie ein Knopf und enthält keine weiteren Bedienelemente.
+ */
 export function Card({
   as: Component = 'div',
+  emphasis = 'none',
   className,
   id,
   children,
   ...aria
 }: {
   as?: 'div' | 'section' | 'article' | 'li';
+  /** Hervorhebung des Randes; die Bedeutung muss zusätzlich im Text stehen. */
+  emphasis?: CardEmphasis;
   className?: string;
   id?: string;
   children: ReactNode;
   'aria-labelledby'?: string;
   'aria-label'?: string;
 }): ReactNode {
+  const ui = cardAttributes('static', emphasis);
   return (
     <Component
       {...aria}
       id={id}
-      className={cx(
-        'rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-raised)] p-5 sm:p-6',
-        className,
-      )}
+      className={cx(ui.className, className)}
+      data-lp-card={ui['data-lp-card']}
+      data-lp-emphasis={ui['data-lp-emphasis']}
     >
       {children}
     </Component>
+  );
+}
+
+/** Eine Karte, die als Ganzes ein Link ist. Enthält keine weiteren Bedienelemente. */
+export function CardLink({
+  emphasis = 'none',
+  className,
+  href,
+  children,
+  ...props
+}: React.ComponentProps<typeof Link> & { emphasis?: CardEmphasis }): ReactNode {
+  const ui = cardAttributes('interactive', emphasis);
+  return (
+    <Link
+      {...props}
+      href={href}
+      className={cx(ui.className, className)}
+      data-lp-card={ui['data-lp-card']}
+      data-lp-emphasis={ui['data-lp-emphasis']}
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -117,34 +171,23 @@ export function Card({
 // Callout
 // ---------------------------------------------------------------------------
 
-const TONE_STYLES = {
-  info: {
-    container: 'border-wire-500 bg-wire-100 dark:bg-wire-900/40',
-    icon: 'info' as IconName,
-    label: 'Hinweis',
-    iconColor: 'text-wire-600 dark:text-wire-300',
-  },
-  success: {
-    container: 'border-success-500 bg-success-100 dark:bg-success-900/40',
-    icon: 'check' as IconName,
-    label: 'Erfolg',
-    iconColor: 'text-success-700 dark:text-success-100',
-  },
-  caution: {
-    container: 'border-caution-500 bg-caution-100 dark:bg-caution-900/40',
-    icon: 'warning' as IconName,
-    label: 'Achtung',
-    iconColor: 'text-caution-700 dark:text-caution-100',
-  },
-  alert: {
-    container: 'border-alert-500 bg-alert-100 dark:bg-alert-900/40',
-    icon: 'error' as IconName,
-    label: 'Gefährlich',
-    iconColor: 'text-alert-700 dark:text-alert-100',
-  },
-} as const;
+/** Ältere Tonnamen; Badge und Callout lösen sie über den Statusvertrag auf. */
+export type Tone = 'info' | 'success' | 'caution' | 'alert';
 
-export type Tone = keyof typeof TONE_STYLES;
+/*
+ * Rückmeldung und Status (LP-03B): Darstellung und Bedeutung kommen aus dem
+ * gemeinsamen Statusvertrag (`@/lib/learning-feedback`, Klassen in
+ * `learning-feedback.css`) — gleich in allen Lernpfaden, Titel in der
+ * Produktschrift (Sans). Fachinhalte im Text (Befehle, Code) behalten ihre
+ * eigene Auszeichnung. App-eigen bleibt nur das Symbol.
+ */
+const CALLOUT_ICON: Record<CalloutTone, IconName> = {
+  neutral: 'info',
+  info: 'info',
+  success: 'check',
+  warning: 'warning',
+  danger: 'error',
+};
 
 export function Callout({
   tone = 'info',
@@ -153,27 +196,31 @@ export function Callout({
   live = false,
   className,
 }: {
-  tone?: Tone;
+  tone?: CalloutToneInput;
   title?: string;
   children: ReactNode;
   live?: boolean;
   className?: string;
 }): ReactNode {
-  const style = TONE_STYLES[tone];
+  const feedback = feedbackCallout(tone);
+  const heading = calloutTitle(tone, title);
   return (
     <div
-      className={cx(
-        'rounded-[var(--radius-md)] border-l-4 border px-4 py-3 text-sm',
-        style.container,
-        className,
-      )}
-      {...(live ? { role: 'status', 'aria-live': 'polite' } : {})}
+      className={cx(feedback.className, className)}
+      data-lp-tone={feedback['data-lp-tone']}
+      {...feedbackLive(live)}
     >
-      <p className={cx('flex items-start gap-2 font-mono font-semibold', style.iconColor)}>
-        <Icon name={style.icon} size={18} className="mt-0.5 shrink-0" />
-        <span>{title ?? style.label}</span>
-      </p>
-      <div className="mt-1 pl-[1.625rem] text-[var(--fg)]">{children}</div>
+      {heading ? (
+        <p className={FEEDBACK_CLASS.title}>
+          <Icon
+            name={CALLOUT_ICON[feedback['data-lp-tone'] as CalloutTone]}
+            size={18}
+            className={FEEDBACK_CLASS.icon}
+          />
+          <span>{heading}</span>
+        </p>
+      ) : null}
+      <div className={FEEDBACK_CLASS.body}>{children}</div>
     </div>
   );
 }
@@ -186,25 +233,12 @@ export function Badge({
   tone = 'info',
   children,
 }: {
-  tone?: Tone | 'neutral';
+  tone?: FeedbackToneInput;
   children: ReactNode;
 }): ReactNode {
-  const styles: Record<string, string> = {
-    neutral:
-      'bg-ink-100 text-ink-600 border-ink-300 dark:bg-ink-800 dark:text-ink-300 dark:border-ink-600',
-    info: 'bg-wire-100 text-wire-600 border-wire-500 dark:bg-wire-900/40 dark:text-wire-300',
-    success: 'bg-success-100 text-success-700 border-success-500',
-    caution: 'bg-caution-100 text-caution-700 border-caution-500',
-    alert: 'bg-alert-100 text-alert-700 border-alert-500',
-  };
-
+  const feedback = feedbackBadge(tone);
   return (
-    <span
-      className={cx(
-        'inline-flex items-center rounded-full border px-2.5 py-0.5 font-mono text-xs font-medium',
-        styles[tone],
-      )}
-    >
+    <span className={cx('inline-flex', feedback.className)} data-lp-tone={feedback['data-lp-tone']}>
       {children}
     </span>
   );
@@ -214,36 +248,31 @@ export function Badge({
 // ProgressBar
 // ---------------------------------------------------------------------------
 
+/**
+ * Fortschrittsanzeige (LP-03C): Wert, Grenzen und sprechbarer Wert („3 von
+ * 10") aus dem gemeinsamen Vertrag; ungültige Daten ergeben einen leeren
+ * Balken, nie einen vollen. Die sichtbare Zahl steht an der Aufrufstelle.
+ */
 export function ProgressBar({
   value,
   max = 100,
   label,
-  tone = 'signal',
+  tone = 'accent',
+  valueText,
 }: {
   value: number;
   max?: number;
   label: string;
-  tone?: 'signal' | 'success' | 'caution';
+  tone?: ProgressToneInput;
+  /** Eigener sprechbarer Wert, falls „x von y" nicht passt. */
+  valueText?: string;
 }): ReactNode {
-  const percent = max === 0 ? 0 : Math.round((Math.min(value, max) / max) * 100);
-  const colors = {
-    signal: 'var(--color-signal-500)',
-    success: 'var(--color-success-500)',
-    caution: 'var(--color-caution-500)',
-  } as const;
-
+  const progress = progressValue(value, max);
   return (
-    <div
-      role="progressbar"
-      aria-valuenow={value}
-      aria-valuemin={0}
-      aria-valuemax={max}
-      aria-label={label}
-      className="h-2 w-full overflow-hidden rounded-full bg-ink-100 dark:bg-ink-800"
-    >
+    <div {...progressAttributes(progress, tone, valueText)} aria-label={label}>
       <div
-        className="h-full rounded-full transition-[width] duration-300"
-        style={{ width: `${percent}%`, backgroundColor: colors[tone] }}
+        className={COMPONENT_CLASS.progressFill}
+        style={{ width: progressFillWidth(progress) }}
       />
     </div>
   );
@@ -348,26 +377,95 @@ export function CodeBlock({
 // EmptyState
 // ---------------------------------------------------------------------------
 
+/**
+ * Leerer Zustand (LP-03C): `start` („hier ist noch nichts"), `done` („gerade
+ * ist nichts zu tun — alles erledigt") oder `filtered` („die Auswahl trifft
+ * nichts"). Je Aussage ein eigenes Symbol.
+ */
+const EMPTY_ICON: Record<EmptyKind, IconName> = {
+  start: 'lightbulb',
+  done: 'check',
+  filtered: 'search',
+};
+
 export function EmptyState({
+  kind = 'start',
+  size = 'regular',
   title,
   description,
   action,
 }: {
+  kind?: EmptyKind;
+  /** `compact` für einen Hinweis innerhalb eines Panels. */
+  size?: EmptySize;
   title: string;
   description: string;
   action?: ReactNode;
 }): ReactNode {
+  const ui = emptyAttributes(kind, size);
   return (
-    <div className="rounded-[var(--radius-lg)] border-2 border-dashed border-[var(--border-strong)] px-6 py-10 text-center">
-      <span
-        aria-hidden="true"
-        className="mx-auto mb-5 flex size-14 items-center justify-center rounded-[var(--radius-md)] bg-signal-100 text-signal-600 dark:bg-signal-900/40 dark:text-signal-300"
-      >
-        <Icon name="lightbulb" size={28} />
+    <div
+      className={ui.className}
+      data-lp-empty={ui['data-lp-empty']}
+      data-lp-size={ui['data-lp-size']}
+    >
+      <span aria-hidden="true" className={COMPONENT_CLASS.emptyArt}>
+        <Icon name={EMPTY_ICON[kind]} size={size === 'compact' ? 20 : 30} />
       </span>
-      <p className="font-mono text-lg font-bold tracking-tight">{title}</p>
-      <p className="mx-auto mt-2 max-w-prose text-[var(--fg-muted)]">{description}</p>
-      {action ? <div className="mt-6 flex justify-center">{action}</div> : null}
+      <div className={COMPONENT_CLASS.emptyBody}>
+        <p className={COMPONENT_CLASS.emptyTitle}>{title}</p>
+        <p className={COMPONENT_CLASS.emptyText}>{description}</p>
+        {action ? <div className={COMPONENT_CLASS.emptyActions}>{action}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ErrorState
+// ---------------------------------------------------------------------------
+
+/**
+ * Seitenweiter Fehlerzustand (LP-03C): abgestürzte Seite, unbekannte Adresse,
+ * nicht erreichbarer Dienst. Verrät keine technischen Details — eine Kennung
+ * für die Fehlersuche erscheint nur, wenn sie wie eine Kennung aussieht.
+ */
+const ERROR_ICON: Record<ErrorKind, IconName> = {
+  unexpected: 'error',
+  'not-found': 'search',
+  unavailable: 'warning',
+};
+
+export function ErrorState({
+  kind,
+  title,
+  children,
+  reference,
+  actions,
+}: {
+  kind: ErrorKind;
+  /** Fachlicher Titel; ohne Angabe der allgemeine des Vertrags. */
+  title?: string;
+  children: ReactNode;
+  /** Etwa `error.digest` aus Next.js. */
+  reference?: unknown;
+  actions?: ReactNode;
+}): ReactNode {
+  const ui = errorAttributes(kind);
+  const kennung = errorReference(reference);
+  return (
+    <div className={ui.className} data-lp-error={ui['data-lp-error']}>
+      <span aria-hidden="true" className={COMPONENT_CLASS.errorArt}>
+        <Icon name={ERROR_ICON[kind]} size={28} />
+      </span>
+      <h1 className={COMPONENT_CLASS.errorTitle}>{errorTitle(kind, title)}</h1>
+      <div className={COMPONENT_CLASS.errorText}>{children}</div>
+      {kennung ? (
+        <p className={COMPONENT_CLASS.errorReference}>
+          Kennung für die Fehlersuche: <code className="font-mono">{kennung}</code>
+        </p>
+      ) : null}
+      {actions ? <div className={COMPONENT_CLASS.errorActions}>{actions}</div> : null}
     </div>
   );
 }
