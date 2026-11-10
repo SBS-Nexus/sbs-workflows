@@ -453,9 +453,9 @@ vollständigem seriellen E2E-Lauf. Die Grenze `registerPerIp` liegt bei
 60 pro Stunde und wird in der Datenbank gezählt. Wiederholte komplette
 Läufe in derselben Stunde können deshalb regulär gedrosselt werden.
 
-## LP-11A – neue Testabdeckung (im Draft zu verifizieren)
+## LP-11A – integrierte Testabdeckung
 
-`tests/unit/tool-calling-vertrag.test.ts` prüft JSON-Syntax, Belegregel, strikte Felder, unerlaubte Tool-Namen, manipulierte Argumente und die statische Lab-Konfiguration. Ein zusätzlicher Inhalts-/Interaktionstest überprüft die neuen Lektionen und den Lab-Vertrag. Die Migration `20261109190000_tool_calling_lab` fügt dem Enum `LabKind` ausschließlich den neuen Wert `TOOL_CALLING` hinzu. Erfolgreiche CI- und E2E-Nachweise dürfen erst nach tatsächlichem Workflow-Ergebnis ergänzt werden; produktive Migrationen sind ausdrücklich nicht Teil dieser Änderung.
+`tests/unit/tool-calling-vertrag.test.ts` prüft JSON-Syntax, Belegregel, strikte Felder, unerlaubte Tool-Namen, manipulierte Argumente und die statische Lab-Konfiguration. Ein zusätzlicher Inhalts-/Interaktionstest überprüft die neuen Lektionen und den Lab-Vertrag. Die Migration `20261109190000_tool_calling_lab` fügt dem Enum `LabKind` ausschließlich den neuen Wert `TOOL_CALLING` hinzu. Die CI-/E2E-Prüfungen für den integrierten LP-11A-Stand sind abgeschlossen; produktive Migrationen sind weiterhin nicht erfolgt.
 
 ## LP-11B.1 – Qualität des Tool-Vertragslabs
 
@@ -473,3 +473,27 @@ Trennung von Lab-Abschlüssen nach Nutzer.
 
 Die Änderungen werden nur gegen synthetische CI-Datenbanken geprüft. Die
 produktive Anwendung von `20261109190000_tool_calling_lab` bleibt offen.
+
+
+## LP-11B.2 – JSON-Verträge und Lernqualität
+
+- Der JSON-Rohparser verweigert nun doppelte Objektschlüssel (auch in
+  verschachtelten Objekten und bei gleichwertigen Unicode-Escapes), bevor
+  JavaScript JSON.parse sonst den jeweils letzten Wert beibehält.
+  Gleiche Schlüssel in unterschiedlichen Objekten bleiben erlaubt.
+- Die serverseitige Projektion sendet die öffentlichen Lab-Beispiele ohne
+  das redaktionelle Gültigkeitskennzeichen erwartetGueltig an den Browser.
+  Das Erklärungstextfeld bleibt bewusst öffentlich, weil es als
+  Selbstkontroll-Feedback benötigt wird. Dies ersetzt keine serverseitige
+  Autorisierung oder Leistungsbewertung.
+- Unbekannte Werkzeugnamen erhalten neutrale Allowlist-Rückmeldungen.
+- Neun Aufgaben besitzen drei gestufte, fachlich individuelle Hilfen.
+  Lernziele, Fehlerbilder und Reflexionen sind für jede Lektion präzisiert.
+- Eine weitere Lab-Entscheidung zu einer synthetischen Tool-Rückgabe
+  behandelt eingebettete Handlungsaufforderungen als fremde Daten.
+- Der bestehende serielle Browser-Test nutzt weiterhin dasselbe Testkonto;
+  durch den zusätzlichen Lab-Schritt entsteht keine weitere Registrierung.
+
+Alle Änderungen sind ohne externe Modell- oder Werkzeugaufrufe konzipiert.
+Es wird keine neue Prisma-Migration benötigt. Vollständige CI-Nachweise
+gelten erst nach einem erfolgreichen Run auf dem finalen Feature-Tree.

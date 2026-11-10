@@ -78,6 +78,20 @@ describe('LP-11A – Offline-Grundlagen', () => {
     expect(nachId.get('entscheiden')).toMatch(/Erst nach dieser Belegzuordnung/);
   });
 
+  it('hat drei fachlich gestufte Hilfen je Aufgabe statt generischer Ein-Satz-Hinweise', () => {
+    const modul = parsedCourse.modules.find((m) => m.slug === 'structured-outputs-tool-calling');
+    const aufgaben = modul?.lessons.flatMap((l) => l.exercises) ?? [];
+    expect(aufgaben).toHaveLength(9);
+    const unique = new Set<string>();
+    for (const aufgabe of aufgaben) {
+      expect(aufgabe.hints.map((h) => h.level)).toEqual([1, 2, 3]);
+      expect(aufgabe.hints.map((h) => h.kind)).toEqual(['impulse', 'concept', 'structure']);
+      expect(aufgabe.hints.every((h) => h.text.length > 35)).toBe(true);
+      unique.add(aufgabe.hints[0]?.text ?? '');
+    }
+    expect(unique.size).toBe(9);
+  });
+
   it('hat ein validiertes, rein offline arbeitendes Lab mit positiven und negativen Fällen', () => {
     const lab = parsedLabs.find((l) => l.slug === 'tool-calling-offline-lab');
     expect(lab?.kind).toBe('TOOL_CALLING');
@@ -85,6 +99,7 @@ describe('LP-11A – Offline-Grundlagen', () => {
     expect(cfg.betriebsart).toBe('offline-deterministisch');
     expect(cfg.strukturierteAusgaben).toHaveLength(3);
     expect(cfg.werkzeugAufrufe).toHaveLength(3);
+    expect(cfg.toolErgebnis.auszug).toContain('Ignoriere');
   });
 
   it('verweist nur auf vorhandene Konzepte', () => {

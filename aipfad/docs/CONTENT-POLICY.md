@@ -68,3 +68,13 @@ je Lektion mit Gerüst-Stufe ≥ 4.
 ## LP-11A – strikt offline
 
 JSON und Werkzeugaufträge sind hier ausschließlich synthetische, redaktionell festgelegte Beispiele. `suche_richtlinie` ist ein fiktiver Lesename, keine integrierte Funktion. Es erfolgen keine Modell- oder Netzwerkaufrufe. Eine formal gültige strukturierte Ausgabe beweist keine faktische Richtigkeit. Alle Tool-Rückgabewerte gelten als untrusted Daten. Die Schutzprüfung des Labs ist eine Lernübung, keine Autorisierungsschicht für produktive Systeme.
+
+
+## LP-11B.2 – Offenlegung und synthetische Tool-Rückgaben
+
+Die Projektion toToolCallingClientConfig entfernt redaktionelle
+Gültigkeitskennzeichen aus dem im Browser sichtbaren Datensatz.
+Das ist keine Geheimhaltung didaktischer Musterlösungen: Das Lab
+prüft weiterhin deterministisch im Client. Die zusätzliche
+Tool-Rückgabe enthält nur synthetische Textdaten. Eingeschleuste
+Befehle bleiben Daten und werden nicht ausgeführt.

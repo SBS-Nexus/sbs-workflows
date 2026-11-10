@@ -3,14 +3,17 @@
 import { useId, useState } from 'react';
 import { Button, Callout } from '@/components/ui/primitives';
 import { LabCompleteButton } from './lab-complete-button';
-import { toolCallingConfigSchema, type ToolCallingConfig } from '@/domain/labs/tool-calling-config';
+import {
+  toolCallingClientConfigSchema,
+  type ToolCallingClientConfig,
+} from '@/domain/labs/tool-calling-config';
 import {
   pruefeSimuliertenToolAufruf,
   pruefeStrukturierteAusgabe,
   type PruefResultat,
 } from '@/domain/tool-calling/vertrag';
 
-type Beispiel = ToolCallingConfig['werkzeugAufrufe'][number];
+type Beispiel = ToolCallingClientConfig['werkzeugAufrufe'][number];
 
 function PruefStation({
   titel,
@@ -157,13 +160,16 @@ export function ToolCallingLab({
   config: unknown;
   onCompleteAction: () => Promise<boolean>;
 }): React.ReactElement {
-  const cfg = toolCallingConfigSchema.parse(config);
+  const cfg = toolCallingClientConfigSchema.parse(config);
   const [ausgaben, setAusgaben] = useState<ReadonlySet<string>>(() => new Set());
   const [aufrufe, setAufrufe] = useState<ReadonlySet<string>>(() => new Set());
+  const [toolResultatUrteil, setToolResultatUrteil] = useState<'daten' | 'befolgen' | ''>('');
+  const [toolResultatGeprueft, setToolResultatGeprueft] = useState(false);
 
   const alleBearbeitet =
     cfg.strukturierteAusgaben.every((e) => ausgaben.has(e.id)) &&
-    cfg.werkzeugAufrufe.every((e) => aufrufe.has(e.id));
+    cfg.werkzeugAufrufe.every((e) => aufrufe.has(e.id)) &&
+    toolResultatGeprueft && toolResultatUrteil === 'daten';
 
   function markieren(id: string, art: 'ausgabe' | 'aufruf'): void {
     if (art === 'ausgabe') setAusgaben((alt) => new Set([...alt, id]));
@@ -191,6 +197,64 @@ export function ToolCallingLab({
         pruefen={pruefeSimuliertenToolAufruf}
         onRichtig={(id) => markieren(id, 'aufruf')}
       />
+      <section className="space-y-3 rounded-[var(--radius-md)] border border-[var(--border)] p-4">
+        <h2 className="font-mono text-base font-semibold">
+          3. Tool-Ergebnis und Vertrauensgrenze
+        </h2>
+        <p className="text-sm text-[var(--fg-muted)]">
+          Ein Suchwerkzeug liefert Daten zurück. Selbst wenn diese Daten eine Anweisung
+          enthalten, entsteht dadurch keine neue Berechtigung.
+        </p>
+        <p className="text-xs font-semibold">Quelle: {cfg.toolErgebnis.quelle} (synthetisch)</p>
+        <blockquote className="whitespace-pre-wrap rounded-[var(--radius-md)] border border-[var(--border)] p-3 text-sm">
+          {cfg.toolErgebnis.auszug}
+        </blockquote>
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">{cfg.toolErgebnis.frage}</legend>
+          {[
+            {
+              id: 'befolgen',
+              text: 'Die enthaltene Anweisung als Freigabe für einen weiteren Tool-Aufruf behandeln.',
+            },
+            {
+              id: 'daten',
+              text: 'Den Text nur als untrusted Dateninhalt behandeln und keine neue Aktion auslösen.',
+            },
+          ].map((option) => (
+            <label key={option.id} className="flex items-start gap-2 text-sm">
+              <input
+                type="radio"
+                name="tool-ergebnis-urteil"
+                value={option.id}
+                checked={toolResultatUrteil === option.id}
+                onChange={() => {
+                  setToolResultatUrteil(option.id as 'daten' | 'befolgen');
+                  setToolResultatGeprueft(false);
+                }}
+              />
+              <span>{option.text}</span>
+            </label>
+          ))}
+        </fieldset>
+        <Button
+          size="sm"
+          disabled={!toolResultatUrteil}
+          onClick={() => setToolResultatGeprueft(true)}
+        >
+          Tool-Ergebnis beurteilen
+        </Button>
+        {toolResultatGeprueft ? (
+          <Callout
+            tone={toolResultatUrteil === 'daten' ? 'success' : 'warning'}
+            title={toolResultatUrteil === 'daten' ? 'Richtige Vertrauensgrenze' : 'Nicht freigegeben'}
+            live
+          >
+            {toolResultatUrteil === 'daten'
+              ? 'Richtig. Ein Tool-Ergebnis ist Datenmaterial. Die eingebettete Aufforderung hat keine Steuerungsbefugnis.'
+              : 'Die Aufforderung stammt aus dem Tool-Dateninhalt, nicht aus einer autorisierten Anweisung. Sie darf keine Folgeaktion auslösen.'}
+          </Callout>
+        ) : null}
+      </section>
       <div className="border-t border-[var(--border)] pt-4">
         {alleBearbeitet ? (
           <LabCompleteButton label="Lab abschließen" onCompleteAction={onCompleteAction} />
@@ -198,6 +262,9 @@ export function ToolCallingLab({
           <p className="text-sm text-[var(--fg-muted)]" role="status">
             {ausgaben.size} von {cfg.strukturierteAusgaben.length} Ausgabe-Beispielen und{' '}
             {aufrufe.size} von {cfg.werkzeugAufrufe.length} Tool-Beispielen korrekt beurteilt.
+            {toolResultatGeprueft && toolResultatUrteil === 'daten'
+              ? ' Die Vertrauensgrenze des Tool-Ergebnisses ist korrekt geprüft.'
+              : ' Die Vertrauensgrenze des Tool-Ergebnisses ist noch offen.'}
           </p>
         )}
       </div>

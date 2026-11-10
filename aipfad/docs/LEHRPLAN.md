@@ -192,3 +192,20 @@ Dokumenttexten (Prompt Injection) gehören nicht zu diesem Lernmodul.
 **Stand:** LP-11A ist im Integrationsbranch umgesetzt; die drei Lektionen und das Offline-Lab haben den redaktionellen Status `PUBLISHED`. Das bedeutet **nicht**, dass der Integrationsbranch produktiv ausgerollt oder die Enum-Migration in einer Produktionsdatenbank angewendet wurde. Die Stufen 6 (HTTP & APIs) und 7 (AI-APIs) sind weiterhin offen. Dieses Modul ist daher nur die Offline-Grundlage von Stufe 8, keine vollständige Anbieter-/SDK-Integration.
 
 Das Modul enthält drei einführende Lektionen zu JSON-Ausgabeverträgen, Tool-Aufruf-Vorschlägen sowie der Vertrauensgrenze von Tool-Ergebnissen. Das interaktive Vertragslabor validiert Beispiel-JSON und erlaubte, ausschließlich lesende Werkzeugaufrufe; es führt **keine** echte Funktion aus. Es nutzt die bestehende Lab-Persistenz und ein zusätzliches Prisma-Enum `TOOL_CALLING`, dessen additive Migration vor einer späteren produktiven Bereitstellung notwendig wäre. Alle Ergebnisse sind deterministisch. Die reguläre Behandlung von Authentifizierung, Berechtigung, Fehlern und Kosten einer realen Provider-Integration bleibt für die Stufen 6/7 und einen späteren praktischen Stufe-8-Slice offen.
+
+
+## LP-11B.2 – Nacharbeit am Offline-Vertragslabor
+
+Die zusätzliche Offline-Lab-Station behandelt eine manipulierte
+Tool-Rückgabe mit eingeschleuster Aufforderung. Die Lernenden entscheiden,
+ob der Fundtext nur als untrusted Dateninhalt zu behandeln ist.
+Eine KI- oder Werkzeugausführung findet nicht statt.
+
+Doppelte JSON-Objektschlüssel werden in dieser didaktischen Variante
+nicht still überschrieben, sondern abgelehnt. Die Redaktion behält
+die Gültigkeitskennzeichen für Seed und Inhaltstest, der Browser
+erhält jedoch nur die Projektionsfassung ohne erwartetGueltig.
+Die erklärenden Beispieltexte sind bewusst öffentlich, nicht geheim.
+
+Die vollständige Stufe 8 mit echten Provider-APIs bleibt bis nach den
+offenen HTTP-/AI-API-Grundlagen außerhalb des Scopes.

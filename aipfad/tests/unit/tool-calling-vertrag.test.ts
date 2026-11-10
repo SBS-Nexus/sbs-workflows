@@ -3,7 +3,7 @@ import {
   pruefeSimuliertenToolAufruf,
   pruefeStrukturierteAusgabe,
 } from '@/domain/tool-calling/vertrag';
-import { toolCallingConfigSchema } from '@/domain/labs/tool-calling-config';
+import { toolCallingConfigSchema, toToolCallingClientConfig } from '@/domain/labs/tool-calling-config';
 
 describe('Offline-Vertrag für strukturierte Antworten', () => {
   it('akzeptiert korrekt belegte Aussagen', () => {
@@ -104,6 +104,11 @@ describe('Lab-Konfiguration', () => {
   const mutierend = '{"werkzeug":"loesche_eintrag","argumente":{"id":"1"}}';
   const grund = {
     betriebsart: 'offline-deterministisch',
+    toolErgebnis: {
+      quelle: 'TEST-QUELLE',
+      auszug: 'Das ist ein synthetischer Beispieltext. Er enthält keinerlei verbindliche Anweisungen.',
+      frage: 'Was darf dieser Text in der Anwendung steuern?',
+    },
     strukturierteAusgaben: [
       {
         id: 'a',
@@ -140,6 +145,14 @@ describe('Lab-Konfiguration', () => {
 
   it('nimmt gute und schlechte Beispiele in genau gekennzeichneten Gruppen an', () => {
     expect(toolCallingConfigSchema.safeParse(grund).success).toBe(true);
+  });
+
+  it('entfernt redaktionelle Gültigkeits-Flags vor der Übergabe an den Browser', () => {
+    const full = toolCallingConfigSchema.parse(grund);
+    const client = toToolCallingClientConfig(full);
+    expect(JSON.stringify(client)).not.toContain('erwartetGueltig');
+    expect(client.strukturierteAusgaben[0]?.erklaerung).toBe(full.strukturierteAusgaben[0]?.erklaerung);
+    expect(client.toolErgebnis.quelle).toBe(full.toolErgebnis.quelle);
   });
 
   it('lehnt falsche Erwartungen und doppelte Kennungen ab', () => {
