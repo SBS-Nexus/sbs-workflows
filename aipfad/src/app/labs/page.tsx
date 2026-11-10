@@ -14,6 +14,7 @@ const KIND_LABELS: Record<string, string> = {
   PROMPT_REPAIR: 'Prompt-Reparatur',
   SEMANTIC_RETRIEVAL: 'Semantische Suche',
   RAG_PIPELINE: 'RAG-Pipeline',
+  TOOL_CALLING: 'Tool-Calling (offline)',
 };
 
 export default async function LabsPage(): Promise<React.ReactElement> {

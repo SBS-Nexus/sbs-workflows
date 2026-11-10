@@ -748,4 +748,73 @@ export const labs: LabDraft[] = [
       'rag-fehlerbilder',
     ],
   },
+  {
+    slug: 'tool-calling-offline-lab',
+    kind: 'TOOL_CALLING',
+    title: 'JSON & Tool-Calling – Vertragslabor',
+    summary:
+      'Prüfe strukturierte Antworten und simulierte Tool-Aufrufe mit strikten Verträgen und ohne externe Ausführung.',
+    instructions:
+      'Beurteile für jedes Beispiel, ob ein strikter JSON- oder Werkzeugvertrag es akzeptiert. Teste auch veränderte JSON-Eingaben. Erst nach allen fachlich korrekten Entscheidungen kannst du den Abschluss speichern. Es werden weder KI-Anbieter noch echte Tools aufgerufen.',
+    config: {
+      betriebsart: 'offline-deterministisch',
+      strukturierteAusgaben: [
+        {
+          id: 'antwort-mit-beleg',
+          titel: 'Antwort mit belegter Quelle',
+          erklaerung:
+            'Felder und Beleg-ID erfüllen den Offline-Vertrag; das beweist noch nicht die Wahrheit des Inhalts.',
+          json: '{"antwort":"Die Regel steht im Handbuch.","status":"belegt","belegId":"urlaub"}',
+          erwartetGueltig: true,
+        },
+        {
+          id: 'beleg-fehlt',
+          titel: 'Behauptung ohne Beleg-ID',
+          erklaerung: 'Das Feld belegId ist bei status belegt zwingend erforderlich.',
+          json: '{"antwort":"Die Regel steht im Handbuch.","status":"belegt","belegId":null}',
+          erwartetGueltig: false,
+        },
+        {
+          id: 'zusatzfeld',
+          titel: 'Unerlaubtes Zusatzfeld',
+          erklaerung: 'Ein strikter Vertrag akzeptiert keine unbestellten Ausgabefelder.',
+          json: '{"antwort":"Keine Quelle gefunden.","status":"nicht-belegt","belegId":null,"admin":true}',
+          erwartetGueltig: false,
+        },
+      ],
+      werkzeugAufrufe: [
+        {
+          id: 'lesen-erlaubt',
+          titel: 'Richtlinie lesend suchen',
+          erklaerung:
+            'Der vorgeschlagene Leseaufruf erfüllt Name und Argumentvertrag; das Lab führt ihn nicht aus.',
+          json: '{"werkzeug":"suche_richtlinie","argumente":{"suchbegriff":"urlaub"}}',
+          erwartetGueltig: true,
+        },
+        {
+          id: 'schreiben-verboten',
+          titel: 'Nicht erlaubte Schreibaktion',
+          erklaerung: 'Das Werkzeug steht nicht in der Allowlist und wird nicht ausgeführt.',
+          json: '{"werkzeug":"loesche_eintrag","argumente":{"id":"konto-2"}}',
+          erwartetGueltig: false,
+        },
+        {
+          id: 'argumente-fremd',
+          titel: 'Fremde Kontrollparameter',
+          erklaerung:
+            'Der Lesekontrakt erlaubt ausschließlich den Suchbegriff, nicht eine userId oder fremde Sandbox.',
+          json: '{"werkzeug":"suche_richtlinie","argumente":{"suchbegriff":"urlaub","userId":"fremdes-konto"}}',
+          erwartetGueltig: false,
+        },
+      ],
+    },
+    estimatedMinutes: 15,
+    relatedConceptSlugs: [
+      'json-vertrag',
+      'schema-validierung',
+      'tool-aufruf',
+      'tool-berechtigung',
+      'tool-resultat-untrusted',
+    ],
+  },
 ];

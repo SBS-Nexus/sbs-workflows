@@ -442,4 +442,52 @@ export const concepts: ConceptDraft[] = [
     difficulty: 4,
     prerequisiteSlugs: ['rag-fehlerbilder', 'precision-und-recall'],
   },
+  {
+    slug: 'json-vertrag',
+    name: 'JSON-Ausgabevertrag',
+    description:
+      'Ein JSON-Ausgabevertrag legt vorab fest, welche Felder und Typen eine maschinenlesbare Antwort haben soll. Das ist eine prüfbare Datenform und keine Garantie für korrekte Tatsachen.',
+    difficulty: 2,
+    prerequisiteSlugs: ['prompt-constraints-und-beispiele'],
+  },
+  {
+    slug: 'schema-validierung',
+    name: 'Strikte Schema-Validierung',
+    description:
+      'Eine strikte Validierung prüft JSON-Syntax, Feldnamen, Datentypen und zulässige Werte. Ungültige Eingaben werden mit einem erklärten Fehler abgelehnt und nicht still korrigiert.',
+    difficulty: 3,
+    prerequisiteSlugs: ['json-vertrag'],
+  },
+  {
+    slug: 'ausgabe-und-wahrheit',
+    name: 'Struktur gegen Wahrheit',
+    description:
+      'Formal gültige Ausgaben können falsche oder unbelegte Behauptungen enthalten. Quellenbelege und fachliche Richtigkeit müssen daher unabhängig von der JSON-Struktur bewertet werden.',
+    difficulty: 3,
+    prerequisiteSlugs: ['schema-validierung', 'belegte-antwort'],
+  },
+  {
+    slug: 'tool-aufruf',
+    name: 'Tool-Aufruf als Vorschlag',
+    description:
+      'Ein Modell kann Werkzeugname und Argumente vorschlagen. Das erzeugt noch keine tatsächliche Ausführung und keine Berechtigung. Die Anwendung entscheidet eigenständig über beides.',
+    difficulty: 3,
+    prerequisiteSlugs: ['json-vertrag', 'nachrichtenrollen'],
+  },
+  {
+    slug: 'tool-berechtigung',
+    name: 'Tool-Allowlist und Berechtigung',
+    description:
+      'Eine feste Werkzeugliste, ein strikter Argumentvertrag und serverseitig überprüfte Rechte verhindern, dass ein Modell oder ein Dokument unerlaubte Aktionen selbst freischaltet.',
+    difficulty: 3,
+    prerequisiteSlugs: ['tool-aufruf', 'schema-validierung'],
+  },
+  {
+    slug: 'tool-resultat-untrusted',
+    name: 'Tool-Ergebnisse als nicht vertrauenswürdige Daten',
+    description:
+      'Ein Werkzeug kann manipulierte Texte zurückgeben. Solche Daten dürfen keine höher priorisierten Anweisungen, neue Berechtigungen oder unauthorisierte Folgeaktionen erzeugen.',
+    difficulty: 4,
+    prerequisiteSlugs: ['tool-berechtigung', 'belegte-antwort'],
+  },
 ];

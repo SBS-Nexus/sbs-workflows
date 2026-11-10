@@ -449,3 +449,7 @@ Konsolenfehler außer der erwarteten Browsermeldung zur absichtlichen
 
 Ein vollständiger E2E-Lauf legt 50 Konten an (vorher 49). Die Grenze
 `registerPerIp` liegt bei 60 pro Stunde und wird in der Datenbank gezählt.
+
+## LP-11A – neue Testabdeckung (im Draft zu verifizieren)
+
+`tests/unit/tool-calling-vertrag.test.ts` prüft JSON-Syntax, Belegregel, strikte Felder, unerlaubte Tool-Namen, manipulierte Argumente und die statische Lab-Konfiguration. Ein zusätzlicher Inhalts-/Interaktionstest überprüft die neuen Lektionen und den Lab-Vertrag. Die Migration `20261109190000_tool_calling_lab` fügt dem Enum `LabKind` ausschließlich den neuen Wert `TOOL_CALLING` hinzu. Erfolgreiche CI- und E2E-Nachweise dürfen erst nach tatsächlichem Workflow-Ergebnis ergänzt werden; produktive Migrationen sind ausdrücklich nicht Teil dieser Änderung.

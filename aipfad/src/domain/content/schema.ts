@@ -9,6 +9,7 @@ import { contextWindowConfigSchema } from '../labs/context-window-config';
 import { promptRepairConfigSchema } from '../labs/prompt-repair-config';
 import { semanticRetrievalConfigSchema } from '../labs/semantic-retrieval-config';
 import { ragPipelineConfigSchema } from '../labs/rag-pipeline-config';
+import { toolCallingConfigSchema } from '../labs/tool-calling-config';
 
 /**
  * Zod-Schemata für redaktionelle Inhalte. Muster aus PythonPfad/SQLPfad
@@ -153,6 +154,7 @@ export const labKindSchema = z.enum([
   'MERGE_CONFLICT',
   'SEMANTIC_RETRIEVAL',
   'RAG_PIPELINE',
+  'TOOL_CALLING',
 ]);
 
 /**
@@ -170,6 +172,7 @@ const labConfigSchemas = {
   MERGE_CONFLICT: mergeConflictConfigSchema,
   SEMANTIC_RETRIEVAL: semanticRetrievalConfigSchema,
   RAG_PIPELINE: ragPipelineConfigSchema,
+  TOOL_CALLING: toolCallingConfigSchema,
 } as const;
 
 export const labSchema = z.object({
@@ -391,7 +394,7 @@ export function validateCourseGraph(input: {
       }
     }
 
-    // `labSchema.config` bleibt als gemeinsame Hülle offen, weil die neun
+    // `labSchema.config` bleibt als gemeinsame Hülle offen, weil die verschiedenen
     // Lab-Arten verschiedene Formen haben. Ab hier ist die Art aber bekannt,
     // deshalb wird ausnahmslos ihr kanonischer Vertrag angewandt.
     const configVertrag = labConfigSchemas[lab.kind];

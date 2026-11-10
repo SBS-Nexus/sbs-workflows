@@ -10,6 +10,7 @@ import { BranchLab } from './branch-lab';
 import { MergeConflictLab } from './merge-conflict-lab';
 import { SemanticRetrievalLab } from './semantic-retrieval-lab';
 import { RagPipelineLab } from './rag-pipeline-lab';
+import { ToolCallingLab } from './tool-calling-lab';
 
 export function LabRunner({
   slug,
@@ -25,7 +26,8 @@ export function LabRunner({
     | 'BRANCH'
     | 'MERGE_CONFLICT'
     | 'SEMANTIC_RETRIEVAL'
-    | 'RAG_PIPELINE';
+    | 'RAG_PIPELINE'
+    | 'TOOL_CALLING';
   config: unknown;
 }): React.ReactElement {
   const [saved, setSaved] = useState(false);
@@ -63,5 +65,7 @@ export function LabRunner({
       return <SemanticRetrievalLab config={config} onCompleteAction={complete} />;
     case 'RAG_PIPELINE':
       return <RagPipelineLab config={config} onCompleteAction={complete} />;
+    case 'TOOL_CALLING':
+      return <ToolCallingLab config={config} onCompleteAction={complete} />;
   }
 }
