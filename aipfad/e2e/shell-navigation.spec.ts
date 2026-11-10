@@ -179,8 +179,9 @@ test('Offenes „Mehr" bei Breitenwechsel: zu über Breakpoints, sonst im Bild',
         async () => {
           const panels = await offeneMenues(page);
           const breite = await page.evaluate(() => document.documentElement.clientWidth);
-          return panels.length === 1 && panels.every(({ links, rechts }) =>
-            links >= 0 && rechts <= breite,
+          return (
+            panels.length === 1 &&
+            panels.every(({ links, rechts }) => links >= 0 && rechts <= breite)
           );
         },
         { message: '700 → 640 px: offenes Menü nach Resize vollständig im Bild' },
