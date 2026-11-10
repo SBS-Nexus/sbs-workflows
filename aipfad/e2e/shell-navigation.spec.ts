@@ -170,6 +170,22 @@ test('Offenes „Mehr" bei Breitenwechsel: zu über Breakpoints, sonst im Bild',
     await oeffneMitFokusImMenue(700);
     await page.setViewportSize({ width: 640, height: 860 });
     await expect(mehr(page)).toHaveAttribute('aria-expanded', 'true');
+    // Ein Resize innerhalb desselben Breakpoints richtet das offene Panel
+    // asynchron neu aus. Auf den sichtbaren Endzustand warten, nicht auf eine
+    // feste Zeit und nicht nur auf den bereits geöffneten aria-expanded-Zustand.
+    // Die anschließende Kantenprüfung bleibt als unabhängige Assertion bestehen.
+    await expect
+      .poll(
+        async () => {
+          const panels = await offeneMenues(page);
+          const breite = await page.evaluate(() => document.documentElement.clientWidth);
+          return panels.length === 1 && panels.every(({ links, rechts }) =>
+            links >= 0 && rechts <= breite,
+          );
+        },
+        { message: '700 → 640 px: offenes Menü nach Resize vollständig im Bild' },
+      )
+      .toBe(true);
     await erwarteMenueImBild(page, '700 → 640 px');
     for (const name of MEHR) {
       await erwarteWirklichSichtbar(
