@@ -447,9 +447,30 @@ dunklem und hellem Schema; axe ohne serious/critical Befunde; keine
 Konsolenfehler außer der erwarteten Browsermeldung zur absichtlichen
 404-Antwort.
 
-Ein vollständiger E2E-Lauf legt 50 Konten an (vorher 49). Die Grenze
-`registerPerIp` liegt bei 60 pro Stunde und wird in der Datenbank gezählt.
+Bis einschließlich LP-10B legt ein vollständiger E2E-Lauf 50 Konten an (vorher 49).
+Mit LP-11A kommt **ein** weiteres Konto hinzu: aktuell 51 Registrierungen je
+vollständigem seriellen E2E-Lauf. Die Grenze `registerPerIp` liegt bei
+60 pro Stunde und wird in der Datenbank gezählt. Wiederholte komplette
+Läufe in derselben Stunde können deshalb regulär gedrosselt werden.
 
 ## LP-11A – neue Testabdeckung (im Draft zu verifizieren)
 
 `tests/unit/tool-calling-vertrag.test.ts` prüft JSON-Syntax, Belegregel, strikte Felder, unerlaubte Tool-Namen, manipulierte Argumente und die statische Lab-Konfiguration. Ein zusätzlicher Inhalts-/Interaktionstest überprüft die neuen Lektionen und den Lab-Vertrag. Die Migration `20261109190000_tool_calling_lab` fügt dem Enum `LabKind` ausschließlich den neuen Wert `TOOL_CALLING` hinzu. Erfolgreiche CI- und E2E-Nachweise dürfen erst nach tatsächlichem Workflow-Ergebnis ergänzt werden; produktive Migrationen sind ausdrücklich nicht Teil dieser Änderung.
+
+
+## LP-11B.1 – Qualität des Tool-Vertragslabs
+
+Die CI für den integrierten LP-11A-Stand auf PR #70 (`42730437226`) war erfolgreich;
+vor dem Merge wurden 871 Unit-, 140 Integrations- und 61 E2E-Tests bestanden.
+
+LP-11B.1 behebt Rückmeldungen zu richtig abgelehnten Eingaben: Die Farbe
+kennzeichnet die fachliche Richtigkeit der Lernentscheidung, nicht die Gültigkeit
+von JSON. Die Erklärung des redaktionellen Beispiels erscheint nur bei unverändertem
+JSON. Der Playwright-Test prüft jetzt auch die sichtbaren Ergebnisse mit axe bei
+375 px. Die Modulvoraussetzung `rag-wissen-mit-quellen` und die eindeutige
+Reihenfolge von `tc-tool-grenze` sind per Unit-Test geschützt. Ein dedizierter
+Integrationstest für die neue Lab-Art prüft den Seed, die Konfiguration und die
+Trennung von Lab-Abschlüssen nach Nutzer.
+
+Die Änderungen werden nur gegen synthetische CI-Datenbanken geprüft. Die
+produktive Anwendung von `20261109190000_tool_calling_lab` bleibt offen.

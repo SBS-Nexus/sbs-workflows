@@ -11,7 +11,7 @@ export const structuredToolsModule: ModuleDraft = {
     'JSON-Ausgaben strikt prüfen, Funktionsaufrufe als Datenvertrag lesen, Berechtigungen und die Grenze zwischen Daten und Anweisungen verstehen.',
   rationale:
     'Die vollständige API-Praxis folgt erst nach HTTP/API-Grundlagen und AI-APIs. Dieses Modul vermittelt die sicher prüfbaren Konzepte bereits offline, ohne Anbieter, Geheimnisse, Netzwerk oder tatsächliche Werkzeugausführung.',
-  prerequisiteModuleSlugs: ['prompting-grundlagen'],
+  prerequisiteModuleSlugs: ['prompting-grundlagen', 'rag-wissen-mit-quellen'],
   status: 'PUBLISHED',
   lessons: [
     {
@@ -439,14 +439,16 @@ export const structuredToolsModule: ModuleDraft = {
           slug: 'tc-tool-grenze',
           type: 'ORDERING',
           title: 'Ein Ergebnis sicher verwenden',
-          prompt: 'Ordne die Schritte beim Umgang mit einem Tool-Rückgabewert.',
+          prompt:
+            'Ein Tool hat einen Text geliefert. Wir erstellen daraus nur eine belegte Antwort; weitere Tool-Aktionen sind nicht vorgesehen. Ordne die vier aufeinander aufbauenden Prüfschritte.',
           payload: {
             kind: 'ordering',
-            instruction: 'Ordne die Schritte in einer sinnvollen technischen Reihenfolge.',
+            instruction:
+              'Vom Empfang der Daten bis zur Freigabe der belegten Antwort: Jeder Schritt benötigt das Ergebnis seines Vorgängers.',
             items: [
               {
                 id: 'belegen',
-                text: 'Nur Aussagen mit ausreichenden Quellen belegen.',
+                text: 'Nach der Quellenprüfung jede verwendbare Aussage mit einem konkreten Beleg verbinden.',
               },
               {
                 id: 'lesen',
@@ -454,11 +456,11 @@ export const structuredToolsModule: ModuleDraft = {
               },
               {
                 id: 'entscheiden',
-                text: 'Neue Aktionen ausschließlich nach eigenen Berechtigungsregeln entscheiden.',
+                text: 'Erst nach dieser Belegzuordnung die geprüfte Antwort zur Anzeige freigeben; neue Werkzeugaktionen bleiben ausgeschlossen.',
               },
               {
                 id: 'pruefen',
-                text: 'Schema, Herkunft und mögliche unzulässige Inhalte prüfen.',
+                text: 'Den empfangenen Dateninhalt auf Schema, Herkunft und eingeschleuste Anweisungen prüfen.',
               },
             ],
             correctOrder: ['lesen', 'pruefen', 'belegen', 'entscheiden'],

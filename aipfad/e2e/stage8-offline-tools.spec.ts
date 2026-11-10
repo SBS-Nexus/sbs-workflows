@@ -83,6 +83,28 @@ test('375 px: keine Seitenbreitenüberläufe und keine ernsten Accessibility-Ver
   await page.goto('/labs/tool-calling-offline-lab');
   const breite = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(breite).toBeLessThanOrEqual(375);
+  const ausgabe = page
+    .locator('section')
+    .filter({ has: page.getByRole('heading', { name: '1. Strukturierte Ausgabe' }) });
+  // Die erste Ausgabe ist gültig: Ein bewusst falsches Nein muss als falsch
+  // markiert werden, nicht anhand der Validator-Gültigkeit als Erfolg.
+  await ausgabe.getByRole('radio', { name: 'Nein, ablehnen' }).check();
+  await ausgabe.getByRole('button', { name: 'Entscheidung prüfen' }).click();
+  await expect(ausgabe.getByText('Dein Urteil passt nicht zur tatsächlichen Prüfung.')).toBeVisible();
+  await expect(ausgabe.getByText('Urteil überprüfen')).toBeVisible();
+
+  // Editiertes JSON ist ungültig. Ein richtiges Nein ist eine korrekte
+  // Lernentscheidung, nicht dieselbe Erklärung wie für das ursprüngliche JSON.
+  await ausgabe.getByLabel('JSON – zum Experimentieren editierbar').fill(
+    '{"antwort":"Nicht belegt","status":"belegt","belegId":null}',
+  );
+  await ausgabe.getByRole('button', { name: 'Entscheidung prüfen' }).click();
+  await expect(ausgabe.getByText('Dein Urteil stimmt mit der Prüfung überein.')).toBeVisible();
+  await expect(ausgabe.getByText('Urteil richtig')).toBeVisible();
+  await expect(ausgabe.getByText(/Die Erklärung zum ursprünglichen Beispiel gilt/)).toBeVisible();
+  await expect(ausgabe.getByText('Felder und Beleg-ID erfüllen den Offline-Vertrag; das beweist noch nicht die Wahrheit des Inhalts.')).toHaveCount(0);
+
+  // Auch die sichtbare Ergebnis-Rückmeldung wird bei 375 px mit axe geprüft.
   const bericht = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag22a', 'wcag22aa'])
     .analyze();

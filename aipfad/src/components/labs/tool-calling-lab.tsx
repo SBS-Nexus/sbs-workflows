@@ -30,7 +30,9 @@ function PruefStation({
   const beispiel = beispiele.find((e) => e.id === gewaehlt) ?? beispiele[0];
   const [text, setText] = useState(beispiel?.json ?? '');
   const [urteil, setUrteil] = useState<'gueltig' | 'ungueltig' | ''>('');
-  const [resultat, setResultat] = useState<PruefResultat | null>(null);
+  const [resultat, setResultat] = useState<
+    (PruefResultat & { urteilRichtig: boolean; originalEingabe: boolean }) | null
+  >(null);
   if (!beispiel) return <p>Keine Beispiele verfügbar.</p>;
 
   function auswaehlen(e: Beispiel): void {
@@ -44,8 +46,11 @@ function PruefStation({
     if (!urteil) return;
     const ergebnis = pruefen(text);
     const richtig = ergebnis.ok === (urteil === 'gueltig');
+    const originalEingabe = beispiel !== undefined && text === beispiel.json;
     setResultat({
       ...ergebnis,
+      urteilRichtig: richtig,
+      originalEingabe,
       meldungen: [
         richtig
           ? 'Dein Urteil stimmt mit der Prüfung überein.'
@@ -55,7 +60,7 @@ function PruefStation({
     });
     // Nur die originalen redaktionellen Fälle zählen zum Abschluss.
     // Bei freiem Experimentieren gibt es Feedback, aber keinen Lernnachweis.
-    if (richtig && beispiel && text === beispiel.json) onRichtig(beispiel.id);
+    if (richtig && beispiel && originalEingabe) onRichtig(beispiel.id);
   }
 
   return (
@@ -120,13 +125,25 @@ function PruefStation({
         Entscheidung prüfen
       </Button>
       {resultat ? (
-        <Callout tone={resultat.ok ? 'success' : 'warning'} title={resultat.urteil} live>
-          <ul className="list-disc space-y-1 pl-5 text-sm">
+        <Callout
+          tone={resultat.urteilRichtig ? 'success' : 'warning'}
+          title={resultat.urteilRichtig ? 'Urteil richtig' : 'Urteil überprüfen'}
+          live
+        >
+          <p className="text-sm">{resultat.urteil}</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
             {resultat.meldungen.map((m, index) => (
               <li key={index}>{m}</li>
             ))}
           </ul>
-          <p className="mt-2 text-xs">{beispiel.erklaerung}</p>
+          {resultat.originalEingabe ? (
+            <p className="mt-2 text-xs">{beispiel.erklaerung}</p>
+          ) : (
+            <p className="mt-2 text-xs">
+              Du hast das JSON verändert. Die Erklärung zum ursprünglichen Beispiel gilt
+              hierfür nicht; maßgeblich sind die obigen Prüfbefunde.
+            </p>
+          )}
         </Callout>
       ) : null}
     </section>
