@@ -13,11 +13,18 @@ const beispiel = z.object({
   erwartetGueltig: z.boolean(),
 });
 
+const toolErgebnisSchema = z.object({
+  quelle: z.string().min(3),
+  auszug: z.string().min(40),
+  frage: z.string().min(20),
+});
+
 export const toolCallingConfigSchema = z
   .object({
     betriebsart: z.literal('offline-deterministisch'),
     strukturierteAusgaben: z.array(beispiel).min(2).max(8),
     werkzeugAufrufe: z.array(beispiel).min(2).max(8),
+    toolErgebnis: toolErgebnisSchema,
   })
   .strict()
   .superRefine((cfg, ctx) => {
@@ -55,3 +62,37 @@ export const toolCallingConfigSchema = z
   });
 
 export type ToolCallingConfig = z.infer<typeof toolCallingConfigSchema>;
+
+/**
+ * Öffentlicher Vertrag: Erwartungs-Flags sind ausschließlich
+ * redaktionelle Validierungsdaten und werden nicht als Browser-Props
+ * ausgeliefert. Die Erklärung bleibt absichtlich öffentlich, weil die
+ * Lernenden sie nach ihrer Entscheidung als Feedback lesen.
+ */
+const clientBeispiel = beispiel.omit({ erwartetGueltig: true });
+export const toolCallingClientConfigSchema = z
+  .object({
+    betriebsart: z.literal('offline-deterministisch'),
+    strukturierteAusgaben: z.array(clientBeispiel).min(2).max(8),
+    werkzeugAufrufe: z.array(clientBeispiel).min(2).max(8),
+    toolErgebnis: toolErgebnisSchema,
+  })
+  .strict();
+
+export type ToolCallingClientConfig = z.infer<typeof toolCallingClientConfigSchema>;
+
+export function toToolCallingClientConfig(value: unknown): ToolCallingClientConfig {
+  const cfg = toolCallingConfigSchema.parse(value);
+  const oeffentlich = (e: (typeof cfg.strukturierteAusgaben)[number]) => ({
+    id: e.id,
+    titel: e.titel,
+    erklaerung: e.erklaerung,
+    json: e.json,
+  });
+  return toolCallingClientConfigSchema.parse({
+    betriebsart: cfg.betriebsart,
+    strukturierteAusgaben: cfg.strukturierteAusgaben.map(oeffentlich),
+    werkzeugAufrufe: cfg.werkzeugAufrufe.map(oeffentlich),
+    toolErgebnis: cfg.toolErgebnis,
+  });
+}
