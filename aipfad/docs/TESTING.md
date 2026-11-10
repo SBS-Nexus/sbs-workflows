@@ -457,7 +457,6 @@ Läufe in derselben Stunde können deshalb regulär gedrosselt werden.
 
 `tests/unit/tool-calling-vertrag.test.ts` prüft JSON-Syntax, Belegregel, strikte Felder, unerlaubte Tool-Namen, manipulierte Argumente und die statische Lab-Konfiguration. Ein zusätzlicher Inhalts-/Interaktionstest überprüft die neuen Lektionen und den Lab-Vertrag. Die Migration `20261109190000_tool_calling_lab` fügt dem Enum `LabKind` ausschließlich den neuen Wert `TOOL_CALLING` hinzu. Erfolgreiche CI- und E2E-Nachweise dürfen erst nach tatsächlichem Workflow-Ergebnis ergänzt werden; produktive Migrationen sind ausdrücklich nicht Teil dieser Änderung.
 
-
 ## LP-11B.1 – Qualität des Tool-Vertragslabs
 
 Die CI für den integrierten LP-11A-Stand auf PR #70 (`42730437226`) war erfolgreich;

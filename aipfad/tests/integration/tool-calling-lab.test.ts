@@ -109,8 +109,6 @@ describe('LP-11B.1: Tool-Calling-Lab (echte Testdatenbank)', () => {
       where: { userId: anna, lab: { slug: 'rag-pipeline-lab' } },
     });
     await recordLabCompletionAction(LAB, ZEITSTEMPEL);
-    expect(await prisma.labAttempt.findUniqueOrThrow({ where: { id: vorher.id } })).toEqual(
-      vorher,
-    );
+    expect(await prisma.labAttempt.findUniqueOrThrow({ where: { id: vorher.id } })).toEqual(vorher);
   });
 });

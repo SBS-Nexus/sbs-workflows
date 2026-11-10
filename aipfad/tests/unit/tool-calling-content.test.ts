@@ -66,7 +66,9 @@ describe('LP-11A – Offline-Grundlagen', () => {
 
   it('definiert den Tool-Ergebnis-Ablauf in eindeutiger fachlicher Reihenfolge', () => {
     const modul = parsedCourse.modules.find((m) => m.slug === 'structured-outputs-tool-calling');
-    const aufgabe = modul?.lessons.flatMap((l) => l.exercises).find((e) => e.slug === 'tc-tool-grenze');
+    const aufgabe = modul?.lessons
+      .flatMap((l) => l.exercises)
+      .find((e) => e.slug === 'tc-tool-grenze');
     expect(aufgabe?.payload.kind).toBe('ordering');
     if (aufgabe?.payload.kind !== 'ordering') throw new Error('Ordering-Aufgabe fehlt.');
     expect(aufgabe.payload.correctOrder).toEqual(['lesen', 'pruefen', 'belegen', 'entscheiden']);

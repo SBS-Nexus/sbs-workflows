@@ -140,8 +140,8 @@ function PruefStation({
             <p className="mt-2 text-xs">{beispiel.erklaerung}</p>
           ) : (
             <p className="mt-2 text-xs">
-              Du hast das JSON verändert. Die Erklärung zum ursprünglichen Beispiel gilt
-              hierfür nicht; maßgeblich sind die obigen Prüfbefunde.
+              Du hast das JSON verändert. Die Erklärung zum ursprünglichen Beispiel gilt hierfür
+              nicht; maßgeblich sind die obigen Prüfbefunde.
             </p>
           )}
         </Callout>
