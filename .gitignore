@@ -38,3 +38,6 @@ test-data/
 
 # Playwright MCP: Laufzeit-Ausgaben (Screenshots, Snapshots), nie committen
 .playwright-mcp/
+
+# Impeccable: engine binary is fetched + checksum-verified on demand; hooks stay personal
+.claude/skills/impeccable/scripts/bin/
