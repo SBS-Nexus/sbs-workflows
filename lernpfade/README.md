@@ -45,8 +45,9 @@ Bild. Grundlage ist „Liquid Sculpture Hero“ von Guglielmo Giannattasio
 - Keine Google Fonts, kein Tailwind, kein shadcn. Die Komponente ist
   eigenständiges React/CSS unter `src/components/ui/` und noch keine
   eingerichtete shadcn-Basis.
-- Die Bilder liegen lokal unter `public/images/hero/`. **Ihr Rechtestand ist
-  vor einer Produktivveröffentlichung zu bestätigen**
+- Die Bilder liegen als eigens erstellte, skriptfreie SVG-Grafiken lokal unter
+  `public/images/hero/`; die früheren 21st.dev-WebP-Referenzbilder wurden
+  entfernt. Der MIT-lizenzierte Partikeleffekt bleibt korrekt attribuiert
   (`THIRD_PARTY_NOTICES.md`).
 
 Entscheidungen, Fehlerkorrekturen, Tests und Messwerte:
