@@ -121,6 +121,8 @@ export function VocabOverview({
         </aside>
       </section>
 
+      <SessionSetup store={store} actions={actions} />
+
       <section className="vocab-panel" aria-labelledby="stats-title">
         <h2 id="stats-title">Dein Stand</h2>
         <dl className="vocab-stats">
@@ -155,8 +157,6 @@ export function VocabOverview({
           bewertet" zählt deine Bewertungen seit Mitternacht in deiner Zeitzone ({actions.timeZone}).
         </p>
       </section>
-
-      <SessionSetup store={store} actions={actions} />
 
       <section className="vocab-panel" aria-labelledby="decks-title">
         <div className="vocab-panel-head">

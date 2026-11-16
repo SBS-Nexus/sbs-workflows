@@ -1,0 +1,2845 @@
+/*
+ * Lernpfade / Experience Refresh — isolierter Produkt-UI-Slice.
+ * Hub-lokale Präsentation; Scheduler, IndexedDB, Import/Export und gemeinsame
+ * LP-03-Verträge bleiben unverändert. Die fachliche Farbsemantik bleibt intakt.
+ */
+:root[data-lp-app='hub'] {
+  --bg: #f7f9fd;
+  --surface: #ffffff;
+  --surface-muted: #f1f5fb;
+  --text: #19263c;
+  --muted: #526278;
+  --border: #dfe6ef;
+  --border-strong: #b9c6d6;
+  --navy: #13213b;
+  --navy-2: #1e3152;
+  --shadow: 0 14px 48px rgb(25 43 80 / 0.065);
+  --radius-md: 1rem;
+  --radius-lg: 1.3rem;
+}
+
+html[data-lp-app='hub'] {
+  scroll-padding-top: 7.5rem;
+}
+
+body {
+  background: var(--bg);
+}
+
+.shell {
+  width: min(1180px, calc(100% - 2.25rem));
+}
+
+.site-header {
+  border-bottom: 1px solid #e2e8f2;
+  background: rgb(255 255 255 / 0.96);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 1px 0 rgb(14 28 52 / 0.025);
+}
+
+.header-inner {
+  min-height: 4.8rem;
+  gap: 0.7rem 1.8rem;
+}
+
+.brand {
+  gap: 0.75rem;
+}
+
+.brand-mark {
+  width: 2.7rem;
+  height: 2.7rem;
+  border-radius: 0.9rem;
+  background: #1f315b;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.23);
+  font-size: 0.94rem;
+  font-weight: 800;
+}
+
+.brand strong {
+  font-size: 1.06rem;
+  letter-spacing: -0.035em;
+}
+
+.brand small {
+  font-size: 0.69rem;
+  letter-spacing: 0.015em;
+}
+
+.site-header nav {
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.site-header nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.83rem;
+  border-radius: 0.75rem;
+  color: #4d5c74;
+  font-size: 0.86rem;
+  font-weight: 670;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.site-header nav a:hover {
+  background: #f0f3fa;
+  color: #17294b;
+}
+
+.site-header nav a[href='/vokabeln'] {
+  background: #eaf0ff;
+  color: #2647a8;
+}
+
+.site-header nav a[href='/vokabeln']:hover {
+  background: #dfe8ff;
+}
+
+.site-header nav a[aria-current='page'] {
+  background: #233b74;
+  color: #ffffff;
+}
+
+.eyebrow {
+  color: #3155c7;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+/* Primary brand moment: useful CTA and text first; smaller calm illustration. */
+.sh-root {
+  display: grid;
+  grid-template-columns: minmax(0, 1.07fr) minmax(0, 0.93fr);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  min-height: clamp(32rem, 69svh, 45rem);
+  padding-inline: max(1.25rem, calc((100vw - 1180px) / 2));
+  border-bottom: 1px solid #e8edf4;
+}
+
+.sh-content {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  justify-self: stretch;
+  width: 100%;
+  max-width: 43rem;
+  gap: 1.7rem;
+  margin: 0;
+  padding: 3rem clamp(1.2rem, 3vw, 3rem) 3rem 0;
+}
+
+.sh-content > div {
+  min-width: 0;
+}
+
+.sh-figure-wrap {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: center;
+  flex: none;
+  width: 100%;
+  padding: 1.25rem 0 1.25rem 0.5rem;
+}
+
+.sh-figure {
+  width: min(100%, 37rem);
+}
+
+.sh-h1 {
+  max-width: 10.5em;
+  font-size: clamp(2.75rem, 4.25vw, 4.95rem);
+  line-height: 1.025;
+  letter-spacing: -0.053em;
+  font-weight: 720;
+}
+
+.sh-accent {
+  color: #3155c7;
+  font-weight: 720;
+  letter-spacing: -0.045em;
+}
+
+.sh-eyebrow {
+  font-weight: 760;
+  font-size: 0.73rem;
+}
+
+.sh-aside {
+  justify-self: start;
+  max-width: 34rem;
+  padding: 0;
+}
+
+.sh-body {
+  max-width: 32rem;
+  margin: 0 0 1.4rem;
+  line-height: 1.72;
+}
+
+.sh-btn {
+  border-radius: 0.86rem;
+  background: #253b70;
+  color: #ffffff;
+  box-shadow: 0 8px 22px rgb(33 58 114 / 0.17);
+}
+
+.sh-btn:hover {
+  background: #1e3261;
+}
+
+.sh-hint {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  justify-self: center;
+  margin: 0;
+  padding: 0 0 0.3rem;
+  font-weight: 650;
+  letter-spacing: 0.075em;
+}
+
+.sh-credit {
+  position: relative;
+  grid-column: 2;
+  grid-row: 3;
+  justify-self: end;
+  align-self: end;
+  width: auto;
+  margin: 0;
+  padding: 0 0 0.55rem;
+}
+
+/* From marketing catalogue to compact learning navigation. */
+.section {
+  padding-block: 4.4rem;
+}
+
+.section-heading {
+  gap: 1.5rem 3rem;
+  margin-bottom: 1.65rem;
+}
+
+.section-heading h2,
+.vocab-section h2 {
+  font-size: clamp(2rem, 3.2vw, 3rem);
+  line-height: 1.1;
+}
+
+.section-heading > p {
+  max-width: 31rem;
+}
+
+.path-grid {
+  gap: 1.1rem;
+}
+
+.path-card {
+  min-height: 0;
+  padding: 1.45rem;
+  border-color: #e1e7f0;
+  background: #ffffff;
+  box-shadow: 0 6px 28px rgb(27 48 84 / 0.035);
+}
+
+.path-card-link:hover {
+  transform: translateY(-2px);
+  border-color: #9aade0;
+  box-shadow: 0 15px 36px rgb(35 64 117 / 0.1);
+}
+
+.path-mark {
+  width: 3.1rem;
+  height: 3.1rem;
+  margin-top: 1.25rem;
+  border-radius: 0.85rem;
+  font-size: 0.95rem;
+}
+
+.path-card h3 {
+  margin-top: 0.95rem;
+  font-size: 1.4rem;
+}
+
+.path-description {
+  margin-top: 0.6rem;
+  line-height: 1.56;
+}
+
+.path-outcome {
+  margin-top: 0.65rem;
+  font-size: 0.83rem;
+  line-height: 1.5;
+}
+
+.topic-list {
+  margin-top: 1rem;
+}
+
+.topic-list li {
+  background: #f5f7fb;
+  border-color: #e6ebf3;
+  font-weight: 620;
+}
+
+.card-action {
+  padding-top: 1.1rem;
+  color: #2c50b3;
+}
+
+.path-card-unavailable {
+  background: #fbfcfe;
+}
+
+.path-card-unavailable .card-action {
+  color: #53627a;
+}
+
+.future-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.future-grid .path-card {
+  padding: 1.25rem;
+}
+
+.future-grid .path-mark {
+  margin-top: 0.7rem;
+}
+
+.future-grid .path-card h3 {
+  font-size: 1.25rem;
+}
+
+.model-section {
+  padding-block: 4.65rem;
+  background: linear-gradient(120deg, #15253f, #22385b);
+}
+
+.model-grid {
+  gap: 0.9rem;
+}
+
+.model-grid article {
+  min-height: 12rem;
+  border-color: rgb(195 210 244 / 0.19);
+  background: rgb(255 255 255 / 0.055);
+}
+
+.model-grid h3 {
+  margin-top: 1.5rem;
+}
+
+.vocab-section {
+  padding-block: 4.7rem;
+  background: linear-gradient(145deg, #ffffff, #f0f5ff);
+}
+
+.vocab-grid {
+  gap: clamp(2rem, 4vw, 5rem);
+}
+
+.vocab-card {
+  border-color: #dfe7f3;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgb(35 62 120 / 0.045);
+}
+
+.vocab-card strong {
+  color: #1c2e4a;
+}
+
+footer {
+  border-color: #e5eaf2;
+}
+
+/* Dashboard pages share a calm hierarchy; legal/storage notices stay visible. */
+.vocab-page,
+.review-page,
+.progress-page {
+  padding-block: 2.8rem 5rem;
+}
+
+.vocab-app {
+  max-width: 68rem;
+  gap: 1.15rem;
+}
+
+.vocab-app h1,
+.progress-intro h1,
+.review-page-title {
+  font-size: clamp(2.15rem, 4.8vw, 3.4rem);
+  letter-spacing: -0.052em;
+  line-height: 1.08;
+}
+
+.vocab-intro > p:not(.eyebrow),
+.progress-intro p:not(.eyebrow) {
+  max-width: 48rem;
+  line-height: 1.65;
+}
+
+.vocab-storage-note {
+  border: 1px solid #d6e1f1;
+  border-left: 3px solid #7690cc;
+  border-radius: 0.8rem;
+  background: #f1f5fc;
+  padding: 0.85rem 1rem;
+  color: #3d506d;
+  font-size: 0.84rem;
+  line-height: 1.58;
+}
+
+.vocab-panel,
+.review-card,
+.live-card,
+.progress-card,
+.progress-summary,
+.vocab-pointer {
+  border-color: #dfe6ef;
+  border-radius: 1.25rem;
+  background: #ffffff;
+  box-shadow: 0 8px 32px rgb(32 50 90 / 0.044);
+}
+
+.vocab-session-setup {
+  border-color: #c8d7f5;
+  background: linear-gradient(135deg, #ffffff 0%, #f0f5ff 100%);
+}
+
+.vocab-stats div,
+.vocab-preview-list div,
+.progress-metrics div {
+  border-color: #e2e9f3;
+  background: #f5f8fc;
+}
+
+.vocab-stats dd,
+.progress-metrics dd {
+  color: #192c55;
+}
+
+.vocab-deck,
+.vocab-starter,
+.vocab-card-item {
+  border-color: #e1e7ef;
+  border-radius: 0.95rem;
+  box-shadow: 0 3px 15px rgb(32 50 90 / 0.025);
+}
+
+.vocab-choice {
+  border-color: #c5d1e3;
+  border-radius: 0.8rem;
+}
+
+.vocab-choice:has(input:checked) {
+  border-color: #5677cf;
+  background: #eaf0ff;
+  color: #233e80;
+  box-shadow: inset 0 0 0 1px rgb(65 102 192 / 0.12);
+}
+
+.vocab-field input:focus-visible,
+.vocab-filter select:focus-visible {
+  border-color: #4667cb;
+}
+
+.progress-shell {
+  max-width: 72rem;
+}
+
+.progress-summary {
+  background: linear-gradient(135deg, #ffffff 0%, #f2f5ff 100%);
+}
+
+.progress-grid {
+  gap: 1.1rem;
+}
+
+.progress-card h3 {
+  color: #1c2b4a;
+}
+
+.review-card {
+  border-color: #dce5f2;
+}
+
+.review-prompt {
+  color: #1c2b4a;
+}
+
+.review-ratings button {
+  border-radius: 0.75rem;
+}
+
+/* Narrow landscape / tablet: the hero art comes first, text remains legible. */
+@media (max-width: 1023px) {
+  .sh-root {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    --sh-figure-h: clamp(11rem, 30svh, 20rem);
+    padding-inline: 0;
+  }
+
+  .sh-figure-wrap {
+    width: 100%;
+    padding: 1.6rem 1rem 0;
+  }
+
+  .sh-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: min(56rem, calc(100% - 2.5rem));
+    max-width: 56rem;
+    gap: 1rem;
+    margin: 0 auto;
+    padding: 1.3rem 0 2rem;
+  }
+
+  .sh-h1 {
+    max-width: 13em;
+    font-size: clamp(2.6rem, 7vw, 4.4rem);
+  }
+
+  .sh-hint {
+    align-self: center;
+    margin: 0.6rem 0 0;
+    padding: 0.2rem 1rem;
+  }
+
+  .sh-credit {
+    position: static;
+    align-self: flex-end;
+    width: min(56rem, calc(100% - 2.5rem));
+    margin: 0 auto;
+    padding-bottom: 0.6rem;
+  }
+
+  .future-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .header-inner,
+  .site-header-sub .header-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+    padding-block: 0.55rem;
+  }
+
+  .site-header nav,
+  .site-header-sub nav {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.15rem;
+  }
+
+  .site-header nav a {
+    padding: 0.52rem 0.55rem;
+    font-size: 0.81rem;
+  }
+
+  .path-grid,
+  .future-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .section {
+    padding-block: 3.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  html[data-lp-app='hub'] {
+    scroll-padding-top: 9.5rem;
+  }
+
+  .shell {
+    width: min(100% - 1.75rem, 1180px);
+  }
+
+  .site-header nav,
+  .site-header-sub nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.25rem;
+  }
+
+  .site-header nav a {
+    min-width: 0;
+    min-height: 2.5rem;
+    padding: 0.55rem 0.2rem;
+    font-size: clamp(0.72rem, 2.8vw, 0.82rem);
+    white-space: nowrap;
+  }
+
+  .sh-root {
+    --sh-figure-h: clamp(9rem, 22svh, 12rem);
+  }
+
+  .sh-figure-wrap {
+    padding: 0.6rem 1rem 0;
+  }
+
+  .sh-content {
+    width: calc(100% - 2rem);
+    gap: 0.9rem;
+    padding: 0.8rem 0 1.5rem;
+  }
+
+  .sh-h1 {
+    max-width: none;
+    font-size: clamp(2.15rem, 9.3vw, 3.25rem);
+    line-height: 1.04;
+    hyphens: manual;
+    text-wrap: wrap;
+  }
+
+  .sh-aside,
+  .sh-body {
+    max-width: 100%;
+  }
+
+  .sh-ctas {
+    gap: 0.5rem 1rem;
+  }
+
+  .sh-btn,
+  .sh-txt {
+    min-height: 2.85rem;
+  }
+
+  .sh-credit {
+    width: calc(100% - 2rem);
+  }
+
+  .section {
+    padding-block: 3.05rem;
+  }
+
+  .section-heading {
+    margin-bottom: 1.35rem;
+  }
+
+  .path-grid,
+  .future-grid,
+  .model-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .path-card {
+    padding: 1.2rem;
+  }
+
+  .path-mark {
+    margin-top: 0.7rem;
+  }
+
+  .model-section,
+  .vocab-section {
+    padding-block: 3.5rem;
+  }
+
+  .vocab-page,
+  .review-page,
+  .progress-page {
+    padding-block: 2rem 4rem;
+  }
+
+  .vocab-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vocab-panel,
+  .review-card,
+  .progress-card,
+  .progress-summary {
+    padding: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .path-card-link,
+  .site-header nav a {
+    transition: none;
+  }
+}
+
+/* Startpunkt: konkrete Lernaktion unmittelbar unter der Hero. */
+.learn-now {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.7fr);
+  gap: 0.85rem;
+  margin-top: -1.35rem;
+}
+
+.learn-now-primary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.1rem 2rem;
+  padding: clamp(1.5rem, 3vw, 2rem);
+  border: 1px solid #283d71;
+  border-radius: 1.35rem;
+  color: #ffffff;
+  background: linear-gradient(125deg, #1a2a4d, #304a86);
+  box-shadow: 0 18px 48px rgb(21 40 83 / 0.16);
+}
+
+.learn-now-primary > div {
+  flex: 1 1 17rem;
+}
+
+.learn-now-primary .eyebrow {
+  color: #bccfff;
+}
+
+.learn-now-primary h2 {
+  max-width: 24rem;
+  margin: 0.55rem 0 0;
+  color: white;
+  font-size: clamp(1.3rem, 2.3vw, 1.9rem);
+  line-height: 1.17;
+  letter-spacing: -0.035em;
+}
+
+.learn-now-primary p:not(.eyebrow) {
+  max-width: 34rem;
+  margin: 0.8rem 0 0;
+  color: #e4ebfa;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.learn-now-primary .lp-ui-button {
+  flex: 0 0 auto;
+  min-height: 2.9rem;
+  background: #ffffff;
+  color: #1c3265;
+  border-color: transparent;
+  border-radius: 0.85rem;
+}
+
+.learn-now-primary .lp-ui-button:hover {
+  background: #eef3ff;
+}
+
+.learn-now-secondary {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+  padding: 1.35rem;
+  border: 1px solid #dce5f3;
+  border-radius: 1.35rem;
+  background: #ffffff;
+  box-shadow: 0 7px 32px rgb(35 61 105 / 0.055);
+  text-decoration: none;
+}
+
+.learn-now-secondary:hover {
+  border-color: #97addb;
+  background: #fafcff;
+}
+
+.learn-now-secondary > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+
+.learn-now-icon {
+  display: grid;
+  flex: 0 0 2.65rem;
+  place-items: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  border-radius: 0.8rem;
+  color: #2748a6;
+  background: #eaf0ff;
+  font-size: 1.25rem;
+}
+
+.learn-now-secondary strong,
+.learn-now-secondary small {
+  display: block;
+}
+
+.learn-now-secondary strong {
+  color: #1e2f52;
+  font-size: 0.98rem;
+}
+
+.learn-now-secondary small {
+  margin-top: 0.25rem;
+  color: #536580;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.learn-now-secondary > svg {
+  flex: none;
+  color: #3755a1;
+}
+
+@media (max-width: 900px) {
+  .learn-now {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 0.85rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .learn-now-primary {
+    padding: 1.25rem;
+  }
+
+  .learn-now-primary .lp-ui-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .learn-now-secondary {
+    padding: 1rem;
+  }
+}
+
+/* Very short desktop windows: keep the real focused primary CTA fully inside
+ * the viewport instead of letting its bottom edge clip by a pixel. */
+@media (min-width: 1024px) and (max-height: 560px) {
+  .sh-content {
+    transform: translateY(-0.9rem);
+  }
+}
+
+
+/* ==========================================================================
+   LEARNING IN MOTION / PREMIUM EDITORIAL LAYER
+   Keine importierten 21st-/HorizonX-Komponenten, keine externen Fonts.
+   Die visuellen Mittel folgen dem Lernweg, nicht einer Kachel-Vorlage.
+   ========================================================================== */
+
+:root[data-lp-app='hub'] {
+  --bg: #f5f5ee;
+  --surface: #fffef9;
+  --surface-muted: #edf0e7;
+  --text: #1a2822;
+  --muted: #53635a;
+  --border: #d6dcd2;
+  --border-strong: #9caea3;
+  --navy: #15231d;
+  --navy-2: #233b30;
+  --indigo: #28614d;
+  --green: #176b4a;
+  --shadow: 0 15px 44px rgb(19 37 26 / 0.075);
+  --lp-ink: #19251e;
+  --lp-paper: #f5f5ee;
+  --lp-signal: #d4f67b;
+  --lp-hairline: #cdd5ca;
+}
+
+html[data-lp-app='hub'] {
+  scroll-padding-top: 7.7rem;
+}
+
+html[data-lp-app='hub'] body {
+  color: var(--lp-ink);
+  background: var(--lp-paper);
+  font-feature-settings: 'ss01' on;
+}
+
+html[data-lp-app='hub'] ::selection {
+  background: #d4f67b;
+  color: #17251d;
+}
+
+html[data-lp-app='hub'] :focus-visible {
+  outline: 3px solid #427a65;
+  outline-offset: 4px;
+}
+
+html[data-lp-app='hub'] .shell {
+  width: min(1260px, calc(100% - clamp(2rem, 5vw, 5.5rem)));
+}
+
+html[data-lp-app='hub'] .site-header {
+  border-bottom: 1px solid #cad3c6;
+  background: rgb(245 245 238 / 0.96);
+  box-shadow: none;
+  backdrop-filter: blur(18px);
+}
+
+html[data-lp-app='hub'] .header-inner {
+  min-height: 5rem;
+  gap: 0.7rem 1.5rem;
+}
+
+html[data-lp-app='hub'] .brand {
+  gap: 0.7rem;
+}
+
+html[data-lp-app='hub'] .brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  background: #18291e;
+  border: 1px solid #17261b;
+  border-radius: 0.48rem;
+  box-shadow: none;
+  color: #fffef7;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+html[data-lp-app='hub'] .brand-mark span {
+  color: var(--lp-signal);
+  font-size: 0.92rem;
+  align-self: flex-start;
+  margin-top: 0.35rem;
+}
+
+html[data-lp-app='hub'] .brand strong {
+  font-size: 1.14rem;
+  font-weight: 790;
+  letter-spacing: -0.05em;
+}
+
+html[data-lp-app='hub'] .brand small {
+  margin-top: 0.05rem;
+  color: #667168;
+  font-size: 0.57rem;
+  font-weight: 650;
+  letter-spacing: 0.095em;
+}
+
+html[data-lp-app='hub'] .site-header nav {
+  gap: 0.05rem 0.15rem;
+}
+
+html[data-lp-app='hub'] .site-header nav a,
+html[data-lp-app='hub'] .site-header nav a[href='/vokabeln'] {
+  position: relative;
+  min-height: 2.7rem;
+  padding: 0.63rem 0.7rem;
+  border-radius: 0;
+  background: transparent;
+  color: #405046;
+  font-size: 0.78rem;
+  font-weight: 720;
+  letter-spacing: 0.01em;
+}
+
+html[data-lp-app='hub'] .site-header nav a:hover,
+html[data-lp-app='hub'] .site-header nav a[href='/vokabeln']:hover {
+  background: #e6ebdf;
+  color: #152a1e;
+}
+
+html[data-lp-app='hub'] .site-header nav a[aria-current='page'] {
+  background: #203d2d;
+  border-radius: 0.2rem;
+  color: #fff;
+}
+
+html[data-lp-app='hub'] .eyebrow {
+  color: #32624e;
+  font-size: 0.7rem;
+  font-weight: 820;
+  letter-spacing: 0.14em;
+}
+
+html[data-lp-app='hub'] .sh-root {
+  display: grid;
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: clamp(34rem, 70svh, 49rem);
+  padding: 2rem max(2rem, calc((100vw - 1260px) / 2));
+  border-bottom: 1px solid #d6dcd2;
+  background: #f5f5ee;
+  background-image: radial-gradient(circle at 79% 48%, #ecf0e3 0, #f5f5ee 37%, #f5f5ee 100%);
+  color: #19251e;
+}
+
+html[data-lp-app='hub'] .sh-root::after {
+  position: absolute;
+  bottom: 1rem;
+  left: max(2rem, calc((100vw - 1260px) / 2));
+  content: 'EDITION 01  /  SBS NEXUS  /  2026';
+  color: #819084;
+  font: 600 0.61rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.1em;
+  pointer-events: none;
+}
+
+html[data-lp-app='hub'] .sh-content {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: grid;
+  align-content: center;
+  align-self: center;
+  gap: 1.6rem;
+  justify-self: stretch;
+  width: 100%;
+  max-width: 45rem;
+  margin: 0;
+  padding: 1rem clamp(1.4rem, 3vw, 3.2rem) 3rem 0;
+  transform: none;
+}
+
+html[data-lp-app='hub'] .sh-figure-wrap {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  justify-self: stretch;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  padding: clamp(1.5rem, 3vw, 3rem) 0.5rem;
+  background: #e9eae5;
+  border: 1px solid #d5dcce;
+  clip-path: polygon(5% 0, 100% 0, 100% 89%, 94% 100%, 0 100%, 0 9%);
+  box-shadow: inset 0 0 50px rgb(29 54 41 / 0.03);
+}
+
+html[data-lp-app='hub'] .sh-figure-wrap::before,
+html[data-lp-app='hub'] .sh-figure-wrap::after {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  color: #607c6c;
+  font: 650 0.64rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.08em;
+}
+
+html[data-lp-app='hub'] .sh-figure-wrap::before {
+  top: 1.1rem;
+  left: 1.4rem;
+  content: 'FIG. 01 — KNOWLEDGE ATLAS';
+}
+
+html[data-lp-app='hub'] .sh-figure-wrap::after {
+  bottom: 1.1rem;
+  right: 1.4rem;
+  content: 'THINK / BUILD / RECALL ↗';
+}
+
+html[data-lp-app='hub'] .sh-figure {
+  max-width: 100%;
+  width: min(100%, 39rem);
+}
+
+html[data-lp-app='hub'] .sh-eyebrow {
+  margin: 0;
+  color: #396854;
+  font-size: 0.67rem;
+  font-weight: 770;
+  letter-spacing: 0.16em;
+}
+
+html[data-lp-app='hub'] .sh-eyebrow::before {
+  width: 2.1rem;
+}
+
+html[data-lp-app='hub'] .sh-h1 {
+  max-width: 10.7em;
+  color: #1a2721;
+  font-size: clamp(3.1rem, 5.1vw, 6.35rem);
+  font-weight: 830;
+  letter-spacing: -0.07em;
+  line-height: 0.99;
+  text-wrap: balance;
+}
+
+html[data-lp-app='hub'] .sh-accent {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-weight: 490;
+  letter-spacing: -0.075em;
+  color: #30664f;
+}
+
+html[data-lp-app='hub'] .sh-body {
+  margin: 0 0 1.3rem;
+  max-width: 29rem;
+  color: #4c5b51;
+  font-size: clamp(0.97rem, 1.3vw, 1.12rem);
+  line-height: 1.7;
+}
+
+html[data-lp-app='hub'] .sh-aside {
+  padding: 0;
+  max-width: 36rem;
+  justify-self: start;
+}
+
+html[data-lp-app='hub'] .sh-ctas {
+  gap: 0.7rem 1.1rem;
+}
+
+html[data-lp-app='hub'] .sh-btn {
+  min-height: 3.15rem;
+  background: #182b20;
+  border: 1px solid #182b20;
+  border-radius: 0.3rem;
+  box-shadow: 0 8px 22px rgb(12 40 22 / 0.13);
+  color: #fffdf3;
+  font-weight: 750;
+}
+
+html[data-lp-app='hub'] .sh-btn:hover {
+  background: #2a4934;
+}
+
+html[data-lp-app='hub'] .sh-txt {
+  min-height: 3.15rem;
+  color: #1c3a2a;
+  font-weight: 700;
+  text-decoration-thickness: 1px;
+}
+
+html[data-lp-app='hub'] .sh-hint {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: center;
+  position: relative;
+  margin: 0;
+  padding: 0.5rem 0;
+  font-size: 0.61rem;
+  letter-spacing: 0.08em;
+  color: #63756a;
+}
+
+html[data-lp-app='hub'] .sh-credit {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  width: 100%;
+  align-self: end;
+  justify-self: end;
+  margin: 0;
+  padding: 0 0 0.5rem;
+  font-size: 0.6rem;
+  text-align: right;
+}
+
+html[data-lp-app='hub'] .sh-credit a {
+  min-height: 1.6rem;
+}
+
+html[data-lp-app='hub'] .lp-editorial-rule {
+  background: #18271e;
+  color: #e9ecdb;
+  border-bottom: 1px solid #314536;
+}
+
+html[data-lp-app='hub'] .lp-editorial-rule-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  min-height: 3.5rem;
+  font: 700 0.66rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.1em;
+}
+
+html[data-lp-app='hub'] .lp-editorial-rule-inner > span:nth-child(2) {
+  font-size: 1.65rem;
+  color: var(--lp-signal);
+  line-height: 1;
+}
+
+@media (min-width: 820px) and (max-width: 1079px) {
+  html[data-lp-app='hub'] .sh-root {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    min-height: 35rem;
+    padding: 1.25rem max(2rem, calc((100vw - 1260px) / 2));
+  }
+
+  html[data-lp-app='hub'] .sh-content {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    width: 100%;
+    padding: 1rem 1.3rem 2rem 0;
+  }
+
+  html[data-lp-app='hub'] .sh-figure-wrap {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    padding: 2.1rem 0.3rem;
+  }
+
+  html[data-lp-app='hub'] .sh-h1 {
+    font-size: clamp(2.5rem, 5vw, 3.45rem);
+  }
+
+  html[data-lp-app='hub'] .sh-hint,
+  html[data-lp-app='hub'] .sh-credit {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 819px) {
+  html[data-lp-app='hub'] .sh-root {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 1rem 0 0;
+    background: #f5f5ee;
+  }
+
+  html[data-lp-app='hub'] .sh-content {
+    order: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-self: auto;
+    width: min(100% - 2.2rem, 42rem);
+    max-width: 42rem;
+    margin: 0 auto;
+    padding: 2rem 0 1.2rem;
+    gap: 1.15rem;
+  }
+
+  html[data-lp-app='hub'] .sh-h1 {
+    max-width: 12em;
+    font-size: clamp(2.55rem, 7.3vw, 4.5rem);
+    line-height: 1.01;
+    hyphens: manual;
+  }
+
+  html[data-lp-app='hub'] .sh-figure-wrap {
+    order: 2;
+    align-self: center;
+    width: min(100% - 2.2rem, 42rem);
+    --sh-figure-h: clamp(12rem, 25svh, 18rem);
+    min-height: 12rem;
+    margin: 0 auto;
+    padding: 1.7rem 0.5rem;
+  }
+
+  html[data-lp-app='hub'] .sh-hint {
+    order: 3;
+    align-self: center;
+    margin-top: 0.4rem;
+  }
+
+  html[data-lp-app='hub'] .sh-credit {
+    order: 4;
+    width: min(100% - 2.2rem, 42rem);
+    margin: 0 auto;
+    padding: 0 0 0.5rem;
+    text-align: right;
+  }
+
+  html[data-lp-app='hub'] .sh-root::after {
+    display: none;
+  }
+}
+
+@media (max-width: 639px) {
+  html[data-lp-app='hub'] {
+    scroll-padding-top: 10.5rem;
+  }
+
+  html[data-lp-app='hub'] .header-inner {
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0;
+  }
+
+  html[data-lp-app='hub'] .brand {
+    align-self: flex-start;
+  }
+
+  html[data-lp-app='hub'] .brand-mark {
+    width: 2.3rem;
+    height: 2.3rem;
+    font-size: 1.3rem;
+  }
+
+  html[data-lp-app='hub'] .brand strong {
+    font-size: 0.99rem;
+  }
+
+  html[data-lp-app='hub'] .brand small {
+    font-size: 0.52rem;
+  }
+
+  html[data-lp-app='hub'] .site-header nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    gap: 0.12rem 0.15rem;
+  }
+
+  html[data-lp-app='hub'] .site-header nav a,
+  html[data-lp-app='hub'] .site-header nav a[href='/vokabeln'] {
+    display: inline-flex;
+    min-width: 0;
+    min-height: 2.65rem;
+    justify-content: center;
+    padding: 0.5rem 0.18rem;
+    color: #334b3b;
+    font-size: clamp(0.65rem, 2.65vw, 0.75rem);
+    border-radius: 0.1rem;
+  }
+
+  html[data-lp-app='hub'] .sh-content {
+    width: calc(100% - 2.1rem);
+    padding: 1.4rem 0 1rem;
+  }
+
+  html[data-lp-app='hub'] .sh-eyebrow {
+    font-size: 0.63rem;
+    line-height: 1.5;
+    letter-spacing: 0.095em;
+  }
+
+  html[data-lp-app='hub'] .sh-h1 {
+    max-width: none;
+    font-size: clamp(2.18rem, 8.75vw, 3.05rem);
+    line-height: 1.015;
+    text-wrap: wrap;
+    hyphens: manual;
+  }
+
+  html[data-lp-app='hub'] .sh-aside {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  html[data-lp-app='hub'] .sh-body {
+    max-width: 100%;
+    font-size: 0.96rem;
+  }
+
+  html[data-lp-app='hub'] .sh-btn,
+  html[data-lp-app='hub'] .sh-txt {
+    min-height: 3rem;
+    font-size: 0.87rem;
+  }
+
+  html[data-lp-app='hub'] .sh-figure-wrap {
+    width: calc(100% - 1.4rem);
+    --sh-figure-h: clamp(11rem, 19svh, 14rem);
+    min-height: 11rem;
+    padding: 1.5rem 0.6rem;
+  }
+
+  html[data-lp-app='hub'] .sh-figure-wrap::before,
+  html[data-lp-app='hub'] .sh-figure-wrap::after {
+    font-size: 0.52rem;
+  }
+
+  html[data-lp-app='hub'] .lp-editorial-rule-inner {
+    min-height: 2.8rem;
+    font-size: 0.52rem;
+    gap: 0.55rem;
+  }
+}
+
+
+/* THE LEARNING STUDIO — an interface, not a marketing feature card. */
+html[data-lp-app='hub'] .lp-studio {
+  position: relative;
+  overflow: clip;
+  padding: clamp(4.25rem, 8vw, 8.75rem) 0 clamp(4rem, 7vw, 7rem);
+  background: #17271e;
+  color: #f1f4e9;
+}
+
+html[data-lp-app='hub'] .lp-studio::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.28;
+  background-image: linear-gradient(to right, #75897730 1px, transparent 1px),
+    linear-gradient(to bottom, #75897720 1px, transparent 1px);
+  background-size: 120px 120px;
+  mask-image: linear-gradient(to bottom, transparent, #000 20%, transparent 90%);
+}
+
+html[data-lp-app='hub'] .lp-studio-shell {
+  position: relative;
+  z-index: 1;
+}
+
+html[data-lp-app='hub'] .lp-studio-kicker,
+html[data-lp-app='hub'] .lp-studio-selector-top,
+html[data-lp-app='hub'] .lp-studio-example-top,
+html[data-lp-app='hub'] .lp-studio-exercise-meta,
+html[data-lp-app='hub'] .lp-studio-example-actions > span,
+html[data-lp-app='hub'] .lp-studio-outro {
+  font: 650 0.7rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.075em;
+}
+
+html[data-lp-app='hub'] .lp-studio-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: clamp(2.7rem, 6vw, 5rem);
+  color: #b8c9ae;
+}
+
+html[data-lp-app='hub'] .lp-studio-kicker > span:first-child {
+  display: inline-flex;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+html[data-lp-app='hub'] .lp-studio-pulse {
+  display: inline-block;
+  width: 0.56rem;
+  height: 0.56rem;
+  border-radius: 50%;
+  background: var(--lp-signal);
+  box-shadow: 0 0 0 0.25rem rgb(212 246 123 / 0.12);
+}
+
+html[data-lp-app='hub'] .lp-studio-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(15rem, 0.65fr);
+  align-items: end;
+  gap: clamp(2rem, 6vw, 7rem);
+  margin-bottom: clamp(2.75rem, 5vw, 4.5rem);
+}
+
+html[data-lp-app='hub'] .lp-studio-intro .eyebrow {
+  margin-bottom: 1.5rem;
+  color: #c4eb7a;
+}
+
+html[data-lp-app='hub'] .lp-studio-intro h2 {
+  max-width: 11.5em;
+  margin: 0;
+  font-size: clamp(3.25rem, 5.8vw, 6.5rem);
+  line-height: 1.015;
+  letter-spacing: -0.074em;
+  font-weight: 770;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+html[data-lp-app='hub'] .lp-studio-intro h2 em,
+html[data-lp-app='hub'] .model-section h2 em,
+html[data-lp-app='hub'] #zukunft h2 em {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  letter-spacing: -0.055em;
+}
+
+html[data-lp-app='hub'] .lp-studio-intro h2 em {
+  color: #d2f47e;
+}
+
+html[data-lp-app='hub'] .lp-studio-intro > p {
+  max-width: 23rem;
+  margin: 0 0 0.3rem;
+  color: #bdc9be;
+  font-size: 1.04rem;
+  line-height: 1.75;
+}
+
+html[data-lp-app='hub'] .lp-studio-workspace {
+  display: grid;
+  grid-template-columns: minmax(12.5rem, 0.27fr) minmax(0, 0.73fr);
+  min-height: clamp(28rem, 42vw, 38rem);
+  border: 1px solid #58705c;
+  box-shadow: 0 28px 70px rgb(0 0 0 / 0.17);
+  background: #1d3327;
+}
+
+html[data-lp-app='hub'] .lp-studio-selector {
+  display: flex;
+  flex-direction: column;
+  padding: 1.8rem 0;
+  border-right: 1px solid #47604d;
+  min-width: 0;
+}
+
+html[data-lp-app='hub'] .lp-studio-selector-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin: 0 1.5rem 1.9rem;
+  color: #b6c5b0;
+  font-size: 0.59rem;
+}
+
+html[data-lp-app='hub'] .lp-studio-topic {
+  display: grid;
+  grid-template-columns: 2.35rem minmax(0, 1fr) 1.1rem;
+  gap: 0.4rem;
+  align-items: center;
+  width: 100%;
+  min-height: 5.2rem;
+  padding: 1rem 1.45rem;
+  border: 0;
+  border-block-end: 1px solid #45604a;
+  border-radius: 0;
+  color: #ebf1e4;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+html[data-lp-app='hub'] .lp-studio-topic:hover {
+  color: #d4f67b;
+  background: #294435;
+}
+
+html[data-lp-app='hub'] .lp-studio-topic[aria-pressed='true'] {
+  color: #19261c;
+  background: #d4f67b;
+}
+
+html[data-lp-app='hub'] .lp-studio-topic-index {
+  font: 650 0.68rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  opacity: 0.85;
+}
+
+html[data-lp-app='hub'] .lp-studio-topic-name {
+  font-size: clamp(1rem, 1.65vw, 1.4rem);
+  font-weight: 710;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+
+html[data-lp-app='hub'] .lp-studio-topic-arrow {
+  font-size: 1.3rem;
+  justify-self: end;
+}
+
+html[data-lp-app='hub'] .lp-studio-selector-foot {
+  margin: auto 1.5rem 0;
+  padding-top: 1.8rem;
+  color: #a7baa9;
+  font-size: 0.69rem;
+  line-height: 1.6;
+}
+
+html[data-lp-app='hub'] .lp-studio-example {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  padding: clamp(1.25rem, 3vw, 3rem);
+  overflow: hidden;
+  background: #e4e9d8;
+  color: #17271c;
+}
+
+html[data-lp-app='hub'] .lp-studio-example::after {
+  content: '✳';
+  position: absolute;
+  z-index: -1;
+  right: -0.09em;
+  bottom: -0.29em;
+  font: 400 clamp(13rem, 27vw, 29rem)/1 Georgia, serif;
+  color: #c8d6be;
+  opacity: 0.46;
+  pointer-events: none;
+}
+
+html[data-lp-app='hub'] .lp-studio-example-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  border-bottom: 1px solid #b8c6b4;
+  padding-bottom: 1.4rem;
+}
+
+html[data-lp-app='hub'] .lp-studio-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-weight: 750;
+}
+
+html[data-lp-app='hub'] .lp-studio-chip > span {
+  font-size: 1.5rem;
+  line-height: 0.75;
+}
+
+html[data-lp-app='hub'] .lp-studio-demo {
+  color: #455b4a;
+  font-size: 0.65rem;
+}
+
+html[data-lp-app='hub'] .lp-studio-example-body {
+  animation: lp-studio-enter 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes lp-studio-enter {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+html[data-lp-app='hub'] .lp-studio-exercise-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: clamp(2.15rem, 4vw, 3.4rem);
+  color: #506a55;
+}
+
+html[data-lp-app='hub'] .lp-studio-question {
+  margin: 0.9rem 0 0.2rem;
+  color: #465d4c;
+  font-size: 1rem;
+}
+
+html[data-lp-app='hub'] .lp-studio-prompt {
+  margin: 0;
+  font-size: clamp(2.9rem, 6.3vw, 6rem);
+  line-height: 1.045;
+  font-weight: 800;
+  letter-spacing: -0.065em;
+  overflow-wrap: anywhere;
+}
+
+html[data-lp-app='hub'] .lp-studio-cursor {
+  margin-left: 0.06em;
+  color: #719878;
+  font-family: Georgia, serif;
+  font-weight: 400;
+}
+
+html[data-lp-app='hub'] .lp-studio-answer-space {
+  display: grid;
+  align-items: start;
+  min-height: 8.3rem;
+  margin-top: 1.15rem;
+}
+
+html[data-lp-app='hub'] .lp-studio-concealed {
+  max-width: 23rem;
+  margin: 0.4rem 0;
+  color: #6b7e6d;
+  font-size: 0.89rem;
+  line-height: 1.65;
+}
+
+html[data-lp-app='hub'] .lp-studio-answer {
+  max-width: 39rem;
+  padding: 0.3rem 0 0;
+  animation: lp-studio-enter 240ms ease-out both;
+}
+
+html[data-lp-app='hub'] .lp-studio-answer-label {
+  display: block;
+  margin-bottom: 0.55rem;
+  color: #496c52;
+  font: 750 0.63rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.09em;
+}
+
+html[data-lp-app='hub'] .lp-studio-answer strong {
+  display: block;
+  font-size: clamp(1.35rem, 2.3vw, 2.2rem);
+  line-height: 1.14;
+  letter-spacing: -0.04em;
+}
+
+html[data-lp-app='hub'] .lp-studio-answer p {
+  max-width: 36rem;
+  margin: 0.6rem 0 0;
+  color: #526a59;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+html[data-lp-app='hub'] .lp-studio-example-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+html[data-lp-app='hub'] .lp-studio-reveal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2.3rem;
+  min-width: 12rem;
+  min-height: 3rem;
+  padding: 0.68rem 0.95rem;
+  border: 1px solid #17271d;
+  background: #17271d;
+  color: #fffef4;
+  border-radius: 0.15rem;
+  font: 740 0.85rem/1.3 var(--font-sans);
+  cursor: pointer;
+}
+
+html[data-lp-app='hub'] .lp-studio-reveal:hover {
+  border-color: #2f6044;
+  background: #2f6044;
+}
+
+html[data-lp-app='hub'] .lp-studio-reveal > span {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+html[data-lp-app='hub'] .lp-studio-example-actions > span {
+  color: #4f6a57;
+  font-size: 0.58rem;
+}
+
+html[data-lp-app='hub'] .lp-studio-outro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1.75rem;
+  color: #c4d3c1;
+  font-size: 0.77rem;
+}
+
+html[data-lp-app='hub'] .lp-studio-outro a {
+  min-height: 2.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.95rem;
+  color: #d4f67b;
+  font: 750 0.95rem/1.3 var(--font-sans);
+  text-decoration: none;
+  border-bottom: 1px solid #d4f67b;
+}
+
+html[data-lp-app='hub'] .lp-studio-outro a:hover {
+  color: #fff;
+  border-color: #fff;
+}
+
+@media (max-width: 819px) {
+  html[data-lp-app='hub'] .lp-studio-intro {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+  html[data-lp-app='hub'] .lp-studio-intro h2 {
+    max-width: 13em;
+    font-size: clamp(2.65rem, 7.5vw, 4.65rem);
+  }
+  html[data-lp-app='hub'] .lp-studio-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-lp-app='hub'] .lp-studio-selector {
+    border-right: 0;
+    border-bottom: 1px solid #47604d;
+    padding: 1rem 0 0;
+  }
+  html[data-lp-app='hub'] .lp-studio-selector-top {
+    margin: 0 1.1rem 0.7rem;
+  }
+  html[data-lp-app='hub'] .lp-studio-selector-foot {
+    display: none;
+  }
+  html[data-lp-app='hub'] .lp-studio-selector {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  html[data-lp-app='hub'] .lp-studio-selector-top {
+    grid-column: 1 / -1;
+  }
+  html[data-lp-app='hub'] .lp-studio-topic {
+    grid-template-columns: 1fr;
+    min-height: 4.5rem;
+    padding: 0.8rem 0.65rem;
+    border-bottom: 0;
+    border-right: 1px solid #47604d;
+  }
+  html[data-lp-app='hub'] .lp-studio-topic:last-of-type {
+    border-right: 0;
+  }
+  html[data-lp-app='hub'] .lp-studio-topic-index {
+    font-size: 0.6rem;
+  }
+  html[data-lp-app='hub'] .lp-studio-topic-name {
+    font-size: 0.98rem;
+  }
+  html[data-lp-app='hub'] .lp-studio-topic-arrow {
+    display: none;
+  }
+  html[data-lp-app='hub'] .lp-studio-example {
+    min-height: 26rem;
+    padding: 1.35rem 1.2rem 1.6rem;
+  }
+}
+
+@media (max-width: 639px) {
+  html[data-lp-app='hub'] .lp-studio {
+    padding: 3.4rem 0 3.6rem;
+  }
+  html[data-lp-app='hub'] .lp-studio-kicker {
+    font-size: 0.52rem;
+    margin-bottom: 2rem;
+  }
+  html[data-lp-app='hub'] .lp-studio-kicker > span:last-child {
+    display: none;
+  }
+  html[data-lp-app='hub'] .lp-studio-intro h2 {
+    font-size: clamp(2.4rem, 10.4vw, 3.4rem);
+    overflow-wrap: normal;
+  }
+  html[data-lp-app='hub'] .lp-studio-intro > p {
+    font-size: 0.91rem;
+  }
+  html[data-lp-app='hub'] .lp-studio-topic {
+    min-height: 4.7rem;
+  }
+  html[data-lp-app='hub'] .lp-studio-topic-name {
+    font-size: 0.83rem;
+  }
+  html[data-lp-app='hub'] .lp-studio-example {
+    padding: 1.15rem;
+  }
+  html[data-lp-app='hub'] .lp-studio-example-top {
+    gap: 0.6rem;
+  }
+  html[data-lp-app='hub'] .lp-studio-demo {
+    font-size: 0.54rem;
+  }
+  html[data-lp-app='hub'] .lp-studio-prompt {
+    font-size: clamp(2.6rem, 10.3vw, 3.5rem);
+  }
+  html[data-lp-app='hub'] .lp-studio-exercise-meta {
+    font-size: 0.55rem;
+  }
+  html[data-lp-app='hub'] .lp-studio-reveal {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-lp-app='hub'] .lp-studio-example-body,
+  html[data-lp-app='hub'] .lp-studio-answer {
+    animation: none;
+  }
+  html[data-lp-app='hub'] .lp-studio-topic {
+    transition: none;
+  }
+}
+
+
+/* LEARNING PATHS — editorial index, never a repeated card grid. */
+html[data-lp-app='hub'] .lp-path-index {
+  padding-block: clamp(5rem, 9vw, 9.75rem);
+}
+
+html[data-lp-app='hub'] .lp-path-index .section-heading,
+html[data-lp-app='hub'] #zukunft .section-heading {
+  align-items: end;
+  margin-bottom: 3rem;
+}
+
+html[data-lp-app='hub'] .section-heading h2 {
+  max-width: 15em;
+  color: #1b2a20;
+  font-size: clamp(2.65rem, 4.9vw, 5rem);
+  letter-spacing: -0.062em;
+  line-height: 1.04;
+  font-weight: 780;
+}
+
+html[data-lp-app='hub'] .section-heading > p {
+  max-width: 23rem;
+  color: #5a6c5d;
+}
+
+html[data-lp-app='hub'] .path-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  border-top: 1px solid #bfc9be;
+  border-bottom: 1px solid #bfc9be;
+}
+
+html[data-lp-app='hub'] .path-card {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid #cad3c6;
+  border-radius: 0;
+  background: transparent;
+  padding: 1.6rem 0;
+  box-shadow: none;
+}
+
+html[data-lp-app='hub'] .path-card:last-child {
+  border-bottom: 0;
+}
+
+html[data-lp-app='hub'] .path-card--core {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.22fr) minmax(0, 0.55fr) minmax(11rem, 0.23fr);
+  align-items: center;
+  gap: 1.4rem;
+}
+
+html[data-lp-app='hub'] .path-card--core .path-card-topline {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+html[data-lp-app='hub'] .path-card-ordinal {
+  color: #637869;
+  font: 680 0.72rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.045em;
+}
+
+html[data-lp-app='hub'] .path-card-topline .eyebrow {
+  font-size: 0.65rem;
+  color: #526c57;
+}
+
+html[data-lp-app='hub'] .path-card-topline .status {
+  min-height: 1.8rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 0.2rem;
+  font-size: 0.65rem;
+  font-weight: 760;
+}
+
+html[data-lp-app='hub'] .path-card .status-building {
+  background: #e7ebdf;
+  color: #4f6050;
+}
+
+html[data-lp-app='hub'] .path-card .status-local-mvp {
+  background: #d3efb7;
+  color: #183b23;
+}
+
+html[data-lp-app='hub'] .path-card .status-planned {
+  background: #e4e7e0;
+  color: #536456;
+}
+
+html[data-lp-app='hub'] .path-card-body {
+  display: flex;
+  align-items: center;
+  gap: clamp(1rem, 2.5vw, 2.4rem);
+  min-width: 0;
+}
+
+html[data-lp-app='hub'] .path-card-copy {
+  min-width: 0;
+}
+
+html[data-lp-app='hub'] .path-card .path-mark {
+  flex: 0 0 5.2rem;
+  width: 5.2rem;
+  height: 6rem;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  border-radius: 0;
+  color: #7f9a82;
+  background: none;
+  font: italic 500 4.7rem/1 Georgia, 'Times New Roman', serif;
+  letter-spacing: -0.115em;
+}
+
+html[data-lp-app='hub'] .path-card[data-path='python'] .path-mark { color: #6c997b; }
+html[data-lp-app='hub'] .path-card[data-path='sql'] .path-mark { color: #648c9c; }
+html[data-lp-app='hub'] .path-card[data-path='git'] .path-mark { color: #968b79; }
+html[data-lp-app='hub'] .path-card[data-path='ai'] .path-mark { color: #b1a075; }
+html[data-lp-app='hub'] .path-card[data-path='vokabeln'] .path-mark { color: #779a67; }
+
+html[data-lp-app='hub'] .path-card h3 {
+  margin: 0;
+  font-size: clamp(1.75rem, 2.8vw, 2.8rem);
+  line-height: 1.05;
+  letter-spacing: -0.06em;
+  font-weight: 770;
+}
+
+html[data-lp-app='hub'] .path-card .path-description {
+  margin: 0.7rem 0 0;
+  color: #4a5b4e;
+  font-size: 0.95rem;
+  line-height: 1.64;
+}
+
+html[data-lp-app='hub'] .path-card .path-outcome {
+  margin: 0.4rem 0 0;
+  color: #486c53;
+  font-size: 0.78rem;
+  font-weight: 660;
+  line-height: 1.55;
+}
+
+html[data-lp-app='hub'] .path-card-bottom {
+  display: grid;
+  align-content: end;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+html[data-lp-app='hub'] .path-card .topic-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem 0.5rem;
+  margin: 0;
+  padding: 0;
+}
+
+html[data-lp-app='hub'] .path-card .topic-list li {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #68766a;
+  font: 580 0.68rem/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html[data-lp-app='hub'] .path-card .topic-list li:not(:last-child)::after {
+  content: '·';
+  padding-left: 0.5rem;
+  color: #91a394;
+}
+
+html[data-lp-app='hub'] .path-card .card-action {
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  font-size: 0.82rem;
+  font-weight: 770;
+  color: #285a43;
+}
+
+html[data-lp-app='hub'] .path-card-unavailable .card-action {
+  color: #748476;
+}
+
+html[data-lp-app='hub'] .path-card-link {
+  transition: background-color 170ms ease;
+}
+
+html[data-lp-app='hub'] .path-card-link:hover {
+  transform: none;
+  border-color: #cad3c6;
+  box-shadow: none;
+  background: #ebf0e4;
+}
+
+html[data-lp-app='hub'] .path-card-link .path-card-copy h3 {
+  transition: transform 200ms ease;
+}
+
+html[data-lp-app='hub'] .path-card-link:hover .path-card-copy h3 {
+  transform: translateX(0.5rem);
+}
+
+/* Forward plan: compact numbered editorial records, not six tile clones. */
+html[data-lp-app='hub'] #zukunft {
+  padding-block: clamp(4.5rem, 7.5vw, 7.5rem);
+}
+
+html[data-lp-app='hub'] #zukunft h2 em {
+  color: #39724c;
+}
+
+html[data-lp-app='hub'] .future-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 3rem;
+}
+
+html[data-lp-app='hub'] .path-card--future {
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+  min-height: 0;
+  padding: 1.8rem 0 2rem;
+}
+
+html[data-lp-app='hub'] .path-card--future .path-card-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.8rem;
+}
+
+html[data-lp-app='hub'] .path-card--future .path-card-topline .eyebrow {
+  display: none;
+}
+
+html[data-lp-app='hub'] .path-card--future .path-mark {
+  display: none;
+}
+
+html[data-lp-app='hub'] .path-card--future h3 {
+  font-size: clamp(1.45rem, 2.15vw, 2.1rem);
+}
+
+html[data-lp-app='hub'] .path-card--future .path-description {
+  max-width: 34rem;
+  margin-top: 0.4rem;
+  font-size: 0.89rem;
+}
+
+html[data-lp-app='hub'] .path-card--future .path-outcome {
+  font-size: 0.8rem;
+}
+
+html[data-lp-app='hub'] .path-card--future .path-card-bottom {
+  align-content: start;
+  padding-top: 0.4rem;
+}
+
+html[data-lp-app='hub'] .path-card--future .topic-list li {
+  font-size: 0.66rem;
+}
+
+/* FOUR-STEP LEARNING PATH — one connected editorial line. */
+html[data-lp-app='hub'] .model-section {
+  padding-block: clamp(5rem, 9vw, 9rem);
+  color: #172a1c;
+  background: #e5eadc;
+  border-block: 1px solid #cbd5c8;
+}
+
+html[data-lp-app='hub'] .model-section .eyebrow {
+  color: #315b40;
+}
+
+html[data-lp-app='hub'] .model-section .light-heading > p {
+  color: #485a4d;
+}
+
+html[data-lp-app='hub'] .model-section h2 {
+  color: #192d20;
+}
+
+html[data-lp-app='hub'] .model-section h2 em {
+  color: #47774c;
+}
+
+html[data-lp-app='hub'] .model-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin-top: clamp(2rem, 4vw, 3.7rem);
+  border-top: 1px solid #9eb4a1;
+  border-bottom: 1px solid #9eb4a1;
+}
+
+html[data-lp-app='hub'] .model-grid article {
+  position: relative;
+  min-height: 15rem;
+  padding: 1.6rem 1.45rem 2rem;
+  border: 0;
+  border-right: 1px solid #b4c5b4;
+  border-radius: 0;
+  background: none;
+}
+
+html[data-lp-app='hub'] .model-grid article:last-child {
+  border-right: 0;
+}
+
+html[data-lp-app='hub'] .model-grid article > span {
+  display: block;
+  color: #7d9e80;
+  font: italic 440 clamp(3.6rem, 5vw, 5.1rem)/0.95 Georgia, serif;
+  letter-spacing: -0.09em;
+}
+
+html[data-lp-app='hub'] .model-grid h3 {
+  margin: 2rem 0 0;
+  color: #1b3021;
+  font-size: clamp(1.2rem, 1.6vw, 1.65rem);
+  letter-spacing: -0.04em;
+}
+
+html[data-lp-app='hub'] .model-grid p {
+  margin-top: 0.5rem;
+  color: #4c6351;
+  font-size: 0.9rem;
+  line-height: 1.67;
+}
+
+/* Vocabulary brand spread: tactile flashcards without a generic dashboard. */
+html[data-lp-app='hub'] .vocab-section {
+  padding-block: clamp(5rem, 8vw, 8rem);
+  border-top: 1px solid #d5dfd2;
+  background: #f4f5ee;
+}
+
+html[data-lp-app='hub'] .vocab-grid {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.85fr);
+  gap: clamp(2rem, 7vw, 8rem);
+}
+
+html[data-lp-app='hub'] .vocab-section h2 {
+  max-width: 10.5em;
+  font-size: clamp(2.65rem, 4.5vw, 4.65rem);
+  letter-spacing: -0.063em;
+  line-height: 1.04;
+  color: #1c3025;
+}
+
+html[data-lp-app='hub'] .vocab-grid > div:first-child > p:last-child {
+  max-width: 33rem;
+  color: #526357;
+  font-size: 0.99rem;
+}
+
+html[data-lp-app='hub'] .vocab-stack {
+  position: relative;
+  display: grid;
+  gap: 0;
+  padding: clamp(1.3rem, 3vw, 2.6rem);
+  border: 1px solid #d0d9ba;
+  border-radius: 0;
+  background: #dcf0b3;
+  box-shadow: 17px 17px 0 #c1d1a6;
+  transform: rotate(1.2deg);
+}
+
+html[data-lp-app='hub'] .lp-vocab-art-label,
+html[data-lp-app='hub'] .lp-vocab-art-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font: 670 0.66rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.06em;
+  color: #466a42;
+}
+
+html[data-lp-app='hub'] .lp-vocab-art-label {
+  margin-bottom: 1.4rem;
+}
+
+html[data-lp-app='hub'] .lp-vocab-art-foot {
+  margin-top: 1.25rem;
+  border-top: 1px solid #aac797;
+  padding-top: 1.1rem;
+  font-size: 0.73rem;
+}
+
+html[data-lp-app='hub'] .lp-vocab-art-foot span {
+  font-size: 2rem;
+  line-height: 0.8;
+}
+
+html[data-lp-app='hub'] .vocab-stack .vocab-card {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.15rem 1rem;
+  min-width: 0;
+  padding: 1.1rem 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid #aac797;
+  background: transparent;
+}
+
+html[data-lp-app='hub'] .vocab-stack .vocab-card:first-of-type {
+  padding-top: 1.5rem;
+}
+
+html[data-lp-app='hub'] .vocab-stack .vocab-card span {
+  grid-row: span 2;
+  align-self: baseline;
+  color: #4d7851;
+  font-size: 0.63rem;
+  font-weight: 760;
+}
+
+html[data-lp-app='hub'] .vocab-stack .vocab-card strong {
+  color: #1b3525;
+  font-size: clamp(1.35rem, 2vw, 1.95rem);
+  letter-spacing: -0.06em;
+}
+
+html[data-lp-app='hub'] .vocab-stack .vocab-card small {
+  color: #3b6044;
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+html[data-lp-app='hub'] footer {
+  border-top: 1px solid #526958;
+  background: #17271e;
+}
+
+html[data-lp-app='hub'] .footer-inner {
+  min-height: 8rem;
+  color: #d8e4d2;
+  letter-spacing: 0.035em;
+}
+
+html[data-lp-app='hub'] .footer-inner strong {
+  color: #d4f67b;
+  font-size: 1.5rem;
+  letter-spacing: -0.05em;
+}
+
+html[data-lp-app='hub'] .footer-inner span {
+  font: 600 0.65rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media (max-width: 1019px) {
+  html[data-lp-app='hub'] .path-card--core {
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    gap: 1rem 1.25rem;
+  }
+  html[data-lp-app='hub'] .path-card--core .path-card-bottom {
+    grid-column: 2;
+  }
+  html[data-lp-app='hub'] .vocab-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-lp-app='hub'] .vocab-stack {
+    max-width: 45rem;
+  }
+}
+
+@media (max-width: 760px) {
+  html[data-lp-app='hub'] .path-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-lp-app='hub'] .path-card--core {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.6rem;
+    padding: 1.6rem 0;
+  }
+  html[data-lp-app='hub'] .path-card--core .path-card-topline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+  }
+  html[data-lp-app='hub'] .path-card--core .path-card-bottom {
+    grid-column: auto;
+  }
+  html[data-lp-app='hub'] .path-card--core .path-mark {
+    flex-basis: 3.5rem;
+    width: 3.5rem;
+    height: 4.2rem;
+    font-size: 3.45rem;
+  }
+  html[data-lp-app='hub'] .path-card h3 {
+    font-size: clamp(1.65rem, 5vw, 2.3rem);
+  }
+  html[data-lp-app='hub'] .future-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-lp-app='hub'] .model-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  html[data-lp-app='hub'] .model-grid article:nth-child(2n) {
+    border-right: 0;
+  }
+  html[data-lp-app='hub'] .model-grid article:nth-child(-n + 2) {
+    border-bottom: 1px solid #b4c5b4;
+  }
+  html[data-lp-app='hub'] .vocab-stack {
+    width: calc(100% - 0.8rem);
+    margin-right: 0.8rem;
+    box-shadow: 9px 9px 0 #c1d1a6;
+  }
+}
+
+@media (max-width: 639px) {
+  html[data-lp-app='hub'] .section-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+  }
+  html[data-lp-app='hub'] .section-heading h2 {
+    font-size: clamp(2.35rem, 8.5vw, 3.15rem);
+  }
+  html[data-lp-app='hub'] .model-grid {
+    display: block;
+    border-bottom: 0;
+  }
+  html[data-lp-app='hub'] .model-grid article {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 4.7rem minmax(0, 1fr);
+    gap: 0.2rem 0.8rem;
+    border-right: 0;
+    border-bottom: 1px solid #b4c5b4;
+    padding: 1.25rem 0;
+  }
+  html[data-lp-app='hub'] .model-grid article > span {
+    grid-row: span 2;
+    font-size: 3.6rem;
+  }
+  html[data-lp-app='hub'] .model-grid h3 {
+    margin: 0.6rem 0 0;
+  }
+  html[data-lp-app='hub'] .model-grid p {
+    margin-top: 0.2rem;
+  }
+  html[data-lp-app='hub'] .vocab-section h2 {
+    font-size: clamp(2.5rem, 9vw, 3.4rem);
+  }
+  html[data-lp-app='hub'] .vocab-stack {
+    padding: 1.1rem;
+    transform: none;
+  }
+  html[data-lp-app='hub'] .vocab-stack .vocab-card {
+    grid-template-columns: 4rem minmax(0, 1fr);
+    gap: 0.3rem 0.55rem;
+  }
+  html[data-lp-app='hub'] .lp-vocab-art-label {
+    font-size: 0.53rem;
+  }
+}
+
+
+/* PERSONAL LEARNING — focus first, utility second.
+   Pure presentation: IndexedDB, scheduler, destructive confirmations and
+   user data remain precisely where they are. */
+html[data-lp-app='hub'] .vocab-app {
+  max-width: 78rem;
+  gap: 1.75rem;
+}
+
+html[data-lp-app='hub'] .vocab-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.24fr) minmax(17rem, 0.76fr);
+  gap: 1.5rem;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-intro {
+  grid-column: 1 / -1;
+  padding: clamp(1.5rem, 3.5vw, 3.75rem) 0 1.65rem;
+  border-bottom: 1px solid #c8d2c5;
+}
+
+html[data-lp-app='hub'] .vocab-app h1,
+html[data-lp-app='hub'] .progress-intro h1,
+html[data-lp-app='hub'] .review-page-title {
+  max-width: 18em;
+  color: #1a2a20;
+  font-size: clamp(2.6rem, 5.25vw, 5.4rem);
+  line-height: 1.03;
+  font-weight: 780;
+  letter-spacing: -0.07em;
+}
+
+html[data-lp-app='hub'] .vocab-intro > p:not(.eyebrow) {
+  max-width: 40rem;
+  color: #536357;
+  font-size: 1.03rem;
+  line-height: 1.75;
+}
+
+html[data-lp-app='hub'] .vocab-intro .vocab-storage-note {
+  max-width: 46rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid #bbcbb7;
+  border-left: 3px solid #3f7751;
+  border-radius: 0;
+  background: #e7ede1;
+  color: #364e3b;
+  font-size: 0.81rem;
+  line-height: 1.6;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel {
+  min-width: 0;
+  border: 1px solid #cbd6c7;
+  border-radius: 0.25rem;
+  background: #fffef9;
+  box-shadow: none;
+  padding: clamp(1.25rem, 2.5vw, 2.1rem);
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel:nth-child(n + 4) {
+  grid-column: 1 / -1;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='session-title'] {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #1a3a27;
+  background: #203729;
+  color: #f5f7ec;
+  box-shadow: 12px 12px 0 #d8e5cf;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='session-title']::before {
+  content: '✳';
+  position: absolute;
+  right: -0.1em;
+  top: -0.25em;
+  font: 300 clamp(9rem, 17vw, 17rem)/1 Georgia, serif;
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='session-title'] h2 {
+  position: relative;
+  margin-bottom: 1.35rem;
+  font-size: clamp(1.75rem, 2.5vw, 2.45rem);
+  font-weight: 740;
+  letter-spacing: -0.055em;
+  color: #fffef7;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup form {
+  position: relative;
+  gap: 1.5rem;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup legend {
+  color: #dbe9d5;
+  font-size: 0.73rem;
+  letter-spacing: 0.035em;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-choices {
+  gap: 0.55rem;
+  margin-top: 0.7rem;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-choice {
+  min-height: 2.8rem;
+  padding: 0.5rem 0.78rem;
+  border: 1px solid #607e65;
+  border-radius: 0.18rem;
+  background: #2b4835;
+  color: #f5f6ed;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-choice:has(input:checked) {
+  border-color: #dcf69c;
+  background: #dcf69c;
+  color: #193123;
+  box-shadow: none;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-choice input {
+  accent-color: #28614d;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-session-summary {
+  margin-top: 0.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #5b795f;
+  color: #e4f0db;
+  font-size: 0.89rem;
+  line-height: 1.55;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .lp-ui-button {
+  position: relative;
+  min-height: 3.2rem;
+  border-radius: 0.15rem;
+  border: 1px solid #d4f67b;
+  background: #d4f67b;
+  color: #172d1d;
+  font-weight: 780;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .lp-ui-button:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .lp-ui-button:hover:not(:disabled) {
+  background: #e5ffab;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='stats-title'] {
+  align-self: start;
+  background: #e9eee4;
+  border-color: #c2d0bd;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='stats-title'] h2 {
+  font-size: 1.55rem;
+  font-weight: 750;
+  letter-spacing: -0.05em;
+}
+
+html[data-lp-app='hub'] .vocab-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+}
+
+html[data-lp-app='hub'] .vocab-stats div {
+  min-width: 0;
+  min-height: 5.35rem;
+  padding: 0.9rem 0.4rem 0.8rem 0;
+  border: 0;
+  border-bottom: 1px solid #b9c9b5;
+  border-radius: 0;
+  background: none;
+}
+
+html[data-lp-app='hub'] .vocab-stats dt {
+  color: #45604a;
+  font-size: 0.73rem;
+  line-height: 1.4;
+}
+
+html[data-lp-app='hub'] .vocab-stats dd {
+  margin: 0.3rem 0 0;
+  color: #1c3e28;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 660;
+  font-size: clamp(1.9rem, 3vw, 2.6rem);
+  line-height: 1;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='stats-title'] .vocab-muted {
+  margin-top: 1.4rem;
+  color: #53695a;
+  font-size: 0.75rem;
+  line-height: 1.65;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='decks-title'],
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='starter-title'] {
+  margin-top: 0.6rem;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='decks-title'] h2,
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='starter-title'] h2 {
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+  font-weight: 770;
+  letter-spacing: -0.05em;
+}
+
+html[data-lp-app='hub'] .vocab-deck,
+html[data-lp-app='hub'] .vocab-starter,
+html[data-lp-app='hub'] .vocab-card-item {
+  border: 0;
+  border-bottom: 1px solid #cbd5c9;
+  border-radius: 0;
+  padding: 1.2rem 0;
+  box-shadow: none;
+  background: none;
+}
+
+html[data-lp-app='hub'] .vocab-deck h3,
+html[data-lp-app='hub'] .vocab-starter h3 {
+  color: #1b3224;
+  font-size: 1.25rem;
+  letter-spacing: -0.04em;
+}
+
+html[data-lp-app='hub'] .vocab-field input,
+html[data-lp-app='hub'] .vocab-filter select {
+  min-height: 3rem;
+  border: 1px solid #aebfaf;
+  border-radius: 0.2rem;
+  background: #fff;
+  color: #1a2c20;
+}
+
+html[data-lp-app='hub'] .vocab-field input:focus-visible,
+html[data-lp-app='hub'] .vocab-filter select:focus-visible {
+  border-color: #315f45;
+  box-shadow: 0 0 0 2px #cee5cb;
+}
+
+html[data-lp-app='hub'] .review-card,
+html[data-lp-app='hub'] .progress-card,
+html[data-lp-app='hub'] .progress-summary,
+html[data-lp-app='hub'] .vocab-pointer {
+  border: 1px solid #c9d7c5;
+  border-radius: 0.2rem;
+  background: #fffef9;
+  box-shadow: none;
+}
+
+html[data-lp-app='hub'] .progress-summary {
+  border-left: 5px solid #2a6147;
+  background: #e7ede2;
+}
+
+html[data-lp-app='hub'] .review-prompt {
+  color: #1e3928;
+  font-weight: 770;
+}
+
+html[data-lp-app='hub'] .progress-metrics div {
+  background: #e9efe6;
+  border-color: #c7d4c4;
+  border-radius: 0.12rem;
+}
+
+html[data-lp-app='hub'] .review-ratings button,
+html[data-lp-app='hub'] .vocab-actions .lp-ui-button {
+  border-radius: 0.2rem;
+}
+
+@media (max-width: 980px) {
+  html[data-lp-app='hub'] .vocab-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-lp-app='hub'] .vocab-overview > .vocab-intro,
+  html[data-lp-app='hub'] .vocab-overview > .vocab-panel,
+  html[data-lp-app='hub'] .vocab-overview > .vocab-panel:nth-child(n + 4) {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 639px) {
+  html[data-lp-app='hub'] .vocab-overview {
+    gap: 1rem;
+  }
+  html[data-lp-app='hub'] .vocab-app h1,
+  html[data-lp-app='hub'] .progress-intro h1 {
+    font-size: clamp(2.35rem, 9vw, 3.25rem);
+    hyphens: manual;
+  }
+  html[data-lp-app='hub'] .vocab-overview > .vocab-panel {
+    padding: 1.2rem;
+  }
+  html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='session-title'] {
+    box-shadow: 7px 7px 0 #d8e5cf;
+    margin-right: 7px;
+    margin-bottom: 7px;
+  }
+  html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-choices {
+    gap: 0.45rem;
+  }
+  html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-choice {
+    padding: 0.5rem 0.55rem;
+    min-height: 2.85rem;
+    font-size: 0.77rem;
+  }
+}
+
+
+/* CI / exact end-state corrections — no weakened Playwright assertions.
+ * Root causes: small-text contrast, required focus offset, true grid-row
+ * separation for hint/credit, and the vocabulary two-column heading measure. */
+html[data-lp-app='hub'] :focus-visible {
+  outline-offset: 2px;
+}
+
+html[data-lp-app='hub'] .path-card .path-card-ordinal,
+html[data-lp-app='hub'] .path-card .topic-list li,
+html[data-lp-app='hub'] .path-card .topic-list li:not(:last-child)::after,
+html[data-lp-app='hub'] .path-card .path-card-topline .eyebrow,
+html[data-lp-app='hub'] .path-card--future .path-card-ordinal {
+  color: #334d3b;
+}
+
+html[data-lp-app='hub'] .path-card .path-mark,
+html[data-lp-app='hub'] .path-card[data-path='python'] .path-mark,
+html[data-lp-app='hub'] .path-card[data-path='sql'] .path-mark,
+html[data-lp-app='hub'] .path-card[data-path='git'] .path-mark,
+html[data-lp-app='hub'] .path-card[data-path='ai'] .path-mark,
+html[data-lp-app='hub'] .path-card[data-path='vokabeln'] .path-mark {
+  color: #42624b;
+}
+
+html[data-lp-app='hub'] .path-card .status-building {
+  color: #364d3d;
+}
+
+html[data-lp-app='hub'] .path-card .status-planned {
+  color: #364d3d;
+}
+
+html[data-lp-app='hub'] .path-card .card-action,
+html[data-lp-app='hub'] .path-card-unavailable .card-action {
+  color: #294d37;
+}
+
+html[data-lp-app='hub'] .site-header nav a[aria-current='page'],
+html[data-lp-app='hub'] .site-header nav a[href='/vokabeln'][aria-current='page'] {
+  color: #fffef7;
+  background-color: #203d2d;
+}
+
+html[data-lp-app='hub'] .review-ratings button small {
+  color: #24402f;
+}
+
+@media (min-width: 820px) {
+  html[data-lp-app='hub'] .sh-root {
+    grid-template-rows: minmax(0, 1fr) auto auto;
+  }
+  html[data-lp-app='hub'] .sh-content {
+    grid-row: 1 / span 3;
+  }
+  html[data-lp-app='hub'] .sh-hint {
+    grid-row: 2;
+    padding: 0.45rem 0.2rem;
+    min-height: 2rem;
+  }
+  html[data-lp-app='hub'] .sh-credit {
+    grid-row: 3;
+    padding-bottom: 0.65rem;
+    min-height: 2rem;
+  }
+}
+
+html[data-lp-app='hub'] .sh-btn {
+  scroll-margin-block: 3rem 4rem;
+}
+
+html[data-lp-app='hub'] .vocab-section h2 {
+  max-width: 9.3em;
+  font-size: clamp(2.5rem, 3.65vw, 3.75rem);
+  hyphens: manual;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 819px) {
+  html[data-lp-app='hub'] .sh-btn {
+    scroll-margin-block: 8rem 4.5rem;
+  }
+}
+
+@media (max-width: 639px) {
+  html[data-lp-app='hub'] .site-header nav a[aria-current='page'],
+  html[data-lp-app='hub'] .site-header nav a[href='/vokabeln'][aria-current='page'] {
+    background-color: #203d2d;
+    color: #fffef7;
+  }
+}
