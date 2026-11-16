@@ -1848,3 +1848,584 @@ html[data-lp-app='hub'] .lp-studio-outro a:hover {
     transition: none;
   }
 }
+
+
+/* LEARNING PATHS — editorial index, never a repeated card grid. */
+html[data-lp-app='hub'] .lp-path-index {
+  padding-block: clamp(5rem, 9vw, 9.75rem);
+}
+
+html[data-lp-app='hub'] .lp-path-index .section-heading,
+html[data-lp-app='hub'] #zukunft .section-heading {
+  align-items: end;
+  margin-bottom: 3rem;
+}
+
+html[data-lp-app='hub'] .section-heading h2 {
+  max-width: 15em;
+  color: #1b2a20;
+  font-size: clamp(2.65rem, 4.9vw, 5rem);
+  letter-spacing: -0.062em;
+  line-height: 1.04;
+  font-weight: 780;
+}
+
+html[data-lp-app='hub'] .section-heading > p {
+  max-width: 23rem;
+  color: #5a6c5d;
+}
+
+html[data-lp-app='hub'] .path-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  border-top: 1px solid #bfc9be;
+  border-bottom: 1px solid #bfc9be;
+}
+
+html[data-lp-app='hub'] .path-card {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid #cad3c6;
+  border-radius: 0;
+  background: transparent;
+  padding: 1.6rem 0;
+  box-shadow: none;
+}
+
+html[data-lp-app='hub'] .path-card:last-child {
+  border-bottom: 0;
+}
+
+html[data-lp-app='hub'] .path-card--core {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.22fr) minmax(0, 0.55fr) minmax(11rem, 0.23fr);
+  align-items: center;
+  gap: 1.4rem;
+}
+
+html[data-lp-app='hub'] .path-card--core .path-card-topline {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+html[data-lp-app='hub'] .path-card-ordinal {
+  color: #637869;
+  font: 680 0.72rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.045em;
+}
+
+html[data-lp-app='hub'] .path-card-topline .eyebrow {
+  font-size: 0.65rem;
+  color: #526c57;
+}
+
+html[data-lp-app='hub'] .path-card-topline .status {
+  min-height: 1.8rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 0.2rem;
+  font-size: 0.65rem;
+  font-weight: 760;
+}
+
+html[data-lp-app='hub'] .path-card .status-building {
+  background: #e7ebdf;
+  color: #4f6050;
+}
+
+html[data-lp-app='hub'] .path-card .status-local-mvp {
+  background: #d3efb7;
+  color: #183b23;
+}
+
+html[data-lp-app='hub'] .path-card .status-planned {
+  background: #e4e7e0;
+  color: #536456;
+}
+
+html[data-lp-app='hub'] .path-card-body {
+  display: flex;
+  align-items: center;
+  gap: clamp(1rem, 2.5vw, 2.4rem);
+  min-width: 0;
+}
+
+html[data-lp-app='hub'] .path-card-copy {
+  min-width: 0;
+}
+
+html[data-lp-app='hub'] .path-card .path-mark {
+  flex: 0 0 5.2rem;
+  width: 5.2rem;
+  height: 6rem;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  border-radius: 0;
+  color: #7f9a82;
+  background: none;
+  font: italic 500 4.7rem/1 Georgia, 'Times New Roman', serif;
+  letter-spacing: -0.115em;
+}
+
+html[data-lp-app='hub'] .path-card[data-path='python'] .path-mark { color: #6c997b; }
+html[data-lp-app='hub'] .path-card[data-path='sql'] .path-mark { color: #648c9c; }
+html[data-lp-app='hub'] .path-card[data-path='git'] .path-mark { color: #968b79; }
+html[data-lp-app='hub'] .path-card[data-path='ai'] .path-mark { color: #b1a075; }
+html[data-lp-app='hub'] .path-card[data-path='vokabeln'] .path-mark { color: #779a67; }
+
+html[data-lp-app='hub'] .path-card h3 {
+  margin: 0;
+  font-size: clamp(1.75rem, 2.8vw, 2.8rem);
+  line-height: 1.05;
+  letter-spacing: -0.06em;
+  font-weight: 770;
+}
+
+html[data-lp-app='hub'] .path-card .path-description {
+  margin: 0.7rem 0 0;
+  color: #4a5b4e;
+  font-size: 0.95rem;
+  line-height: 1.64;
+}
+
+html[data-lp-app='hub'] .path-card .path-outcome {
+  margin: 0.4rem 0 0;
+  color: #486c53;
+  font-size: 0.78rem;
+  font-weight: 660;
+  line-height: 1.55;
+}
+
+html[data-lp-app='hub'] .path-card-bottom {
+  display: grid;
+  align-content: end;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+html[data-lp-app='hub'] .path-card .topic-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem 0.5rem;
+  margin: 0;
+  padding: 0;
+}
+
+html[data-lp-app='hub'] .path-card .topic-list li {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #68766a;
+  font: 580 0.68rem/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html[data-lp-app='hub'] .path-card .topic-list li:not(:last-child)::after {
+  content: '·';
+  padding-left: 0.5rem;
+  color: #91a394;
+}
+
+html[data-lp-app='hub'] .path-card .card-action {
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  font-size: 0.82rem;
+  font-weight: 770;
+  color: #285a43;
+}
+
+html[data-lp-app='hub'] .path-card-unavailable .card-action {
+  color: #748476;
+}
+
+html[data-lp-app='hub'] .path-card-link {
+  transition: background-color 170ms ease;
+}
+
+html[data-lp-app='hub'] .path-card-link:hover {
+  transform: none;
+  border-color: #cad3c6;
+  box-shadow: none;
+  background: #ebf0e4;
+}
+
+html[data-lp-app='hub'] .path-card-link .path-card-copy h3 {
+  transition: transform 200ms ease;
+}
+
+html[data-lp-app='hub'] .path-card-link:hover .path-card-copy h3 {
+  transform: translateX(0.5rem);
+}
+
+/* Forward plan: compact numbered editorial records, not six tile clones. */
+html[data-lp-app='hub'] #zukunft {
+  padding-block: clamp(4.5rem, 7.5vw, 7.5rem);
+}
+
+html[data-lp-app='hub'] #zukunft h2 em {
+  color: #39724c;
+}
+
+html[data-lp-app='hub'] .future-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 3rem;
+}
+
+html[data-lp-app='hub'] .path-card--future {
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+  min-height: 0;
+  padding: 1.8rem 0 2rem;
+}
+
+html[data-lp-app='hub'] .path-card--future .path-card-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.8rem;
+}
+
+html[data-lp-app='hub'] .path-card--future .path-card-topline .eyebrow {
+  display: none;
+}
+
+html[data-lp-app='hub'] .path-card--future .path-mark {
+  display: none;
+}
+
+html[data-lp-app='hub'] .path-card--future h3 {
+  font-size: clamp(1.45rem, 2.15vw, 2.1rem);
+}
+
+html[data-lp-app='hub'] .path-card--future .path-description {
+  max-width: 34rem;
+  margin-top: 0.4rem;
+  font-size: 0.89rem;
+}
+
+html[data-lp-app='hub'] .path-card--future .path-outcome {
+  font-size: 0.8rem;
+}
+
+html[data-lp-app='hub'] .path-card--future .path-card-bottom {
+  align-content: start;
+  padding-top: 0.4rem;
+}
+
+html[data-lp-app='hub'] .path-card--future .topic-list li {
+  font-size: 0.66rem;
+}
+
+/* FOUR-STEP LEARNING PATH — one connected editorial line. */
+html[data-lp-app='hub'] .model-section {
+  padding-block: clamp(5rem, 9vw, 9rem);
+  color: #172a1c;
+  background: #e5eadc;
+  border-block: 1px solid #cbd5c8;
+}
+
+html[data-lp-app='hub'] .model-section .eyebrow {
+  color: #315b40;
+}
+
+html[data-lp-app='hub'] .model-section .light-heading > p {
+  color: #485a4d;
+}
+
+html[data-lp-app='hub'] .model-section h2 {
+  color: #192d20;
+}
+
+html[data-lp-app='hub'] .model-section h2 em {
+  color: #47774c;
+}
+
+html[data-lp-app='hub'] .model-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin-top: clamp(2rem, 4vw, 3.7rem);
+  border-top: 1px solid #9eb4a1;
+  border-bottom: 1px solid #9eb4a1;
+}
+
+html[data-lp-app='hub'] .model-grid article {
+  position: relative;
+  min-height: 15rem;
+  padding: 1.6rem 1.45rem 2rem;
+  border: 0;
+  border-right: 1px solid #b4c5b4;
+  border-radius: 0;
+  background: none;
+}
+
+html[data-lp-app='hub'] .model-grid article:last-child {
+  border-right: 0;
+}
+
+html[data-lp-app='hub'] .model-grid article > span {
+  display: block;
+  color: #7d9e80;
+  font: italic 440 clamp(3.6rem, 5vw, 5.1rem)/0.95 Georgia, serif;
+  letter-spacing: -0.09em;
+}
+
+html[data-lp-app='hub'] .model-grid h3 {
+  margin: 2rem 0 0;
+  color: #1b3021;
+  font-size: clamp(1.2rem, 1.6vw, 1.65rem);
+  letter-spacing: -0.04em;
+}
+
+html[data-lp-app='hub'] .model-grid p {
+  margin-top: 0.5rem;
+  color: #4c6351;
+  font-size: 0.9rem;
+  line-height: 1.67;
+}
+
+/* Vocabulary brand spread: tactile flashcards without a generic dashboard. */
+html[data-lp-app='hub'] .vocab-section {
+  padding-block: clamp(5rem, 8vw, 8rem);
+  border-top: 1px solid #d5dfd2;
+  background: #f4f5ee;
+}
+
+html[data-lp-app='hub'] .vocab-grid {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.85fr);
+  gap: clamp(2rem, 7vw, 8rem);
+}
+
+html[data-lp-app='hub'] .vocab-section h2 {
+  max-width: 10.5em;
+  font-size: clamp(2.65rem, 4.5vw, 4.65rem);
+  letter-spacing: -0.063em;
+  line-height: 1.04;
+  color: #1c3025;
+}
+
+html[data-lp-app='hub'] .vocab-grid > div:first-child > p:last-child {
+  max-width: 33rem;
+  color: #526357;
+  font-size: 0.99rem;
+}
+
+html[data-lp-app='hub'] .vocab-stack {
+  position: relative;
+  display: grid;
+  gap: 0;
+  padding: clamp(1.3rem, 3vw, 2.6rem);
+  border: 1px solid #d0d9ba;
+  border-radius: 0;
+  background: #dcf0b3;
+  box-shadow: 17px 17px 0 #c1d1a6;
+  transform: rotate(1.2deg);
+}
+
+html[data-lp-app='hub'] .lp-vocab-art-label,
+html[data-lp-app='hub'] .lp-vocab-art-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font: 670 0.66rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.06em;
+  color: #466a42;
+}
+
+html[data-lp-app='hub'] .lp-vocab-art-label {
+  margin-bottom: 1.4rem;
+}
+
+html[data-lp-app='hub'] .lp-vocab-art-foot {
+  margin-top: 1.25rem;
+  border-top: 1px solid #aac797;
+  padding-top: 1.1rem;
+  font-size: 0.73rem;
+}
+
+html[data-lp-app='hub'] .lp-vocab-art-foot span {
+  font-size: 2rem;
+  line-height: 0.8;
+}
+
+html[data-lp-app='hub'] .vocab-stack .vocab-card {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.15rem 1rem;
+  min-width: 0;
+  padding: 1.1rem 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid #aac797;
+  background: transparent;
+}
+
+html[data-lp-app='hub'] .vocab-stack .vocab-card:first-of-type {
+  padding-top: 1.5rem;
+}
+
+html[data-lp-app='hub'] .vocab-stack .vocab-card span {
+  grid-row: span 2;
+  align-self: baseline;
+  color: #4d7851;
+  font-size: 0.63rem;
+  font-weight: 760;
+}
+
+html[data-lp-app='hub'] .vocab-stack .vocab-card strong {
+  color: #1b3525;
+  font-size: clamp(1.35rem, 2vw, 1.95rem);
+  letter-spacing: -0.06em;
+}
+
+html[data-lp-app='hub'] .vocab-stack .vocab-card small {
+  color: #3b6044;
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+html[data-lp-app='hub'] footer {
+  border-top: 1px solid #526958;
+  background: #17271e;
+}
+
+html[data-lp-app='hub'] .footer-inner {
+  min-height: 8rem;
+  color: #d8e4d2;
+  letter-spacing: 0.035em;
+}
+
+html[data-lp-app='hub'] .footer-inner strong {
+  color: #d4f67b;
+  font-size: 1.5rem;
+  letter-spacing: -0.05em;
+}
+
+html[data-lp-app='hub'] .footer-inner span {
+  font: 600 0.65rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media (max-width: 1019px) {
+  html[data-lp-app='hub'] .path-card--core {
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    gap: 1rem 1.25rem;
+  }
+  html[data-lp-app='hub'] .path-card--core .path-card-bottom {
+    grid-column: 2;
+  }
+  html[data-lp-app='hub'] .vocab-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-lp-app='hub'] .vocab-stack {
+    max-width: 45rem;
+  }
+}
+
+@media (max-width: 760px) {
+  html[data-lp-app='hub'] .path-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-lp-app='hub'] .path-card--core {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.6rem;
+    padding: 1.6rem 0;
+  }
+  html[data-lp-app='hub'] .path-card--core .path-card-topline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+  }
+  html[data-lp-app='hub'] .path-card--core .path-card-bottom {
+    grid-column: auto;
+  }
+  html[data-lp-app='hub'] .path-card--core .path-mark {
+    flex-basis: 3.5rem;
+    width: 3.5rem;
+    height: 4.2rem;
+    font-size: 3.45rem;
+  }
+  html[data-lp-app='hub'] .path-card h3 {
+    font-size: clamp(1.65rem, 5vw, 2.3rem);
+  }
+  html[data-lp-app='hub'] .future-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-lp-app='hub'] .model-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  html[data-lp-app='hub'] .model-grid article:nth-child(2n) {
+    border-right: 0;
+  }
+  html[data-lp-app='hub'] .model-grid article:nth-child(-n + 2) {
+    border-bottom: 1px solid #b4c5b4;
+  }
+  html[data-lp-app='hub'] .vocab-stack {
+    width: calc(100% - 0.8rem);
+    margin-right: 0.8rem;
+    box-shadow: 9px 9px 0 #c1d1a6;
+  }
+}
+
+@media (max-width: 639px) {
+  html[data-lp-app='hub'] .section-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+  }
+  html[data-lp-app='hub'] .section-heading h2 {
+    font-size: clamp(2.35rem, 8.5vw, 3.15rem);
+  }
+  html[data-lp-app='hub'] .model-grid {
+    display: block;
+    border-bottom: 0;
+  }
+  html[data-lp-app='hub'] .model-grid article {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 4.7rem minmax(0, 1fr);
+    gap: 0.2rem 0.8rem;
+    border-right: 0;
+    border-bottom: 1px solid #b4c5b4;
+    padding: 1.25rem 0;
+  }
+  html[data-lp-app='hub'] .model-grid article > span {
+    grid-row: span 2;
+    font-size: 3.6rem;
+  }
+  html[data-lp-app='hub'] .model-grid h3 {
+    margin: 0.6rem 0 0;
+  }
+  html[data-lp-app='hub'] .model-grid p {
+    margin-top: 0.2rem;
+  }
+  html[data-lp-app='hub'] .vocab-section h2 {
+    font-size: clamp(2.5rem, 9vw, 3.4rem);
+  }
+  html[data-lp-app='hub'] .vocab-stack {
+    padding: 1.1rem;
+    transform: none;
+  }
+  html[data-lp-app='hub'] .vocab-stack .vocab-card {
+    grid-template-columns: 4rem minmax(0, 1fr);
+    gap: 0.3rem 0.55rem;
+  }
+  html[data-lp-app='hub'] .lp-vocab-art-label {
+    font-size: 0.53rem;
+  }
+}
