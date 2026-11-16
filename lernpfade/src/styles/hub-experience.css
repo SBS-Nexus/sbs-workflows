@@ -813,3 +813,11 @@ footer {
     padding: 1rem;
   }
 }
+
+/* Very short desktop windows: keep the real focused primary CTA fully inside
+ * the viewport instead of letting its bottom edge clip by a pixel. */
+@media (min-width: 1024px) and (max-height: 560px) {
+  .sh-content {
+    transform: translateY(-0.9rem);
+  }
+}
