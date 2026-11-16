@@ -1,0 +1,666 @@
+/*
+ * Lernpfade / Experience Refresh — isolierter Produkt-UI-Slice.
+ * Hub-lokale Präsentation; Scheduler, IndexedDB, Import/Export und gemeinsame
+ * LP-03-Verträge bleiben unverändert. Die fachliche Farbsemantik bleibt intakt.
+ */
+:root[data-lp-app='hub'] {
+  --bg: #f7f9fd;
+  --surface: #ffffff;
+  --surface-muted: #f1f5fb;
+  --text: #19263c;
+  --muted: #526278;
+  --border: #dfe6ef;
+  --border-strong: #b9c6d6;
+  --navy: #13213b;
+  --navy-2: #1e3152;
+  --shadow: 0 14px 48px rgb(25 43 80 / 0.065);
+  --radius-md: 1rem;
+  --radius-lg: 1.3rem;
+}
+
+html[data-lp-app='hub'] {
+  scroll-padding-top: 7.5rem;
+}
+
+body {
+  background: var(--bg);
+}
+
+.shell {
+  width: min(1180px, calc(100% - 2.25rem));
+}
+
+.site-header {
+  border-bottom: 1px solid #e2e8f2;
+  background: rgb(255 255 255 / 0.96);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 1px 0 rgb(14 28 52 / 0.025);
+}
+
+.header-inner {
+  min-height: 4.8rem;
+  gap: 0.7rem 1.8rem;
+}
+
+.brand {
+  gap: 0.75rem;
+}
+
+.brand-mark {
+  width: 2.7rem;
+  height: 2.7rem;
+  border-radius: 0.9rem;
+  background: #1f315b;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.23);
+  font-size: 0.94rem;
+  font-weight: 800;
+}
+
+.brand strong {
+  font-size: 1.06rem;
+  letter-spacing: -0.035em;
+}
+
+.brand small {
+  font-size: 0.69rem;
+  letter-spacing: 0.015em;
+}
+
+.site-header nav {
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.site-header nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.83rem;
+  border-radius: 0.75rem;
+  color: #4d5c74;
+  font-size: 0.86rem;
+  font-weight: 670;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.site-header nav a:hover {
+  background: #f0f3fa;
+  color: #17294b;
+}
+
+.site-header nav a[href='/vokabeln'] {
+  background: #eaf0ff;
+  color: #2647a8;
+}
+
+.site-header nav a[href='/vokabeln']:hover {
+  background: #dfe8ff;
+}
+
+.site-header nav a[aria-current='page'] {
+  background: #233b74;
+  color: #ffffff;
+}
+
+.eyebrow {
+  color: #3155c7;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+/* Primary brand moment: useful CTA and text first; smaller calm illustration. */
+.sh-root {
+  display: grid;
+  grid-template-columns: minmax(0, 1.07fr) minmax(0, 0.93fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: clamp(32rem, 69svh, 45rem);
+  padding-inline: max(1.25rem, calc((100vw - 1180px) / 2));
+  border-bottom: 1px solid #e8edf4;
+}
+
+.sh-content {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  justify-self: stretch;
+  width: 100%;
+  max-width: 43rem;
+  gap: 1.7rem;
+  margin: 0;
+  padding: 3rem clamp(1.2rem, 3vw, 3rem) 3rem 0;
+}
+
+.sh-content > div {
+  min-width: 0;
+}
+
+.sh-figure-wrap {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  flex: none;
+  width: 100%;
+  padding: 1.25rem 0 1.25rem 0.5rem;
+}
+
+.sh-figure {
+  width: min(100%, 37rem);
+}
+
+.sh-h1 {
+  max-width: 10.5em;
+  font-size: clamp(2.75rem, 4.25vw, 4.95rem);
+  line-height: 1.025;
+  letter-spacing: -0.053em;
+  font-weight: 720;
+}
+
+.sh-accent {
+  color: #3155c7;
+  font-weight: 720;
+  letter-spacing: -0.045em;
+}
+
+.sh-eyebrow {
+  font-weight: 760;
+  font-size: 0.73rem;
+}
+
+.sh-aside {
+  justify-self: start;
+  max-width: 34rem;
+  padding: 0;
+}
+
+.sh-body {
+  max-width: 32rem;
+  margin: 0 0 1.4rem;
+  line-height: 1.72;
+}
+
+.sh-btn {
+  border-radius: 0.86rem;
+  background: #253b70;
+  color: #ffffff;
+  box-shadow: 0 8px 22px rgb(33 58 114 / 0.17);
+}
+
+.sh-btn:hover {
+  background: #1e3261;
+}
+
+.sh-hint {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  justify-self: center;
+  margin: 0;
+  padding: 0 0 1.8rem;
+  font-weight: 650;
+  letter-spacing: 0.075em;
+}
+
+.sh-credit {
+  position: absolute;
+  right: max(1.25rem, calc((100vw - 1180px) / 2));
+  bottom: 0.1rem;
+  width: auto;
+  padding: 0;
+}
+
+/* From marketing catalogue to compact learning navigation. */
+.section {
+  padding-block: 4.4rem;
+}
+
+.section-heading {
+  gap: 1.5rem 3rem;
+  margin-bottom: 1.65rem;
+}
+
+.section-heading h2,
+.vocab-section h2 {
+  font-size: clamp(2rem, 3.2vw, 3rem);
+  line-height: 1.1;
+}
+
+.section-heading > p {
+  max-width: 31rem;
+}
+
+.path-grid {
+  gap: 1.1rem;
+}
+
+.path-card {
+  min-height: 0;
+  padding: 1.45rem;
+  border-color: #e1e7f0;
+  background: #ffffff;
+  box-shadow: 0 6px 28px rgb(27 48 84 / 0.035);
+}
+
+.path-card-link:hover {
+  transform: translateY(-2px);
+  border-color: #9aade0;
+  box-shadow: 0 15px 36px rgb(35 64 117 / 0.1);
+}
+
+.path-mark {
+  width: 3.1rem;
+  height: 3.1rem;
+  margin-top: 1.25rem;
+  border-radius: 0.85rem;
+  font-size: 0.95rem;
+}
+
+.path-card h3 {
+  margin-top: 0.95rem;
+  font-size: 1.4rem;
+}
+
+.path-description {
+  margin-top: 0.6rem;
+  line-height: 1.56;
+}
+
+.path-outcome {
+  margin-top: 0.65rem;
+  font-size: 0.83rem;
+  line-height: 1.5;
+}
+
+.topic-list {
+  margin-top: 1rem;
+}
+
+.topic-list li {
+  background: #f5f7fb;
+  border-color: #e6ebf3;
+  font-weight: 620;
+}
+
+.card-action {
+  padding-top: 1.1rem;
+  color: #2c50b3;
+}
+
+.path-card-unavailable {
+  background: #fbfcfe;
+}
+
+.path-card-unavailable .card-action {
+  color: #53627a;
+}
+
+.future-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.future-grid .path-card {
+  padding: 1.25rem;
+}
+
+.future-grid .path-mark {
+  margin-top: 0.7rem;
+}
+
+.future-grid .path-card h3 {
+  font-size: 1.25rem;
+}
+
+.model-section {
+  padding-block: 4.65rem;
+  background: linear-gradient(120deg, #15253f, #22385b);
+}
+
+.model-grid {
+  gap: 0.9rem;
+}
+
+.model-grid article {
+  min-height: 12rem;
+  border-color: rgb(195 210 244 / 0.19);
+  background: rgb(255 255 255 / 0.055);
+}
+
+.model-grid h3 {
+  margin-top: 1.5rem;
+}
+
+.vocab-section {
+  padding-block: 4.7rem;
+  background: linear-gradient(145deg, #ffffff, #f0f5ff);
+}
+
+.vocab-grid {
+  gap: clamp(2rem, 4vw, 5rem);
+}
+
+.vocab-card {
+  border-color: #dfe7f3;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgb(35 62 120 / 0.045);
+}
+
+.vocab-card strong {
+  color: #1c2e4a;
+}
+
+footer {
+  border-color: #e5eaf2;
+}
+
+/* Dashboard pages share a calm hierarchy; legal/storage notices stay visible. */
+.vocab-page,
+.review-page,
+.progress-page {
+  padding-block: 2.8rem 5rem;
+}
+
+.vocab-app {
+  max-width: 68rem;
+  gap: 1.15rem;
+}
+
+.vocab-app h1,
+.progress-intro h1,
+.review-page-title {
+  font-size: clamp(2.15rem, 4.8vw, 3.4rem);
+  letter-spacing: -0.052em;
+  line-height: 1.08;
+}
+
+.vocab-intro > p:not(.eyebrow),
+.progress-intro p:not(.eyebrow) {
+  max-width: 48rem;
+  line-height: 1.65;
+}
+
+.vocab-storage-note {
+  border: 1px solid #d6e1f1;
+  border-left: 3px solid #7690cc;
+  border-radius: 0.8rem;
+  background: #f1f5fc;
+  padding: 0.85rem 1rem;
+  color: #3d506d;
+  font-size: 0.84rem;
+  line-height: 1.58;
+}
+
+.vocab-panel,
+.review-card,
+.live-card,
+.progress-card,
+.progress-summary,
+.vocab-pointer {
+  border-color: #dfe6ef;
+  border-radius: 1.25rem;
+  background: #ffffff;
+  box-shadow: 0 8px 32px rgb(32 50 90 / 0.044);
+}
+
+.vocab-session-setup {
+  border-color: #c8d7f5;
+  background: linear-gradient(135deg, #ffffff 0%, #f0f5ff 100%);
+}
+
+.vocab-stats div,
+.vocab-preview-list div,
+.progress-metrics div {
+  border-color: #e2e9f3;
+  background: #f5f8fc;
+}
+
+.vocab-stats dd,
+.progress-metrics dd {
+  color: #192c55;
+}
+
+.vocab-deck,
+.vocab-starter,
+.vocab-card-item {
+  border-color: #e1e7ef;
+  border-radius: 0.95rem;
+  box-shadow: 0 3px 15px rgb(32 50 90 / 0.025);
+}
+
+.vocab-choice {
+  border-color: #c5d1e3;
+  border-radius: 0.8rem;
+}
+
+.vocab-choice:has(input:checked) {
+  border-color: #5677cf;
+  background: #eaf0ff;
+  color: #233e80;
+  box-shadow: inset 0 0 0 1px rgb(65 102 192 / 0.12);
+}
+
+.vocab-field input:focus-visible,
+.vocab-filter select:focus-visible {
+  border-color: #4667cb;
+}
+
+.progress-shell {
+  max-width: 72rem;
+}
+
+.progress-summary {
+  background: linear-gradient(135deg, #ffffff 0%, #f2f5ff 100%);
+}
+
+.progress-grid {
+  gap: 1.1rem;
+}
+
+.progress-card h3 {
+  color: #1c2b4a;
+}
+
+.review-card {
+  border-color: #dce5f2;
+}
+
+.review-prompt {
+  color: #1c2b4a;
+}
+
+.review-ratings button {
+  border-radius: 0.75rem;
+}
+
+/* Narrow landscape / tablet: the hero art comes first, text remains legible. */
+@media (max-width: 1023px) {
+  .sh-root {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding-inline: 0;
+  }
+
+  .sh-figure-wrap {
+    width: 100%;
+    padding: 1.6rem 1rem 0;
+  }
+
+  .sh-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: min(56rem, calc(100% - 2.5rem));
+    max-width: 56rem;
+    gap: 1rem;
+    margin: 0 auto;
+    padding: 1.3rem 0 2rem;
+  }
+
+  .sh-h1 {
+    max-width: 13em;
+    font-size: clamp(2.6rem, 7vw, 4.4rem);
+  }
+
+  .sh-hint {
+    align-self: center;
+    margin: 0.6rem 0 0;
+    padding: 0.2rem 1rem;
+  }
+
+  .sh-credit {
+    position: static;
+    align-self: flex-end;
+    width: min(56rem, calc(100% - 2.5rem));
+    margin: 0 auto;
+    padding-bottom: 0.6rem;
+  }
+
+  .future-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .header-inner,
+  .site-header-sub .header-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+    padding-block: 0.55rem;
+  }
+
+  .site-header nav,
+  .site-header-sub nav {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.15rem;
+  }
+
+  .site-header nav a {
+    padding: 0.52rem 0.55rem;
+    font-size: 0.81rem;
+  }
+
+  .path-grid,
+  .future-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .section {
+    padding-block: 3.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  html[data-lp-app='hub'] {
+    scroll-padding-top: 9.5rem;
+  }
+
+  .shell {
+    width: min(100% - 1.75rem, 1180px);
+  }
+
+  .site-header nav,
+  .site-header-sub nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.25rem;
+  }
+
+  .site-header nav a {
+    min-width: 0;
+    min-height: 2.5rem;
+    padding: 0.55rem 0.2rem;
+    font-size: clamp(0.72rem, 2.8vw, 0.82rem);
+    white-space: nowrap;
+  }
+
+  .sh-figure-wrap {
+    padding: 0.6rem 1rem 0;
+  }
+
+  .sh-content {
+    width: calc(100% - 2rem);
+    gap: 1rem;
+    padding: 1.05rem 0 2rem;
+  }
+
+  .sh-h1 {
+    max-width: none;
+    font-size: clamp(2.15rem, 9.3vw, 3.25rem);
+    line-height: 1.04;
+    hyphens: manual;
+    text-wrap: wrap;
+  }
+
+  .sh-aside,
+  .sh-body {
+    max-width: 100%;
+  }
+
+  .sh-ctas {
+    gap: 0.5rem 1rem;
+  }
+
+  .sh-btn,
+  .sh-txt {
+    min-height: 2.85rem;
+  }
+
+  .sh-credit {
+    width: calc(100% - 2rem);
+  }
+
+  .section {
+    padding-block: 3.05rem;
+  }
+
+  .section-heading {
+    margin-bottom: 1.35rem;
+  }
+
+  .path-grid,
+  .future-grid,
+  .model-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .path-card {
+    padding: 1.2rem;
+  }
+
+  .path-mark {
+    margin-top: 0.7rem;
+  }
+
+  .model-section,
+  .vocab-section {
+    padding-block: 3.5rem;
+  }
+
+  .vocab-page,
+  .review-page,
+  .progress-page {
+    padding-block: 2rem 4rem;
+  }
+
+  .vocab-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vocab-panel,
+  .review-card,
+  .progress-card,
+  .progress-summary {
+    padding: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .path-card-link,
+  .site-header nav a {
+    transition: none;
+  }
+}
