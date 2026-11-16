@@ -39,8 +39,8 @@ import {
  */
 
 const SHOTS = 'test-results/screenshots';
-const WIDE = '/images/hero/skulptur.webp';
-const TALL = '/images/hero/skulptur-mobil.webp';
+const WIDE = '/images/hero/lernwege.svg';
+const TALL = '/images/hero/lernwege-mobil.svg';
 
 type Faults = {
   /** Gerät mit 4 Kernen wie die CI-Runner: Die Engine nimmt ihren Low-Power-Pfad (weniger Partikel). */
@@ -291,13 +291,13 @@ test.describe('Startseiten-Hero', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'Ein Lernmodell für alle Themen' })).toBeInViewport();
 
     // Urheberhinweis bleibt sichtbar und erreichbar.
-    await expect(page.getByRole('link', { name: 'Skulptur und Partikeleffekt: Guglielmo Giannattasio' })).toHaveAttribute(
+    await expect(page.getByRole('link', { name: 'Partikeleffekt: Guglielmo Giannattasio' })).toHaveAttribute(
       'href',
       'https://guglielmogiannattasio.it',
     );
   });
 
-  test('echtes Referenzbild, WebGL aktiv: ruhig ohne Bildschleife, der Zeiger verformt die Skulptur', async ({ page }) => {
+  test('eigene SVG-Referenzgrafik, WebGL aktiv: ruhig ohne Bildschleife, der Zeiger verformt die Skulptur', async ({ page }) => {
     await instrument(page, { fourCores: true });
     await page.goto('/');
     await expectEngine(page, WIDE);
@@ -411,7 +411,7 @@ test.describe('Startseiten-Hero', () => {
     await expectEngine(page, WIDE);
     await page.evaluate((marker) => {
       (window as unknown as { __heroSpy: Spy }).__heroSpy.failUpload = marker;
-    }, 'skulptur-mobil');
+    }, 'lernwege-mobil');
 
     await page.setViewportSize({ width: 375, height: 812 });
     await expect(hero(page)).toHaveAttribute('data-swap', '1');
