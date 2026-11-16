@@ -10,7 +10,7 @@ import { expectNoSeriousA11yViolations, horizontalOverflow } from './helpers';
  */
 
 const SHOTS = 'test-results/screenshots';
-const TALL = '/images/hero/skulptur-mobil.webp';
+const TALL = '/images/hero/lernwege-mobil.svg';
 
 test('375 px Touch: Hochformatbild, Touch-Hinweis, Tippen bewegt die Skulptur, Aktionen bedienbar', async ({ page }) => {
   const errors: string[] = [];

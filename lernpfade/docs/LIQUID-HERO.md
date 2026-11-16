@@ -3,11 +3,13 @@
 Stand: 19.10.2026 · Branch `claude/lernpfade-liquid-hero` · Basis
 `claude/lernpfade-unified-hub` @ `72fbe7d`
 
-Die Startseite zeigt eine metallische Skulptur. Unter dem Zeiger zerfließt sie
-lokal zu Partikeln und wird danach wieder zum ruhigen, scharfen Bild. Grundlage
-ist „Liquid Sculpture Hero“ von Guglielmo Giannattasio (21st.dev, MIT). Lizenz,
-Bildherkunft und der offene Rechtestand der Bilder stehen in
-`../THIRD_PARTY_NOTICES.md`.
+Die Startseite zeigt ab dem Railway-Lizenzslice eine eigene abstrakte Grafik
+mit Lernwegen, Knoten und Verbindungen. Unter dem Zeiger zerfließt sie lokal
+zu Partikeln und wird danach wieder zum ruhigen, scharfen Bild. Grundlage
+der **Interaktion** ist „Liquid Sculpture Hero“ von Guglielmo Giannattasio
+(21st.dev, MIT). Die ursprünglichen Fremd-WebP-Assets wurden durch
+eigene, skriptfreie SVG-Bilder ersetzt und aus dem Repository-Stand gelöscht.
+Lizenz und Herkunft stehen in `../THIRD_PARTY_NOTICES.md`.
 
 ## Dateien
 
@@ -19,7 +21,7 @@ Bildherkunft und der offene Rechtestand der Bilder stehen in
 | `src/components/ui/liquid-sculpture-engine.ts` | WebGL2-Engine, erst nach der Hydration per `import()` geladen (eigener Chunk) |
 | `src/components/ui/liquid-sculpture-model.ts` | reine Logik: Farben, Bildauswahl, Geometrie (Unit-Tests daneben) |
 | `src/styles/liquid-sculpture-hero.css` | `.sh-*`-Styles, über `src/app/globals.css` eingebunden |
-| `public/images/hero/` | zwei lokale Bilder (Desktop 1983 × 793, Mobil 1024 × 1300) |
+| `public/images/hero/` | zwei eigene lokale SVGs (Desktop 1983 × 793, Mobil 1024 × 1300) |
 | `e2e/liquid-hero.spec.ts`, `e2e/liquid-hero-mobil.spec.ts` | Browserfälle; laufen im normalen `npm run test:e2e` |
 
 `@/components/ui/liquid-sculpture-hero` zeigt über den bestehenden Alias
@@ -71,7 +73,7 @@ React selbst verlangt den Ordner nicht.
 - **Hinweis:** nur sichtbar, wenn die Skulptur wirklich reagiert (Engine
   aktiv). Er pulsiert dreimal und ruht dann, gemäß Design-Vertrag §7 „keine
   dauerhafte dekorative Bewegung“.
-- **Urheberhinweis:** bleibt sichtbar als „Skulptur und Partikeleffekt:
+- **Urheberhinweis:** bleibt sichtbar als „Partikeleffekt:
   Guglielmo Giannattasio“. Kontrast und Zielgröße sind ausreichend; der Link
   öffnet nicht in einem neuen Tab.
 - **Icons:** `ArrowRight`, `Sun` und `Moon` aus `lucide-react` (exakt `1.50.0`)
@@ -141,7 +143,7 @@ M1)`.
 
 | | Desktop 1440 × 900, DPR 2 | Telefon 375 × 812, DPR 3, Touch |
 |---|---|---|
-| Bild | `skulptur.webp` | `skulptur-mobil.webp` |
+| Bild (historische Messung 20.10.2026) | `skulptur.webp` | `skulptur-mobil.webp` |
 | Engine aktiv nach dem Laden | 1,56 s (erster Abruf) | 0,23 s (aus dem Cache) |
 | rAF-Aufrufe in Ruhe | 0 pro Sekunde | 0 pro Sekunde |
 | Bildrate bei Interaktion | 59 fps | 61 fps |
@@ -218,8 +220,13 @@ prüfen und das bestehende `postcss.config.mjs` erhalten.
 
 ## Bekannte Grenzen
 
-- **Bildrechte:** nicht bestätigt (siehe `THIRD_PARTY_NOTICES.md`). Vor
-  Produktion klären.
+- **Historische Bildmessungen:** Die GPU-Messwerte vom 20.10.2026 wurden
+  mit den inzwischen entfernten Fremd-WebP-Bildern ermittelt und belegen
+  **nicht** die Bildrate des neuen eigenen SVG-Artworks. Vor öffentlichem
+  Produktivbetrieb sind aktuelle Messungen sinnvoll.
+- **Eigene SVGs:** Die grafischen Flächen sind eigenständig und ohne externe
+  Ressourcen. Ihr tatsächliches Rendering wird durch die bestehende
+  Browser- und Accessibility-Suite geprüft.
 - **Software-Renderer:** Gibt es nur SwiftShader und kein GPU, ruckelt die
   Interaktion mit 1–3 fps. Text und Aktionen bleiben bedienbar. Ein möglicher
   Folgeschritt: Software-Renderer erkennen und statisch bleiben.
