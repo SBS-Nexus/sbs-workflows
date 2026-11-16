@@ -11,11 +11,15 @@ function ArrowIcon(): React.ReactElement {
 }
 
 function PathCard({ path }: { path: LearningPath }): React.ReactElement {
+  // Eine Fach-App ist erst wirklich anwählbar, wenn ihre Zieladresse konfiguriert ist.
+  // Gerade im Railway-Staging darf „Verfügbar“ kein nicht verlinktes Versprechen sein.
+  const disconnected = path.status === 'available' && !path.href;
+  const label = disconnected ? 'Noch nicht verbunden' : STATUS_LABEL[path.status];
   const content = (
     <>
       <div className="card-topline">
         <span className="eyebrow">{path.eyebrow}</span>
-        <span className={`status status-${path.status}`}>{STATUS_LABEL[path.status]}</span>
+        <span className={`status status-${disconnected ? 'building' : path.status}`}>{label}</span>
       </div>
       <div className={`path-mark accent-${path.accent}`} aria-hidden="true">
         {path.title.slice(0, 2).toUpperCase()}
@@ -29,7 +33,7 @@ function PathCard({ path }: { path: LearningPath }): React.ReactElement {
         ))}
       </ul>
       <span className="card-action">
-        {path.href ? 'Pfad öffnen' : path.status === 'planned' ? 'Vorgemerkt' : 'Mehr erfahren'}
+        {path.href ? 'Pfad öffnen' : disconnected ? 'Anbindung folgt' : path.status === 'planned' ? 'Vorgemerkt' : 'Im Ausbau'}
         {path.href ? <ArrowIcon /> : null}
       </span>
     </>
@@ -40,7 +44,7 @@ function PathCard({ path }: { path: LearningPath }): React.ReactElement {
       {content}
     </a>
   ) : (
-    <article className="path-card">{content}</article>
+    <article className={`path-card${disconnected ? ' path-card-unavailable' : ''}`}>{content}</article>
   );
 }
 
@@ -69,6 +73,30 @@ export default function Home(): React.ReactElement {
 
       <main id="hauptinhalt">
         <LernpfadeHero />
+
+        <section className="shell learn-now" aria-labelledby="learn-now-title">
+          <div className="learn-now-primary">
+            <div>
+              <p className="eyebrow">Dein Einstieg</p>
+              <h2 id="learn-now-title">Einfach anfangen. Jeden Tag ein Stück weiter.</h2>
+              <p>
+                Erstelle deine eigenen Vokabelkarten oder übernimm ein Starterdeck.
+                Alles bleibt in diesem Browser – ohne Anmeldung.
+              </p>
+            </div>
+            <ButtonLink href="/vokabeln">
+              Vokabeln lernen <ArrowIcon />
+            </ButtonLink>
+          </div>
+          <a className="learn-now-secondary" href="/wiederholen">
+            <span className="learn-now-icon" aria-hidden="true">↗</span>
+            <span>
+              <strong>Daily Review öffnen</strong>
+              <small>Wiederhole mit dem klar gekennzeichneten Demo-Deck.</small>
+            </span>
+            <ArrowIcon />
+          </a>
+        </section>
 
         <section id="pfade" className="section shell">
           <div className="section-heading">
