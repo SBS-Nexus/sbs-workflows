@@ -250,7 +250,8 @@ a.los-track:hover .los-track-arrow { transform: rotate(45deg); background: #121d
 }
 @media (max-width: 900px) {
   .los-header { min-height: 78px; padding: 0 24px; }
-  .los-nav { display: none; }
+  .los-nav { display: flex; position: absolute; left: 0; right: 0; top: 78px; z-index: 11; min-height: 44px; align-items: center; justify-content: flex-start; padding: 0 24px; gap: 26px; border-bottom: 1px solid var(--los-line); background: #0f1513; }
+  .los-nav a { font-size: 11px; }
   .los-hero { min-height: 0; grid-template-columns: 1fr; }
   .los-hero-copy { min-height: 650px; padding: 105px 25px 40px; }
   .los-hero h1 { font-size: clamp(70px, 12vw, 108px); }
@@ -272,6 +273,8 @@ a.los-track:hover .los-track-arrow { transform: rotate(45deg); background: #121d
 @media (max-width: 600px) {
   .los-header { min-height: 70px; padding: 0 20px; gap: 10px; }
   .los-brand { font-size: 20px; }
+  .los-nav { top: 70px; padding: 0 20px; gap: 20px; }
+  .los-nav a { font-size: 10px; }
   .los-nav-cta { min-height: 42px; padding: 0 12px; font-size: 11px; gap: 6px; }
   .los-hero-copy { min-height: 590px; padding: 80px 22px 35px; }
   .los-eyebrow { font-size: 8.5px; letter-spacing: .13em; gap: 8px; margin-bottom: 38px; }
