@@ -2429,3 +2429,325 @@ html[data-lp-app='hub'] .footer-inner span {
     font-size: 0.53rem;
   }
 }
+
+
+/* PERSONAL LEARNING — focus first, utility second.
+   Pure presentation: IndexedDB, scheduler, destructive confirmations and
+   user data remain precisely where they are. */
+html[data-lp-app='hub'] .vocab-app {
+  max-width: 78rem;
+  gap: 1.75rem;
+}
+
+html[data-lp-app='hub'] .vocab-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.24fr) minmax(17rem, 0.76fr);
+  gap: 1.5rem;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-intro {
+  grid-column: 1 / -1;
+  padding: clamp(1.5rem, 3.5vw, 3.75rem) 0 1.65rem;
+  border-bottom: 1px solid #c8d2c5;
+}
+
+html[data-lp-app='hub'] .vocab-app h1,
+html[data-lp-app='hub'] .progress-intro h1,
+html[data-lp-app='hub'] .review-page-title {
+  max-width: 18em;
+  color: #1a2a20;
+  font-size: clamp(2.6rem, 5.25vw, 5.4rem);
+  line-height: 1.03;
+  font-weight: 780;
+  letter-spacing: -0.07em;
+}
+
+html[data-lp-app='hub'] .vocab-intro > p:not(.eyebrow) {
+  max-width: 40rem;
+  color: #536357;
+  font-size: 1.03rem;
+  line-height: 1.75;
+}
+
+html[data-lp-app='hub'] .vocab-intro .vocab-storage-note {
+  max-width: 46rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid #bbcbb7;
+  border-left: 3px solid #3f7751;
+  border-radius: 0;
+  background: #e7ede1;
+  color: #364e3b;
+  font-size: 0.81rem;
+  line-height: 1.6;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel {
+  min-width: 0;
+  border: 1px solid #cbd6c7;
+  border-radius: 0.25rem;
+  background: #fffef9;
+  box-shadow: none;
+  padding: clamp(1.25rem, 2.5vw, 2.1rem);
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel:nth-child(n + 4) {
+  grid-column: 1 / -1;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='session-title'] {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #1a3a27;
+  background: #203729;
+  color: #f5f7ec;
+  box-shadow: 12px 12px 0 #d8e5cf;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='session-title']::before {
+  content: '✳';
+  position: absolute;
+  right: -0.1em;
+  top: -0.25em;
+  font: 300 clamp(9rem, 17vw, 17rem)/1 Georgia, serif;
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='session-title'] h2 {
+  position: relative;
+  margin-bottom: 1.35rem;
+  font-size: clamp(1.75rem, 2.5vw, 2.45rem);
+  font-weight: 740;
+  letter-spacing: -0.055em;
+  color: #fffef7;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup form {
+  position: relative;
+  gap: 1.5rem;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup legend {
+  color: #dbe9d5;
+  font-size: 0.73rem;
+  letter-spacing: 0.035em;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-choices {
+  gap: 0.55rem;
+  margin-top: 0.7rem;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-choice {
+  min-height: 2.8rem;
+  padding: 0.5rem 0.78rem;
+  border: 1px solid #607e65;
+  border-radius: 0.18rem;
+  background: #2b4835;
+  color: #f5f6ed;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-choice:has(input:checked) {
+  border-color: #dcf69c;
+  background: #dcf69c;
+  color: #193123;
+  box-shadow: none;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-choice input {
+  accent-color: #28614d;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-session-summary {
+  margin-top: 0.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #5b795f;
+  color: #e4f0db;
+  font-size: 0.89rem;
+  line-height: 1.55;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .lp-ui-button {
+  position: relative;
+  min-height: 3.2rem;
+  border-radius: 0.15rem;
+  border: 1px solid #d4f67b;
+  background: #d4f67b;
+  color: #172d1d;
+  font-weight: 780;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .lp-ui-button:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .lp-ui-button:hover:not(:disabled) {
+  background: #e5ffab;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='stats-title'] {
+  align-self: start;
+  background: #e9eee4;
+  border-color: #c2d0bd;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='stats-title'] h2 {
+  font-size: 1.55rem;
+  font-weight: 750;
+  letter-spacing: -0.05em;
+}
+
+html[data-lp-app='hub'] .vocab-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+}
+
+html[data-lp-app='hub'] .vocab-stats div {
+  min-width: 0;
+  min-height: 5.35rem;
+  padding: 0.9rem 0.4rem 0.8rem 0;
+  border: 0;
+  border-bottom: 1px solid #b9c9b5;
+  border-radius: 0;
+  background: none;
+}
+
+html[data-lp-app='hub'] .vocab-stats dt {
+  color: #45604a;
+  font-size: 0.73rem;
+  line-height: 1.4;
+}
+
+html[data-lp-app='hub'] .vocab-stats dd {
+  margin: 0.3rem 0 0;
+  color: #1c3e28;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 660;
+  font-size: clamp(1.9rem, 3vw, 2.6rem);
+  line-height: 1;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='stats-title'] .vocab-muted {
+  margin-top: 1.4rem;
+  color: #53695a;
+  font-size: 0.75rem;
+  line-height: 1.65;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='decks-title'],
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='starter-title'] {
+  margin-top: 0.6rem;
+}
+
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='decks-title'] h2,
+html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='starter-title'] h2 {
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+  font-weight: 770;
+  letter-spacing: -0.05em;
+}
+
+html[data-lp-app='hub'] .vocab-deck,
+html[data-lp-app='hub'] .vocab-starter,
+html[data-lp-app='hub'] .vocab-card-item {
+  border: 0;
+  border-bottom: 1px solid #cbd5c9;
+  border-radius: 0;
+  padding: 1.2rem 0;
+  box-shadow: none;
+  background: none;
+}
+
+html[data-lp-app='hub'] .vocab-deck h3,
+html[data-lp-app='hub'] .vocab-starter h3 {
+  color: #1b3224;
+  font-size: 1.25rem;
+  letter-spacing: -0.04em;
+}
+
+html[data-lp-app='hub'] .vocab-field input,
+html[data-lp-app='hub'] .vocab-filter select {
+  min-height: 3rem;
+  border: 1px solid #aebfaf;
+  border-radius: 0.2rem;
+  background: #fff;
+  color: #1a2c20;
+}
+
+html[data-lp-app='hub'] .vocab-field input:focus-visible,
+html[data-lp-app='hub'] .vocab-filter select:focus-visible {
+  border-color: #315f45;
+  box-shadow: 0 0 0 2px #cee5cb;
+}
+
+html[data-lp-app='hub'] .review-card,
+html[data-lp-app='hub'] .progress-card,
+html[data-lp-app='hub'] .progress-summary,
+html[data-lp-app='hub'] .vocab-pointer {
+  border: 1px solid #c9d7c5;
+  border-radius: 0.2rem;
+  background: #fffef9;
+  box-shadow: none;
+}
+
+html[data-lp-app='hub'] .progress-summary {
+  border-left: 5px solid #2a6147;
+  background: #e7ede2;
+}
+
+html[data-lp-app='hub'] .review-prompt {
+  color: #1e3928;
+  font-weight: 770;
+}
+
+html[data-lp-app='hub'] .progress-metrics div {
+  background: #e9efe6;
+  border-color: #c7d4c4;
+  border-radius: 0.12rem;
+}
+
+html[data-lp-app='hub'] .review-ratings button,
+html[data-lp-app='hub'] .vocab-actions .lp-ui-button {
+  border-radius: 0.2rem;
+}
+
+@media (max-width: 980px) {
+  html[data-lp-app='hub'] .vocab-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-lp-app='hub'] .vocab-overview > .vocab-intro,
+  html[data-lp-app='hub'] .vocab-overview > .vocab-panel,
+  html[data-lp-app='hub'] .vocab-overview > .vocab-panel:nth-child(n + 4) {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 639px) {
+  html[data-lp-app='hub'] .vocab-overview {
+    gap: 1rem;
+  }
+  html[data-lp-app='hub'] .vocab-app h1,
+  html[data-lp-app='hub'] .progress-intro h1 {
+    font-size: clamp(2.35rem, 9vw, 3.25rem);
+    hyphens: manual;
+  }
+  html[data-lp-app='hub'] .vocab-overview > .vocab-panel {
+    padding: 1.2rem;
+  }
+  html[data-lp-app='hub'] .vocab-overview > .vocab-panel[aria-labelledby='session-title'] {
+    box-shadow: 7px 7px 0 #d8e5cf;
+    margin-right: 7px;
+    margin-bottom: 7px;
+  }
+  html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-choices {
+    gap: 0.45rem;
+  }
+  html[data-lp-app='hub'] .vocab-overview .vocab-session-setup .vocab-choice {
+    padding: 0.5rem 0.55rem;
+    min-height: 2.85rem;
+    font-size: 0.77rem;
+  }
+}
