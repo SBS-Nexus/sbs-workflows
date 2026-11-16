@@ -17,8 +17,8 @@ Abgeleitete Dateien:
 - `src/styles/liquid-sculpture-hero.css` — aus den `.sh-*`-Styles der
   Komponente umgebaut
 
-Der Urheberhinweis ist in der Hero sichtbar verlinkt
-(„Skulptur und Partikeleffekt: Guglielmo Giannattasio“).
+Der Urheberhinweis auf die MIT-Komponente bleibt in der Hero sichtbar verlinkt
+(„Partikeleffekt: Guglielmo Giannattasio“). Die Artwork-Grafiken sind unabhängig hiervon erstellt.
 
 ```text
 MIT License
@@ -44,26 +44,25 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Skulptur-Bilder (`public/images/hero/`)
+## Eigene Hero-Grafiken (`public/images/hero/`)
 
-Die beiden Bilder sind die hellen Referenzbilder derselben Komponente,
-byte-identisch übernommen. Die Prüfsummen stimmen mit den inhaltsadressierten
-Pfaden auf dem CDN überein.
+Die zuvor verwendeten WebP-Referenzbilder von 21st.dev wurden vor dem
+Railway-Publikumszugang **vollständig aus dem Projektstand entfernt**.
+Die Rechte an diesen Fremdbildern waren nicht bestätigt.
 
-| Datei | Quelle | SHA-256 | Format |
-|---|---|---|---|
-| `skulptur.webp` | `https://cdn.21st.dev/assets/mirror/ae/ae8c3de9003460e59182e950ccd345f68f27f9d0e4808b64c92c962a4eca7120.webp` | `ae8c3de9003460e59182e950ccd345f68f27f9d0e4808b64c92c962a4eca7120` | WebP (VP8, ohne Alpha), 1983 × 793, 192 398 Byte |
-| `skulptur-mobil.webp` | `https://cdn.21st.dev/assets/mirror/b0/b0c8d8e5d64b8cec906a3b390e3dc7c9a5af08334bf0632873c601782cb4bc46.webp` | `b0c8d8e5d64b8cec906a3b390e3dc7c9a5af08334bf0632873c601782cb4bc46` | WebP (VP8, ohne Alpha), 1024 × 1300, 173 650 Byte |
+Stattdessen enthält der Hub zwei eigenständige, für SBS konstruierte
+statische Vektorgrafiken: abstrakte ineinandergreifende Lernpfad-Kurven,
+Knoten und Verbindungen auf einem hellen Hintergrund. Es wurden keine
+fremden Bilddateien kopiert oder aus der bisherigen Referenzgrafik
+nachgezeichnet. Die Vektoren sind rein dekorativ und enthalten weder
+Skripte, externe Referenzen noch Schriften.
 
-Abgerufen am 19.10.2026. Der CDN lieferte `Last-Modified: Tue, 13 Oct 2026`,
-`Access-Control-Allow-Origin: *` und `Cache-Control: public, max-age=31536000,
-immutable`. Motiv: eine abstrakte Skulptur aus verwobenen metallisch-seidigen
-Fäden mit Partikeln, auf flachem hellgrauem Grund (gemessen `#E9EAE5` bzw.
-`#EAE9E5`).
+| Datei | Auflösung / `viewBox` | Zweck |
+|---|---|---|
+| `lernwege.svg` | 1983 × 793 | Desktop-/Tablet-Hero |
+| `lernwege-mobil.svg` | 1024 × 1300 | Mobile-Hero |
 
-**Rechtestand: offen.** 21st.dev nennt für die Komponente MIT. Für die Bilder
-gibt es dort keine eigene Angabe. Ob sie unter dieselbe Lizenz fallen, ist
-nicht bestätigt, und aus dem sichtbaren Credit wird keine Lizenz abgeleitet.
-Die lokale Ablage hat der Projektinhaber am 19.10.2026 freigegeben. **Vor einer
-Produktivveröffentlichung muss der Autor die Nutzungsrechte an den Bildern
-bestätigen**, sonst werden sie ersetzt.
+Die Originalkomponente (WebGL-/React-/CSS-Anteile) bleibt MIT-lizenziert
+und wird weiterhin unter Angabe ihres Autors verwendet. Der frühere
+Bildrechte-Blocker gilt für diese beiden nun entfernten Fremdassets
+nicht mehr. Die Softwarelizenz ist getrennt davon zu behandeln.
