@@ -161,7 +161,7 @@ export default function DesignPreview(): React.ReactElement {
           <OrbitInstrument />
         </section>
 
-        <div className="los-ticker" aria-label="Lernen. Anwenden. Verstehen.">
+        <div className="los-ticker">
           <div className="los-ticker-inner" aria-hidden="true">
             <span>LEARN DIFFERENT.</span><span className="los-ticker-star">✳</span>
             <span>THINK DEEPER.</span><span className="los-ticker-star">✳</span>
