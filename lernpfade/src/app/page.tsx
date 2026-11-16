@@ -1,4 +1,5 @@
 import { LernpfadeHero } from '@/components/home/lernpfade-hero';
+import { LearningStudio } from '@/components/home/learning-studio';
 import { CORE_PATHS, NEXT_PATHS, STATUS_LABEL, type LearningPath } from '@/lib/catalog';
 import { ButtonLink } from '@/components/ui/primitives';
 
@@ -10,41 +11,42 @@ function ArrowIcon(): React.ReactElement {
   );
 }
 
-function PathCard({ path }: { path: LearningPath }): React.ReactElement {
-  // Eine Fach-App ist erst wirklich anwählbar, wenn ihre Zieladresse konfiguriert ist.
-  // Gerade im Railway-Staging darf „Verfügbar“ kein nicht verlinktes Versprechen sein.
+function PathCard({ path, index, group }: { path: LearningPath; index: number; group: 'core' | 'future' }): React.ReactElement {
   const disconnected = path.status === 'available' && !path.href;
   const label = disconnected ? 'Noch nicht verbunden' : STATUS_LABEL[path.status];
+  const ordinal = String(index + 1).padStart(2, '0');
   const content = (
     <>
-      <div className="card-topline">
+      <div className="path-card-topline">
+        <span className="path-card-ordinal">LP / {ordinal}</span>
         <span className="eyebrow">{path.eyebrow}</span>
         <span className={`status status-${disconnected ? 'building' : path.status}`}>{label}</span>
       </div>
-      <div className={`path-mark accent-${path.accent}`} aria-hidden="true">
-        {path.title.slice(0, 2).toUpperCase()}
+      <div className="path-card-body">
+        <div className={`path-mark accent-${path.accent}`} aria-hidden="true">{path.title.slice(0, 2).toUpperCase()}</div>
+        <div className="path-card-copy">
+          <h3>{path.title}</h3>
+          <p className="path-description">{path.description}</p>
+          <p className="path-outcome">{path.outcome}</p>
+        </div>
       </div>
-      <h3>{path.title}</h3>
-      <p className="path-description">{path.description}</p>
-      <p className="path-outcome">{path.outcome}</p>
-      <ul className="topic-list" aria-label={`Themen in ${path.title}`}>
-        {path.topics.map((topic) => (
-          <li key={topic}>{topic}</li>
-        ))}
-      </ul>
-      <span className="card-action">
-        {path.href ? 'Pfad öffnen' : disconnected ? 'Anbindung folgt' : path.status === 'planned' ? 'Vorgemerkt' : 'Im Ausbau'}
-        {path.href ? <ArrowIcon /> : null}
-      </span>
+      <div className="path-card-bottom">
+        <ul className="topic-list" aria-label={`Themen: ${path.title}`}>
+          {path.topics.map((topic) => <li key={topic}>{topic}</li>)}
+        </ul>
+        <span className="card-action">
+          {path.href ? 'Pfad öffnen' : disconnected ? 'Anbindung folgt' : path.status === 'planned' ? 'Vorgemerkt' : 'Im Ausbau'}
+          {path.href ? <ArrowIcon /> : null}
+        </span>
+      </div>
     </>
   );
 
+  const className = `path-card path-card--${group}${disconnected ? ' path-card-unavailable' : ''}${path.href ? ' path-card-link' : ''}`;
   return path.href ? (
-    <a className="path-card path-card-link" href={path.href}>
-      {content}
-    </a>
+    <a className={className} data-path={path.slug} href={path.href}>{content}</a>
   ) : (
-    <article className={`path-card${disconnected ? ' path-card-unavailable' : ''}`}>{content}</article>
+    <article className={className} data-path={path.slug}>{content}</article>
   );
 }
 
@@ -54,10 +56,10 @@ export default function Home(): React.ReactElement {
       <header className="site-header">
         <div className="shell header-inner">
           <a className="brand" href="/" aria-label="Lernpfade Startseite">
-            <span className="brand-mark" aria-hidden="true">LP</span>
+            <span className="brand-mark" aria-hidden="true">L<span>✳</span></span>
             <span>
               <strong>Lernpfade</strong>
-              <small>SBS Nexus Learning</small>
+              <small>SBS NEXUS / LEARNING SYSTEM</small>
             </span>
           </a>
           <nav aria-label="Seitennavigation">
@@ -71,34 +73,20 @@ export default function Home(): React.ReactElement {
         </div>
       </header>
 
-      <main id="hauptinhalt">
+      <main id="hauptinhalt" className="lp-main">
         <LernpfadeHero />
 
-        <section className="shell learn-now" aria-labelledby="learn-now-title">
-          <div className="learn-now-primary">
-            <div>
-              <p className="eyebrow">Dein Einstieg</p>
-              <h2 id="learn-now-title">Einfach anfangen. Jeden Tag ein Stück weiter.</h2>
-              <p>
-                Erstelle deine eigenen Vokabelkarten oder übernimm ein Starterdeck.
-                Alles bleibt in diesem Browser – ohne Anmeldung.
-              </p>
-            </div>
-            <ButtonLink href="/vokabeln">
-              Vokabeln lernen <ArrowIcon />
-            </ButtonLink>
+        <div className="lp-editorial-rule" aria-label="Unser Lernprinzip">
+          <div className="shell lp-editorial-rule-inner">
+            <span>DEIN WISSEN. DEIN TEMPO.</span>
+            <span aria-hidden="true">✳</span>
+            <span>VERSTEHEN / ANWENDEN / WIEDERHOLEN</span>
           </div>
-          <a className="learn-now-secondary" href="/wiederholen">
-            <span className="learn-now-icon" aria-hidden="true">↗</span>
-            <span>
-              <strong>Daily Review öffnen</strong>
-              <small>Wiederhole mit dem klar gekennzeichneten Demo-Deck.</small>
-            </span>
-            <ArrowIcon />
-          </a>
-        </section>
+        </div>
 
-        <section id="pfade" className="section shell">
+        <LearningStudio />
+
+        <section id="pfade" className="section shell lp-path-index">
           <div className="section-heading">
             <div>
               <p className="eyebrow">Lernpfade entdecken</p>
@@ -110,8 +98,8 @@ export default function Home(): React.ReactElement {
             </p>
           </div>
           <div className="path-grid">
-            {CORE_PATHS.map((path) => (
-              <PathCard key={path.slug} path={path} />
+            {CORE_PATHS.map((path, index) => (
+              <PathCard key={path.slug} path={path} index={index} group="core" />
             ))}
           </div>
         </section>
@@ -121,30 +109,30 @@ export default function Home(): React.ReactElement {
             <div className="section-heading light-heading">
               <div>
                 <p className="eyebrow">Gemeinsamer Kern</p>
-                <h2>Ein Lernmodell für alle Themen</h2>
+                <h2>Vier Schritte. <em>Ein Lernrhythmus.</em></h2>
               </div>
               <p>
                 Nicht jeder Kurs erfindet seine eigene Bedienung. Was sich ändert, ist der Inhalt;
                 was gleich bleibt, ist die Art zu lernen.
               </p>
             </div>
-            <div className="model-grid">
-              <article>
+            <div className="model-grid" role="list">
+              <article role="listitem">
                 <span>01</span>
                 <h3>Verstehen</h3>
                 <p>Kurze Erklärungen, echte Beispiele und sichtbare Zusammenhänge.</p>
               </article>
-              <article>
+              <article role="listitem">
                 <span>02</span>
                 <h3>Anwenden</h3>
                 <p>Aufgaben, Labs und kleine Projekte statt passivem Durchklicken.</p>
               </article>
-              <article>
+              <article role="listitem">
                 <span>03</span>
                 <h3>Verifizieren</h3>
                 <p>Ergebnisse prüfen, Fehler erklären und AI-Ausgaben nicht blind übernehmen.</p>
               </article>
-              <article>
+              <article role="listitem">
                 <span>04</span>
                 <h3>Wiederholen</h3>
                 <p>Spaced Repetition für Konzepte, Befehle und später auch Vokabeln.</p>
@@ -157,7 +145,7 @@ export default function Home(): React.ReactElement {
           <div className="section-heading">
             <div>
               <p className="eyebrow">Roadmap</p>
-              <h2>Was als Nächstes sinnvoll ist</h2>
+              <h2>Das Wissen von <em>morgen.</em></h2>
             </div>
             <p>
               Die Erweiterungen bauen auf vorhandenen Fähigkeiten auf. Kein Kurs entsteht nur,
@@ -165,8 +153,8 @@ export default function Home(): React.ReactElement {
             </p>
           </div>
           <div className="path-grid future-grid">
-            {NEXT_PATHS.map((path) => (
-              <PathCard key={path.slug} path={path} />
+            {NEXT_PATHS.map((path, index) => (
+              <PathCard key={path.slug} path={path} index={index + CORE_PATHS.length} group="future" />
             ))}
           </div>
         </section>
@@ -191,8 +179,8 @@ export default function Home(): React.ReactElement {
                 </ButtonLink>
               </div>
             </div>
-            <div className="vocab-stack" aria-label="Beispielkarten">
-              <div className="vocab-card">
+            <div className="vocab-stack" aria-label="Beispielkarten"><div className="lp-vocab-art-label"><span>INDEX / 001—003</span><span>ACTIVE RECALL ↗</span></div>
+              <div className="vocab-card vocab-card--featured">
                 <span>EN → DE</span>
                 <strong>retrieval</strong>
                 <small>Abruf · Wiederauffinden</small>
@@ -207,6 +195,7 @@ export default function Home(): React.ReactElement {
                 <strong>embedding</strong>
                 <small>numerische Repräsentation von Bedeutung</small>
               </div>
+              <div className="lp-vocab-art-foot">Wörter werden Wissen. <span>✳</span></div>
             </div>
           </div>
         </section>
@@ -215,7 +204,7 @@ export default function Home(): React.ReactElement {
       <footer>
         <div className="shell footer-inner">
           <strong>Lernpfade</strong>
-          <span>Python · SQL · Git & GitHub · AI · Vokabeln</span>
+          <span>LEARNING OS / VERSTEHEN STATT NUR KLICKEN</span>
         </div>
       </footer>
     </>
