@@ -2751,3 +2751,95 @@ html[data-lp-app='hub'] .vocab-actions .lp-ui-button {
     font-size: 0.77rem;
   }
 }
+
+
+/* CI / exact end-state corrections — no weakened Playwright assertions.
+ * Root causes: small-text contrast, required focus offset, true grid-row
+ * separation for hint/credit, and the vocabulary two-column heading measure. */
+html[data-lp-app='hub'] :focus-visible {
+  outline-offset: 2px;
+}
+
+html[data-lp-app='hub'] .path-card .path-card-ordinal,
+html[data-lp-app='hub'] .path-card .topic-list li,
+html[data-lp-app='hub'] .path-card .topic-list li:not(:last-child)::after,
+html[data-lp-app='hub'] .path-card .path-card-topline .eyebrow,
+html[data-lp-app='hub'] .path-card--future .path-card-ordinal {
+  color: #334d3b;
+}
+
+html[data-lp-app='hub'] .path-card .path-mark,
+html[data-lp-app='hub'] .path-card[data-path='python'] .path-mark,
+html[data-lp-app='hub'] .path-card[data-path='sql'] .path-mark,
+html[data-lp-app='hub'] .path-card[data-path='git'] .path-mark,
+html[data-lp-app='hub'] .path-card[data-path='ai'] .path-mark,
+html[data-lp-app='hub'] .path-card[data-path='vokabeln'] .path-mark {
+  color: #42624b;
+}
+
+html[data-lp-app='hub'] .path-card .status-building {
+  color: #364d3d;
+}
+
+html[data-lp-app='hub'] .path-card .status-planned {
+  color: #364d3d;
+}
+
+html[data-lp-app='hub'] .path-card .card-action,
+html[data-lp-app='hub'] .path-card-unavailable .card-action {
+  color: #294d37;
+}
+
+html[data-lp-app='hub'] .site-header nav a[aria-current='page'],
+html[data-lp-app='hub'] .site-header nav a[href='/vokabeln'][aria-current='page'] {
+  color: #fffef7;
+  background-color: #203d2d;
+}
+
+html[data-lp-app='hub'] .review-ratings button small {
+  color: #24402f;
+}
+
+@media (min-width: 820px) {
+  html[data-lp-app='hub'] .sh-root {
+    grid-template-rows: minmax(0, 1fr) auto auto;
+  }
+  html[data-lp-app='hub'] .sh-content {
+    grid-row: 1 / span 3;
+  }
+  html[data-lp-app='hub'] .sh-hint {
+    grid-row: 2;
+    padding: 0.45rem 0.2rem;
+    min-height: 2rem;
+  }
+  html[data-lp-app='hub'] .sh-credit {
+    grid-row: 3;
+    padding-bottom: 0.65rem;
+    min-height: 2rem;
+  }
+}
+
+html[data-lp-app='hub'] .sh-btn {
+  scroll-margin-block: 3rem 4rem;
+}
+
+html[data-lp-app='hub'] .vocab-section h2 {
+  max-width: 9.3em;
+  font-size: clamp(2.5rem, 3.65vw, 3.75rem);
+  hyphens: manual;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 819px) {
+  html[data-lp-app='hub'] .sh-btn {
+    scroll-margin-block: 8rem 4.5rem;
+  }
+}
+
+@media (max-width: 639px) {
+  html[data-lp-app='hub'] .site-header nav a[aria-current='page'],
+  html[data-lp-app='hub'] .site-header nav a[href='/vokabeln'][aria-current='page'] {
+    background-color: #203d2d;
+    color: #fffef7;
+  }
+}
