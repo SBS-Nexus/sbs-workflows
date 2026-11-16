@@ -12,15 +12,15 @@ import SculptureHero from '@/components/ui/liquid-sculpture-hero';
  * - ruhiger Ausgangspunkt: scharfes Bild in Ruhe, keine Dauer- oder
  *   Einstiegsanimation; Partikeldichte 0,45 ist ein Startwert, kein
  *   gemessenes Optimum.
- * - Bilder lokal unter `public/images/hero/` (Herkunft:
- *   `THIRD_PARTY_NOTICES.md`); `imageBackground` ist ihr gemessener flacher
- *   Grund, Seitenverhältnisse aus den Bilddateien.
+ * - Eigene originale SVG-Lernwege unter `public/images/hero/` (Herkunft:
+ *   `THIRD_PARTY_NOTICES.md`); `imageBackground` passt zum flachen
+ *   Grund, die Seitenverhältnisse sind explizit hinterlegt.
  */
 export function LernpfadeHero(): React.ReactElement {
   return (
     <SculptureHero
-      src="/images/hero/skulptur.webp"
-      mobileSrc="/images/hero/skulptur-mobil.webp"
+      src="/images/hero/lernwege.svg"
+      mobileSrc="/images/hero/lernwege-mobil.svg"
       imageAspect={1983 / 793}
       mobileImageAspect={1024 / 1300}
       imageAlt=""
@@ -51,7 +51,7 @@ export function LernpfadeHero(): React.ReactElement {
       particleDensity={0.45}
       backdropText=""
       minHeight="calc(100svh - 4.6rem)"
-      creditLabel="Skulptur und Partikeleffekt: Guglielmo Giannattasio"
+      creditLabel="Partikeleffekt: Guglielmo Giannattasio"
       creditHref="https://guglielmogiannattasio.it"
       style={
         {
