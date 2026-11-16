@@ -109,7 +109,7 @@ export default function Home(): React.ReactElement {
             <div className="section-heading light-heading">
               <div>
                 <p className="eyebrow">Gemeinsamer Kern</p>
-                <h2>Vier Schritte. <em>Ein Lernrhythmus.</em></h2>
+                <h2>Ein Lernmodell <em>für alle Themen</em></h2>
               </div>
               <p>
                 Nicht jeder Kurs erfindet seine eigene Bedienung. Was sich ändert, ist der Inhalt;
