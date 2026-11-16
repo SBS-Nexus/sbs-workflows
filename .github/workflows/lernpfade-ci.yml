@@ -173,6 +173,11 @@ jobs:
       - name: Abhängigkeiten installieren
         run: npm install --no-audit --no-fund
 
+      # npm install erstellt im Hub bislang ein temporäres Lockfile. Audit nur
+      # der zur Laufzeit verwendeten Abhängigkeiten, ohne automatische Fixes.
+      - name: Security-Audit (Produktionsabhängigkeiten)
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Typecheck
         run: npm run typecheck
 
