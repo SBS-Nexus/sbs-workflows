@@ -101,12 +101,12 @@ export default function Home(): React.ReactElement {
         <section id="pfade" className="section shell">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Heute verfügbar</p>
+              <p className="eyebrow">Lernpfade entdecken</p>
               <h2>Deine Kernpfade</h2>
             </div>
             <p>
-              Drei Einstiegspunkte, aber dieselbe Produktlogik. Wer zwischen Themen wechselt, muss
-              die Plattform nicht neu lernen.
+              Python, SQL und Git bilden die Basis. Sobald ein Fachpfad angebunden ist,
+              kannst du ihn von hier direkt öffnen.
             </p>
           </div>
           <div className="path-grid">
