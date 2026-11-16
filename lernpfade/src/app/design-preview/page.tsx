@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ArrowDown, ArrowRight, ArrowUpRight, BookOpen, CirclePlay, GitBranch, Sparkles, Zap } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUpRight } from 'lucide-react';
 import { CORE_PATHS, NEXT_PATHS } from '@/lib/catalog';
 import { LearningMoment } from '@/components/studio/learning-moment';
 import './studio.css';
