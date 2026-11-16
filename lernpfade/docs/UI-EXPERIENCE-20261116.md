@@ -75,3 +75,97 @@ werden nicht entfernt oder abgeschwächt.
    unverändert.
 4. Marken- und Interaktionsgestaltung ist eine **erste Designvariante**,
    keine endgültige Produktfreigabe ohne tatsächliche visuelle Abnahme.
+
+
+## Creative Direction 02 – „Learning in Motion“ (21st.dev × HorizonX)
+
+### Quellenanalyse und Transfer (16.11.2026)
+
+Öffentlich zugängliche Referenzen, keine Installation fremder Premium-Assets:
+- 21st.dev, öffentliches Popular-Ranking: https://21st.dev/community/components
+  „Scroll media expansion hero“, „Container Scroll Animation“, „Spotlight Card“,
+  „Radial Orbital Timeline“, „Scroll Morph Hero“, „Motion Footer“.
+  Übernahme als Gestaltungsprinzip: **Motion erzählt einen Zweck und erklärt eine
+  Interaktion**, statt universeller Glühkarten und parallax auf jeder Fläche.
+- HorizonX, kuratierte Arbeiten: https://horizonx.so/explore
+  MOTIF (massive typografische Identität und strenge Materialpalette):
+  https://horizonx.so/explore/motif
+  Cinderline (editoriale Hierarchie und Projekt-Rhythmus):
+  https://horizonx.so/explore/cinderline
+  Veyra (sinnvolle Orbit-/Capability-Navigation, Reduced Motion):
+  https://horizonx.so/explore/veyra
+  Good Move (klare Haltung, gestaffeltes Informationsnarrativ):
+  https://horizonx.so/explore/good-move
+  Keine Komponente, Bilddatei, CSS-Datei oder käufliches Template wird kopiert.
+  Eigene Präsentation und Produktsemantik; Lizenz des bestehenden Partikeleffekts
+  siehe THIRD_PARTY_NOTICES.md.
+
+### Positionierung und Designethik
+
+**Nicht:** SaaS-Template mit 6 gleichen Boxen, erfundenen Prozentwerten,
+Schein-LIVE-Dashboards, Glassmorphism über allen Komponenten, ziellosen
+Bewegungseffekten oder generischen „Feature-Karten“.
+
+**Stattdessen:** Lernpfade ist ein Learning Operating System – weniger
+Kurskatalog, mehr eigener digitaler Arbeitsraum. Öffentliche Startseite:
+editorial, ruhig und ikonisch. Lernansichten: präzise, handlungsorientiert und
+ausnahmslos ehrlich über lokalen Speicher, Demo und LIVE.
+
+### Tokens (eigene, ohne externen Webfont)
+
+| Rolle | Token | Farbe / Logik |
+|---|---|---|
+| Warmes Papier | LP Canvas | #f6f5f0 |
+| Dunkle Tinte | LP Ink | #151c1a |
+| Primärtext | LP Type | #222b29 |
+| Muted | LP Slate | #57645e |
+| Akzent / Energie | LP Signal | #d4f87d, auf dunklem Grund |
+| Sekundärakzent | LP Cobalt | #345ca7 für informative Links |
+| Flächenkante | LP Hairline | #d5d9d1 |
+
+Schrift: System-Sans als funktionaler Lauftext, redaktioneller Serif-Akzent
+für ausgewählte Aussagen, Mono ausschließlich für Code, Aufgabenmetadaten und
+Zähler. Keine extern geladenen Fonts.
+
+### Fünf verbindliche UX-Kompositionen
+
+1. **Hero / erste Bildschirmhöhe:** Text und primäre Handlung zuerst –
+   auf Mobil vor dem Artwork. Vorhandener WebGL-Motor bleibt eine optionale
+   progressive Enhancement und respektiert Reduced Motion, lädt kein fremdes
+   Bild und übernimmt keine Navigationsinteraktion.
+2. **Learning Studio:** echte, lokal gerenderte, zugängliche Vorschau mit
+   Lernkarten-Interaktion (Antwort bewusst aufdecken), klar als Demo
+   gekennzeichnet. Keine Datenbank, keine Fake-Ergebnisse. UI ist eine
+   eigenständige interaktive Arbeitsfläche, keine leere Marketing-Kachel.
+3. **Lernwege-Index:** nummerierte editoriale Kurszeilen, unterschiedlich
+   gewichtete Flächen, große Typografie und echte Statusangaben; keine
+   sechsmal identische Kachel. Nicht verbundene Apps sind keine Links.
+4. **Lernmodell:** Vier Schritte als visuelle, durchgehende Sequenz statt
+   vier austauschbare Boxen. Keine erfundenen Lern- oder Erfolgszahlen.
+5. **Persönlicher VokabelPfad:** Tagesaufgabe vor Statistiken und
+   Administration; größere, beruhigte Eingabeflächen und klare
+   Lernrichtungsauswahl. Datenwarnungen, bestätigte Löschungen,
+   Importschranken und reale Review-Semantik sind unangetastet.
+
+### Responsive / Accessibility-Vertrag
+
+- >= 1080 px: editorial Hero 2-spaltig, Visualisierung nie über Text.
+- 820–1079 px: kontrollierte 2-Spalten-Komposition ohne ungetrennten
+  Überlauf, bei realen Fontmetriken; Höhen dürfen mit Text wachsen.
+- <= 819 px: **Text und CTA vor Grafik**, kompakte zugängliche Navigation,
+  keine reine Desktop-Hero in einer endlosen Mobilspalte.
+- 375 px und Browserzoom 200 %: keine abgeschnittenen Headings, Links,
+  Fieldsets oder Fokusringe.
+- Touch-Ziele >= 44 px, Focus-Visible, Tastatur, kein Hover-only-Zugang,
+  keine Content-Ersetzung durch Animation, prefers-reduced-motion.
+- Kontrast: Text >= 4.5:1, sichtbare UI-Kanten/Fokus >= 3:1 wo relevant.
+- Keine Umgehung/Entfernung von bestehenden Playwright-Assertions,
+  keine neuen echten LIVE-Quellen, keine Deployments.
+
+### Abnahme
+
+Unit/Typecheck/Build/npm-Audit, bestehende Browser-Suite und neue zielgenaue
+Tests für Arbeitsfläche und Mobile First View. Ein grüner CI-Lauf garantiert
+nicht Designqualität; zusätzlich müssen Pixelbilder (Desktop/Mobil)
+visuell geprüft werden. Railway-Staging verbleibt auf der freigegebenen
+Vorgängerversion. Merge/Deployment bleibt manuelle Freigabe.
