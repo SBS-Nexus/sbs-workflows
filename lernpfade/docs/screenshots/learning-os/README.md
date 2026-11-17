@@ -1,7 +1,7 @@
 # Learning OS – Screenshot-Nachweise (LO-UI-001)
 
 Aufgenommen am 17.11.2026 gegen den Produktionsbuild (`next build` + `next start`)
-von Commit `e71c9ae453833a6aee4fbeff31ebb292befdede2`, Playwright-Chromium 1.62.1
+von Commit `2d626b33aac80836573585e4931d670a19fd06ab` (Stand nach der Laufweiten-Korrektur F), Playwright-Chromium 1.62.1
 auf macOS. Live- und Fortschrittsquellen sind **MOCKS** (`page.route`) unter
 denselben Adressen wie in `playwright.config.ts`; es lief keine echte Fach-App.
 VokabelPfad-Daten: ein frisch übernommenes Starterdeck in einem leeren Profil.
