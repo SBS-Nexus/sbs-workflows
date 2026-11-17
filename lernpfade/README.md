@@ -30,27 +30,28 @@ Adresse zeigen wie `NEXT_PUBLIC_AIPFAD_URL`.
 Als eigenes Vercel-Projekt mit Root Directory `lernpfade/`. Keine Datenbank,
 keine Secrets, keine Nutzerkonten. Region: Frankfurt (`fra1`).
 
-## Startseiten-Hero (Liquid Sculpture)
+## Learning OS (Startseite und Lernansichten)
 
-Die Startseite öffnet mit einer metallischen Skulptur. Unter dem Zeiger
-zerfließt sie lokal zu Partikeln (WebGL2) und wird danach wieder zum ruhigen
-Bild. Grundlage ist „Liquid Sculpture Hero“ von Guglielmo Giannattasio
-(21st.dev, MIT).
+Seit LO-UI-001 tragen `/`, `/vokabeln`, `/wiederholen` und `/fortschritt` das
+Learning-OS-Design der geprüften Studie `/design-preview` (PR #77): dunkle
+Editorial-Flächen, eigener Wissensorbit (SVG/CSS), Signal-Lime/Mint, helle
+Papierflächen für die Arbeit.
 
-- Überschrift, Text, Links und das statische Bild stehen im Server-HTML und
-  funktionieren ohne JavaScript.
-- Die Engine wird erst nach der Hydration geladen.
-- Ohne WebGL2, bei reduzierter Bewegung oder bei einem GPU-Fehler bleibt das
-  statische Bild.
-- Keine Google Fonts, kein Tailwind, kein shadcn. Die Komponente ist
-  eigenständiges React/CSS unter `src/components/ui/` und noch keine
-  eingerichtete shadcn-Basis.
-- Die Bilder liegen als eigens erstellte, skriptfreie SVG-Grafiken lokal unter
-  `public/images/hero/`; die früheren 21st.dev-WebP-Referenzbilder wurden
-  entfernt. Der MIT-lizenzierte Partikeleffekt bleibt korrekt attribuiert
-  (`THIRD_PARTY_NOTICES.md`).
+- Eine Umsetzung für `/` und `/design-preview`: `src/components/learning-os/`.
+  Die Studie bleibt bis zur Freigabe als `noindex`-Referenz erhalten.
+- Eine Kopfzeile für alle Routen (`src/components/site-header.tsx`).
+- Designsystem in `src/styles/learning-os.css`; die gemeinsamen Verträge
+  (`learning-components.css`, `learning-feedback.css`) bleiben bytegleich.
+- Pfadziele und Status nur aus `src/lib/catalog.ts`; ohne konfigurierte
+  Adresse kein Link, sondern „Noch nicht verbunden".
+- Keine externen Fonts, CDNs, Tracker oder Fremdanfragen; keine erfundenen
+  Fortschrittswerte.
 
-Entscheidungen, Fehlerkorrekturen, Tests und Messwerte:
+Entscheidungen, Gates und bekannte Grenzen:
+`docs/LEARNING-OS-DESIGN-20261116.md`, Abschnitt 8.
+
+Die frühere Startseiten-Hero „Liquid Sculpture" ist mit LO-UI-001 entfernt
+(Code, Bilder, Tests); ihre Dokumentation bleibt als Archiv in
 `docs/LIQUID-HERO.md`.
 
 ## Wiederholen: Live-Quellen (LP-05B)
