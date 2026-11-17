@@ -81,7 +81,7 @@ function BacklogSummary({
   configs: readonly ProgressSourceConfig[];
 }): React.ReactElement {
   return (
-    <section className="progress-summary" aria-labelledby="progress-summary-title" aria-live="polite">
+    <section className="los-section progress-summary" aria-labelledby="progress-summary-title" aria-live="polite">
       <h2 id="progress-summary-title">Fällig insgesamt</h2>
       {total.status === 'pending' ? <p className="progress-muted">Wird zusammengezählt …</p> : null}
       {total.status === 'complete' ? (
@@ -160,53 +160,57 @@ function SourceCard({ config, state }: { config: ProgressSourceConfig; state: So
 
   return (
     <article className="progress-card" aria-labelledby={titleId}>
-      <div className="progress-card-head">
-        <h3 id={titleId}>{config.appName}</h3>
-        {state.status === 'ok' ? (
-          <span className={`review-domain domain-${config.source}`}>LIVE · {config.label}</span>
-        ) : null}
+      <div className="progress-card-side">
+        <div className="progress-card-head">
+          <h3 id={titleId}>{config.appName}</h3>
+          {state.status === 'ok' ? (
+            <span className={`review-domain domain-${config.source}`}>LIVE · {config.label}</span>
+          ) : null}
+        </div>
+        {config.note ? <p className="progress-muted">{config.note}</p> : null}
       </div>
-      {config.note ? <p className="progress-muted">{config.note}</p> : null}
 
-      {state.status === 'loading' ? (
-        <FeedbackCallout message={sourceFeedback('loading')}>
-          Fortschritt aus {config.appName} wird geladen …
-        </FeedbackCallout>
-      ) : null}
-
-      {state.status === 'not_configured' ? (
-        <FeedbackCallout message={sourceFeedback('not_configured')}>
-          Nicht mit dem Hub verbunden. Dein Fortschritt in {config.appName} ist dort weiterhin
-          vollständig sichtbar.
-        </FeedbackCallout>
-      ) : null}
-
-      {state.status === 'unauthenticated' ? (
-        <FeedbackCallout message={sourceFeedback('unauthenticated')}>
-          In {config.appName} bist du nicht angemeldet. Ohne Anmeldung zeigt der Hub hier nichts — das
-          heißt nicht, dass du dort keinen Fortschritt hast.
-        </FeedbackCallout>
-      ) : null}
-
-      {state.status === 'unavailable' ? (
-        <FeedbackCallout message={sourceFeedback('unavailable')}>
-          {config.appName} ist derzeit nicht erreichbar. Die anderen Pfade bleiben nutzbar.
-        </FeedbackCallout>
-      ) : null}
-
-      {state.status === 'ok' ? <SourceMetrics progress={state.progress} appName={config.appName} /> : null}
-
-      <div className="progress-actions">
-        {state.status === 'unauthenticated' && config.baseUrl ? (
-          <ButtonLink href={`${config.baseUrl}/anmelden`}>
-            In {config.appName} anmelden
-          </ButtonLink>
+      <div className="progress-card-main">
+        {state.status === 'loading' ? (
+          <FeedbackCallout message={sourceFeedback('loading')}>
+            Fortschritt aus {config.appName} wird geladen …
+          </FeedbackCallout>
         ) : null}
-        {openUrl ? (
-          <ButtonLink variant="secondary" href={`${openUrl}/fortschritt`}>
-            In {config.appName} öffnen
-          </ButtonLink>
+
+        {state.status === 'not_configured' ? (
+          <FeedbackCallout message={sourceFeedback('not_configured')}>
+            Nicht mit dem Hub verbunden. Dein Fortschritt in {config.appName} ist dort weiterhin
+            vollständig sichtbar.
+          </FeedbackCallout>
         ) : null}
+
+        {state.status === 'unauthenticated' ? (
+          <FeedbackCallout message={sourceFeedback('unauthenticated')}>
+            In {config.appName} bist du nicht angemeldet. Ohne Anmeldung zeigt der Hub hier nichts — das
+            heißt nicht, dass du dort keinen Fortschritt hast.
+          </FeedbackCallout>
+        ) : null}
+
+        {state.status === 'unavailable' ? (
+          <FeedbackCallout message={sourceFeedback('unavailable')}>
+            {config.appName} ist derzeit nicht erreichbar. Die anderen Pfade bleiben nutzbar.
+          </FeedbackCallout>
+        ) : null}
+
+        {state.status === 'ok' ? <SourceMetrics progress={state.progress} appName={config.appName} /> : null}
+
+        <div className="progress-actions">
+          {state.status === 'unauthenticated' && config.baseUrl ? (
+            <ButtonLink href={`${config.baseUrl}/anmelden`}>
+              In {config.appName} anmelden
+            </ButtonLink>
+          ) : null}
+          {openUrl ? (
+            <ButtonLink variant="secondary" href={`${openUrl}/fortschritt`}>
+              In {config.appName} öffnen
+            </ButtonLink>
+          ) : null}
+        </div>
       </div>
     </article>
   );
@@ -261,35 +265,39 @@ function SourceMetrics({ progress, appName }: { progress: SourceProgress; appNam
 function VocabularyCard({ state }: { state: VocabularyState }): React.ReactElement {
   return (
     <article className="progress-card" aria-labelledby="progress-vocabulary">
-      <div className="progress-card-head">
-        <h3 id="progress-vocabulary">VokabelPfad</h3>
-        <span className="review-domain domain-language">LOKAL · nur in diesem Browser</span>
+      <div className="progress-card-side">
+        <div className="progress-card-head">
+          <h3 id="progress-vocabulary">VokabelPfad</h3>
+          <span className="review-domain domain-language">LOKAL · nur in diesem Browser</span>
+        </div>
+        <p className="progress-muted">
+          Deine eigenen Decks liegen nur in diesem Browser. Sie werden an keine App und keinen Server gesendet.
+        </p>
       </div>
-      <p className="progress-muted">
-        Deine eigenen Decks liegen nur in diesem Browser. Sie werden an keine App und keinen Server gesendet.
-      </p>
 
-      {state.status === 'loading' ? (
-        <FeedbackCallout message={vocabularyFeedback('loading')}>Vokabelstand wird gelesen …</FeedbackCallout>
-      ) : null}
+      <div className="progress-card-main">
+        {state.status === 'loading' ? (
+          <FeedbackCallout message={vocabularyFeedback('loading')}>Vokabelstand wird gelesen …</FeedbackCallout>
+        ) : null}
 
-      {state.status === 'error' ? (
-        <FeedbackCallout message={vocabularyFeedback(state.reason)}>
-          {state.reason === 'corrupt'
-            ? 'Deine Vokabeldaten in diesem Browser lassen sich nicht lesen. Sie wurden nicht verändert.'
-            : state.reason === 'future'
-              ? 'Deine Vokabeldaten stammen aus einer neueren Version von VokabelPfad und werden hier nicht gelesen.'
-              : 'Der Browser erlaubt gerade keinen Zugriff auf den lokalen Speicher.'}{' '}
-          Ein Fortschritt von 0 wäre deshalb falsch — prüfe den Stand im VokabelPfad.
-        </FeedbackCallout>
-      ) : null}
+        {state.status === 'error' ? (
+          <FeedbackCallout message={vocabularyFeedback(state.reason)}>
+            {state.reason === 'corrupt'
+              ? 'Deine Vokabeldaten in diesem Browser lassen sich nicht lesen. Sie wurden nicht verändert.'
+              : state.reason === 'future'
+                ? 'Deine Vokabeldaten stammen aus einer neueren Version von VokabelPfad und werden hier nicht gelesen.'
+                : 'Der Browser erlaubt gerade keinen Zugriff auf den lokalen Speicher.'}{' '}
+            Ein Fortschritt von 0 wäre deshalb falsch — prüfe den Stand im VokabelPfad.
+          </FeedbackCallout>
+        ) : null}
 
-      {state.status === 'ok' ? <VocabularyMetrics summary={state.summary} /> : null}
+        {state.status === 'ok' ? <VocabularyMetrics summary={state.summary} /> : null}
 
-      <div className="progress-actions">
-        <ButtonLink variant="secondary" href="/vokabeln">
-          {state.status === 'error' ? 'Im VokabelPfad prüfen' : 'Zum VokabelPfad'}
-        </ButtonLink>
+        <div className="progress-actions">
+          <ButtonLink variant="secondary" href="/vokabeln">
+            {state.status === 'error' ? 'Im VokabelPfad prüfen' : 'Zum VokabelPfad'}
+          </ButtonLink>
+        </div>
       </div>
     </article>
   );
@@ -425,7 +433,7 @@ export function ProgressOverview({ sources }: { sources: readonly ProgressSource
   return (
     <>
       <BacklogSummary total={total} configs={sources} />
-      <section className="progress-paths" aria-labelledby="progress-paths-title">
+      <section className="los-section progress-paths" aria-labelledby="progress-paths-title">
         <h2 id="progress-paths-title">Deine Pfade</h2>
         <div className="progress-grid">
           {sources.map((config) => (

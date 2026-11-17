@@ -105,13 +105,6 @@ a {
   }
 }
 
-/* Übergang (LO-UI-001 A/B): Inhaltsbreite der Lernansichten, die noch nicht auf
- * `.los-flow` umgestellt sind. Entfällt mit Etappe C. */
-.shell {
-  width: min(1160px, calc(100% - 2rem));
-  margin-inline: auto;
-}
-
 /* --- Gemeinsame Teile der Lernansichten ------------------------------------- */
 
 .los-app h2,
