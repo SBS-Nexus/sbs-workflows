@@ -131,6 +131,27 @@ Umsetzung von Issue #78 auf Branch
   `komponenten.spec` misst den Hub-Akzent Indigo). Deshalb stehen alle
   Vertragsbausteine auf hellen Papierflächen; dunkel sind nur Kopfzeile,
   Seitenköpfe, Session-Bühne und die Editorial-Flächen der Startseite.
+- **Laufweite nach der Linux-Sichtprüfung gelockert.** Die Werte der Studie
+  waren zu eng:
+  - Die Wortmarke las sich bei `-.065em`/`-.08em` auf macOS *und* Linux als
+    „lempfade.".
+  - In den Ersatzschriften Arial/Times (Linux, Windows) berührten sich
+    Buchstaben der Display-Überschriften.
+
+  Die Untergrenzen stammen aus einer Schriftprobe in beiden Schriftfamilien:
+
+  | Element | vorher | jetzt |
+  |---|---|---|
+  | Wortmarke | `-.065em`/`-.08em` | `-.03em` |
+  | Hero-H1 | `-.088em` | `-.055em` |
+  | Abschnitts-H2, Pfad-H3, Fußzeile | `-.078`/`-.08`/`-.075em` | `-.055em` |
+  | Kopf-H1 | `-.062em` | `-.045em` |
+  | Serif-Kursive | `-.086`/`-.069`/`-.05em` | `-.04em` |
+  | Abfragetext | `-.05em` | `-.035em` |
+
+  Kursive Akzentzeilen brechen bei Bedarf ausgewogen um (`text-wrap: balance`)
+  statt mit Einzelwort. Bei „6 fällig" steht nach der großen Zahl ein eigener
+  Abstand. Der Gate-Test „Typografie" hält diese Untergrenzen.
 - **Fokusringe:** Alle Hub-Regeln haben Spezifität 0 (`:where`), damit die
   Ringe der Vertragsbausteine (3 px, Abstand 2 px) unverändert gewinnen. Auf
   dunklen Flächen Lime, auf Papier dunkles Moosgrün.
@@ -175,7 +196,11 @@ Umsetzung von Issue #78 auf Branch
 
 - Visuelle Regression ohne Pixel-Baselines: Schriften unterscheiden sich
   zwischen macOS (SF/Helvetica) und Linux-CI (Ersatzschrift). Geprüft werden
-  Geometrie, Farben und Struktur; die Aufnahmen liegen im CI-Artefakt.
+  Geometrie, Farben, Struktur und Laufweiten-Untergrenzen; die Aufnahmen liegen
+  im CI-Artefakt. Die Linux-Aufnahmen wurden am 17.11.2026 von Hand gesichtet.
+  Die Schriftprobe nutzte Arial und Times New Roman unter macOS als
+  metrikgleiche Stellvertreter der Linux-Ersatzschriften. Die Bestätigung in
+  der echten Linux-Umgebung liefert der nächste CI-Lauf.
 - Indigo-Knöpfe des Komponentenvertrags neben Lime-Akzenten: bewusst, bis
   der Vertrag selbst einen Hub-Akzent für das Learning OS bekommt (eigener,
   app-übergreifender Schritt).

@@ -181,7 +181,8 @@ a {
   font-size: clamp(28px, 4.2vw, 48px);
   font-weight: 650;
   line-height: 1.1;
-  letter-spacing: -0.05em;
+  /* Nutzerinhalt (eigene Vokabeln): nicht enger, sonst liest sich „rn" als „m". */
+  letter-spacing: -0.035em;
   overflow-wrap: anywhere;
 }
 
@@ -655,7 +656,7 @@ a {
 .vocab-focus-head h2 {
   margin-top: 10px;
   font-size: clamp(30px, 3.4vw, 46px);
-  letter-spacing: -0.055em;
+  letter-spacing: -0.045em;
 }
 
 .vocab-focus-figure {
@@ -670,7 +671,7 @@ a {
   font-size: clamp(56px, 7vw, 96px);
   font-weight: 560;
   line-height: 0.9;
-  letter-spacing: -0.07em;
+  letter-spacing: -0.05em;
 }
 
 .vocab-focus-figure span {
@@ -725,7 +726,7 @@ a {
   margin: 0.3rem 0 0;
   font-size: 1.9rem;
   font-weight: 600;
-  letter-spacing: -0.05em;
+  letter-spacing: -0.03em;
   overflow-wrap: anywhere;
 }
 
@@ -1195,10 +1196,12 @@ a {
 }
 
 .progress-total strong {
+  /* Eigener Abstand zum Wort „fällig": das Leerzeichen allein wirkt neben der großen Zahl zu knapp. */
+  margin-right: 0.12em;
   font-size: clamp(48px, 6vw, 84px);
   font-weight: 560;
   line-height: 0.95;
-  letter-spacing: -0.065em;
+  letter-spacing: -0.05em;
 }
 
 .progress-muted,

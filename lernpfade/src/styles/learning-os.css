@@ -89,9 +89,16 @@
   -webkit-font-smoothing: antialiased;
 }
 .los-header a { color: inherit; -webkit-tap-highlight-color: transparent; }
+/*
+ * Laufweite: Untergrenzen aus einer Probe in Mac-Schriften (Helvetica Neue,
+ * Iowan) und in Ersatzschriften (Arial, Times New Roman = Linux/Windows), damit
+ * sich keine Buchstaben berühren: Wortmarke -.03em (sonst liest sich „rn" als
+ * „m"), Hero -.055em, Abschnitts-H2/Pfad-H3 -.055em, Kopf-H1 -.045em,
+ * Serif-Kursive -.04em. Enger nur mit eigener Probe.
+ */
 .los-brand {
   display: inline-flex; align-items: center; gap: 10px; min-height: 48px;
-  text-decoration: none; font-weight: 800; font-size: 21px; letter-spacing: -.065em;
+  text-decoration: none; font-weight: 800; font-size: 21px; letter-spacing: -.03em;
   white-space: nowrap;
 }
 .los-brand-mark {
@@ -145,12 +152,12 @@
 .los-hero h1 {
   margin: 0 0 31px;
   font-size: clamp(66px, 8.1vw, 142px); font-weight: 570;
-  letter-spacing: -.088em; line-height: .985; white-space: nowrap;
+  letter-spacing: -.055em; line-height: .985; white-space: nowrap;
 }
 .los-hero h1 em {
   display: inline-block;
   color: var(--los-lime); font-family: var(--los-serif); font-weight: 400;
-  letter-spacing: -.086em; line-height: 1.03;
+  letter-spacing: -.04em; line-height: 1.03;
 }
 .los-hero-lead {
   max-width: 475px; margin: 0;
@@ -208,9 +215,10 @@
 .los-statement-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, .55fr); gap: 5vw; padding-top: 72px; align-items: end; }
 .los-statement h2, .los-tracks-header h2, .los-moment-intro h2, .los-vocab-inner h2 {
   margin: 0; font-size: clamp(52px, 7.1vw, 117px); line-height: 1.02;
-  letter-spacing: -.078em; font-weight: 570;
+  letter-spacing: -.055em; font-weight: 570;
 }
-.los-statement h2 em, .los-tracks-header h2 em, .los-moment-intro h2 em, .los-vocab-inner h2 em { color: var(--los-lime); font-family: var(--los-serif); font-weight: 400; letter-spacing: -.069em; }
+/* Kursive Zeile als eigener Block: Muss sie mit einer breiteren Ersatzschrift umbrechen, dann ausgewogen statt mit Einzelwort. */
+.los-statement h2 em, .los-tracks-header h2 em, .los-moment-intro h2 em, .los-vocab-inner h2 em { display: inline-block; color: var(--los-lime); font-family: var(--los-serif); font-weight: 400; letter-spacing: -.04em; text-wrap: balance; }
 .los-statement-aside { align-self: end; max-width: 350px; padding-bottom: 8px; }
 .los-statement-glyph { color: var(--los-lime); font-size: 86px; line-height: 1; font-weight: 300; margin-bottom: 32px; }
 .los-statement-aside p { font-size: 17px; line-height: 1.8; color: #aebeb4; }
@@ -221,7 +229,7 @@
 .los-principles > li { min-height: 165px; display: grid; align-content: space-between; grid-template-columns: 38px 1fr; column-gap: 14px; padding: 24px 0; border-bottom: 1px solid var(--los-line); }
 .los-principles > li + li { padding-left: 35px; border-left: 1px solid var(--los-line); }
 .los-principles span { color: var(--los-lime); font-size: 12px; letter-spacing: .12em; }
-.los-principles strong { font-size: clamp(22px, 2.4vw, 34px); font-weight: 580; letter-spacing: -.055em; }
+.los-principles strong { font-size: clamp(22px, 2.4vw, 34px); font-weight: 580; letter-spacing: -.045em; }
 .los-principles small { grid-column: 2; color: #a3afa8; font-size: 12px; }
 
 .los-tracks-section { background: var(--los-paper); color: #151c19; }
@@ -235,7 +243,7 @@
 a.los-track:hover { background: #d7eab7; padding-left: 20px; padding-right: 20px; }
 .los-track-index { align-self: start; padding-top: 16px; font-size: 11px; font-weight: 780; letter-spacing: .12em; color: #354d40; }
 .los-track-category { font-size: 11px; font-weight: 700; color: #3f5746; }
-.los-track-identity h3 { font-size: clamp(35px, 4.2vw, 68px); margin: 4px 0 0; letter-spacing: -.08em; font-weight: 640; line-height: 1.05; }
+.los-track-identity h3 { font-size: clamp(35px, 4.2vw, 68px); margin: 4px 0 0; letter-spacing: -.055em; font-weight: 640; line-height: 1.05; }
 .los-track-description { font-size: 15px; max-width: 260px; line-height: 1.6; color: #4c5c52; }
 .los-track-end { display: flex; flex-direction: column; gap: 14px; align-items: flex-end; }
 .los-track-status { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 760; letter-spacing: .04em; color: #2f4a36; white-space: nowrap; }
@@ -264,7 +272,7 @@ a.los-track:hover .los-track-arrow, a.los-track:focus-visible .los-track-arrow {
 .los-lesson-heading { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding-bottom: 20px; border-bottom: 1px solid #b9c8b9; color: #56645a; font-size: 11px; font-weight: 750; letter-spacing: .08em; }
 .los-lesson-step { display: inline-flex; align-items: center; gap: 8px; }
 .los-lesson-step i { width: 6px; height: 6px; background: #668b4a; border-radius: 50%; }
-.los-lesson-question { font-size: clamp(26px, 3vw, 44px); line-height: 1.13; font-weight: 680; letter-spacing: -.058em; margin: 37px 0 27px; }
+.los-lesson-question { font-size: clamp(26px, 3vw, 44px); line-height: 1.13; font-weight: 680; letter-spacing: -.045em; margin: 37px 0 27px; }
 .los-lesson-context { font-size: 13px; color: #56645a; margin: -12px 0 28px; }
 .los-lesson-options { display: grid; gap: 9px; }
 .los-lesson-choice {
@@ -307,13 +315,13 @@ a.los-track:hover .los-track-arrow, a.los-track:focus-visible .los-track-arrow {
 .los-footer { border: 0; background: var(--los-ink); color: #eef5e8; padding: clamp(80px, 9vw, 140px) clamp(22px, 7vw, 120px) 0; font-family: var(--los-sans); }
 .los-footer-top { display: flex; align-items: flex-start; gap: clamp(30px, 8vw, 140px); }
 .los-footer-star { font-size: clamp(80px, 12vw, 180px); line-height: .8; color: var(--los-lime); }
-.los-footer-top p { font-size: clamp(42px, 6.2vw, 103px); line-height: 1.06; letter-spacing: -.075em; margin: 0 0 clamp(90px, 10vw, 150px); }
-.los-footer-top em { font-family: var(--los-serif); color: var(--los-lime); font-weight: 400; }
+.los-footer-top p { font-size: clamp(42px, 6.2vw, 103px); line-height: 1.06; letter-spacing: -.055em; margin: 0 0 clamp(90px, 10vw, 150px); }
+.los-footer-top em { font-family: var(--los-serif); color: var(--los-lime); font-weight: 400; letter-spacing: -.04em; }
 .los-footer-bottom { border-top: 1px solid var(--los-line); min-height: 140px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 22px; font-size: 11px; color: #aab5ad; }
 .los-footer-bottom a { display: inline-flex; align-items: center; min-height: 32px; text-decoration: none; }
 .los-footer-bottom a:hover { color: var(--los-lime); }
 .los-footer-bottom nav { display: flex; flex-wrap: wrap; gap: 0 22px; }
-.los-footer-wordmark { font-size: 27px; color: white; font-weight: 800; letter-spacing: -.08em; }
+.los-footer-wordmark { font-size: 27px; color: white; font-weight: 800; letter-spacing: -.03em; }
 
 /* =========================================================================
  * 4. Lernansichten: Fluss, Kopf, Papierflächen, Quellenbahnen
@@ -397,12 +405,13 @@ a.los-track:hover .los-track-arrow, a.los-track:focus-visible .los-track-arrow {
   font-size: clamp(40px, 6vw, 92px);
   font-weight: 570;
   line-height: 1.01;
-  letter-spacing: -.062em;
+  letter-spacing: -.045em;
   overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 .los-head h1 em,
 .los-stage h1 em {
-  color: var(--los-lime); font-family: var(--los-serif); font-style: italic; font-weight: 400; letter-spacing: -.05em;
+  color: var(--los-lime); font-family: var(--los-serif); font-style: italic; font-weight: 400; letter-spacing: -.04em;
 }
 .los-head :is(h1, h2)[tabindex='-1']:focus { outline: none; }
 .los-head :is(h1, h2)[tabindex='-1']:focus-visible { outline: 3px solid var(--los-lime); outline-offset: 6px; }
@@ -463,7 +472,7 @@ a.los-track:hover .los-track-arrow, a.los-track:focus-visible .los-track-arrow {
 }
 .los-stage h1 {
   margin: 0;
-  font-size: clamp(34px, 4.6vw, 64px); font-weight: 580; line-height: 1.04; letter-spacing: -.055em;
+  font-size: clamp(34px, 4.6vw, 64px); font-weight: 580; line-height: 1.04; letter-spacing: -.045em;
   overflow-wrap: anywhere;
 }
 .los-stage :is(h1, h2)[tabindex='-1']:focus { outline: none; }

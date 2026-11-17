@@ -299,6 +299,60 @@ test('Fortschritt: ruhige Zeilen statt Kartenraster, keine Prozentwerte, Zeilen 
     const lefts = await cards.evaluateAll((elements) => elements.map((element) => Math.round(element.getBoundingClientRect().left)));
     expect(new Set(lefts).size).toBe(1);
   }
+  // Die große Zahl hat einen eigenen Abstand zum Wort („6 fällig", nicht „6fällig").
+  const gap = await page.locator('.progress-total strong').evaluate((element) => {
+    const style = getComputedStyle(element);
+    return parseFloat(style.marginRight) / parseFloat(style.fontSize);
+  });
+  expect(gap, 'Abstand nach der Gesamtzahl').toBeGreaterThanOrEqual(0.1);
+});
+
+/**
+ * Laufweiten-Untergrenzen aus der Schriftprobe (LO-UI-001, Linux-Sichtprüfung):
+ * Enger berühren sich Buchstaben in Arial/Times (Linux, Windows); die Wortmarke
+ * las sich bei -0.065em auch auf macOS als „lempfade.". Geprüft wird die
+ * berechnete Laufweite relativ zur Schriftgröße, weil Pixelvergleiche an den
+ * Plattformschriften scheitern.
+ */
+test('Typografie: Wortmarke und Display-Überschriften nie enger als die geprüften Untergrenzen', async ({ page }) => {
+  const floors: Array<{ route: Route['path']; selector: string; floor: number }> = [
+    { route: '/', selector: '.los-header .los-brand', floor: -0.03 },
+    { route: '/', selector: '.los-footer-wordmark', floor: -0.03 },
+    { route: '/', selector: '.los-hero h1', floor: -0.055 },
+    { route: '/', selector: '.los-hero h1 em', floor: -0.04 },
+    { route: '/', selector: '.los-statement h2', floor: -0.055 },
+    { route: '/', selector: '.los-statement h2 em', floor: -0.04 },
+    { route: '/', selector: '.los-tracks-header h2', floor: -0.055 },
+    { route: '/', selector: '.los-track-identity h3', floor: -0.055 },
+    { route: '/', selector: '.los-moment-intro h2', floor: -0.055 },
+    { route: '/', selector: '.los-vocab-inner h2', floor: -0.055 },
+    { route: '/', selector: '.los-vocab-inner h2 em', floor: -0.04 },
+    { route: '/', selector: '.los-footer-top p', floor: -0.055 },
+    { route: '/vokabeln', selector: '.los-head h1', floor: -0.045 },
+    { route: '/vokabeln', selector: '.los-head h1 em', floor: -0.04 },
+    { route: '/wiederholen', selector: '.los-head h1', floor: -0.045 },
+    { route: '/wiederholen', selector: '.review-prompt', floor: -0.035 },
+    { route: '/fortschritt', selector: '.los-head h1', floor: -0.045 },
+  ];
+  let current = '';
+  for (const { route, selector, floor } of floors) {
+    if (route !== current) {
+      await open(page, ROUTES.find((entry) => entry.path === route)!);
+      current = route;
+    }
+    const elements = page.locator(selector);
+    expect(await elements.count(), `${route} ${selector} vorhanden`).toBeGreaterThan(0);
+    const ratios = await elements.evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const style = getComputedStyle(node);
+        const spacing = style.letterSpacing === 'normal' ? 0 : parseFloat(style.letterSpacing);
+        return spacing / parseFloat(style.fontSize);
+      }),
+    );
+    for (const ratio of ratios) {
+      expect(ratio, `${route} ${selector}: Laufweite ${ratio.toFixed(3)}em`).toBeGreaterThanOrEqual(floor - 0.0005);
+    }
+  }
 });
 
 test.describe('ohne JavaScript', () => {
