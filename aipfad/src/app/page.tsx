@@ -3,6 +3,21 @@ import { ContextGraph } from '@/components/context-graph';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { TokenizerStrip } from '@/components/marketing/tokenizer-strip';
 import { concepts } from '@/content/concepts';
+import type { Metadata } from 'next';
+
+/**
+ * Kanonische Adresse, wie in PythonPfad und SQLPfad.
+ *
+ * Die Startseite ist über mehrere Wege erreichbar – mit und ohne `www`, mit
+ * und ohne Anhängsel in der Adresse. Ohne diesen Verweis behandeln
+ * Suchmaschinen jede Variante als eigene Seite. Er gehört auf die Seite und
+ * nicht ins Layout, sonst würde jede Unterseite behaupten, sie sei die
+ * Startseite. Gefunden hat die Lücke `sqlpfad/scripts/pruefe-auslieferung.mts`
+ * beim ersten Ausrollen auf Railway.
+ */
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+};
 
 const MODULES = [
   {
