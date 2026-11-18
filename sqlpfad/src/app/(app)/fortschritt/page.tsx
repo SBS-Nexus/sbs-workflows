@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { requireUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
 import { istSqlRunnerVerfuegbar } from '@/server/env';
-import { Callout, Card, EmptyState, SectionHeading } from '@/components/ui/primitives';
+import { ButtonLink, Callout, Card, EmptyState, SectionHeading } from '@/components/ui/primitives';
 import { Wissenslandkarte, type KonzeptZeile } from '@/components/fortschritt/wissenslandkarte';
 import { ausDatenmodellArt } from '@/domain/aufgabe/art';
 import { bewerteKonzept, type AufgabenErgebnis } from '@/domain/aufgabe/kompetenz';
@@ -112,9 +112,14 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
         </h1>
         <p className="mt-2 text-lg text-[var(--text-muted)]">
           {bearbeiteteAufgaben === 0
-            ? 'Hier siehst du künftig, wo du stehst und was als Nächstes dran ist.'
+            ? 'Dein Überblick füllt sich mit der ersten bearbeiteten Aufgabe. Am besten startest du mit Modul 1.'
             : `Du hast bisher ${bearbeiteteAufgaben} ${bearbeiteteAufgaben === 1 ? 'Aufgabe' : 'Aufgaben'} bearbeitet.`}
         </p>
+        {bearbeiteteAufgaben === 0 ? (
+          <ButtonLink href="/lernen" className="mt-5">
+            Mit Modul 1 beginnen
+          </ButtonLink>
+        ) : null}
       </div>
 
       {/* Zustand der Ausführung – ehrlich, auch wenn er unbequem ist. */}
