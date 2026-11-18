@@ -138,24 +138,46 @@ for (const width of WIDTHS) {
   });
 }
 
-test('reduzierte Bewegung: auf keiner Route läuft eine Animation; ohne Einstellung dreht der Orbit', async ({ page }) => {
-  const running = (): Promise<number> =>
-    page.evaluate(async () => {
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      return document.getAnimations().filter((animation) => animation.playState === 'running').length;
-    });
+/**
+ * Geprüft wird die wirksame Dauer jeder Animation und jedes Übergangs
+ * (`getComputedTiming().activeDuration`), nicht der Augenblickszustand
+ * `playState`: Eine auf 0,01 ms verkürzte Animation kann direkt nach dem Laden
+ * noch „running" melden, bis der nächste Frame tickt (CI-Befund auf PR #77,
+ * 2 laufende Orbit-Animationen). Die Dauer ist dagegen sofort bekannt und
+ * unabhängig vom Frame-Takt.
+ */
+const MAX_REDUCED_MS = 0.02;
+
+test('reduzierte Bewegung: keine Animation länger als 0,02 ms auf allen Routen; ohne Einstellung dreht der Orbit', async ({ page }) => {
+  const durations = (): Promise<number[]> =>
+    page.evaluate(() => document.getAnimations().map((animation) => Number(animation.effect?.getComputedTiming().activeDuration ?? 0)));
 
   await page.goto('/');
-  expect(await running(), 'Gegenprobe: ohne Einstellung bewegt sich der Orbit').toBeGreaterThan(0);
+  expect(await durations(), 'Gegenprobe: ohne Einstellung dreht der Orbit endlos').toContain(Infinity);
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const route of ROUTES) {
     await open(page, route);
-    expect(await running(), `${route.path}: keine laufende Animation`).toBe(0);
+    for (const duration of await durations()) {
+      expect(duration, `${route.path}: wirksame Animationsdauer`).toBeLessThanOrEqual(MAX_REDUCED_MS);
+    }
   }
   await page.goto('/');
-  await page.getByRole('link', { name: 'PythonPfad öffnen' }).hover();
-  expect(await running(), 'auch Hover löst keine Bewegung aus').toBe(0);
+  const track = page.getByRole('link', { name: 'PythonPfad öffnen' });
+  await track.hover();
+  for (const duration of await durations()) {
+    expect(duration, 'auch Hover löst keine sichtbare Bewegung aus').toBeLessThanOrEqual(MAX_REDUCED_MS);
+  }
+  // Die Übergänge der Pfadzeile und ihres Pfeils sind selbst verkürzt (bereits beendete fehlen in getAnimations()).
+  const configured = await track.evaluate((element) =>
+    [element, element.querySelector('.los-track-arrow')!].flatMap((node) =>
+      getComputedStyle(node).transitionDuration.split(',').map((value) => parseFloat(value) * (value.trim().endsWith('ms') ? 1 : 1000)),
+    ),
+  );
+  expect(configured.length).toBeGreaterThan(0);
+  for (const duration of configured) {
+    expect(duration, 'Übergangsdauer der Pfadzeile bei reduzierter Bewegung').toBeLessThanOrEqual(MAX_REDUCED_MS);
+  }
 });
 
 test('Tastatur: Sprunglink zuerst, sichtbar, führt in den Hauptinhalt; Fokus in Lime auf dunklen Flächen', async ({ page }) => {
