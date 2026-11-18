@@ -4,11 +4,11 @@ Diese Anleitung beschreibt den Weg von diesem Repository zu einer erreichbaren
 Installation auf Railway. Sie ersetzt die frühere Anleitung für Vercel; die
 Vercel-Konfiguration (`vercel.json`) ist seit dem 18.11.2026 entfernt.
 
-**Stand: vorbereitet, noch nicht ausgeführt.** Auf Railway läuft bisher nur der
-Lernpfade-Hub. Reihenfolge, Gates und offene Entscheidungen für den Umzug der
-drei Fach-Apps stehen im Umzugsplan
-([PR #81](https://github.com/SBS-Nexus/sbs-workflows/pull/81),
-`docs/RAILWAY-UMZUG-FACHAPPS.md`).
+**Stand 18.11.2026: Staging läuft** unter
+`https://pythonpfad-staging.up.railway.app`, eingerichtet genau wie unten
+beschrieben. Es gibt noch keine eigene Domain und keine Sicherungen. Ergebnisse
+der Gates und offene Entscheidungen stehen im Umzugsplan
+`docs/RAILWAY-UMZUG-FACHAPPS.md` im Wurzelverzeichnis des Repositories.
 
 Ergänzt [DOMAIN.md](./DOMAIN.md) (Domain bei Strato, Weg A und C) und
 [DEPLOYMENT.md](./DEPLOYMENT.md) (Betrieb auf eigenem Server).

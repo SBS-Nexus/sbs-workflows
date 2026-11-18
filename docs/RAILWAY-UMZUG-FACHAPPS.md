@@ -1,11 +1,14 @@
 # Umzug von PythonPfad, SQLPfad und AIPfad auf Railway
 
-**Status: Plan, nicht ausgeführt.** Stand 18.11.2026. Grundlage ist Commit
-`ee1c775` auf `work/lernpfade-learning-os-design-20261116`.
+**Status: Phase 1 bis 3 ausgeführt am 18.11.2026** (Abschnitt 11). Die drei
+Apps laufen auf Railway-Staging, und der Hub verlinkt sie. Offen sind:
 
-Für die drei Fach-Apps ist auf Railway nichts angelegt. Jeder Schritt, der
-Railway, DNS, Vercel oder Daten berührt, braucht eine eigene Freigabe. Abschnitt
-9 listet die Entscheidungen, die vorher fallen müssen.
+- die gemeinsame Domain (E1) und damit die Föderation;
+- der Rundgang mit Testkonto (B7);
+- der Löschmodus des Aufbewahrungslaufs.
+
+Der Plan selbst entstand auf Commit `ee1c775`. Die Abschnitte 1 bis 10 stehen
+unverändert so, wie sie freigegeben wurden.
 
 ## 1. Ziel und Grenzen
 
@@ -121,7 +124,7 @@ Protokoll.
 | `DATABASE_URL` | Referenz `${{pythonpfad-db.DATABASE_URL}}` | `${{sqlpfad-db.DATABASE_URL}}` | `${{aipfad-db.DATABASE_URL}}` |
 | `APP_URL` | zuerst die `*.up.railway.app`-Adresse, später die eigene Domain | dto. | dto. |
 | `AUTH_SECRET` | neu, ≥ 32 Zeichen | neu, ≥ 32 Zeichen | entfällt (nicht im Vertrag) |
-| `DEPLOYMENT_ID` | — | — | `${{RAILWAY_GIT_COMMIT_SHA}}` (Gate B5) |
+| `DEPLOYMENT_ID` | — | — | voller Commit-Hash, vor jedem Ausrollen gesetzt (die Referenz `${{RAILWAY_GIT_COMMIT_SHA}}` bleibt leer, Gate B5) |
 | `CRON_SECRET` | — | — | neu, ≥ 16 Zeichen |
 | `RETENTION_MODE` | — | — | `dry-run` |
 | `ATTEMPT_RETENTION_DAYS` | ungesetzt (Vorgabe der App) | dto. | dto. |
@@ -382,6 +385,99 @@ Der Hub selbst ist von Phase 1 bis 3 nicht betroffen.
 - Kein `RETENTION_MODE=execute`
 - Kein Zugriff auf eine Neon-Datenbank
 
+## 11. Ausführung am 18.11.2026
+
+Am 18.11.2026 hat der Nutzer alle Freigaben erteilt. Ausgeführt wurden Phase 1
+bis 3 und der Teil von Phase 4, der keine eigene Domain braucht.
+
+**Merges** auf `work/lernpfade-learning-os-design-20261116`: #82 (R1) als
+`9144801`, #80 als `3747336`, #81 als `037f8a1`. Ausgerollt ist überall
+`037f8a1`.
+
+**Services** im Projekt `sbs-lernpfade-staging`, Umgebung `staging`, Region
+`europe-west4-drams3a` (Amsterdam):
+
+| Service | Adresse | Stand |
+|---|---|---|
+| `sqlpfad-db`, `pythonpfad-db`, `aipfad-db` | nur privat | PostgreSQL 18 (`postgres-ssl:18`), kein öffentlicher TCP-Proxy |
+| `sqlpfad` | https://sqlpfad-staging.up.railway.app | Bereitstellung `c0fc5611`, SUCCESS |
+| `pythonpfad` | https://pythonpfad-staging.up.railway.app | Bereitstellung `a3a36c17`, SUCCESS |
+| `aipfad` | https://aipfad-staging.up.railway.app | Bereitstellung `77b81334`, SUCCESS (davor `f27b2d5e` FAILED, siehe B5) |
+| `aipfad-retention` | — | Cron `0 3 * * *`, `curlimages/curl:8.23.0@sha256:3fb7e13e…` |
+| `lernpfade-hub` | https://lernpfade-hub-staging.up.railway.app | Bereitstellung `c7c5440a` mit den drei App-Adressen; Rücknahmeziel `64473eb8` (`ee1c775`) |
+
+Die App-Services entstanden leer (`serviceCreate` ohne Quelle). Quelle und
+Einstellungen kamen danach per `serviceInstanceUpdate`. So hat keiner einen
+Branch-Trigger, und nichts wurde ausgerollt, bevor die Variablen standen. Die
+Datenbanken legte `railway add --database postgres` an; sie heißen danach
+„Postgres" und wurden umbenannt. Geheimnisse wurden direkt in die Variablen
+geschrieben und nirgends ausgegeben.
+
+**Gates**
+
+| Gate | SQLPfad | PythonPfad | AIPfad |
+|---|---|---|---|
+| B1 Build ohne Datenbank | grün | grün, Pyodide kopiert | grün |
+| B2 Pre-Deploy | 2 Migrationen, 15 Lektionen, 64 Aufgaben | 4 Migrationen, 15 Lektionen, 61 Aufgaben, Demo-Konten übersprungen | 7 Migrationen, 58 Konzepte, keine Inhaltsfehler |
+| B3 `/api/health`, `/api/ready` | 200 / – | 200 / 200 | 200 / 200 (37 Lektionen) |
+| B4 Seed ein zweites Mal | grün: keine offene Migration, gleiche Zahlen | nicht wiederholt | grün (zweite Bereitstellung nach B5) |
+| B5 `DEPLOYMENT_ID` | – | – | erst rot, dann grün (unten) |
+| B6 Spoofing von außen | grün | grün | grün |
+| B7 Rundgang mit Konto | offen | offen | offen |
+| B8 Auslieferungsprüfung | ohne Befund | ohne Befund | 1 Befund, behoben im Folge-PR |
+| B9 Kopfzeilen, Plattform-Routen | grün | grün, `/pyodide` mit `immutable` | grün, Cron-Route 401 ohne oder mit falschem Geheimnis |
+
+- **B4** belegt, dass der Seed wiederholt fehlerfrei läuft. Ob er Nutzerdaten
+  unberührt lässt, braucht ein Konto mit Versuchen und ist damit Teil von B7.
+- **B5:** Die Referenz `${{RAILWAY_GIT_COMMIT_SHA}}` löst Railway beim gezielten
+  Ausrollen leer auf. AIPfad brach deshalb beim Start mit „DEPLOYMENT_ID
+  fehlt" ab, wie vom Konfigurationsvertrag gewollt. Weil AIPfad vorher nie
+  lief, fiel nichts aus. Jetzt steht dort der volle Commit-Hash als fester
+  Wert, gesetzt vor jedem Ausrollen (`aipfad/docs/DEPLOYMENT.md`).
+- **B6:** Elf Fehlversuche, jeder mit anderen Werten in `X-Real-IP`,
+  `X-Forwarded-For` und `X-Vercel-Forwarded-For`. Der elfte wurde jeweils
+  begrenzt. Der Railway-Edge setzt `X-Real-IP` also selbst. Weil die Versuche
+  das Formular ohne JavaScript abschickten, ist nebenbei die Herkunftsprüfung
+  (`Origin` gegen `Host`) hinter dem Edge belegt.
+- **B7** steht aus: Registrieren, Anmelden, Lektion, Übung, Fortschritt mit
+  einem Testkonto, keine echten Personen. Ohne Anmeldung geprüft: Geschützte
+  Seiten leiten auf `/anmelden` um.
+- **B8 AIPfad:** Die Startseite hatte keinen kanonischen Verweis; PythonPfad
+  und SQLPfad haben ihn. Das lag an der App, nicht am Ausrollen. Behoben in
+  `aipfad/src/app/page.tsx` mit E2E-Test; es wirkt nach dem nächsten Ausrollen.
+
+**Phase 3:** Der erste, von Hand ausgelöste Lauf (`railway cron run`) meldete
+`dry-run`, `success`, 0 Kandidaten bei 365 Tagen Frist, 31 ms. Der nächste
+planmäßige Lauf ist um 03:00 UTC. `RETENTION_MODE` bleibt `dry-run`, bis
+mehrere planmäßige Läufe geprüft sind.
+
+**Phase 4, Teil ohne Domain:** Der Hub hat `NEXT_PUBLIC_PYTHONPFAD_URL`,
+`NEXT_PUBLIC_SQLPFAD_URL` und `NEXT_PUBLIC_AIPFAD_URL`. D1 ist grün: Die
+Startseite verlinkt die drei Apps, Git & GitHub führt in die AIPfad-Lektion,
+kein Pfad zeigt mehr „Noch nicht verbunden". Die Föderation
+(`NEXT_PUBLIC_REVIEW_FEDERATION_SOURCES`, `PROGRESS_FEDERATION_SOURCES`) und
+`PLATFORM_HUB_ORIGIN` bleiben aus, bis die gemeinsame Domain steht (E1).
+
+**Entscheidungen**
+
+- Mit der Vorgabe aus Abschnitt 9 getroffen:
+  - E3: Reihenfolge SQL → Python → AI.
+  - E4: Seed im Pre-Deploy.
+  - E5: nur der Teil EU-Region.
+  - E7: Dashboard/API.
+  - E2: frische Datenbanken. Eine spätere Übernahme aus Neon bräuchte eine
+    neue, leere Datenbank, weil die Inhalte jetzt schon eingespielt sind.
+- Weiter offen:
+  - E1: Domain.
+  - E5: Auftragsverarbeitung mit Railway.
+  - E6: Sicherungen.
+  - E8: Kosten. Sie laufen jetzt: Die drei Datenbanken laufen dauerhaft, die
+    Apps schlafen bei Ruhe.
+
+**Rücknahme je Service:** den Service samt Datenbank entfernen; es gibt nur
+Testdaten. Für den Hub die drei `NEXT_PUBLIC_*PFAD_URL` leeren und neu
+ausrollen; er zeigt dann wieder „Noch nicht verbunden".
+
 ## Quellen
 
 - Railway: [Pre-Deploy-Kommando](https://docs.railway.com/deployments/pre-deploy-command),
@@ -393,6 +489,6 @@ Der Hub selbst ist von Phase 1 bis 3 nicht betroffen.
   [Infrastructure as Code](https://docs.railway.com/infrastructure-as-code/reference),
   [Railpack Node](https://railpack.com/languages/node)
 - Im Repository: `aipfad/docs/DEPLOYMENT.md`, `aipfad/src/app/api/cron/retention/route.ts`,
-  `aipfad/src/server/actions/auth-actions.ts`, `pythonpfad/docs/VERCEL.md`,
+  `aipfad/src/server/actions/auth-actions.ts`, `pythonpfad/docs/RAILWAY.md`,
   `pythonpfad/docs/DOMAIN.md`, `sqlpfad/scripts/pruefe-auslieferung.mts`,
   `lernpfade/README.md`
