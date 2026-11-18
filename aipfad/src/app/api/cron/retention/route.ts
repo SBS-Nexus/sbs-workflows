@@ -8,20 +8,25 @@ import { runRetention } from '@/server/retention/runner';
 /**
  * Geplanter Aufbewahrungslauf (E04A/ENT-B03).
  *
- * Vercel ruft diese Route nach dem Zeitplan in `vercel.json` per GET auf und
- * schickt bei gesetztem `CRON_SECRET` den Kopfzeilenwert
- * `Authorization: Bearer <CRON_SECRET>`.
+ * Auf Railway startet ein eigener Cron-Service (`aipfad-retention`, täglich
+ * 03:00 UTC) einen einzelnen `curl`-Aufruf dieser Route per GET mit dem
+ * Kopfzeilenwert `Authorization: Bearer <CRON_SECRET>` und endet danach.
+ * Einrichtung: docs/DEPLOYMENT.md. Bis zum 18.11.2026 rief Vercel die Route
+ * über `vercel.json` auf, mit derselben Kopfzeile.
  *
- * Vier Eigenschaften dieser Plattform bestimmen den Aufbau:
+ * Vier Eigenschaften dieses Aufrufwegs bestimmen den Aufbau:
  *
  *  - Der Aufruf kommt von außen und ist ohne Prüfung für jeden erreichbar.
  *    Deshalb wird VOR jedem Datenbankzugriff geprüft, und zwar fail closed.
- *  - Aufrufe können sich überschneiden oder doppelt zugestellt werden. Deshalb
- *    muss der Lauf mehrfach ausführbar sein, ohne Schaden anzurichten; das
- *    trägt die Löschbedingung selbst (`createdAt < cutoff`), nicht eine Sperre.
- *  - Ein fehlgeschlagener Aufruf wird von Vercel nicht automatisch wiederholt.
- *    Der nächste planmäßige Lauf ist die Wiederholung; zu alte Daten bleiben
- *    bis dahin liegen und werden dann mit erfasst.
+ *  - Aufrufe können sich überschneiden oder doppelt zugestellt werden, etwa
+ *    wenn `curl` nach einer Zeitüberschreitung wiederholt, während der erste
+ *    Lauf noch arbeitet. Deshalb muss der Lauf mehrfach ausführbar sein, ohne
+ *    Schaden anzurichten; das trägt die Löschbedingung selbst
+ *    (`createdAt < cutoff`), nicht eine Sperre.
+ *  - Ein fehlgeschlagener Lauf wird höchstens kurz wiederholt (`curl --retry`,
+ *    gedacht für den Aufwachvorgang). Danach ist der nächste planmäßige Lauf
+ *    die Wiederholung; zu alte Daten bleiben bis dahin liegen und werden dann
+ *    mit erfasst.
  *  - Es gibt keine Zusicherung „genau einmal". Nichts hier verlässt sich
  *    darauf.
  *

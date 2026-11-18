@@ -202,8 +202,9 @@ ihn prüft.
 Die Aufbewahrungslöschung ist mit E04A technisch angebunden: Die produktive
 Regelliste unter `src/server/retention/` enthält derzeit
 `ATTEMPT_RETENTION`; `GET /api/cron/retention` ist über
-`Authorization: Bearer <CRON_SECRET>` geschützt, und `vercel.json` ruft die
-Route täglich um 03:00 UTC auf. `RETENTION_MODE=dry-run` zählt nur,
+`Authorization: Bearer <CRON_SECRET>` geschützt, und ein Zeitplan ruft die
+Route täglich um 03:00 UTC auf (auf Railway der Cron-Service
+`aipfad-retention`, bis zum 18.11.2026 `vercel.json`). `RETENTION_MODE=dry-run` zählt nur,
 `execute` löscht nach `createdAt < cutoff`; Frist 0 schaltet die Regel ab.
 Unit-, Integrations- und Routentests decken Trockenlauf, Ernstfall,
 Idempotenz, überlappende Läufe und Teilfehler ab. Eine reale

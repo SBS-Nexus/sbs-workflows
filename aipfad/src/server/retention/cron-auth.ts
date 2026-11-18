@@ -1,9 +1,9 @@
 import { timingSafeEqual } from 'node:crypto';
 
 /**
- * Prüft den Kopfzeilenwert, mit dem Vercel geplante Läufe aufruft.
+ * Prüft den Kopfzeilenwert, mit dem der Cron-Service geplante Läufe aufruft.
  *
- * Vercel schickt bei gesetztem `CRON_SECRET`:
+ * Der Railway-Cron `aipfad-retention` schickt, wie zuvor Vercel:
  *
  *   Authorization: Bearer <CRON_SECRET>
  *

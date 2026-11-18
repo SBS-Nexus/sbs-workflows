@@ -36,7 +36,7 @@ Cookie`, Route `force-dynamic`. Personenbezogene Antworten landen in keinem
 - **Same-Site-Voraussetzung:** Das Sitzungscookie bleibt unverändert
   host-only, `httpOnly`, `SameSite=Lax`. Der Browser schickt es nur mit, wenn
   Hub und App same-site sind (gemeinsame registrierbare Domain). Unter
-  `*.vercel.app` ist das nicht der Fall; dort antwortet die Route dem Hub mit 401. Die Cookie-Attribute werden dafür ausdrücklich nicht gelockert.
+  Plattform-Adressen wie `*.up.railway.app` oder `*.vercel.app` (Public Suffix) ist das nicht der Fall; dort antwortet die Route dem Hub mit 401. Die Cookie-Attribute werden dafür ausdrücklich nicht gelockert.
 - **Restrisiko:** Eine XSS-Lücke in der freigegebenen Hub-Origin könnte über
   diese Route die Wiederholungsdaten der angemeldeten Person lesen — nur
   lesen, nur diese Route. Deshalb genau eine Origin und Vorgabe aus.
