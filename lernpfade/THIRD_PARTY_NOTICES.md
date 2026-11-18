@@ -1,24 +1,37 @@
 # Fremde Bestandteile im Lernpfade-Hub
 
-## Liquid Sculpture Hero
+## Aktueller Stand (LO-UI-001, 17.11.2026)
 
-Die Startseiten-Hero beruht auf der Komponente **„Liquid Sculpture Hero“** von
-**Guglielmo Giannattasio** (https://guglielmogiannattasio.it), veröffentlicht
-auf 21st.dev unter https://21st.dev/@gughigug/components/liquid-sculpture-hero.
-Die Komponentenseite weist die Lizenz als `mit` aus (abgerufen am 19.10.2026).
+Der Hub enthält derzeit **keinen** übernommenen oder abgeleiteten Fremdcode
+und keine fremden Bilder, Fonts, Shader oder Illustrationen. Laufzeit-
+Abhängigkeiten stehen in `package.json` (Next.js, React, lucide-react) und
+bringen ihre eigenen Lizenzen mit.
+
+Das Learning-OS-Design (Startseite, `/design-preview`, Lernansichten) ist
+eigenständig geschrieben: Wissensorbit als eigene SVG-Geometrie, CSS ohne
+kopierte Komponenten, nur lokale Systemschriften. 21st.dev und HorizonX
+dienten ausschließlich als Referenz; es wurden weder Code noch bezahlte
+Assets, Templates, Shader oder Markenmerkmale übernommen (Quellenstudie und
+Lizenzgrenze: `docs/LEARNING-OS-DESIGN-20261116.md`, Abschnitt 2).
+
+## Historie: Liquid Sculpture Hero (bis LO-UI-001 enthalten)
+
+Bis zur Learning-OS-Integration beruhte die Startseiten-Hero auf der
+Komponente **„Liquid Sculpture Hero“** von **Guglielmo Giannattasio**
+(https://guglielmogiannattasio.it), veröffentlicht auf 21st.dev unter
+https://21st.dev/@gughigug/components/liquid-sculpture-hero. Die
+Komponentenseite weist die Lizenz als `mit` aus (abgerufen am 19.10.2026).
 Ein Jahr oder ein ausformulierter Urheberrechtsvermerk steht dort nicht.
 
-Abgeleitete Dateien:
-
-- `src/components/ui/liquid-sculpture-engine.ts` — Shader, Simulation und
-  Zeichnen unverändert, Fehlerpfade korrigiert
-- `src/components/ui/liquid-sculpture-hero.tsx` — React-Teil, für den Hub
-  umgebaut
-- `src/styles/liquid-sculpture-hero.css` — aus den `.sh-*`-Styles der
-  Komponente umgebaut
-
-Der Urheberhinweis auf die MIT-Komponente bleibt in der Hero sichtbar verlinkt
-(„Partikeleffekt: Guglielmo Giannattasio“). Die Artwork-Grafiken sind unabhängig hiervon erstellt.
+Mit LO-UI-001 wurden alle abgeleiteten Dateien aus dem Hub entfernt:
+`src/components/ui/liquid-sculpture-engine.ts`,
+`src/components/ui/liquid-sculpture-hero.tsx`,
+`src/components/ui/liquid-sculpture-model.ts` (samt Test),
+`src/styles/liquid-sculpture-hero.css` und `src/components/home/lernpfade-hero.tsx`.
+Ältere Stände, die die Komponente noch enthalten (etwa die auf
+`8113173054865e6443128a90a741028734f0c4ab` gepinnte Railway-Staging-Version),
+tragen diesen Hinweis und den sichtbaren Urheberlink weiterhin selbst. Für
+diese Stände gilt:
 
 ```text
 MIT License
@@ -44,25 +57,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Eigene Hero-Grafiken (`public/images/hero/`)
+### Frühere eigene Hero-Grafiken
 
-Die zuvor verwendeten WebP-Referenzbilder von 21st.dev wurden vor dem
-Railway-Publikumszugang **vollständig aus dem Projektstand entfernt**.
-Die Rechte an diesen Fremdbildern waren nicht bestätigt.
-
-Stattdessen enthält der Hub zwei eigenständige, für SBS konstruierte
-statische Vektorgrafiken: abstrakte ineinandergreifende Lernpfad-Kurven,
-Knoten und Verbindungen auf einem hellen Hintergrund. Es wurden keine
-fremden Bilddateien kopiert oder aus der bisherigen Referenzgrafik
-nachgezeichnet. Die Vektoren sind rein dekorativ und enthalten weder
-Skripte, externe Referenzen noch Schriften.
-
-| Datei | Auflösung / `viewBox` | Zweck |
-|---|---|---|
-| `lernwege.svg` | 1983 × 793 | Desktop-/Tablet-Hero |
-| `lernwege-mobil.svg` | 1024 × 1300 | Mobile-Hero |
-
-Die Originalkomponente (WebGL-/React-/CSS-Anteile) bleibt MIT-lizenziert
-und wird weiterhin unter Angabe ihres Autors verwendet. Der frühere
-Bildrechte-Blocker gilt für diese beiden nun entfernten Fremdassets
-nicht mehr. Die Softwarelizenz ist getrennt davon zu behandeln.
+Die beiden eigenen SVG-Grafiken `public/images/hero/lernwege.svg` und
+`lernwege-mobil.svg` gehörten zur Liquid Sculpture Hero und wurden mit ihr
+entfernt. Sie waren eigenständig für SBS erstellt (keine Fremdbilder).

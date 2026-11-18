@@ -68,19 +68,23 @@ export function VocabDeckView({
   const deckImpact = deckDeletionImpact(store, deck.id);
 
   return (
-    <div className="vocab-deck-view">
-      <button className="vocab-back" type="button" onClick={() => actions.openOverview()}>
-        ← Alle Decks
-      </button>
-      <section className="vocab-panel" aria-labelledby="deck-title">
+    <div className="vocab-deck-view los-flow">
+      <section className="los-head vocab-deck-head" aria-labelledby="deck-title">
+        <button className="vocab-back" type="button" onClick={() => actions.openOverview()}>
+          ← Alle Decks
+        </button>
         <p className="eyebrow">Deck · Englisch → Deutsch</p>
         <h1 id="deck-title" ref={headingRef} tabIndex={-1}>
           {deck.name}
         </h1>
-        <p className="vocab-muted">
+        <p className="vocab-deck-meta">
           {originLabel(deck.origin)} · {plural(counts.cards, 'Karte', 'Karten')} ·{' '}
           {plural(counts.due, 'Abfrage', 'Abfragen')} fällig
         </p>
+      </section>
+
+      <section className="vocab-panel" aria-labelledby="deck-settings-title">
+        <h2 id="deck-settings-title">Name und Beschreibung</h2>
         <DeckSettings key={`${deck.name}|${deck.description}`} store={store} deckId={deck.id} actions={actions} />
       </section>
 

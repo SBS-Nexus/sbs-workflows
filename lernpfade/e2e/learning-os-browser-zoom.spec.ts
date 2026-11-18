@@ -3,13 +3,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium, expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { HUB_ORIGIN } from './config';
-import { expectNoSeriousA11yViolations, horizontalOverflow } from './helpers';
+import { expectNoSeriousA11yViolations, horizontalOverflow, mockLiveSources, mockProgressSources } from './helpers';
 
 /**
  * Echter Browser-Seitenzoom, keine Viewport-/DPR-/CSS-Zoom-Simulation.
  * Eine nur im temporären Testprofil geladene MV3-Erweiterung bedient die
  * native chrome.tabs-Zoom-API. Rechte ausschließlich für den lokalen Hub.
  * Der bestehende Produktionsbuild und die bestehenden CI-Gates bleiben gleich.
+ * Seit LO-UI-001 prüft der Test das Learning OS auf allen vier Routen.
  *
  * Referenzen:
  * https://playwright.dev/docs/chrome-extensions
@@ -22,7 +23,7 @@ type NativeTabs = {
   getZoom: (id: number) => Promise<number>;
 };
 
-test('echter Browser-Zoom 200 %: statische und aktive Hero, Fokus und CTA bleiben bedienbar', async ({}, testInfo) => {
+test('echter Browser-Zoom 200 %: Learning OS auf allen vier Routen bedienbar, Fokus und Primäraktion sichtbar', async ({}, testInfo) => {
   const origin = new URL(HUB_ORIGIN);
   if (origin.protocol !== 'http:' || origin.hostname !== '127.0.0.1') {
     throw new Error('Dieser Test darf ausschließlich den lokalen Hub prüfen.');
@@ -46,7 +47,6 @@ test('echter Browser-Zoom 200 %: statische und aktive Hero, Fokus und CTA bleibe
   const evidence: Record<string, unknown> = {
     method: 'chrome.tabs.setZoom / getZoom; keine Viewport-, DPR- oder CSS-Manipulation',
     origin: HUB_ORIGIN,
-    rendererScope: 'Chromium mit SwiftShader, kein Hardware-GPU-Nachweis',
   };
   try {
     // Full Chromium (neuer Headless-Modus), nicht chromium-headless-shell:
@@ -62,9 +62,6 @@ test('echter Browser-Zoom 200 %: statische und aktive Hero, Fokus und CTA bleibe
         '--window-size=1280,900',
         `--disable-extensions-except=${extension}`,
         `--load-extension=${extension}`,
-        // Nur das isolierte Testprofil: reproduzierbarer Software-WebGL-Lauf.
-        '--use-angle=swiftshader',
-        '--enable-unsafe-swiftshader',
       ],
     });
     const worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker');
@@ -83,10 +80,8 @@ test('echter Browser-Zoom 200 %: statische und aktive Hero, Fokus und CTA bleibe
     expect(response?.status()).toBe(200);
     await expect(page).toHaveTitle(/Lernpfade/);
     await expect(page.locator('h1')).toHaveCount(1);
-    await expect(page.locator('.sh-root')).toBeVisible();
+    await expect(page.locator('.los-hero')).toBeVisible();
     await expect(page.locator('nextjs-portal')).toHaveCount(0);
-    await expect(page.locator('.sh-canvas')).toHaveCount(0);
-    await expect.poll(() => currentPage.locator('.sh-fallback').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
 
     const setNativeZoom = (factor: number) => worker.evaluate(async ({ base, factor }) => {
       const tabs = (globalThis as unknown as { chrome: { tabs: NativeTabs } }).chrome.tabs;
@@ -110,8 +105,8 @@ test('echter Browser-Zoom 200 %: statische und aktive Hero, Fokus und CTA bleibe
     evidence.captureMethod = 'CDP Page.captureScreenshot ohne clip, vollständige sichtbare Browserfläche';
     const capture = async (name: string) => {
       // Befund aus dem ersten echten Zoom-Lauf: Playwrights CSS-Clip lieferte
-      // bei 200 % nur 640 × 406 px bzw. eine leere Fokusaufnahme. Die native
-      // Oberfläche ohne Clip aufnehmen; ihre Pixelmaße werden mitgeprüft.
+      // bei 200 % nur einen Ausschnitt. Die native Oberfläche ohne Clip
+      // aufnehmen; ihre Pixelmaße werden mitgeprüft.
       const result = await cdp.send('Page.captureScreenshot', {
         format: 'png', fromSurface: true, captureBeyondViewport: false,
       });
@@ -127,12 +122,21 @@ test('echter Browser-Zoom 200 %: statische und aktive Hero, Fokus und CTA bleibe
       writeFileSync(path, image);
       await testInfo.attach(name, { path, contentType: 'image/png' });
     };
+    const textOutside = () => currentPage.evaluate(() => {
+      const viewport = document.documentElement.clientWidth;
+      return [...document.querySelectorAll('main h1, main h2, main h3, main p, main a, header a')].flatMap((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return [...range.getClientRects()].filter((rect) => rect.width > 0 && (rect.left < -1 || rect.right > viewport + 1))
+          .map((rect) => ({ text: element.textContent, left: rect.left, right: rect.right, viewport }));
+      });
+    });
 
     expect(await setNativeZoom(1)).toBe(1);
     const baseline = await metrics();
     evidence.baseline = baseline;
     evidence.browser = context.browser()?.version();
-    await capture('native-zoom-100-viewport');
+    await capture('native-zoom-100-start');
 
     const actualZoom = await setNativeZoom(2);
     expect(actualZoom, 'native Chrome-Zoomstufe, nicht nur kleinere CSS-Fläche').toBe(2);
@@ -149,51 +153,12 @@ test('echter Browser-Zoom 200 %: statische und aktive Hero, Fokus und CTA bleibe
     expect(zoomed.bodyZoom).toBe(baseline.bodyZoom);
     await page.evaluate(() => document.fonts.ready);
     expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
-
-    const textBounds = await page.locator('.sh-root').evaluate((root) => {
-      const viewport = document.documentElement.clientWidth;
-      return [...root.querySelectorAll('h1, p, a')].flatMap((element) => {
-        const range = document.createRange();
-        range.selectNodeContents(element);
-        return [...range.getClientRects()].filter((rect) => rect.width > 0 && (rect.left < -1 || rect.right > viewport + 1))
-          .map((rect) => ({ text: element.textContent, left: rect.left, right: rect.right, viewport }));
-      });
-    });
-    expect(textBounds, 'alle Hero-Textzeilen innerhalb der verfügbaren Breite').toEqual([]);
-    await expectNoSeriousA11yViolations(page, 'Hero bei nativem Browser-Zoom 200 %, reduzierte Bewegung');
-    await capture('native-zoom-200-viewport');
-    // Zusätzlicher sichtbarer Ausschnitt der Texte; nur für den Bildbeleg.
-    // Der Tastaturtest unten navigiert anschließend wieder vom Seitenanfang.
-    const textY = await page.evaluate(() => {
-      const text = document.querySelector('.sh-content')!.getBoundingClientRect();
-      const header = document.querySelector('.site-header')!.getBoundingClientRect();
-      return Math.max(0, Math.round(window.scrollY + text.top - header.height - 12));
-    });
-    await page.evaluate((y) => window.scrollTo(0, y), textY);
-    await expect.poll(() => currentPage.evaluate((y) => Math.abs(window.scrollY - y), textY)).toBeLessThanOrEqual(1);
-    await capture('native-zoom-200-text');
-
-    // Gleicher Tab und dieselbe native Zoomstufe, jetzt mit der echten Engine.
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await expect.poll(() => currentPage.evaluate(() => window.scrollY)).toBe(0);
-    await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await expect(page.locator('.sh-root')).toHaveAttribute('data-gl', 'on');
-    await expect(page.locator('.sh-canvas')).toHaveCount(1);
-    const bounds = (await page.locator('.sh-figure').boundingBox())!;
-    await page.mouse.click(bounds.x + bounds.width * 0.35, bounds.y + bounds.height * 0.45);
-    await expect(page.locator('.sh-root')).toHaveAttribute('data-motion', 'active');
-    await capture('native-zoom-200-interaktion');
-    evidence.renderer = await page.locator('.sh-canvas').evaluate((canvas: HTMLCanvasElement) => {
-      const gl = canvas.getContext('webgl2')!;
-      const debug = gl.getExtension('WEBGL_debug_renderer_info');
-      return debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : 'nicht offengelegt';
-    });
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await expect(page.locator('.sh-canvas')).toHaveCount(0);
-    await expect(page.locator('.sh-fallback')).toHaveCSS('opacity', '1');
+    expect(await textOutside(), 'Startseite: alle Textzeilen innerhalb der verfügbaren Breite').toEqual([]);
+    await expectNoSeriousA11yViolations(page, 'Startseite bei nativem Browser-Zoom 200 %');
+    await capture('native-zoom-200-start');
 
     // Echter Tastaturweg. Kein focus()- oder scrollIntoView()-Bypass.
-    const primary = page.getByRole('link', { name: 'Lernpfad wählen', exact: true });
+    const primary = page.getByRole('link', { name: 'Entdecke deinen Pfad', exact: true });
     for (let index = 0; index < 24; index += 1) {
       if (await primary.evaluate((element) => element === document.activeElement)) break;
       await page.keyboard.press('Tab');
@@ -211,9 +176,35 @@ test('echter Browser-Zoom 200 %: statische und aktive Hero, Fokus und CTA bleibe
     expect(focus.covered).toBe(false);
     await capture('native-zoom-200-cta-fokus');
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(/#pfade$/);
-    await expect(page.getByRole('heading', { level: 2, name: 'Deine Kernpfade' })).toBeInViewport();
+    await expect(page).toHaveURL(/#lernpfade$/);
+    await expect(page.getByRole('heading', { level: 2, name: /Dein nächster.*Sprung/s })).toBeInViewport();
     evidence.cta = { url: page.url(), focus };
+
+    // Innere Ansichten im selben Tab, je wieder auf 200 % gesetzt (der Zoom gilt je Tab und Navigation).
+    const inner = [
+      { path: '/vokabeln', h1: /Vokabeln lernen/ },
+      { path: '/wiederholen', h1: /Wiederholen über alle Lernpfade/ },
+      { path: '/fortschritt', h1: /^Dein Fortschritt$/ },
+    ] as const;
+    for (const route of inner) {
+      // Quellen sind MOCKS wie in den übrigen Browserfällen, je Route nur die passende.
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      if (route.path === '/wiederholen') await mockLiveSources(page, { python: 'ok', sql: 'ok', ai: 'ok' });
+      if (route.path === '/fortschritt') await mockProgressSources(page, { python: 'ok', sql: 'ok', ai: 'ok' });
+      await page.goto(`${HUB_ORIGIN}${route.path}`);
+      expect(await setNativeZoom(2)).toBe(2);
+      await expect.poll(async () => (await metrics()).dpr / baseline.dpr).toBeCloseTo(2, 5);
+      await expect(page.getByRole('heading', { level: 1, name: route.h1 })).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      expect(await horizontalOverflow(page), `${route.path}: kein horizontales Scrollen`).toBeLessThanOrEqual(0);
+      expect(await textOutside(), `${route.path}: alle Textzeilen innerhalb der Breite`).toEqual([]);
+      const nav = page.getByRole('navigation', { name: 'Seitennavigation' });
+      const brand = (await page.getByRole('link', { name: 'Lernpfade Startseite' }).boundingBox())!;
+      expect((await nav.boundingBox())!.y, `${route.path}: Navigation als eigene Zeile`).toBeGreaterThanOrEqual(brand.y + brand.height - 1);
+      await expectNoSeriousA11yViolations(page, `${route.path} bei nativem Browser-Zoom 200 %`);
+      await capture(`native-zoom-200${route.path.replace('/', '-')}`);
+    }
+
     expect(await setNativeZoom(1), 'Zoom im temporären Testtab zurückgesetzt').toBe(1);
     await expect.poll(async () => (await metrics()).dpr / baseline.dpr).toBeCloseTo(1, 5);
     expect(errors, 'keine neuen Konsolen-, Laufzeit- oder Hydrationsfehler').toEqual([]);

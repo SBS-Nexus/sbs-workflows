@@ -277,7 +277,7 @@ export function VocabApp(): React.ReactElement {
   }
 
   return (
-    <div className="vocab-app">
+    <div className="vocab-app los-flow">
       <NoticeArea notice={notice} />
 
       {locked ? (
@@ -292,10 +292,23 @@ export function VocabApp(): React.ReactElement {
         </div>
       ) : null}
 
-      {phase.kind === 'loading' ? (
-        <p className="vocab-state" role="status">
-          VokabelPfad wird geladen …
-        </p>
+      {/* Ruhiger Kopf, solange kein Stand angezeigt wird (Laden, Fehler) — ohne eigene H1. */}
+      {phase.kind !== 'ready' ? (
+        <div className={phase.kind === 'loading' ? 'los-head vocab-loading-head' : 'los-head'}>
+          <p className="eyebrow">VokabelPfad · lokaler MVP</p>
+          {phase.kind === 'loading' ? (
+            <>
+              <p className="vocab-state" role="status">
+                VokabelPfad wird geladen …
+              </p>
+              {/* Erscheint erst, wenn das Laden ungewöhnlich lange dauert — auch ohne JavaScript. */}
+              <p className="vocab-slow-hint">
+                Lädt VokabelPfad nicht? Er braucht JavaScript und den lokalen Speicher dieses Browsers: Decks und
+                Lernstand liegen nur hier und werden auch nur hier gelesen und gespeichert.
+              </p>
+            </>
+          ) : null}
+        </div>
       ) : null}
 
       {phase.kind === 'unavailable' ? (

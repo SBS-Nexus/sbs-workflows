@@ -12,7 +12,7 @@ export default function VocabularyPage(): React.ReactElement {
   return (
     <>
       <SiteHeader current="vokabeln" />
-      <main id="hauptinhalt" className="shell vocab-page">
+      <main id="hauptinhalt" className="los-app los-flow vocab-page">
         <VocabApp />
       </main>
     </>

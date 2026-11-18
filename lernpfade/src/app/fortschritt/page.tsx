@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { ProgressOverview, type ProgressSourceConfig } from '@/components/progress/progress-overview';
 import { SiteHeader } from '@/components/site-header';
+import { OrbitMark } from '@/components/learning-os/orbit';
 import { parseProgressSources } from '@/domain/progress/fetch-progress';
 import { normalizeSourceBaseUrl } from '@/domain/review/fetch-source';
 import { REVIEW_SOURCE_APP_URLS } from '@/lib/catalog';
@@ -46,19 +47,40 @@ export default function ProgressPage(): React.ReactElement {
   return (
     <>
       <SiteHeader current="fortschritt" />
-      <main id="hauptinhalt" className="shell progress-page">
-        <div className="progress-shell">
-          <header className="progress-intro">
-            <p className="eyebrow">Plattformfortschritt</p>
-            <h1>Dein Fortschritt</h1>
-            <p>
-              Jeder Pfad behält sein eigenes Konto und seine eigene Anmeldung. Lernpfade liest den Stand nur
-              und zeigt ihn hier zusammen — es gibt kein gemeinsames Konto, keinen synchronisierten Lernstand
-              und keinen Gesamtwert über alle Pfade. Bearbeitet wird in der jeweiligen App.
-            </p>
-          </header>
-          <ProgressOverview sources={progressSources()} />
-        </div>
+      <main id="hauptinhalt" className="los-app los-flow progress-page">
+        <header className="los-head progress-intro">
+          <div className="los-head-grid">
+            <div className="los-head-copy">
+              <p className="eyebrow">Plattformfortschritt</p>
+              <h1>
+                Dein <em>Fortschritt</em>
+              </h1>
+              <p>
+                Jeder Pfad behält sein eigenes Konto und seine eigene Anmeldung. Lernpfade liest den Stand nur
+                und zeigt ihn hier zusammen — es gibt kein gemeinsames Konto, keinen synchronisierten Lernstand
+                und keinen Gesamtwert über alle Pfade. Bearbeitet wird in der jeweiligen App.
+              </p>
+            </div>
+            <div className="los-head-side">
+              <OrbitMark />
+              <ul className="los-head-facts" aria-label="So entsteht diese Übersicht">
+                <li>
+                  <strong>Nur gelesen</strong>
+                  Kein Wert wird hier geändert oder an eine App zurückgeschrieben.
+                </li>
+                <li>
+                  <strong>Je Pfad für sich</strong>
+                  Eine fehlende oder langsame Quelle hält die anderen nicht auf.
+                </li>
+                <li>
+                  <strong>Kein Gesamtprozent</strong>
+                  Gezählt wird nur, was jede Quelle selbst meldet.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </header>
+        <ProgressOverview sources={progressSources()} />
       </main>
     </>
   );

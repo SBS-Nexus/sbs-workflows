@@ -20,7 +20,7 @@ export default function HubError({
   }, [error]);
 
   return (
-    <main id="hauptinhalt" className="shell state-page">
+    <main id="hauptinhalt" className="los-app state-page">
       <ErrorState
         kind="unexpected"
         reference={error.digest}
