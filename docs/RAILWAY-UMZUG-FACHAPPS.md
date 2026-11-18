@@ -142,7 +142,10 @@ nutzen dieselbe Adresse.
 ## 4. Änderungen im Repository vor dem ersten Ausrollen (PR „R1")
 
 Ein PR auf die Integrationslinie, mit voller CI je App: Format, Lint, Typen,
-Unit, Integration, E2E und Build.
+Unit, Integration, E2E und Build. Umgesetzt als Entwurf in
+[PR #82](https://github.com/SBS-Nexus/sbs-workflows/pull/82). Dabei kam
+ein Punkt dazu: SQLPfad hatte keinen `/api/health`. R1 ergänzt ihn, ein
+`/api/ready` fehlt dort weiterhin.
 
 ### 4.1 Client-IP für die Ratengrenzen (sicherheitsrelevant)
 
@@ -258,11 +261,11 @@ Je App:
 |---|---|---|
 | B1 | Build-Protokoll | `next build` läuft ohne Datenbankverbindung durch. Zur Bauzeit gibt es kein privates Netz. |
 | B2 | Pre-Deploy-Protokoll | Migrationen eingespielt, Seed ohne Fehler. Bei PythonPfad und AIPfad meldet der Seed, dass er die Demo-Konten überspringt. |
-| B3 | `/api/health`, `/api/ready` | beide 200 |
+| B3 | `/api/health`, `/api/ready` | beide 200. SQLPfad hat nur `/api/health`, dort prüft B7 die Datenbank mit. |
 | B4 | Seed ein zweites Mal ausführen (erneutes Ausrollen desselben Commits) | Inhalte unverändert. Ein Testkonto mit Versuchen und Fortschritt bleibt erhalten. |
 | B5 | nur AIPfad: Start mit `DEPLOYMENT_ID` | Konfigurationsvertrag (`instrumentation.ts`) besteht. Der Wert ist der ausgerollte Commit. |
 | B6 | Spoofing von außen | Fehlversuche mit jeweils anderem `X-Real-IP`, `X-Forwarded-For` und `X-Vercel-Forwarded-For` landen alle im selben Zähler. Die IP-Grenze greift nach der dokumentierten Zahl. |
-| B7 | Rundgang | Registrieren, Anmelden, Lektion, Übung, Fortschritt. Bei PythonPfad läuft Pyodide im Browser. |
+| B7 | Rundgang | Registrieren, Anmelden, Lektion, Übung, Fortschritt. Bei PythonPfad läuft Pyodide im Browser. Die Formulare prüfen dabei auch die Herkunftsprüfung hinter dem Edge: `src/proxy.ts` vergleicht `Origin` mit `Host`. |
 | B8 | `npm run auslieferung:pruefen -- <Adresse>` (Skript aus SQLPfad, gegen alle drei Adressen) | `APP_URL`, kanonische Verweise und Sitemap zeigen auf die Adresse, unter der Besucher ankommen. |
 | B9 | Sicherheitskopfzeilen | Die Kopfzeilen aus `next.config.ts` und `src/proxy.ts` (u. a. CSP, HSTS) kommen an. `/api/platform/*` ohne Sitzung gibt keine Daten. |
 
