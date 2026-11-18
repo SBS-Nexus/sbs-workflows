@@ -399,10 +399,10 @@ und die Reihenfolge-Aufgabe beim Öffnen gelöst.
 ## 14. Auslieferung auf Railway
 
 Vorgesehen ist Railway, wie für den Lernpfade-Hub. Bis zum 18.11.2026 beschrieb
-dieser Abschnitt Vercel. **Stand: vorbereitet, noch nicht ausgeführt.**
-Reihenfolge, Gates und offene Entscheidungen stehen im Umzugsplan
-([PR #81](https://github.com/SBS-Nexus/sbs-workflows/pull/81),
-`docs/RAILWAY-UMZUG-FACHAPPS.md`). Die Schritte gleichen denen von PythonPfad
+dieser Abschnitt Vercel. **Stand 18.11.2026: Staging läuft** unter
+`https://sqlpfad-staging.up.railway.app`. Ergebnisse der Gates und offene
+Entscheidungen stehen im Umzugsplan `docs/RAILWAY-UMZUG-FACHAPPS.md` im
+Wurzelverzeichnis des Repositories. Die Schritte gleichen denen von PythonPfad
 (`pythonpfad/docs/RAILWAY.md`); hier steht, was für SQLPfad eigen ist.
 
 ### Was funktioniert

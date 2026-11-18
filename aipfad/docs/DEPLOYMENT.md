@@ -2,17 +2,16 @@
 
 ## Status dieser Ausbaustufe
 
-Deployment-Konfiguration ist vorbereitet, aber **nicht produktiv
-geschaltet**. Es gibt keine Domain und noch keinen Railway-Service für
-AIPfad. Zielplattform ist Railway, wie für den Lernpfade-Hub. Bis zum
-18.11.2026 war Vercel vorgesehen; `vercel.json` ist seitdem entfernt.
-`aipfad/` bleibt ein eigenständiges Deployment-Ziel, mit eigener Datenbank
-und eigener Konfiguration, unabhängig von PythonPfad und SQLPfad.
+**Staging läuft auf Railway seit dem 18.11.2026**, unter
+`https://aipfad-staging.up.railway.app`. Das ist kein Produktivbetrieb: Es
+gibt keine eigene Domain, keine Sicherungen und noch keine echten Konten.
+Zielplattform ist Railway, wie für den Lernpfade-Hub. Bis zum 18.11.2026 war
+Vercel vorgesehen; `vercel.json` ist seitdem entfernt. `aipfad/` bleibt ein
+eigenständiges Deployment-Ziel, mit eigener Datenbank und eigener
+Konfiguration, unabhängig von PythonPfad und SQLPfad.
 
-Reihenfolge, Gates und offene Entscheidungen für den Umzug stehen im
-Umzugsplan ([PR #81](https://github.com/SBS-Nexus/sbs-workflows/pull/81),
-`docs/RAILWAY-UMZUG-FACHAPPS.md`). Die Schritte unten sind die vorgesehene
-Einführung, keine Beschreibung eines erfolgten Vorgangs.
+Reihenfolge, Gates, Ergebnisse und offene Entscheidungen stehen im Umzugsplan
+`docs/RAILWAY-UMZUG-FACHAPPS.md` im Wurzelverzeichnis des Repositories.
 
 ## Lokale Einrichtung
 
@@ -86,10 +85,16 @@ Einstellungen des Service `aipfad`:
 
 Variablen: `DATABASE_URL` als Referenz `${{aipfad-db.DATABASE_URL}}`,
 `APP_URL`, `CRON_SECRET` (neu erzeugt), `RETENTION_MODE=dry-run` und
-`DEPLOYMENT_ID`. Für `DEPLOYMENT_ID` ist die Referenz
-`${{RAILWAY_GIT_COMMIT_SHA}}` vorgesehen. Sie ist unveränderlich je
-Bereitstellung und enthält keine Zugangsdaten. Ob der Konfigurationsvertrag
-den Wert annimmt, prüft der erste Start.
+`DEPLOYMENT_ID`.
+
+`DEPLOYMENT_ID` ist der volle Hash des ausgerollten Commits, als fester Wert.
+Er wird **vor jedem Ausrollen** auf den neuen Commit gesetzt (mit
+`skipDeploys`, dann gezielt diesen Commit ausrollen). Die Referenz
+`${{RAILWAY_GIT_COMMIT_SHA}}` funktioniert hier nicht: Beim gezielten
+Ausrollen ohne Branch-Trigger löst Railway sie leer auf. Die erste
+Bereitstellung am 18.11.2026 brach deshalb beim Start mit
+„DEPLOYMENT_ID fehlt" ab – der Konfigurationsvertrag hat damit genau getan,
+wofür er da ist.
 
 Das Pre-Deploy läuft zwischen Build und Start, im privaten Netz. Scheitert es,
 wird nicht ausgerollt, und die bisherige Bereitstellung läuft weiter.
@@ -105,9 +110,10 @@ mit dem vorigen Commit. Eingespielte Migrationen bleiben dabei eingespielt.
 Der geplante Lauf löscht Daten unwiderruflich. Deshalb diese Reihenfolge, und
 nicht die kürzere.
 
-**Noch nicht durchgeführt:** Für AIPfad existiert derzeit kein Railway-Service.
-In dieser Ausbaustufe wurde keine Einstellung angelegt oder geändert und kein
-echtes Geheimnis erzeugt.
+**Stand 18.11.2026:** Schritte 1 bis 4 sind erledigt. Der erste, von Hand
+ausgelöste Lauf meldete `dry-run`, Status `success`, 0 Kandidaten bei 365 Tagen
+Frist. Das passt zur frischen Datenbank. Schritt 5 verlangt mehrere
+planmäßige Läufe; `RETENTION_MODE` bleibt bis dahin `dry-run`.
 
 1. `CRON_SECRET` im Service `aipfad` setzen — eigener, zufälliger Wert,
    mindestens 16 Zeichen, nicht der Platzhalter aus `.env.example`.
@@ -167,7 +173,7 @@ der Trockenlauf vor dem Ernstfall.
 
 ## Nächste Schritte für einen echten Produktivbetrieb
 
-1. Die drei Railway-Services oben anlegen (Umzugsplan, Phase 2).
+1. Erledigt am 18.11.2026: die drei Railway-Services oben (Staging).
 2. Datenbanksicherungen einschalten, bevor echte Konten entstehen und bevor
    `RETENTION_MODE=execute` gesetzt wird (E10).
 3. `APP_URL` auf die tatsächliche HTTPS-Domain setzen, sobald eine existiert.
