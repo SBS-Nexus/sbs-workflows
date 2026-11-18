@@ -27,8 +27,22 @@ Adresse zeigen wie `NEXT_PUBLIC_AIPFAD_URL`.
 
 ## Deployment
 
-Als eigenes Vercel-Projekt mit Root Directory `lernpfade/`. Keine Datenbank,
-keine Secrets, keine Nutzerkonten. Region: Frankfurt (`fra1`).
+Auf Railway: Projekt `sbs-lernpfade-staging`, Umgebung `staging`, Service
+`lernpfade-hub`. Keine Datenbank, keine Secrets, keine Nutzerkonten. Vercel wird
+für den Hub nicht mehr verwendet (`vercel.json` am 18.11.2026 entfernt).
+
+- Quelle `SBS-Nexus/sbs-workflows`, Root Directory `/lernpfade`, Builder
+  Railpack, Build `npm run build`, Start `npm run start -- --hostname 0.0.0.0`.
+- **Kein automatischer Deploy:** Es gibt keinen Branch-Trigger. Ausgerollt wird
+  gezielt ein Commit, über „Deploy" im Dashboard oder per
+  `railway api 'mutation { serviceInstanceDeployV2(serviceId: "…", environmentId: "…", commitSha: "<sha>") }'`.
+  Zurücknehmen heißt, den vorherigen Commit genauso erneut auszurollen.
+- Adresse `https://lernpfade-hub-staging.up.railway.app`. Der Schlafmodus ist an;
+  der erste Aufruf nach einer Pause weckt den Dienst.
+- `NEXT_PUBLIC_*` wirken beim Bauen. Nach einer Änderung neu ausrollen.
+- `*.up.railway.app` ist wie `*.vercel.app` ein Public Suffix. Hub und Apps sind
+  unter diesen Adressen nie same-site; Live-Wiederholungen und Fortschritt
+  brauchen eine gemeinsame eigene Domain (siehe unten).
 
 ## Learning OS (Startseite und Lernansichten)
 
@@ -66,8 +80,8 @@ noch Nutzerkennung.
   jeweilige `NEXT_PUBLIC_*_URL`.
 - Jede App gibt CORS nur für `PLATFORM_HUB_ORIGIN` frei (Vorgabe: aus).
 - Live-Daten setzen voraus, dass Hub und Apps same-site sind (gemeinsame
-  registrierbare Domain). Unter `*.vercel.app` zeigt der Hub „nicht
-  angemeldet".
+  registrierbare Domain). Unter Plattform-Adressen wie `*.up.railway.app` oder
+  `*.vercel.app` (Public Suffix) zeigt der Hub „nicht angemeldet".
 - Ohne Freischaltung bleibt es beim klar markierten Demo-Deck
   (**DEMO · Beispiel**), dessen Bewertungen nur lokal im Browser bleiben.
 
@@ -95,8 +109,8 @@ VokabelPfad wird lokal aus IndexedDB gelesen.
 - Eine offene Seite bleibt aktuell: Vokabeln an Fälligkeit/Tageswechsel und
   nach Speichern in einem anderen Tab, Quellen bei Rückkehr in den Tab
   (höchstens einmal pro Minute).
-- Dieselbe Same-Site-Voraussetzung wie LP-05B; unter `*.vercel.app` zeigt der
-  Hub „nicht angemeldet".
+- Dieselbe Same-Site-Voraussetzung wie LP-05B; unter Plattform-Adressen wie
+  `*.up.railway.app` (Public Suffix) zeigt der Hub „nicht angemeldet".
 - Domäne: `src/domain/progress/`, Oberfläche: `src/components/progress/`,
   Route `src/app/fortschritt/`. Vertrag und Semantik:
   `docs/LEARNING-PLATFORM.md`, Abschnitt 12.
