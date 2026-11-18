@@ -130,35 +130,59 @@ Weg, eine Verbindung ohne Rechenlast zu belegen.
 
 ---
 
-## 6. Offene Frage: Lizenz für den Produktionsbetrieb
-
-**Das ist der eine Punkt, der noch nicht entschieden ist, und er soll hier nicht
-beschönigt werden.**
+## 6. Lizenz und Betrieb (entschieden am 19.11.2026)
 
 Für die lokale Entwicklung nutzt SQLPfad die **SQL Server Developer Edition**
 (`mcr.microsoft.com/mssql/server:2025-latest`, `MSSQL_PID=Developer`). Microsoft
-stellt sie für Entwicklung und Test kostenlos bereit.
+stellt sie für Entwicklung und Test kostenlos bereit, für den öffentlichen
+Betrieb ist sie **nicht** vorgesehen.
 
-Für den öffentlichen Betrieb ist sie **nicht** vorgesehen. Zu klären ist, bevor
-`FEATURE_SQL_RUNNER` produktiv eingeschaltet wird:
+**Im Betrieb läuft SQL Server Express** (`MSSQL_PID=Express`). Microsoft erlaubt
+den kostenlosen produktiven Einsatz. Die Grenzen sind für Übungsdatenbanken
+unkritisch: ein Prozessorsockel, rund 1,4 GB Puffer, begrenzte
+Datenbankgröße. Der Auftraggeber hat die laufenden Railway-Kosten
+(ca. 17 USD/Monat) am 19.11.2026 freigegeben.
 
-- Azure SQL Database – verwaltet, aber nicht in allen Punkten
-  T-SQL-deckungsgleich mit einer eigenen Instanz
-- SQL Server Express – kostenlos, mit Grenzen bei Arbeitsspeicher und
-  Datenbankgröße
-- regulär lizenzierte SQL-Server-Edition
-- vorhandene Infrastruktur des Betreibers
+| Service (Railway, `sbs-lernpfade-staging`) | Rolle                                  | Eigenschaften                                                                                                                                                      |
+| ------------------------------------------ | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `sqlpfad-mssql`                            | Übungsserver                           | Image `mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-24.04` wie in der CI, Express, nur privates Netz, gedeckelt auf 2 GB / 1 vCPU, `MSSQL_MEMORY_LIMIT_MB=1700` |
+| `sqlpfad-runner`                           | `runner/`, `npm run runner`, Port 4310 | nur privates Netz, kein öffentlicher Name, eigenes Token (64 Zeichen), gedeckelt auf 0,5 GB                                                                        |
+| `sqlpfad`                                  | Anwendung                              | `FEATURE_SQL_RUNNER=true`, `SQL_RUNNER_URL` und `SQL_RUNNER_TOKEN` als Railway-Referenzen auf den Runner                                                           |
 
-Bis das entschieden ist, gilt:
+Drei bewusste Abweichungen vom Idealbild:
 
-```
-FEATURE_SQL_RUNNER=false
-```
+- **Kein Volume.** Auf dem Railway-Volume stürzt SQL Server beim Anlegen von
+  `master` ab („misaligned log IOs … Stack Overflow, errno 22"). Microsoft
+  unterstützt nur XFS und ext4. Der Server läuft deshalb im
+  Container-Dateisystem: Nach einem Neustart sind Sandboxes leer und werden
+  beim nächsten Zugriff aus dem Lehrplan neu aufgebaut. Plattformdaten
+  (Konten, Fortschritt) liegen davon getrennt in PostgreSQL und sind nicht
+  betroffen.
+- **Verwaltung als `sa`.** Ohne Volume überlebt ein eigener Verwaltungsname
+  keinen Neustart. Wie in der CI legt `sa` die Sandboxes an. Das SQL der
+  Lernenden läuft nie unter `sa`, sondern unter `lrn_<sandbox>` (Abschnitt 4).
+  Das `sa`-Kennwort steht nur in den Variablen von `sqlpfad-mssql` und
+  `sqlpfad-runner`.
+- **TLS ohne Zertifikatsprüfung.** SQL Server nutzt ein selbst signiertes
+  Zertifikat. Die Verbindung bleibt verschlüsselt und läuft ausschließlich im
+  privaten Railway-Netz (WireGuard).
 
-Die Anwendung erklärt in diesem Zustand sichtbar, dass das Ausführen von
-Abfragen gerade nicht zur Verfügung steht. **Es gibt keinen stillen Rückfall auf
-eine unsichere Ausführung** – lieber eine ehrlich abgeschaltete Funktion als
-eine, die Lizenz oder Isolation verletzt.
+**Abnahme am 19.11.2026** auf dem Live-System, aus dem privaten Netz:
+
+- Ohne Token gibt es 401.
+- Jede Abfrage läuft unter `lrn_<sandbox>` ohne Serverrechte (`sysadmin`,
+  `CONTROL SERVER` und `VIEW SERVER STATE` = 0).
+- Eine fremde Sandbox ist von der Datenbank gesperrt und taucht in
+  `sys.databases` nicht auf.
+- Fremde Anmeldenamen sind unsichtbar, Kennwort-Hashes verborgen.
+- `xp_cmdshell`, `CREATE LOGIN`, `SHUTDOWN`, `WAITFOR` und `DROP DATABASE`
+  lehnt schon die Anweisungsprüfung ab.
+- Das Zeitlimit stoppt eine Endlosabfrage nach 5 s, die Zeilengrenze schneidet
+  bei 100 000 Zeilen ab.
+- Eigene Tabellen anlegen funktioniert (Modul 4).
+
+Die Anwendung erklärt weiterhin sichtbar, wenn der Übungsserver nicht
+antwortet. **Es gibt keinen stillen Rückfall auf eine unsichere Ausführung.**
 
 ---
 
@@ -345,7 +369,7 @@ hält:
   (`src/domain/sql/treiber-uebersetzung.ts`), mit Unit-Test in der echten
   Treiberform.
 
-- die Entscheidung aus Abschnitt 6
+- Lastverhalten bei vielen gleichzeitigen Lernenden (Abschnitt 5 begrenzt, gemessen ist es nicht)
 
 ### Was ohne Runner trotzdem geht
 

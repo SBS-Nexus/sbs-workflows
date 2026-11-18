@@ -66,6 +66,8 @@ der CI gegen einen echten SQL Server. Für den Betrieb vorgesehen:
 - `FEATURE_SQL_RUNNER=true` erst nach der Sicherheitsabnahme: Isolation je
   Sandbox, Zeit- und Zeilengrenzen, Abbruch.
 
+**Stand 19.11.2026:** SQL Server Express und Runner laufen, die Sicherheitsabnahme ist grün, `FEATURE_SQL_RUNNER=true`. Offen ist der Rundgang angemeldet.
+
 **Fertig, wenn:** eine Übung auf `www.sqlpfad.de` eine echte Abfrage ausführt,
 Ergebnis und Fehlermeldung verständlich zeigt und der Warnkasten verschwunden
 ist.
