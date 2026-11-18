@@ -35,10 +35,13 @@ Domain, die auf ein leeres Verzeichnis zeigt.
 Die Domain wird in allen drei Fällen bei Strato bestellt. Unterschiedlich ist
 nur, worauf sie zeigt.
 
-> **Für `pythonpfad.de` ist Weg B gewählt: Betrieb auf Vercel.** Die genaue
-> Anleitung dafür – Datenbank, Umgebungsvariablen, DNS-Werte, Prüfschritte –
-> steht in [VERCEL.md](./VERCEL.md). Die folgenden Abschnitte beschreiben die
-> Grundlagen, die für alle drei Wege gelten.
+> **Gewählt ist Weg B: Betrieb auf Railway** (bis 18.11.2026 war es Vercel).
+> Die genaue Anleitung dafür – Datenbank, Variablen, DNS-Werte, Prüfschritte –
+> steht in [RAILWAY.md](./RAILWAY.md). Für Live-Daten im Lernpfade-Hub
+> braucht PythonPfad eine Adresse unter derselben registrierbaren Domain wie der
+> Hub (RAILWAY.md, Abschnitt 6). Ob das `pythonpfad.de` bleibt, ist noch nicht
+> entschieden. Die folgenden Abschnitte beschreiben die Grundlagen, die für
+> alle drei Wege gelten.
 
 ---
 
@@ -78,15 +81,19 @@ erlaubt – die Hauptdomain braucht immer einen `A`-Eintrag.
 
 ### Weg B: Betrieb bei einem Anbieter
 
-Der Anbieter nennt die Zieladresse. Üblich ist:
+Der Anbieter nennt die Zieladresse. Bei Railway sieht das so aus:
 
-| Typ     | Name  | Wert                              |
-| ------- | ----- | --------------------------------- |
-| `A`     | `@`   | die vom Anbieter genannte IP      |
-| `CNAME` | `www` | die vom Anbieter genannte Adresse |
+| Typ     | Name                        | Wert                             |
+| ------- | --------------------------- | -------------------------------- |
+| `CNAME` | die Subdomain, etwa `www`   | das Ziel, das Railway anzeigt    |
+| `TXT`   | der Name, den Railway nennt | der Bestätigungswert aus Railway |
 
-Dazu kommt meist ein `TXT`-Eintrag zur Bestätigung, dass die Domain einem
-gehört. Den gibt der Anbieter vor.
+Railway vergibt **keine feste IP-Adresse**, also gibt es keinen `A`-Eintrag.
+Die Hauptdomain (`@`) lässt sich deshalb nur bei einem DNS-Anbieter auf
+Railway zeigen lassen, der CNAME-Flattening oder `ALIAS` beherrscht. Strato
+gehört nicht dazu. Entweder läuft die Anwendung unter einer Subdomain, oder die
+Nameserver der Domain ziehen zu einem solchen Anbieter, etwa Cloudflare. Die
+Domain selbst bleibt dabei bei Strato registriert.
 
 ### Was unangetastet bleibt
 

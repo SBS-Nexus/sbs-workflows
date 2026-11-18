@@ -29,7 +29,7 @@ grundlegend andere Architektur der Codeausführung.
 11. [SQL-Ausführung](#11-sql-ausführung)
 12. [Inhalte pflegen](#12-inhalte-pflegen)
 13. [Sicherheitsgrenzen](#13-sicherheitsgrenzen)
-14. [Auslieferung auf Vercel](#14-auslieferung-auf-vercel)
+14. [Auslieferung auf Railway](#14-auslieferung-auf-railway)
 15. [Was diese Fassung noch nicht kann](#15-was-diese-fassung-noch-nicht-kann)
 16. [Wiederholen](#16-wiederholen)
 17. [Redaktionsbereich](#17-redaktionsbereich)
@@ -396,13 +396,16 @@ und die Reihenfolge-Aufgabe beim Öffnen gelöst.
 
 ---
 
-## 14. Auslieferung auf Vercel
+## 14. Auslieferung auf Railway
 
-Die Anwendung läuft auf Vercel – mit **einer Einschränkung, die aus der
-Architektur folgt und nicht behoben werden kann**: Abfragen ausführen geht
-dort nicht.
+Vorgesehen ist Railway, wie für den Lernpfade-Hub. Bis zum 18.11.2026 beschrieb
+dieser Abschnitt Vercel. **Stand: vorbereitet, noch nicht ausgeführt.**
+Reihenfolge, Gates und offene Entscheidungen stehen im Umzugsplan
+([PR #81](https://github.com/SBS-Nexus/sbs-workflows/pull/81),
+`docs/RAILWAY-UMZUG-FACHAPPS.md`). Die Schritte gleichen denen von PythonPfad
+(`pythonpfad/docs/RAILWAY.md`); hier steht, was für SQLPfad eigen ist.
 
-### Was auf Vercel funktioniert
+### Was funktioniert
 
 Registrierung, Anmeldung, Einstieg, der gesamte Lehrplan mit allen Lektionen,
 die Aufgaben mit Auswahl, Mehrfachauswahl, Reihenfolge, Zeilenzahl-Vorhersage
@@ -410,86 +413,84 @@ und Freitext, die Hinweisleiter, die Musterlösungen, die Projekte, der
 Fortschritt, die Wissenslandkarte, die Lernzeit und das gesamte Profil samt
 Passwortänderung und Kontolöschung.
 
-### Was auf Vercel nicht funktioniert
+### Was nicht dazugehört
 
-**Eigene Abfragen ausführen.** Ein SQL Server lässt sich nicht in einer
-Serverless-Funktion betreiben – die Begründung steht in
-[docs/SQL-RUNNER.md](docs/SQL-RUNNER.md), Abschnitt 3. `FEATURE_SQL_RUNNER`
-bleibt deshalb auf `false`, und die Anwendung sagt an jeder betroffenen Stelle,
-dass die Ausführung abgeschaltet ist. Sie erfindet kein Ergebnis.
+**Eigene Abfragen ausführen.** `FEATURE_SQL_RUNNER` bleibt `false`, und die
+Anwendung sagt an jeder betroffenen Stelle, dass die Ausführung abgeschaltet
+ist. Sie erfindet kein Ergebnis.
 
-Wer die Ausführung will, braucht zusätzlich einen Runner-Dienst auf einem
-Server, der lange laufen darf, und einen SQL Server dahinter. Vercel bleibt
-dann für die Anwendung zuständig und spricht den Runner über HTTPS an.
+Auf Vercel ging das aus Prinzip nicht: Ein SQL Server lässt sich nicht in einer
+Serverless-Funktion betreiben ([docs/SQL-RUNNER.md](docs/SQL-RUNNER.md),
+Abschnitt 3). Railway betreibt dagegen dauerhaft laufende Dienste; Runner und
+SQL Server wären dort eigene Services. Das ist nicht Teil des Umzugs. Offen ist
+vor allem die Lizenzfrage aus demselben Dokument.
 
-### Voraussetzungen
+### Einstellungen
 
-- **Eine PostgreSQL-Datenbank außerhalb von Vercel** (Neon, Supabase, o. ä.).
-  Für `DATABASE_URL` den **gepoolten** Endpunkt nehmen: Jede Serverless-Instanz
-  öffnet einen eigenen Pool, und ohne Pooler sind die Verbindungen der Datenbank
-  schneller aufgebraucht, als man zusehen kann.
-- Node 22 oder neuer (steht in `engines`).
+- **Datenbank:** Railway PostgreSQL als eigener Service `sqlpfad-db`, in
+  derselben EU-Region wie die Anwendung. Kein Pooler: Der Prozess läuft
+  dauerhaft und hält einen kleinen eigenen Pool. Anwendung und Migration nutzen
+  dieselbe Adresse.
+- **Service `sqlpfad`:**
 
-### Schritte
+  | Einstellung      | Wert                                                                    |
+  | ---------------- | ----------------------------------------------------------------------- |
+  | Root Directory   | `/sqlpfad` – das Repository enthält mehrere Anwendungen                 |
+  | Builder          | Railpack, Node aus `engines` (22 oder neuer)                            |
+  | Build Command    | leer lassen (Vorgabe `npm run build` = `prisma generate && next build`) |
+  | Pre-Deploy       | `sh -c "npm run db:deploy && npm run db:seed"`                          |
+  | Start Command    | `npm run start -- --hostname 0.0.0.0`                                   |
+  | Healthcheck Path | `/api/health` (ohne Datenbankzugriff)                                   |
+  | Branch-Trigger   | keiner; ausgerollt wird gezielt ein Commit                              |
 
-1. Repository in Vercel importieren, **Root Directory auf `sqlpfad` setzen** –
-   das Repository enthält zwei Anwendungen.
-2. Umgebungsvariablen setzen: `DATABASE_URL`, `AUTH_SECRET` (neu erzeugen, siehe
-   Abschnitt 4), `APP_URL` auf die spätere Adresse ohne Schrägstrich am Ende.
+- **Variablen:** `DATABASE_URL` als Referenz `${{sqlpfad-db.DATABASE_URL}}`,
+  `AUTH_SECRET` (neu erzeugen, siehe Abschnitt 4), `APP_URL` auf die spätere
+  Adresse ohne Schrägstrich am Ende, `FEATURE_SQL_RUNNER=false`,
+  `NEXT_PUBLIC_LEARNING_HUB_URL`. `PLATFORM_HUB_ORIGIN` erst, wenn Hub und App
+  unter einer gemeinsamen Domain liegen (Abschnitt 18).
 
-   **Vor dem ersten Deployment, nicht danach.** Alle drei werden schon beim
-   Übersetzen gebraucht: Next wertet `generateMetadata` aus, und die
-   Umgebungsprüfung aus `src/server/env.ts` läuft dabei mit. Fehlt eine, bricht
-   der Build ab – mit einer verständlichen Meldung, aber er bricht ab. Eine
-   Verbindung zur Datenbank stellt der Build dagegen nicht her; die Adresse muss
-   nur formal gültig sein.
+  **Vor dem ersten Deployment, nicht danach.** `DATABASE_URL`, `AUTH_SECRET`
+  und `APP_URL` werden schon beim Übersetzen gebraucht: Next wertet
+  `generateMetadata` aus, und die Umgebungsprüfung aus `src/server/env.ts`
+  läuft dabei mit. Fehlt eine, bricht der Build ab – mit einer verständlichen
+  Meldung, aber er bricht ab. Eine Verbindung zur Datenbank stellt der Build
+  dagegen nicht her; die Adresse muss nur formal gültig sein. Das passt zu
+  Railway: Zur Bauzeit gibt es kein privates Netz.
 
-3. Einmalig gegen dieselbe Datenbank – **von der eigenen Maschine aus, nicht im
-   Build**:
-
-   ```bash
-   git pull                                 # sonst fehlen neue Migrationen
-   npm install                              # erzeugt dabei den Prisma-Client
-   DATABASE_URL="…" npx prisma migrate deploy
-   DATABASE_URL="…" npm run db:seed
-   ```
-
-   Das `git pull` steht aus einem Grund an erster Stelle: `migrate deploy`
-   spielt ein, was **im Arbeitsverzeichnis** liegt, nicht was im Repository
-   steht. Ein veralteter Klon meldet zufrieden `No pending migrations to
-apply` – und die Anwendung bricht danach an der fehlenden Spalte ab. Die
-   Zeile darüber, wie viele Migrationen gefunden wurden, ist die einzige
-   Stelle, an der man das vorher sieht.
-
-   Die Zeichenfolge gehört in **Anführungszeichen**. Sie enthält `&`; ohne
-   Quotes schickt die Shell den Befehl in den Hintergrund und schneidet ab dem
-   ersten `&` alles ab.
-
-   `pg` warnt beim Verbinden, dass `sslmode=require` derzeit wie
-   `verify-full` behandelt wird und sich das in Version 9 ändert. Das ist eine
-   Vorwarnung, kein Fehler – die Verbindung ist heute die **strengere** von
-   beiden. Wer sie festnageln will, schreibt `sslmode=verify-full`.
-
-   Für Migration und Seed die **direkte** Verbindungszeichenfolge nehmen, nicht
-   die gepoolte: `prisma migrate` nimmt Advisory Locks, und der Pooler arbeitet
-   im Transaction-Mode und reicht sie nicht durch.
-
-   Denselben Befehl braucht es **erneut**, sobald eine neue Migration
-   dazukommt – auch bei einer bereits laufenden Installation. Zuletzt betraf
-   das `20260817185213_wiederholungsplanung_sm2`; die Migration fügt der
-   Tabelle `concept_mastery` eine Spalte mit Standardwert hinzu und ist damit
-   auf vorhandenen Daten gefahrlos.
-
-4. Deployen.
+`RAILPACK_PRUNE_DEPS` bleibt ungesetzt. `prisma` und `tsx` stehen in den
+`devDependencies` und werden im Pre-Deploy gebraucht.
 
 Der Build erzeugt den Prisma-Client selbst (`prisma generate && next build`);
 `src/generated/` ist nicht eingecheckt, und ohne diesen Schritt bricht der Build
 eines frischen Klons ab.
 
-**Migrationen laufen bewusst nicht im Build.** Ein Deployment, das nebenbei das
-Schema der Produktionsdatenbank ändert, tut das auch dann, wenn man nur einen
-Tippfehler im Text korrigieren wollte. Ein eigener, bewusster Schritt ist
-umständlicher und genau deshalb richtig.
+### Migrationen und Inhalte
+
+Das Pre-Deploy-Kommando läuft bei jeder Bereitstellung zwischen Build und Start,
+im privaten Netz und mit den Variablen des Service. Scheitert es, wird nicht
+ausgerollt, und die bisherige Bereitstellung läuft weiter.
+
+- `db:deploy` spielt genau die Migrationen ein, die im ausgerollten Commit
+  liegen. Die frühere Falle – ein veralteter Klon meldet zufrieden
+  `No pending migrations to apply`, und die Anwendung bricht danach an der
+  fehlenden Spalte ab – gibt es damit nicht mehr.
+- `db:seed` gleicht die Lerninhalte mit dem Repository ab (`upsert`).
+
+**Migrationen laufen weiter nicht im Build.** Früher liefen sie deshalb von
+Hand: Ein Deployment, das nebenbei das Schema der Produktionsdatenbank ändert,
+tut das auch dann, wenn man nur einen Tippfehler im Text korrigieren wollte.
+Das Pre-Deploy ändert daran wenig. Ein Commit ohne neue Migration lässt das
+Schema unberührt, und einer mit neuer Migration geht nur live, wenn sie
+durchläuft. Eine eingespielte Migration nimmt kein Rückbau des Codes zurück.
+Migrationen bleiben deshalb vorwärts gedacht und müssen zum vorigen Code passen.
+
+### Ausrollen und zurücknehmen
+
+Ausgerollt wird gezielt ein Commit, über „Deploy" im Dashboard oder per
+`railway api 'mutation { serviceInstanceDeployV2(serviceId: "…", environmentId: "…", commitSha: "<sha>") }'`.
+Zurücknehmen heißt, den vorigen Commit genauso erneut auszurollen. Nach dem
+ersten Ausrollen prüft `npm run auslieferung:pruefen -- <adresse>` die laufende
+Installation von außen (Abschnitt 18).
 
 ---
 
@@ -651,7 +652,11 @@ kein Fehler.
 
 ## 18. Eigene Domain über Strato
 
-Beispiel: `sqlpfad.de`, registriert bei Strato, ausgeliefert von Vercel.
+Beispiel: `sqlpfad.de`, registriert bei Strato, ausgeliefert von Railway.
+Für Live-Daten im Lernpfade-Hub muss SQLPfad unter derselben registrierbaren
+Domain liegen wie der Hub. `*.up.railway.app` ist ein Public Suffix, dort sind
+Hub und App nie same-site. Welche Domain das wird, ist noch nicht entschieden
+(Umzugsplan, Entscheidung E1). Die Schritte unten gelten für jede.
 
 ### Im Code ist nichts zu ändern
 
@@ -668,37 +673,37 @@ Sie ist nicht beliebig, und der häufigste Fehler ist, `APP_URL` zuerst zu
 ändern: Zwischen Umstellung und funktionierendem Zertifikat verweist die Seite
 dann auf eine Adresse, die noch nicht antwortet.
 
-1. **In Vercel** unter Settings → Domains `sqlpfad.de` **und**
-   `www.sqlpfad.de` hinzufügen. Vercel nennt daraufhin die nötigen
-   DNS-Einträge und prüft sie fortlaufend.
+1. **In Railway** unter Settings → Networking → Custom Domain die Adresse
+   eintragen. Railway nennt daraufhin einen `CNAME` und einen `TXT`-Eintrag
+   zur Bestätigung und prüft beide fortlaufend.
 
-2. **Bei Strato** unter Domainverwaltung → DNS-Verwaltung eintragen. Die
-   üblichen Werte:
+2. **Bei Strato** unter Domainverwaltung → DNS-Verwaltung eintragen:
 
-   | Typ     | Name  | Wert                                    |
-   | ------- | ----- | --------------------------------------- |
-   | `A`     | `@`   | `76.76.21.21`                           |
-   | `CNAME` | `www` | der Wert, den Vercel im Dashboard nennt |
+   | Typ     | Name                        | Wert                             |
+   | ------- | --------------------------- | -------------------------------- |
+   | `CNAME` | die Subdomain, etwa `www`   | das Ziel, das Railway anzeigt    |
+   | `TXT`   | der Name, den Railway nennt | der Bestätigungswert aus Railway |
 
-   **Den CNAME-Wert aus dem Dashboard abschreiben, nicht von hier.** Vercel
-   vergibt inzwischen projektbezogene Ziele (`cname.vercel-dns.com`,
-   `cname.vercel-dns-0.com`, …); welches für dieses Projekt gilt, steht nur
-   dort. Die A-Adresse für die Wurzel ist dagegen seit Jahren dieselbe.
+   **Die Werte aus dem Dashboard abschreiben, nicht von hier.** Sie gehören zu
+   genau diesem Service.
 
-   Ein `CNAME` auf der Wurzel (`@`) geht **nicht** – das verbietet nicht
-   Strato, sondern das DNS selbst.
+   Railway vergibt keine feste IP-Adresse, einen `A`-Eintrag gibt es also
+   nicht. Ein `CNAME` auf der Wurzel (`@`) geht **nicht** – das verbietet nicht
+   Strato, sondern das DNS selbst. Die Wurzel erreicht Railway nur über
+   CNAME-Flattening oder `ALIAS`, und das bietet Strato nicht. Entweder wird
+   eine Subdomain die Hauptadresse, oder die Nameserver ziehen zu einem Anbieter
+   mit Flattening, etwa Cloudflare.
 
    Strato legt für neue Domains eine Weiterleitung auf eine Parkseite an. Die
    muss weg, sonst gewinnt sie gegen die eigenen Einträge.
 
 3. **Warten.** Bis die Einträge greifen, vergeht bei Strato erfahrungsgemäß
-   eine Viertelstunde bis mehrere Stunden. Vercel stellt das Zertifikat
-   selbstständig aus, sobald die Prüfung durchgeht; in der Domainliste steht
-   dann _Valid Configuration_.
+   eine Viertelstunde bis mehrere Stunden. Railway stellt das Zertifikat
+   selbstständig aus, sobald die Prüfung durchgeht.
 
-4. **Eine der beiden Adressen zur Hauptadresse machen** – und zwar
-   **dieselbe, die später in `APP_URL` steht.** In Vercel lässt sich
-   `www.sqlpfad.de` auf `sqlpfad.de` umleiten oder umgekehrt.
+4. **Genau eine Adresse zur Hauptadresse machen** – und zwar **dieselbe, die
+   später in `APP_URL` steht.** Liegt die Hauptadresse auf einer Subdomain,
+   leitet die Wurzel bei Strato dorthin weiter.
 
    Das ist die Stelle, an der es beim ersten Mal schiefgegangen ist. Vercel
    leitete `sqlpfad.de` auf `www.sqlpfad.de` um, während `APP_URL` weiter
@@ -711,10 +716,10 @@ dann auf eine Adresse, die noch nicht antwortet.
    Ohne die Festlegung ist die Anwendung außerdem unter zwei Adressen
    erreichbar, und Suchmaschinen sehen zwei Websites mit identischem Inhalt.
 
-5. **Erst jetzt** `APP_URL` auf `https://sqlpfad.de` setzen – ohne
-   Schrägstrich am Ende – und **neu deployen**. Die Startseite wird beim Bauen
-   vorgerendert; ohne neuen Build stünde in ihrem `canonical` weiter die
-   `vercel.app`-Adresse.
+5. **Erst jetzt** `APP_URL` auf die Hauptadresse setzen – ohne Schrägstrich am
+   Ende. Railway rollt nach dem Speichern neu aus, und das ist nötig: Die
+   Startseite wird beim Bauen vorgerendert; ohne neuen Build stünde in ihrem
+   `canonical` weiter die `up.railway.app`-Adresse.
 
 ### Nach dem Umzug prüfen
 

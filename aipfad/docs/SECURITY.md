@@ -110,10 +110,11 @@ Funktion ist entfernt; ihre Löschbedingung lebt unverändert als Regel im
 Aufbewahrungsrahmen weiter (`src/server/retention/`), und ein Zeitplan ruft
 sie auf.
 
-**Was läuft.** `vercel.json` trägt genau einen Eintrag:
-`/api/cron/retention`, täglich `0 3 * * *`. Vercel-Zeitpläne laufen nach UTC.
-Der genaue Zeitpunkt ist nicht zugesichert — die Plattform startet den Lauf
-innerhalb des Zeitfensters, nicht auf die Sekunde.
+**Was läuft.** Genau ein Zeitplan ruft `/api/cron/retention` auf, täglich
+`0 3 * * *` nach UTC: auf Railway der Cron-Service `aipfad-retention`
+(docs/DEPLOYMENT.md). Bis zum 18.11.2026 war es der einzige Eintrag in
+`vercel.json`. Der genaue Zeitpunkt ist nicht zugesichert — die Plattform
+startet den Lauf um einige Minuten versetzt, nicht auf die Sekunde.
 
 **Was aufgeräumt wird.** Heute eine Datenart: `Attempt`, Frist aus
 `ATTEMPT_RETENTION_DAYS` (Vorgabe 365). Gelöscht wird, was `createdAt <
@@ -134,8 +135,8 @@ Trockenlauf zeigt also, was der Ernstfall täte, und nicht etwas Ähnliches.
 Der Weg von Trockenlauf zu Ernstfall steht in docs/DEPLOYMENT.md.
 
 **Zugang.** Die Route ist nur mit dem Kopfzeilenwert
-`Authorization: Bearer <CRON_SECRET>` benutzbar; so ruft Vercel geplante
-Läufe auf. Geprüft wird VOR jedem Datenbankzugriff. Fehlt die Kopfzeile, ist
+`Authorization: Bearer <CRON_SECRET>` benutzbar; so ruft der Cron-Service
+geplante Läufe auf, wie zuvor Vercel. Geprüft wird VOR jedem Datenbankzugriff. Fehlt die Kopfzeile, ist
 sie falsch, oder ist gar kein Geheimnis gesetzt, antwortet die Route mit 401
 und rührt nichts an. `CRON_SECRET` ist seit E04A Teil der beim Start
 geprüften Konfiguration (mindestens 16 Zeichen): Eine Instanz, die ohne
@@ -154,9 +155,10 @@ Transaktion über alle Regeln: Die Fristen verschiedener Datenarten haben
 nichts miteinander zu tun, und eine kaputte Regel dürfte nicht dafür sorgen,
 dass auf Dauer gar nichts mehr aufgeräumt wird. Der Lauf meldet dann
 `partial-failure`, und die Route antwortet mit 500 — sonst zeigte die
-Aufrufübersicht ein grünes Häkchen. Vercel wiederholt einen
-fehlgeschlagenen geplanten Aufruf nicht automatisch; die Wiederholung ist
-der nächste planmäßige Lauf, der die liegengebliebenen Daten mit erfasst.
+Aufrufübersicht ein grünes Häkchen; auf Railway endet der Cron-Service dann
+mit einem Fehler. Er wiederholt nur kurz (`curl --retry`, gedacht für den
+Aufwachvorgang); danach ist die Wiederholung der nächste planmäßige Lauf, der
+die liegengebliebenen Daten mit erfasst.
 
 **Was protokolliert wird.** Zahlen, keine Inhalte: Lauf-Kennung, Modus,
 Regel-Kennung, Frist, Kandidaten- und Löschzahl, Dauer, Status, im
@@ -392,7 +394,7 @@ Cookie`, Route `force-dynamic`. Personenbezogene Antworten landen in keinem
 - **Same-Site-Voraussetzung:** Das Sitzungscookie bleibt unverändert
   host-only, `httpOnly`, `SameSite=Lax`. Der Browser schickt es nur mit, wenn
   Hub und App same-site sind (gemeinsame registrierbare Domain). Unter
-  `*.vercel.app` ist das nicht der Fall; dort antwortet die Route dem Hub mit 401. Die Cookie-Attribute werden dafür ausdrücklich nicht gelockert.
+  Plattform-Adressen wie `*.up.railway.app` oder `*.vercel.app` (Public Suffix) ist das nicht der Fall; dort antwortet die Route dem Hub mit 401. Die Cookie-Attribute werden dafür ausdrücklich nicht gelockert.
 - **Restrisiko:** Eine XSS-Lücke in der freigegebenen Hub-Origin könnte über
   diese Route die Wiederholungsdaten der angemeldeten Person lesen — nur
   lesen, nur diese Route. Deshalb genau eine Origin und Vorgabe aus.
@@ -476,13 +478,13 @@ vollständig integritätsgesichert.
 
 ### Einstufung der mittleren Funde
 
-| Fund                                                                                       | Einstufung                                                                                                                                                                                                                                                     |
-| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ratengrenzen über ein client-gesetztes `x-forwarded-for` umgehbar                          | **BEHOBEN** — zuerst die Plattform-Kopfzeile, sonst der rechte Eintrag der Kette.                                                                                                                                                                              |
-| Anmeldegrenze nur je (IP, E-Mail), ein Konto über viele Herkünften beliebig oft angreifbar | **BEHOBEN** — zusätzliche kontobezogene Grenze ohne IP-Anteil.                                                                                                                                                                                                 |
-| Rechenaufwand von scrypt vor der Authentifizierung als Verstärkungsfläche                  | **BEHOBEN** — die Grenzen greifen davor, auf der Zielplattform ist die Herkunft nicht fälschbar, und seit E03 zählt der gemeinsame Zähler über alle Instanzen hinweg. Damit ist der Aufwand je Herkunft und Konto tatsächlich gedeckelt, nicht nur je Instanz. |
-| Ratenbegrenzung im Prozessspeicher, hält nicht über Instanzen                              | **BEHOBEN** (E03) — der Zähler liegt in PostgreSQL (`rate_limit_buckets`), Prüfen und Zählen bilden eine Transaktion mit Zeilensperre. Nachgewiesen über zwei getrennte Serverprozesse in `tests/integration/rate-limit.test.ts`.                              |
-| `script-src` erlaubt `'unsafe-inline'`                                                     | **AKZEPTIERT MIT BEGRÜNDUNG** — Kompromiss des App Routers für das Skript gegen das Themen-Flackern. Es existiert keine Injektionsstelle: genau ein `dangerouslySetInnerHTML`, und das mit einer Konstanten. Umstellung auf ein Nonce ist vorgemerkt.          |
+| Fund                                                                                       | Einstufung                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ratengrenzen über ein client-gesetztes `x-forwarded-for` umgehbar                          | **BEHOBEN** — zuerst `x-real-ip` vom Railway-Edge, sonst der rechte Eintrag der Kette (`server/security/client-ip.ts`).                                                                                                                                                                                   |
+| Anmeldegrenze nur je (IP, E-Mail), ein Konto über viele Herkünften beliebig oft angreifbar | **BEHOBEN** — zusätzliche kontobezogene Grenze ohne IP-Anteil.                                                                                                                                                                                                                                            |
+| Rechenaufwand von scrypt vor der Authentifizierung als Verstärkungsfläche                  | **BEHOBEN** — die Grenzen greifen davor, auf der Zielplattform setzt der Edge die Herkunft selbst (nach dem Ausrollen von außen zu prüfen), und seit E03 zählt der gemeinsame Zähler über alle Instanzen hinweg. Damit ist der Aufwand je Herkunft und Konto tatsächlich gedeckelt, nicht nur je Instanz. |
+| Ratenbegrenzung im Prozessspeicher, hält nicht über Instanzen                              | **BEHOBEN** (E03) — der Zähler liegt in PostgreSQL (`rate_limit_buckets`), Prüfen und Zählen bilden eine Transaktion mit Zeilensperre. Nachgewiesen über zwei getrennte Serverprozesse in `tests/integration/rate-limit.test.ts`.                                                                         |
+| `script-src` erlaubt `'unsafe-inline'`                                                     | **AKZEPTIERT MIT BEGRÜNDUNG** — Kompromiss des App Routers für das Skript gegen das Themen-Flackern. Es existiert keine Injektionsstelle: genau ein `dangerouslySetInnerHTML`, und das mit einer Konstanten. Umstellung auf ein Nonce ist vorgemerkt.                                                     |
 
 Es bleibt kein mittlerer Fund ohne Einstufung.
 
