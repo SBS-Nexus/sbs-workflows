@@ -8,6 +8,7 @@ import { prisma } from '@/server/db/prisma';
 import { Prisma } from '@/generated/prisma/client';
 import { checkPasswordStrength, hashPassword, verifyPassword } from '@/server/auth/password';
 import { createSession, destroySession, pruneExpiredSessions } from '@/server/auth/session';
+import { clientIpAus } from '@/server/security/client-ip';
 import { enforceRateLimit, RATE_LIMITS, RateLimitError } from '@/server/security/rate-limit';
 
 /**
@@ -34,38 +35,15 @@ const loginSchema = z.object({
 });
 
 /**
- * Die IP, auf die alle Ratengrenzen dieser Datei aufsetzen.
- *
- * `x-forwarded-for` ist ein vom Client gesetzter Kopfzeilenwert: Der linke
- * Eintrag der Kette stammt von der anfragenden Seite selbst. Wer ihn bei
- * jedem Versuch anders setzt, landet in einem jeweils frischen Zähler und
- * hebelt damit sämtliche Anmelde- und Registrierungsgrenzen aus — also
- * genau den Schutz gegen Credential Stuffing und Massen-Enumeration
- * (Sicherheitsprüfung zu PR #29).
- *
- * Deshalb zuerst `x-vercel-forwarded-for`: Diesen Wert setzt die Plattform
- * selbst und überschreibt eine mitgeschickte Angabe. Er ist auf der
- * dokumentierten Zielplattform (docs/DEPLOYMENT.md) nicht fälschbar.
- * Ohne Plattform-Kopfzeile — eigener Betrieb hinter nginx/Traefik — wird der
- * RECHTE Eintrag der Kette genommen: Den hat der letzte, eigene Proxy
- * angehängt, während alles weiter links vom Client stammen kann. Fehlt jede
- * Angabe, teilen sich alle Anfragen einen gemeinsamen Zähler; das begrenzt
- * eher zu streng als zu großzügig und ist hier die richtige Richtung.
+ * Die IP, auf die alle Ratengrenzen dieser Datei aufsetzen. Welche Kopfzeile
+ * zählt und warum, steht in `server/security/client-ip.ts`. Anlass für die
+ * Regel war die Sicherheitsprüfung zu PR #29: Ein vom Client gesetzter Eintrag
+ * in `x-forwarded-for` hebelte sämtliche Anmelde- und Registrierungsgrenzen
+ * aus. Seit dem Umzug auf Railway zählt `x-real-ip` statt
+ * `x-vercel-forwarded-for`.
  */
 async function clientIp(): Promise<string> {
-  const headerList = await headers();
-
-  const platformIp = headerList.get('x-vercel-forwarded-for')?.trim();
-  if (platformIp) return platformIp;
-
-  const chain =
-    headerList
-      .get('x-forwarded-for')
-      ?.split(',')
-      .map((part) => part.trim())
-      .filter(Boolean) ?? [];
-
-  return chain.at(-1) ?? 'unbekannt';
+  return clientIpAus(await headers());
 }
 
 async function requestKey(prefix: string, identifier: string): Promise<string> {

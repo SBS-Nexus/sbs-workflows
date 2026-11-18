@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { prisma } from '@/server/db/prisma';
 import { checkPasswordStrength, hashPassword, verifyPassword } from '@/server/auth/password';
 import { createSession, destroySession, pruneExpiredSessions } from '@/server/auth/session';
+import { clientIpAus } from '@/server/security/client-ip';
 import { enforceRateLimit, RATE_LIMITS, RateLimitError } from '@/server/security/rate-limit';
 
 /**
@@ -33,11 +34,15 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Bitte gib dein Passwort ein.').max(200),
 });
 
-/** Grober Anfrageschlüssel für die Ratenbegrenzung. */
+/**
+ * Grober Anfrageschlüssel für die Ratenbegrenzung. Welche Kopfzeile die
+ * Herkunft bestimmt und warum, steht in `server/security/client-ip.ts`. Bis
+ * zum Umzug auf Railway galt hier der linke Eintrag von `x-forwarded-for`.
+ * Diesen Eintrag setzt der Client selbst, und mit wechselnden Werten bekam
+ * jeder Versuch einen frischen Zähler.
+ */
 async function requestKey(prefix: string, identifier: string): Promise<string> {
-  const headerList = await headers();
-  const forwarded = headerList.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return `${prefix}:${forwarded ?? 'local'}:${identifier.toLowerCase()}`;
+  return `${prefix}:${clientIpAus(await headers())}:${identifier.toLowerCase()}`;
 }
 
 export async function registerAction(_previous: FormState, formData: FormData): Promise<FormState> {
