@@ -4,6 +4,7 @@ import {
   LosFooter,
   LosHero,
   LosMoment,
+  LosRoutes,
   LosStatement,
   LosTicker,
   LosTracks,
@@ -44,6 +45,7 @@ export default function DesignPreview(): React.ReactElement {
         <LosTicker />
         <LosStatement />
         <LosTracks />
+        <LosRoutes />
         <LosMoment />
         <LosVocab />
       </main>

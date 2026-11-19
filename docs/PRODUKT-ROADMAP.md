@@ -53,6 +53,12 @@ Desktop und Mobil und einem Abnahmerundgang auf der Live-Domain.
 **Fertig, wenn:** keine Platzhaltertexte mehr vorkommen, jeder leere Zustand
 einen nächsten Schritt hat und die Reihenfolge auf `/` steht.
 
+**Stand 19.11.2026:** Die Reihenfolge steht auf `/` als eigener Abschnitt
+„Womit du anfängst" (`03 / DEIN EINSTIEG`): Weg A Python → SQL → AI mit Git &
+GitHub ab der ersten Woche, Weg B SQL → AI, je mit Begründung pro Schritt und
+Startlink aus dem Katalog. Offen: Platzhaltertexte und leere Zustände in allen
+Apps durchgehen, Rückverweise der Apps auf die anderen Pfade.
+
 ### E2 · SQL wirklich ausführen (L1)
 
 Der Runner (`sqlpfad/runner/`) und die Sandbox-Rechte sind gebaut und laufen in

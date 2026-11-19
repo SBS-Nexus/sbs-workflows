@@ -1,9 +1,11 @@
 import { ArrowDown, ArrowRight, ArrowUpRight } from 'lucide-react';
 import {
   LEARNING_OS_PLANNED,
+  LEARNING_OS_ROUTES,
   LEARNING_OS_SQL_HREF,
   LEARNING_OS_TRACKS,
   LEARNING_OS_VOCAB,
+  type LearningOsRoute,
   type LearningOsTrack,
 } from '@/lib/learning-os';
 import { LearningMoment } from './learning-moment';
@@ -134,10 +136,69 @@ export function LosTracks(): React.ReactElement {
   );
 }
 
+/**
+ * Empfohlene Reihenfolge (Roadmap E1): zwei Wege, je mit Begründung pro
+ * Schritt. Ein eigener Abschnitt und eigene Linktexte („Mit Python
+ * beginnen"), damit die vier Pfadzeilen darüber die einzigen „… öffnen"-Links
+ * bleiben. Ohne konfigurierte Adresse steht statt des Startlinks ein Hinweis.
+ */
+export function LosRoutes(): React.ReactElement {
+  return (
+    <section className="los-routes-section" id="einstieg" aria-labelledby="los-routes-heading">
+      <div className="los-section-label"><span>03 / DEIN EINSTIEG</span><span>WHERE TO BEGIN</span></div>
+      <div className="los-routes-header">
+        <h2 id="los-routes-heading">Womit du<br /><em>anfängst.</em></h2>
+        <p>Zwei bewährte Wege durch die Pfade – je nachdem, ob du neu einsteigst oder im Fachbereich mit Daten arbeitest. Beides sind Empfehlungen, keine Pflicht: Jeder Pfad lässt sich auch für sich lernen.</p>
+      </div>
+      <div className="los-routes">
+        {LEARNING_OS_ROUTES.map((route) => <RouteCard route={route} key={route.id} />)}
+      </div>
+    </section>
+  );
+}
+
+function RouteCard({ route }: { route: LearningOsRoute }): React.ReactElement {
+  const titleId = `los-route-${route.id}-titel`;
+  return (
+    <article className="los-route" aria-labelledby={titleId}>
+      <p className="los-route-eyebrow">{route.eyebrow}</p>
+      <h3 id={titleId}>{route.title}</h3>
+      <p className="los-route-audience">{route.audience}</p>
+      <ol className="los-route-steps" aria-label={`Reihenfolge: ${route.steps.map((s) => s.name).join(', dann ')}`}>
+        {route.steps.map((s, index) => (
+          <li key={s.slug}>
+            <span className="los-route-number" aria-hidden="true">{index + 1}</span>
+            <div>
+              <p className="los-route-step-name">
+                <strong>{s.name}</strong>
+                <span className="los-route-app">{s.appName}</span>
+                {s.status !== 'available' ? <span className="los-route-status">{s.statusLabel}</span> : null}
+              </p>
+              <p className="los-route-why">{s.why}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <p className="los-route-companion">
+        <span className="los-route-companion-label">{route.id === 'einstieg' ? 'Begleitend' : 'Später'}</span>
+        {route.companion.text}
+        {route.companion.href ? (
+          <a className="los-inline-link" href={route.companion.href}>{route.companion.linkLabel} <Arrow /></a>
+        ) : null}
+      </p>
+      {route.start.href ? (
+        <a className="los-button-dark los-route-start" href={route.start.href}>{route.start.label} <Arrow diagonal /></a>
+      ) : (
+        <p className="los-route-offline">{route.steps[0]?.appName} ist auf dieser Installation noch nicht verbunden.</p>
+      )}
+    </article>
+  );
+}
+
 export function LosMoment(): React.ReactElement {
   return (
     <section className="los-moment-section" id="lern-moment" aria-labelledby="los-moment-heading">
-      <div className="los-section-label"><span>03 / NICHT NUR ZUSCHAUEN</span><span>INTERACT TO UNDERSTAND</span></div>
+      <div className="los-section-label"><span>04 / NICHT NUR ZUSCHAUEN</span><span>INTERACT TO UNDERSTAND</span></div>
       <div className="los-moment-layout">
         <div className="los-moment-intro">
           <span className="los-moment-asterisk" aria-hidden="true">✳</span>
@@ -159,7 +220,7 @@ export function LosMoment(): React.ReactElement {
 export function LosVocab(): React.ReactElement {
   return (
     <section className="los-vocab-section" id="vokabelpfad" aria-labelledby="los-vocab-heading">
-      <div className="los-section-label"><span>04 / WISSEN DAS BLEIBT</span><span>THE RECALL LOOP</span></div>
+      <div className="los-section-label"><span>05 / WISSEN DAS BLEIBT</span><span>THE RECALL LOOP</span></div>
       <div className="los-vocab-inner">
         <div>
           <span className="los-vocab-symbol" aria-hidden="true">↗</span>

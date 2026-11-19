@@ -238,6 +238,31 @@ test('Startseite: Pfadzeilen nur mit konfigurierten Zielen, Status aus dem Katal
   expect(foreign, 'Startseite fragt nichts außerhalb des Hubs an (keine Fonts, CDNs, Tracker)').toEqual([]);
 });
 
+test('Startseite: empfohlene Reihenfolge – zwei Wege mit Begründung, Startlinks aus dem Katalog', async ({ page }) => {
+  await page.goto('/');
+  const einstieg = page.getByRole('region', { name: /Womit du.*anfängst/s });
+  await expect(einstieg).toBeVisible();
+
+  const wegA = einstieg.getByRole('article', { name: 'Erst Logik, dann Daten, dann AI.' });
+  await expect(wegA.getByRole('list', { name: 'Reihenfolge: Python, dann SQL, dann AI' })).toBeVisible();
+  await expect(wegA.getByRole('listitem')).toHaveCount(3);
+  await expect(wegA.getByText('Git & GitHub läuft ab der ersten Woche mit', { exact: false })).toBeVisible();
+  await expect(wegA.getByRole('link', { name: 'Git-Grundlagen ansehen' })).toHaveAttribute(
+    'href',
+    `${MOCK_SOURCE_ORIGINS.ai}/lektion/warum-versionsverwaltung/1`,
+  );
+  await expect(wegA.getByRole('link', { name: 'Mit Python beginnen' })).toHaveAttribute('href', MOCK_SOURCE_ORIGINS.python);
+
+  const wegB = einstieg.getByRole('article', { name: 'Direkt an die eigenen Daten, dann AI mit Verstand.' });
+  await expect(wegB.getByRole('list', { name: 'Reihenfolge: SQL, dann AI' })).toBeVisible();
+  await expect(wegB.getByRole('listitem')).toHaveCount(2);
+  await expect(wegB.getByRole('link', { name: 'Mit SQL beginnen' })).toHaveAttribute('href', MOCK_SOURCE_ORIGINS.sql);
+
+  // Der AIPfad steht im Katalog als „In Ausbau" – das steht auch hier dabei.
+  await expect(einstieg.getByText('In Ausbau')).toHaveCount(2);
+  await expectNoSeriousA11yViolations(page, '/ empfohlene Reihenfolge');
+});
+
 test('Innere Ansichten: nur Hub und freigeschaltete MOCK-Quellen, nur lesende Plattformabrufe', async ({ page }) => {
   const seen = recordRequests(page);
   for (const route of ROUTES.slice(1)) await open(page, route);
