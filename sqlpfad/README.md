@@ -413,17 +413,14 @@ und Freitext, die Hinweisleiter, die Musterlösungen, die Projekte, der
 Fortschritt, die Wissenslandkarte, die Lernzeit und das gesamte Profil samt
 Passwortänderung und Kontolöschung.
 
-### Was nicht dazugehört
+### Eigene Abfragen ausführen
 
-**Eigene Abfragen ausführen.** `FEATURE_SQL_RUNNER` bleibt `false`, und die
-Anwendung sagt an jeder betroffenen Stelle, dass die Ausführung abgeschaltet
-ist. Sie erfindet kein Ergebnis.
-
-Auf Vercel ging das aus Prinzip nicht: Ein SQL Server lässt sich nicht in einer
-Serverless-Funktion betreiben ([docs/SQL-RUNNER.md](docs/SQL-RUNNER.md),
-Abschnitt 3). Railway betreibt dagegen dauerhaft laufende Dienste; Runner und
-SQL Server wären dort eigene Services. Das ist nicht Teil des Umzugs. Offen ist
-vor allem die Lizenzfrage aus demselben Dokument.
+Seit dem 19.11.2026 eingeschaltet: SQL Server Express und der Runner laufen als
+eigene Railway-Services im privaten Netz, `FEATURE_SQL_RUNNER=true`. Aufbau,
+Abweichungen und die Sicherheitsabnahme stehen in
+[docs/SQL-RUNNER.md](docs/SQL-RUNNER.md), Abschnitt 6. Antwortet der
+Übungsserver nicht, sagt die Anwendung das an jeder betroffenen Stelle. Sie
+erfindet kein Ergebnis.
 
 ### Einstellungen
 

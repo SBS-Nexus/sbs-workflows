@@ -58,11 +58,14 @@ export interface KonzeptZeile {
 
 export function Wissenslandkarte({
   konzepte,
+  bezeichnung = 'Wissenslandkarte',
 }: {
   konzepte: readonly KonzeptZeile[];
+  /** Name der Liste für Hilfstechnik; eine zweite Liste auf derselben Seite braucht einen eigenen. */
+  bezeichnung?: string;
 }): React.ReactElement {
   return (
-    <ul aria-label="Wissenslandkarte" className="mt-4 grid gap-3 sm:grid-cols-2">
+    <ul aria-label={bezeichnung} className="mt-4 grid gap-3 sm:grid-cols-2">
       {konzepte.map((konzept) => {
         const stil = DARSTELLUNG[konzept.kompetenz.stand];
         return (
