@@ -26,13 +26,17 @@ Die Dachleiste verwendet in allen Apps dieselben semantischen CSS-Tokens:
 Aktuelle Werte:
 
 ```text
-background     #111827
-foreground     #ffffff
-muted          #d1d5db
-subtle         #9ca3af
-hover          #c7d2fe
-border         #374151
+background     #0b0e0e   Learning-OS-Tinte
+foreground     #f1f1e9   Papierschrift
+muted          #d4dbd3
+subtle         #a2aba5
+hover          #d0fa83   Limette
+border         #26302b
 ```
+
+Seit dem 19.11.2026 (Roadmap E3) in der Farbfamilie des Learning OS
+(`lernpfade/src/styles/learning-os.css`). Vorher Grau `#111827` mit Indigo
+`#c7d2fe` beim Zeigen.
 
 Diese Werte dürfen nicht pro Fachpfad überschrieben werden. Die Fachfarbe
 beginnt unterhalb der Plattformleiste.
