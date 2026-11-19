@@ -66,9 +66,7 @@ export function AuthShell({
           <p className="text-display-sm font-black leading-[1.05] tracking-[-0.02em]">
             Deine erste
             <br />
-            <span className="bg-gradient-to-r from-[#7ee2b8] to-[#93c5fd] bg-clip-text text-transparent">
-              Zeile Code
-            </span>
+            <span className="los-akzentzeile">Zeile Code</span>
             <br />
             ist gleich hier.
           </p>

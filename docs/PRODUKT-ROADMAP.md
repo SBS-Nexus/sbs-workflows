@@ -88,6 +88,14 @@ Arbeitsspeicher. Je nach Railway-Tarif kostet das laufend Geld
 **Fertig, wenn:** die Drift-Prüfung das gemeinsame Paket in allen Apps
 bytegleich findet und eine Person zwischen den Apps keinen Stilbruch sieht.
 
+**Stand 19.11.2026:** Alle drei Apps stehen auf den Farben des Learning OS
+(Grundskala Papier bis Tinte, Plattformleiste, Hero auf Tinte mit einem
+Lichtkegel im Fachakzent, Akzentzeile in Serifen-Kursive). SQLPfad seit #86,
+PythonPfad und AIPfad im Folgeschritt; AIPfad behält Plex Mono als
+Auszeichnungsschrift und Bernstein (siehe `aipfad/DESIGN.md`). Offen: eine
+gemeinsame Schrift, ruhigere Modulfarben und die geteilte Token-Datei mit
+Drift-Prüfung.
+
 ### E4 · Ein Konto für alles (L2)
 
 - Zentrale Anmeldung (OpenID Connect) für Hub und alle Apps. Bestehende Konten

@@ -163,9 +163,7 @@ export default async function LandingPage({
               <br />
               Selbst schreiben.
               <br />
-              <span className="bg-gradient-to-r from-[#7ee2b8] via-[#93c5fd] to-[#f9a8d4] bg-clip-text text-transparent">
-                Wirklich anwenden.
-              </span>
+              <span className="los-akzentzeile">Wirklich anwenden.</span>
             </h1>
 
             <p className="mt-5 max-w-xl text-lg text-white/80">

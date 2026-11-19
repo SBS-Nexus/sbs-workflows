@@ -5,10 +5,11 @@ import { Icon } from '@/components/ui/icon';
 /**
  * Rahmen für Anmeldung und Registrierung.
  *
- * Bewusst KEIN Gradient-/Aurora-Verlauf auf der Nebenseite (das ist die
- * PythonPfad-Handschrift und genau das generische "AI-Hero"-Muster, das
- * DESIGN.md ausschließt). Stattdessen eine ruhige, papierfarbene Fläche mit
- * denselben Datenblatt-Listen wie der Rest der Seite.
+ * Bewusst KEIN Aurora-Verlauf (das generische "AI-Hero"-Muster, das
+ * DESIGN.md ausschließt). Die Formularseite steht auf Papier, die Seitenfläche
+ * auf der Tinte des Learning OS (Roadmap E3) – dieselbe Aufteilung wie bei
+ * SQLPfad und PythonPfad, mit denselben Datenblatt-Listen wie der Rest der
+ * Seite und Bernstein statt eines Farbverlaufs.
  */
 export function AuthShell({
   title,
@@ -28,7 +29,7 @@ export function AuthShell({
       <main id="hauptinhalt" className="flex flex-col justify-center px-4 py-12 sm:px-8 lg:px-16">
         <div className="mx-auto w-full max-w-md">
           <Link href="/" className="font-mono text-lg font-bold tracking-tight">
-            aipfad<span className="text-signal-500">_</span>
+            aipfad<span className="text-signal-600 dark:text-signal-300">_</span>
           </Link>
 
           <h1 className="mt-8 font-mono text-2xl font-bold tracking-tight">{title}</h1>
@@ -42,16 +43,21 @@ export function AuthShell({
 
       <aside
         aria-hidden="true"
-        className="hidden border-l border-[var(--border)] bg-ink-100 p-12 lg:flex lg:flex-col lg:justify-center dark:bg-ink-900"
+        className="gradient-hero los-dunkel hidden p-12 lg:flex lg:flex-col lg:justify-center"
       >
         <div className="max-w-sm">
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-signal-600 dark:text-signal-300">
+          <p className="font-mono text-3xl font-bold leading-[1.1] tracking-tight">
+            Mechanik statt
+            <br />
+            <span className="los-akzentzeile">Magie.</span>
+          </p>
+          <p className="mt-10 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-signal-300">
             Was dich erwartet
           </p>
           <ul className="mt-6 space-y-4">
             {punkte.map((punkt) => (
               <li key={punkt} className="flex items-start gap-3 text-[var(--fg)]">
-                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border border-signal-500 text-signal-600 dark:text-signal-300">
+                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border border-signal-300 text-signal-300">
                   <Icon name="check" size={14} />
                 </span>
                 <span>{punkt}</span>
