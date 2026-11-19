@@ -90,24 +90,31 @@
   /*
    * Modulfarben.
    *
-   * Eine Leitfarbe je Modul, dazu zwei für die Querbereiche. Sie sind so
-   * gewählt, dass sie sich zusätzlich zur Buntheit in der Helligkeit
-   * unterscheiden – dadurch bleiben sie auch bei Farbsehschwäche
-   * auseinanderzuhalten.
+   * Eine Leitfarbe je Modul, dazu zwei für die Querbereiche. Seit Roadmap E3
+   * gedeckte Töne aus der Farbwelt des Learning OS, in allen Fachanwendungen
+   * dieselben (Zuordnung in src/domain/design/module-theme.ts): Pflaume,
+   * Petrol, Ocker, Taubenblau, Beere für Projekte, Moos fürs Wiederholen.
+   * Vorher Violett, Orange und Magenta in voller Sättigung.
+   *
+   * Neben dem Farbton ist die Helligkeit gestaffelt (Pflaume am dunkelsten,
+   * Ocker am hellsten), damit die Module auch bei Farbsehschwäche
+   * auseinanderzuhalten sind. Allein trägt die Farbe trotzdem nie: Modulnummer
+   * und Name stehen immer dabei. Die Kontraste prüft
+   * tests/unit/farbkontrast.test.ts.
    */
-  --color-modul-0: #7c3aed;
-  --color-modul-1: #0d9488;
-  --color-modul-2: #ea580c;
-  --color-modul-3: #2563eb;
-  --color-projekt: #db2777;
-  --color-wiederholen: #4d7c0f;
+  --color-modul-0: #5e4378;
+  --color-modul-1: #1d6964;
+  --color-modul-2: #95551d;
+  --color-modul-3: #34568a;
+  --color-projekt: #843856;
+  --color-wiederholen: #4f6e2e;
 
-  --color-modul-0-soft: #f3e8ff;
-  --color-modul-1-soft: #ccfbf1;
-  --color-modul-2-soft: #ffedd5;
-  --color-modul-3-soft: #dbeafe;
-  --color-projekt-soft: #fce7f3;
-  --color-wiederholen-soft: #ecfccb;
+  --color-modul-0-soft: #ece5f1;
+  --color-modul-1-soft: #dbece8;
+  --color-modul-2-soft: #f6ebde;
+  --color-modul-3-soft: #e0e7f1;
+  --color-projekt-soft: #f2e0e7;
+  --color-wiederholen-soft: #e5edda;
 
   /*
    * Bewegungssystem.
@@ -220,18 +227,18 @@
   --shadow-tint: 220 60% 2%;
   /* Im dunklen Schema müssen die Modulfarben aufgehellt werden, sonst
    * verschwinden sie im Hintergrund. Die Flächen werden dagegen dunkel. */
-  --color-modul-0: #c4b5fd;
-  --color-modul-1: #5eead4;
-  --color-modul-2: #fdba74;
-  --color-modul-3: #93c5fd;
-  --color-projekt: #f9a8d4;
-  --color-wiederholen: #bef264;
-  --color-modul-0-soft: #2e1065;
-  --color-modul-1-soft: #042f2e;
-  --color-modul-2-soft: #431407;
-  --color-modul-3-soft: #172554;
-  --color-projekt-soft: #500724;
-  --color-wiederholen-soft: #1a2e05;
+  --color-modul-0: #bda8d4;
+  --color-modul-1: #9fd4cb;
+  --color-modul-2: #ecc6a2;
+  --color-modul-3: #a3b9de;
+  --color-projekt: #e4abc0;
+  --color-wiederholen: #bfd99d;
+  --color-modul-0-soft: #2a2134;
+  --color-modul-1-soft: #132f2c;
+  --color-modul-2-soft: #33241a;
+  --color-modul-3-soft: #1b2537;
+  --color-projekt-soft: #331c26;
+  --color-wiederholen-soft: #1f2b17;
   color-scheme: dark;
 }
 
@@ -258,18 +265,18 @@
     --alert-deep: var(--color-alert-700);
     --focus-ring: var(--color-accent-300);
     --shadow-tint: 220 60% 2%;
-    --color-modul-0: #c4b5fd;
-    --color-modul-1: #5eead4;
-    --color-modul-2: #fdba74;
-    --color-modul-3: #93c5fd;
-    --color-projekt: #f9a8d4;
-    --color-wiederholen: #bef264;
-    --color-modul-0-soft: #2e1065;
-    --color-modul-1-soft: #042f2e;
-    --color-modul-2-soft: #431407;
-    --color-modul-3-soft: #172554;
-    --color-projekt-soft: #500724;
-    --color-wiederholen-soft: #1a2e05;
+    --color-modul-0: #bda8d4;
+    --color-modul-1: #9fd4cb;
+    --color-modul-2: #ecc6a2;
+    --color-modul-3: #a3b9de;
+    --color-projekt: #e4abc0;
+    --color-wiederholen: #bfd99d;
+    --color-modul-0-soft: #2a2134;
+    --color-modul-1-soft: #132f2c;
+    --color-modul-2-soft: #33241a;
+    --color-modul-3-soft: #1b2537;
+    --color-projekt-soft: #331c26;
+    --color-wiederholen-soft: #1f2b17;
     color-scheme: dark;
   }
 }

@@ -70,6 +70,33 @@ Strukturell gleich, fachlich akzentuiert:
 - Fortschritt
 - Profil
 
+**Modul- und Bereichsfarben (Roadmap E3, 19.11.2026).** PythonPfad und SQLPfad
+verwenden dieselbe gedeckte Palette aus der Farbwelt des Learning OS; Modul 1
+hat in jedem Kurs dieselbe Farbe. Die Werte stehen je App in
+`src/app/globals.css`, die Zuordnung in `src/domain/design/module-theme.ts`
+(bytegleich in beiden Apps), die Prüfung in `tests/unit/farbkontrast.test.ts`.
+
+| Rolle       | Name       | hell voll / weich     | dunkel voll / weich   |
+| ----------- | ---------- | --------------------- | --------------------- |
+| Modul 1     | Pflaume    | `#5e4378` / `#ece5f1` | `#bda8d4` / `#2a2134` |
+| Modul 2     | Petrol     | `#1d6964` / `#dbece8` | `#9fd4cb` / `#132f2c` |
+| Modul 3     | Ocker      | `#95551d` / `#f6ebde` | `#ecc6a2` / `#33241a` |
+| Modul 4     | Taubenblau | `#34568a` / `#e0e7f1` | `#a3b9de` / `#1b2537` |
+| Projekte    | Beere      | `#843856` / `#f2e0e7` | `#e4abc0` / `#331c26` |
+| Wiederholen | Moos       | `#4f6e2e` / `#e5edda` | `#bfd99d` / `#1f2b17` |
+
+Regeln:
+
+- Modulfarben stehen nur für Module und App-Bereiche. Ablaufschritte,
+  Kennzahlen ohne Modulbezug und Schmuck nutzen den Fachakzent.
+- Kopfbereiche stehen auf der Tinte des Learning OS. Die Bereichsfarbe kommt
+  nur als ein Lichtkegel dazu, nie als Fläche unter weißer Schrift.
+- Weiße Schrift auf der vollen hellen Farbe, die Farbe als Schrift auf Papier,
+  Karte und eigener weicher Fläche: jeweils mindestens 4,5 : 1. Im dunklen
+  Schema gilt dasselbe für die aufgehellte Farbe auf Tinte und dunkler Karte.
+- Die vier Modulfarben sind auch in der Helligkeit gestaffelt. Farbe allein
+  trägt trotzdem nie: Modulnummer und Name stehen immer dabei.
+
 ### Ebene C — Fachwerkzeug
 
 Bewusst unterschiedlich:

@@ -41,7 +41,7 @@ export function AuthShell({
           >
             <span
               aria-hidden="true"
-              className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--color-modul-3)] to-[var(--color-modul-0)] text-white transition-transform group-hover:scale-105"
+              className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--color-modul-3)] to-[var(--color-modul-0)] text-[var(--text-inverse)] transition-transform group-hover:scale-105"
             >
               <Icon name="schritte" size={20} />
             </span>
