@@ -42,23 +42,24 @@
    * jede Farbe der Anwendung auf einer grauen Fläche, und die Seiten wirkten
    * wie ein unverputztes Haus: Der Schmuck war da, der Untergrund nicht.
    *
-   * Jetzt trägt die ganze Skala einen Indigoanteil. Der Unterschied ist im
-   * einzelnen Farbwert kaum zu benennen und in der Fläche sofort zu sehen –
-   * die hellen Töne wirken wie getöntes Papier statt wie Bildschirmweiß, die
-   * dunklen wie Tinte statt wie Ruß. Für eine Anwendung, die man abends nach
-   * der Arbeit freiwillig öffnen soll, ist das kein Beiwerk.
+   * Jetzt trägt die ganze Skala den Grünanteil des Learning OS, der
+   * gemeinsamen Gestaltung der Lernpfade (lernpfade/src/styles/learning-os.css,
+   * Roadmap E3): Papier #f2f2e9 statt Bildschirmweiß, Tinte #0b0e0e statt Ruß,
+   * Moos und Graugrün für Nebentext und Ränder. Damit gehören Hub, SQLPfad und
+   * PythonPfad sichtbar zu einer Plattform; Blau bleibt der Fachakzent. Die
+   * Kontraste prüft tests/unit/farbkontrast.test.ts.
    */
-  --color-ink-50: #f4f2fb;
-  --color-ink-100: #e9e5f6;
-  --color-ink-200: #ded9f0;
-  --color-ink-300: #bdb5dd;
-  --color-ink-400: #8981ae;
-  --color-ink-500: #565080;
-  --color-ink-600: #423c66;
-  --color-ink-700: #332e52;
-  --color-ink-800: #2a2545;
-  --color-ink-900: #211d47;
-  --color-ink-950: #12102b;
+  --color-ink-50: #f2f2e9;
+  --color-ink-100: #e8ebdf;
+  --color-ink-200: #cdd5c8;
+  --color-ink-300: #a9b5ab;
+  --color-ink-400: #7f8f84;
+  --color-ink-500: #4b5a51;
+  --color-ink-600: #3f5746;
+  --color-ink-700: #2c3a31;
+  --color-ink-800: #1f2a24;
+  --color-ink-900: #151b19;
+  --color-ink-950: #0b0e0e;
 
   --color-accent-50: #eef4ff;
   --color-accent-100: #dbe6fe;
@@ -156,7 +157,7 @@
   --lp-platform-hover: #d0fa83;
   --lp-platform-border: #26302b;
   --surface: var(--color-ink-50);
-  --surface-raised: #ffffff;
+  --surface-raised: #fbfbf6;
   --surface-sunken: var(--color-ink-100);
   --border: var(--color-ink-200);
   --border-strong: var(--color-ink-300);
@@ -177,7 +178,7 @@
   --alert-deep: var(--color-alert-900);
   --focus-ring: var(--color-accent-600);
   /* Grundton aller Schatten. Nur diese Zeile unterscheidet sich je Farbschema. */
-  --shadow-tint: 217 33% 11%;
+  --shadow-tint: 150 18% 7%;
   color-scheme: light;
 }
 
@@ -198,7 +199,7 @@
 :root.dark {
   --surface: var(--color-ink-950);
   --surface-raised: var(--color-ink-900);
-  --surface-sunken: #070a10;
+  --surface-sunken: #060807;
   --border: var(--color-ink-700);
   --border-strong: var(--color-ink-600);
   --text: var(--color-ink-50);
@@ -238,7 +239,7 @@
   :root:not([data-theme='light']) {
     --surface: var(--color-ink-950);
     --surface-raised: var(--color-ink-900);
-    --surface-sunken: #070a10;
+    --surface-sunken: #060807;
     --border: var(--color-ink-700);
     --border-strong: var(--color-ink-600);
     --text: var(--color-ink-50);
@@ -328,21 +329,22 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
+  /*
+   * Learning OS (Roadmap E3): ein Hauch Leitfarbe oben links und eine Spur
+   * Limette oben rechts, wie die Signalfarben des Hubs. Drei Modulfarben im
+   * Untergrund gehörten nicht zu einer Plattform, deren übrige Teile auf
+   * Papier und Tinte stehen.
+   */
   background-image:
     radial-gradient(
       ellipse 80% 55% at 12% 0%,
-      color-mix(in oklab, var(--color-modul-0) 13%, transparent),
+      color-mix(in oklab, var(--color-accent-500) 10%, transparent),
       transparent 70%
     ),
     radial-gradient(
-      ellipse 70% 50% at 92% 6%,
-      color-mix(in oklab, var(--color-modul-1) 12%, transparent),
+      ellipse 60% 45% at 92% 4%,
+      color-mix(in oklab, #d0fa83 14%, transparent),
       transparent 68%
-    ),
-    radial-gradient(
-      ellipse 90% 45% at 50% 100%,
-      color-mix(in oklab, var(--color-modul-3) 10%, transparent),
-      transparent 72%
     );
 }
 
@@ -709,15 +711,35 @@ body[data-overlay-open='true'] {
  * Jetzt: eine tiefe Tintenfläche als Grund, ein einziger Lichtkegel in der
  * Leitfarbe. Der Verlauf trägt weiterhin große weiße Schrift, aber er will
  * nicht mehr selbst die Hauptsache sein.
+ *
+ * Der Lichtkegel steht in Blau, der Leitfarbe von PythonPfad, und nicht mehr
+ * in der Violett-Farbe des ersten Moduls: Bei SQLPfad steht an derselben
+ * Stelle Petrol, bei AIPfad Bernstein. Die Fläche darunter ist die Tinte des
+ * Learning OS, dieselbe wie im Hub.
  */
 @utility gradient-hero {
   background-image:
     radial-gradient(
       at 14% 6%,
-      color-mix(in oklab, var(--color-modul-0) 62%, transparent) 0px,
+      color-mix(in oklab, var(--color-accent-500) 58%, transparent) 0px,
       transparent 58%
     ),
-    linear-gradient(165deg, #16133a 0%, #221c56 55%, #2b2168 100%);
+    linear-gradient(165deg, #0b0e0e 0%, #121b17 55%, #151b19 100%);
+}
+
+/*
+ * Akzentzeile der großen Überschriften, wie im Learning OS des Hubs: Serifen-
+ * Kursive in Minze bis Limette statt eines Regenbogenverlaufs.
+ */
+@utility los-akzentzeile {
+  font-family: 'Iowan Old Style', 'Baskerville', 'Palatino Linotype', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  background-image: linear-gradient(100deg, #b4f5d2 0%, #d0fa83 100%);
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
 }
 
 @utility gradient-text {

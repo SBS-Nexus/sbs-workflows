@@ -26,7 +26,10 @@ export default async function RegisterPage(): Promise<React.ReactElement> {
       footer={
         <>
           Schon ein Konto?{' '}
-          <Link href="/anmelden" className="font-bold text-signal-500 underline underline-offset-4">
+          <Link
+            href="/anmelden"
+            className="font-bold text-signal-600 underline underline-offset-4 dark:text-signal-300"
+          >
             Hier anmelden
           </Link>
         </>

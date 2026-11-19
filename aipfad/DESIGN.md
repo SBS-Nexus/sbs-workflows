@@ -4,9 +4,11 @@
 
 AIPfad teaches AI literacy precisely — how tokens, context windows, prompts, and terminals actually work — to a DACH professional audience (developers, product people, governance/compliance staff, technical founders) who are often skeptical of AI-hype marketing. The landing page's one job: convince that reader in the first screen that this is a precision instrument, not a sales page, and get them into the placement or the path.
 
-## Why not the sibling look
+## Shared ground, own voice
 
-PythonPfad and SQLPfad share an explicitly "lively and welcoming" identity: indigo-tinted neutrals, a bright blue accent, a rainbow of per-module colors, IBM Plex Sans carrying both headings and body. That's the right voice for a beginner-friendly coding course. AIPfad's brief calls for something "more technical, precise, adult" — the same type family (continuity within the product family) but a different point of view.
+Since roadmap E3 (decided 19.11.2026, see `docs/PRODUKT-ROADMAP.md` in the repository root) the hub, PythonPfad, SQLPfad and AIPfad stand on one design: the **Learning OS** of the hub (`lernpfade/src/styles/learning-os.css`). That means one neutral scale (paper `#f2f2e9` to ink `#0b0e0e`, moss and grey-green for secondary text and rules), a dark ink band at the top of the landing page and beside the sign-in form, and one serif italic accent line in mint to lime inside the hero headline. Before, AIPfad had a warm brownish paper scale and the siblings an indigo one; side by side they looked like three neighbouring products rather than one platform.
+
+What stays AIPfad's own is everything that carries the point of view "more technical, precise, adult": IBM Plex Mono as the display face, amber `signal` as the only action colour (and the colour of the single light cone in the hero band — petrol at SQLPfad, blue at PythonPfad), `wire` for dependencies only, datasheet lists instead of card grids, and the working tokenizer as the hero's thesis.
 
 ## Token system
 
@@ -14,8 +16,8 @@ PythonPfad and SQLPfad share an explicitly "lively and welcoming" identity: indi
 
 | Token                                       | Hex                               | Role                                                                                                                                                                                                                  |
 | ------------------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ink-50`                                    | `#f6f4ef`                         | Page background — warm paper, not screen-white, no indigo tint                                                                                                                                                        |
-| `ink-900`                                   | `#1d1a15`                         | Primary text — ink, not near-black-with-a-tint                                                                                                                                                                        |
+| `ink-50`                                    | `#f2f2e9`                         | Page background — Learning OS paper, the same value as in the hub and the sibling apps; not screen-white                                                                                                              |
+| `ink-900`                                   | `#151b19`                         | Primary text and raised dark surfaces — Learning OS ink; `ink-950` `#0b0e0e` is the hero band and the dark-mode page                                                                                                  |
 | `signal-500`                                | `#b45309`                         | The one brand accent — burnt amber/ochre. Buttons, links, active states, highlighter-style emphasis. Chosen specifically to not be the purple/blue "AI gradient" default and to differ from the siblings' blue accent |
 | `wire-500`                                  | `#24618f`                         | Reserved _exclusively_ for the Context Graph's connective lines and prerequisite indicators — one color, one job, so a "wire" always means a dependency relationship, nowhere else                                    |
 | `success-500` / `caution-500` / `alert-500` | `#16794a` / `#8a6d00` / `#a32419` | Semantic feedback (passed / needs review / dangerous or failed) — deliberately distinct hues from `signal` so brand-accent and grading-feedback are never visually confused                                           |
@@ -40,8 +42,8 @@ Dark mode inverts the ink scale (paper → near-black `ink-950`, ink → `ink-50
 
 ## Self-critique against generic AI-design defaults
 
-- Not cream-background + high-contrast-serif + terracotta: no serif anywhere, and the display face is mono, not a display serif.
-- Not near-black + single neon accent: light-mode-first paper background; dark mode is a controlled inversion, not a separate "hacker" identity; no glow, no neon saturation.
+- Not cream-background + high-contrast-serif + terracotta: the display face is mono, not a display serif. The one serif is the Learning OS accent line — a single italic phrase per hero headline, shared by the whole platform, never in body text, navigation or controls.
+- Not near-black + single neon accent: the page is light-mode-first paper; only the hero band and the sign-in side panel sit on ink, with one soft amber light cone and no glow on text. Dark mode is a controlled inversion, not a separate "hacker" identity. Mint and lime appear only inside the accent line.
 - Not broadsheet/newspaper hairlines-and-zero-radius: hairline rules are used, but the display type is mono (not a masthead serif), radius is small-but-present, and the motif is "engineering notebook / datasheet," not newsprint columns.
 - No purple/blue AI gradient, no glassmorphism, no bento grid, no rounded-icon-tile-per-heading, no sparkle iconography for "AI," no card-for-everything, no stock robot/brain art, no decorative neural-network background.
 

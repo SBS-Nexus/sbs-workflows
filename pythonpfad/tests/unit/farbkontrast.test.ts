@@ -34,7 +34,7 @@ function tonwert(stufe: number): string {
   return treffer[1];
 }
 
-const KARTE_HELL = '#ffffff';
+const KARTE_HELL = '#fbfbf6'; // --surface-raised im hellen Schema (Learning-OS-Papier)
 
 describe('Farbkontraste, helles Schema', () => {
   const leinwand = tonwert(50);

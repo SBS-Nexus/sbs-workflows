@@ -7,11 +7,11 @@
  * AIPfad – Gestaltungsgrundlage
  *
  * Leitgedanken (siehe DESIGN.md für die vollständige Begründung):
- *  - Technisch, präzise, erwachsen statt verspielt. PythonPfad und SQLPfad
- *    sind "lebendig und zugewandt" mit indigo-getönten Grautönen und
- *    Modulfarben je Kurs; AIPfad braucht eine eigene, ruhigere Stimme in
- *    derselben Produktfamilie – näher an einem technischen Datenblatt als an
- *    einem Lernspiel.
+ *  - Technisch, präzise, erwachsen statt verspielt. Alle drei Fachanwendungen
+ *    stehen seit Roadmap E3 auf dem Learning OS des Hubs (Papier, Tinte, Moos,
+ *    Minze und Limette als Signal). AIPfad behält darin eine eigene, ruhigere
+ *    Stimme – näher an einem technischen Datenblatt als an einem Lernspiel –
+ *    über die Schreibmaschinenschrift und Bernstein als Handlungsfarbe.
  *  - Die Auszeichnungsschrift ist bewusst die Schreibmaschinenschrift
  *    (IBM Plex Mono), nicht die Grundschrift. Der Lerninhalt selbst ist
  *    monospace-nativ (Tokens, Terminalbefehle, Nachrichtenrollen, JSON) – die
@@ -31,21 +31,24 @@
   --font-mono: var(--font-plex-mono), ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
   /*
-   * Grundskala: warmes Papier bis Tinte. Bewusst kein Indigoanteil (das ist
-   * die Handschrift von PythonPfad/SQLPfad) – ein leicht warmes, entsättigtes
-   * Grau, wie bedrucktes Papier statt Bildschirmweiß.
+   * Grundskala: Papier bis Tinte des Learning OS, dieselben Werte wie im Hub,
+   * in SQLPfad und in PythonPfad (lernpfade/src/styles/learning-os.css,
+   * Roadmap E3). Vorher stand hier ein warmes, bräunliches Grau – AIPfad sah
+   * damit aus wie ein Nachbarprodukt statt wie ein Teil derselben Plattform.
+   * Die eigene Stimme tragen jetzt Schrift und Bernstein, nicht der
+   * Untergrund.
    */
-  --color-ink-50: #f6f4ef;
-  --color-ink-100: #ede9e0;
-  --color-ink-200: #ddd7c9;
-  --color-ink-300: #c2baa5;
-  --color-ink-400: #9c9078;
-  --color-ink-500: #726657;
-  --color-ink-600: #574e42;
-  --color-ink-700: #423b33;
-  --color-ink-800: #2c2721;
-  --color-ink-900: #1d1a15;
-  --color-ink-950: #131110;
+  --color-ink-50: #f2f2e9;
+  --color-ink-100: #e8ebdf;
+  --color-ink-200: #cdd5c8;
+  --color-ink-300: #a9b5ab;
+  --color-ink-400: #7f8f84;
+  --color-ink-500: #4b5a51;
+  --color-ink-600: #3f5746;
+  --color-ink-700: #2c3a31;
+  --color-ink-800: #1f2a24;
+  --color-ink-900: #151b19;
+  --color-ink-950: #0b0e0e;
 
   /* Signal: Bernstein/Ocker – einzige Markenfarbe für Handlungen. */
   --color-signal-100: #fdecd2;
@@ -92,6 +95,39 @@
 }
 
 /*
+ * Kopfbereich der Startseite und Seitenfläche der Anmeldung: die Tinte des
+ * Learning OS mit einem einzigen Lichtkegel in Bernstein. Bei SQLPfad steht an
+ * derselben Stelle Petrol, bei PythonPfad Blau – die eine Stelle, an der sich
+ * die Fachanwendungen vor dem ersten gelesenen Wort unterscheiden. Der Kegel
+ * trägt nie Fließtext; die Schrift darauf prüft der Barrierefreiheitstest.
+ */
+@utility gradient-hero {
+  background-image:
+    radial-gradient(
+      at 12% 0%,
+      color-mix(in oklab, var(--color-signal-500) 42%, transparent) 0px,
+      transparent 55%
+    ),
+    linear-gradient(165deg, #0b0e0e 0%, #121b17 55%, #151b19 100%);
+}
+
+/*
+ * Akzentzeile der großen Überschriften, wie im Learning OS des Hubs: Serifen-
+ * Kursive in Minze bis Limette. Neben der Schreibmaschinenschrift ist sie
+ * bewusst ein Bruch – die eine Zeile, die nicht nach Datenblatt klingt.
+ */
+@utility los-akzentzeile {
+  font-family: 'Iowan Old Style', 'Baskerville', 'Palatino Linotype', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  background-image: linear-gradient(100deg, #b4f5d2 0%, #d0fa83 100%);
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/*
  * Alles Folgende steht bewusst in `@layer base`/`@layer components` statt
  * unlayered im Stylesheet: `@import "tailwindcss"` registriert die Layer-
  * Reihenfolge `theme, base, components, utilities`, und nach der
@@ -112,7 +148,7 @@
     --lp-platform-border: #26302b;
     color-scheme: light;
     --bg: var(--color-ink-50);
-    --bg-raised: #ffffff;
+    --bg-raised: #fbfbf6;
     --fg: var(--color-ink-900);
     --fg-muted: var(--color-ink-600);
     --border: var(--color-ink-200);
@@ -184,6 +220,24 @@
 }
 
 @layer components {
+  /*
+   * Dunkle Fläche in beiden Farbschemata. Die Bausteine darin lesen ihre
+   * Farben aus denselben Variablen wie überall; hier bekommen sie die Werte
+   * des dunklen Schemas, damit Tokenizer, Bildunterschrift und Ränder auf der
+   * Tinte lesbar bleiben, auch wenn die Seite selbst hell ist.
+   */
+  .los-dunkel {
+    color-scheme: dark;
+    --bg: #0b0e0e;
+    --bg-raised: #151b19;
+    --fg: #f1f1e9;
+    --fg-muted: #c9d1ca;
+    --border: #2c3a31;
+    --border-strong: #3f5746;
+    --focus-ring: var(--color-wire-300);
+    color: var(--fg);
+  }
+
   /* Skip-Link: unsichtbar bis zum Fokus, dann prominent. */
   .skip-link {
     position: absolute;

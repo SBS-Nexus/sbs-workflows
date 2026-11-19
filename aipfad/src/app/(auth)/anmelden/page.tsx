@@ -25,7 +25,7 @@ export default async function LoginPage(): Promise<React.ReactElement> {
           Noch kein Konto?{' '}
           <Link
             href="/registrieren"
-            className="font-bold text-signal-500 underline underline-offset-4"
+            className="font-bold text-signal-600 underline underline-offset-4 dark:text-signal-300"
           >
             Konto anlegen
           </Link>
