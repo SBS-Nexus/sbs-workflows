@@ -13,7 +13,7 @@ import { formatDateTime, originLabel, plural } from './format';
 import type { VocabActions } from './vocab-app';
 import { VocabImport } from './vocab-import';
 import { FieldError, useFocusOnMount } from './vocab-fields';
-import { Button, EmptyState } from '@/components/ui/primitives';
+import { Button, ButtonLink, EmptyState } from '@/components/ui/primitives';
 import { OrbitMark } from '@/components/learning-os/orbit';
 
 type DirectionChoice = 'en-de' | 'de-en' | 'both';
@@ -196,6 +196,11 @@ export function VocabOverview({
             size="compact"
             title="Noch keine Decks"
             description="Lege unten ein eigenes Deck an, übernimm ein Starterdeck oder importiere eine Datei."
+            action={
+              <ButtonLink href="#starter-title" variant="secondary" size="sm">
+                Zu den Starterdecks
+              </ButtonLink>
+            }
           />
         ) : (
           <ul className="vocab-deck-list">
@@ -327,6 +332,11 @@ function SessionSetup({ store, actions }: { store: VocabStore; actions: VocabAct
           size="compact"
           title="Noch nichts abzufragen"
           description="Sobald ein Deck Karten enthält, kannst du hier eine Session starten."
+          action={
+            <ButtonLink href="#decks-title" variant="secondary" size="sm">
+              Zu deinen Decks
+            </ButtonLink>
+          }
         />
       </section>
     );

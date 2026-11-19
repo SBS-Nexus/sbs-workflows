@@ -5,7 +5,7 @@ import { prisma } from '@/server/db/prisma';
 import { getPublicExercise, getRevealedHints } from '@/server/services/exercise-service';
 import { veroeffentlichteAufgabe } from '@/server/content/publication';
 import { AppHeader } from '@/components/app/app-header';
-import { EmptyState, SectionHeading } from '@/components/ui/primitives';
+import { ButtonLink, EmptyState, SectionHeading } from '@/components/ui/primitives';
 import { ExerciseRunner } from '@/components/exercise/exercise-runner';
 
 export const metadata: Metadata = {
@@ -63,7 +63,8 @@ export default async function WiederholenPage(): Promise<React.ReactElement> {
           <EmptyState
             kind="done"
             title="Heute nichts fällig"
-            description="Das ist völlig in Ordnung — komm zurück, sobald eine Wiederholung ansteht."
+            description="Das ist völlig in Ordnung — komm zurück, sobald eine Wiederholung ansteht. Bis dahin geht es im Lernpfad weiter."
+            action={<ButtonLink href="/pfad">Weiterlernen</ButtonLink>}
           />
         ) : (
           <ol className="space-y-8">

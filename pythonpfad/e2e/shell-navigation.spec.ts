@@ -5,6 +5,7 @@ import { completeOnboarding, freshAccount, register } from './helpers';
 import {
   beschriftungen,
   erwarteKeineSchwerenAxeBefunde,
+  erwarteAnderePfade,
   erwartePlattformleiste,
   erwarteSichtbarenFokus,
   erwarteWirklichSichtbar,
@@ -85,6 +86,7 @@ test('Vertrag auf jeder Breite: gleiche Bereiche, gleiche Reihenfolge, alles err
       );
 
       await erwartePlattformleiste(page);
+      await erwarteAnderePfade(page, 'python');
 
       // Sitzung und Zusatzziele: über das Menü, im Bild, nicht abgeschnitten.
       const knopf = menueKnopf(page);

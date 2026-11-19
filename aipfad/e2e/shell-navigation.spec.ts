@@ -6,6 +6,7 @@ import {
   erwarteBrauchbarenFokus,
   erwarteKeineSchwerenAxeBefunde,
   erwarteMenueImBild,
+  erwarteAnderePfade,
   erwartePlattformleiste,
   erwarteSichtbarenFokus,
   erwarteWirklichSichtbar,
@@ -74,6 +75,7 @@ test('Vertrag auf jeder Breite: gleiche Bereiche, „Mehr" und Abmelden erreichb
         'page',
       );
       await erwartePlattformleiste(page);
+      await erwarteAnderePfade(page, 'ai');
 
       const knopf = mehr(page);
       await expect(knopf).toHaveCount(1);

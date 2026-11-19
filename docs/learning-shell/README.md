@@ -128,3 +128,12 @@ ungültig) steht dort eine benannte Navigation „Lernpfade-Plattform“ mit
 benannt, damit sie von den App-Zielen „Wiederholen“/„Fortschritt“
 unterscheidbar bleibt. Ohne Angabe gibt es keine Verweise und keine
 erfundene Adresse.
+
+Seit Roadmap E1 stehen neben dem eigenen App-Namen die **anderen Fach-Apps**
+als eigene Navigation „Andere Lernpfade“ (`otherPaths(app, urls)`), aus
+`NEXT_PUBLIC_PYTHONPFAD_URL`, `NEXT_PUBLIC_SQLPFAD_URL` und
+`NEXT_PUBLIC_AIPFAD_URL` – dieselben Namen wie im Hub, gleich bereinigt wie die
+Hub-Adresse. Die eigene App wird nie verlinkt, fehlende Adressen erscheinen
+nicht. Sichtbar ab 640 px; darunter führt „Alle Pfade“ zum Hub, wo alle Pfade
+und die empfohlene Reihenfolge stehen. Die E2E-Hilfe `erwarteAnderePfade`
+prüft beides.

@@ -56,8 +56,14 @@ einen nächsten Schritt hat und die Reihenfolge auf `/` steht.
 **Stand 19.11.2026:** Die Reihenfolge steht auf `/` als eigener Abschnitt
 „Womit du anfängst" (`03 / DEIN EINSTIEG`): Weg A Python → SQL → AI mit Git &
 GitHub ab der ersten Woche, Weg B SQL → AI, je mit Begründung pro Schritt und
-Startlink aus dem Katalog. Offen: Platzhaltertexte und leere Zustände in allen
-Apps durchgehen, Rückverweise der Apps auf die anderen Pfade.
+Startlink aus dem Katalog. Danach die übrigen Punkte: Jeder leere Zustand in
+den vier Apps hat einen nächsten Schritt mit Link (Organisation, Üben,
+Projekte, Wiederholen, Fortschritt, Nachschlagen, VokabelPfad); die
+Dachleiste verweist neben dem Hub auf die anderen Fach-Apps („Andere
+Lernpfade“). Platzhaltertexte der Art „Hier siehst du künftig …“ kommen nicht
+mehr vor; die Inhaltsprüfung der Apps lehnt sie in veröffentlichten Lektionen
+ab. Damit ist E1 im Code erledigt; die Abnahme auf den Live-Domains folgt nach
+dem Ausrollen.
 
 ### E2 · SQL wirklich ausführen (L1)
 

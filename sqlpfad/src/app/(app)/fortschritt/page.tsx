@@ -155,6 +155,7 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
           <EmptyState
             title="Noch keine Lektionen eingespielt"
             description="Auf dieser Installation sind noch keine Inhalte vorhanden. Sobald sie eingespielt sind, steht hier dein Lernpfad."
+            action={<ButtonLink href="/lernen">Zum Lernpfad</ButtonLink>}
           />
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-3">

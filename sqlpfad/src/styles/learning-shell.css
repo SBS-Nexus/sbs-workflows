@@ -232,6 +232,17 @@
   color: var(--lp-platform-hover);
 }
 
+/*
+ * Andere Lernpfade (Roadmap E1): neben dem eigenen Namen, durch einen Strich
+ * abgesetzt. Kein `display` hier – ein- und ausgeblendet wird über die
+ * Tailwind-Klassen der Leiste, siehe oben.
+ */
+.lp-shell-bar-paths {
+  margin-inline-start: var(--lp-shell-space-1);
+  padding-inline-start: var(--lp-shell-space-1);
+  border-inline-start: 1px solid var(--lp-platform-border);
+}
+
 @media (min-width: 640px) {
   .lp-shell-bar-inner {
     padding-inline: 1.5rem;
