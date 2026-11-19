@@ -15,24 +15,13 @@
  *    der Lernansichten (`.vocab-*`, `.review-*`, `.live-*`, `.progress-*`).
  */
 
+/*
+ * Die Farben des Learning OS (`--los-ink`, `--los-paper`, `--los-lime` …)
+ * stehen seit Roadmap E3 im gemeinsamen Vertrag `learning-tokens.css`
+ * (kanonisch docs/learning-tokens/), den auch PythonPfad, SQLPfad und AIPfad
+ * einbinden. Hier bleiben Schrift und Maße des Hubs.
+ */
 :root {
-  --los-ink: #0b0e0e;
-  --los-ink-2: #121b17;
-  --los-charcoal: #151b19;
-  --los-cream: #f1f1e9;
-  --los-paper: #f2f2e9;
-  --los-paper-2: #e8ebdf;
-  --los-surface: #fbfbf6;
-  --los-lime: #d0fa83;
-  --los-mint: #b4f5d2;
-  --los-text: #141c18;
-  --los-text-muted: #4b5a51;
-  --los-moss: #3f5746;
-  --los-muted: #a2aba5;
-  --los-line: rgb(229 241 229 / 0.19);
-  --los-line-paper: #cdd5c8;
-  --los-line-paper-strong: #8a998d;
-  --los-focus-paper: #1f3b2a;
   --los-sans: "Inter", "Helvetica Neue", Arial, ui-sans-serif, system-ui, sans-serif;
   --los-serif: "Iowan Old Style", "Baskerville", "Palatino Linotype", Georgia, serif;
   --los-gutter: clamp(16px, 5vw, 72px);
@@ -53,7 +42,6 @@
  * ========================================================================= */
 
 .los-root {
-  --los-line: rgb(229 241 229 / 0.19);
   min-height: 100vh;
   color: var(--los-cream);
   background: var(--los-ink);

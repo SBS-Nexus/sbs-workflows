@@ -34,9 +34,10 @@ hover          #d0fa83   Limette
 border         #26302b
 ```
 
-Seit dem 19.11.2026 (Roadmap E3) in der Farbfamilie des Learning OS
-(`lernpfade/src/styles/learning-os.css`). Vorher Grau `#111827` mit Indigo
-`#c7d2fe` beim Zeigen.
+Seit dem 19.11.2026 (Roadmap E3) in der Farbfamilie des Learning OS. Vorher
+Grau `#111827` mit Indigo `#c7d2fe` beim Zeigen. Die Werte stehen im
+gemeinsamen Token-Vertrag `docs/learning-tokens/learning-tokens.css`; keine App
+notiert sie selbst.
 
 Diese Werte dürfen nicht pro Fachpfad überschrieben werden. Die Fachfarbe
 beginnt unterhalb der Plattformleiste.
@@ -73,7 +74,9 @@ Strukturell gleich, fachlich akzentuiert:
 **Modul- und Bereichsfarben (Roadmap E3, 19.11.2026).** PythonPfad und SQLPfad
 verwenden dieselbe gedeckte Palette aus der Farbwelt des Learning OS; Modul 1
 hat in jedem Kurs dieselbe Farbe. Die Werte stehen je App in
-`src/app/globals.css`, die Zuordnung in `src/domain/design/module-theme.ts`
+`docs/learning-tokens/learning-tokens.css` (`--los-modul-*`, in jeder App als
+bytegleiche Kopie), `src/app/globals.css` verweist darauf, die Zuordnung steht
+in `src/domain/design/module-theme.ts`
 (bytegleich in beiden Apps), die Prüfung in `tests/unit/farbkontrast.test.ts`.
 
 | Rolle       | Name       | hell voll / weich     | dunkel voll / weich   |
@@ -327,7 +330,7 @@ Ein echtes `packages/learning-ui` wird erst eingeführt, wenn:
 4. kein Fachpfad unnötig sein Bundle vergrößert.
 
 Bis dahin gilt: gemeinsame Semantik, kleine bewusst synchronisierte
-Plattformkomponenten, automatisierte Regressionen. Umgesetzt in drei
+Plattformkomponenten, automatisierte Regressionen. Umgesetzt in vier
 Verträgen mit je kanonischen Dateien, bytegleichen Kopien und eigenem
 Drift-Check in der CI:
 
@@ -336,6 +339,7 @@ Drift-Check in der CI:
 | Shell und Navigation (LP-03A)    | `docs/learning-shell/`     | `node scripts/check-learning-shell.mjs`    |
 | Badges und Callouts (LP-03B)     | `docs/learning-feedback/`  | `node scripts/check-learning-feedback.mjs` |
 | Button, Card, ProgressBar, Empty-/ErrorState (LP-03C) | `docs/learning-components/` | `node scripts/check-learning-components.mjs` |
+| Learning-OS-Tokens: Grundskala, Signalfarben, Dachleiste, Modulfarben (E3) | `docs/learning-tokens/` | `node scripts/check-learning-tokens.mjs` |
 
 ## 10. Review-Regel für neue UI
 

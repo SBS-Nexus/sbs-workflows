@@ -94,9 +94,10 @@ Lichtkegel im Fachakzent, Akzentzeile in Serifen-Kursive). SQLPfad seit #86,
 PythonPfad und AIPfad im Folgeschritt; AIPfad behält Plex Mono als
 Auszeichnungsschrift und Bernstein (siehe `aipfad/DESIGN.md`). Danach die
 gedeckte, plattformweite Modulpalette (`docs/LEARNING-DESIGN-SYSTEM.md`,
-Ebene B). Offen: eine gemeinsame Schrift und die geteilte Token-Datei mit
-Drift-Prüfung, die auch die Flächen der gemeinsamen Komponenten im dunklen
-Schema auf die Tinte bringt (sie tragen dort noch ein Blaugrau).
+Ebene B). Danach der Token-Vertrag `docs/learning-tokens/`: eine bytegleiche
+Datei in Hub und allen Apps, auf die Apps, Shell, Komponenten und Statusvertrag
+verweisen; die gemeinsamen Komponenten stehen damit auch im dunklen Schema auf
+der Tinte statt auf Blaugrau. Offen: eine gemeinsame Schrift.
 
 ### E4 · Ein Konto für alles (L2)
 

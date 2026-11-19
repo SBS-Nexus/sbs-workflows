@@ -6,8 +6,12 @@
  *  1. Jede App führt bytegleiche Kopien der kanonischen Dateien aus
  *     `docs/learning-shell/` (Tokens, Navigationsvertrag, Dachleiste, Menü).
  *  2. Jede App bindet das Shell-CSS in `src/app/globals.css` ein.
- *  3. Die sechs Dachleistenfarben (`--lp-platform-*`) sind in allen Apps
- *     gleich und entsprechen den kanonischen Werten.
+ *  3. Die sechs Dachleistenfarben (`--lp-platform-*`) stehen mit den
+ *     kanonischen Werten im gemeinsamen Token-Vertrag
+ *     (`docs/learning-tokens/learning-tokens.css`, seit Roadmap E3) und
+ *     keine App notiert sie in `src/app/globals.css` noch einmal selbst.
+ *     Dass jede App die Token-Datei bytegleich einbindet, prüft
+ *     `check-learning-tokens.mjs`.
  *  4. Die Navigation jeder App nutzt den Vertrag tatsächlich (keine
  *     ungenutzte Kopie neben einer eigenen Liste).
  *
@@ -49,6 +53,7 @@ const APPS = [
 ];
 
 /** Plattformweit identische Dachleistenfarben (seit LP-04, unverändert). */
+const TOKENS_FILE = path.join(root, 'docs', 'learning-tokens', 'learning-tokens.css');
 const PLATFORM_COLORS = {
   '--lp-platform-bg': '#0b0e0e',
   '--lp-platform-fg': '#f1f1e9',
@@ -84,6 +89,19 @@ for (const shared of SHARED) {
   }
 }
 
+const tokens = read(TOKENS_FILE)?.toString('utf8');
+if (tokens === undefined) fail(`fehlt: ${rel(TOKENS_FILE)}`);
+else {
+  for (const [token, expected] of Object.entries(PLATFORM_COLORS)) {
+    const values = [...tokens.matchAll(new RegExp(`${token}\\s*:\\s*([^;]+);`, 'g'))].map((m) =>
+      m[1].trim().toLowerCase(),
+    );
+    if (values.length !== 1) fail(`${rel(TOKENS_FILE)}: ${token} steht ${values.length}× statt 1×`);
+    else if (values[0] !== expected)
+      fail(`${rel(TOKENS_FILE)}: ${token} ist ${values[0]}, erwartet ${expected}`);
+  }
+}
+
 for (const app of APPS) {
   const globalsFile = path.join(root, app.dir, 'src/app/globals.css');
   const globals = read(globalsFile)?.toString('utf8');
@@ -93,15 +111,9 @@ for (const app of APPS) {
   }
   if (!globals.includes(CSS_IMPORT))
     fail(`${rel(globalsFile)} bindet das Shell-CSS nicht ein (${CSS_IMPORT})`);
-  for (const [token, expected] of Object.entries(PLATFORM_COLORS)) {
-    const values = [...globals.matchAll(new RegExp(`${token}\\s*:\\s*([^;]+);`, 'g'))].map((m) =>
-      m[1].trim().toLowerCase(),
-    );
-    if (values.length === 0) fail(`${rel(globalsFile)}: ${token} fehlt`);
-    for (const value of values) {
-      if (value !== expected)
-        fail(`${rel(globalsFile)}: ${token} ist ${value}, erwartet ${expected}`);
-    }
+  for (const token of Object.keys(PLATFORM_COLORS)) {
+    if (new RegExp(`${token}\\s*:`).test(globals))
+      fail(`${rel(globalsFile)}: ${token} gehört in den Token-Vertrag, nicht in die App`);
   }
 
   const navFile = path.join(root, app.dir, app.nav);
@@ -128,5 +140,5 @@ if (failures.length > 0) {
 
 console.log(
   `Lernpfade-Shell: ${SHARED.length} Vertragsdateien in ${APPS.length} Apps bytegleich, ` +
-    'CSS eingebunden, Dachleistenfarben gleich, Navigation aus dem Vertrag.',
+    'CSS eingebunden, Dachleistenfarben aus dem Token-Vertrag, Navigation aus dem Vertrag.',
 );

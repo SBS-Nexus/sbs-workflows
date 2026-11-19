@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '../styles/learning-tokens.css';
 @import '../styles/learning-shell.css';
 @import '../styles/learning-feedback.css';
 @import '../styles/learning-components.css';
@@ -43,23 +44,25 @@
    * wie ein unverputztes Haus: Der Schmuck war da, der Untergrund nicht.
    *
    * Jetzt trägt die ganze Skala den Grünanteil des Learning OS, der
-   * gemeinsamen Gestaltung der Lernpfade (lernpfade/src/styles/learning-os.css,
-   * Roadmap E3): Papier #f2f2e9 statt Bildschirmweiß, Tinte #0b0e0e statt Ruß,
-   * Moos und Graugrün für Nebentext und Ränder. Damit gehören Hub, SQLPfad und
+   * gemeinsamen Gestaltung der Lernpfade (Roadmap E3): Papier #f2f2e9 statt
+   * Bildschirmweiß, Tinte #0b0e0e statt Ruß. Die Werte stehen im gemeinsamen
+   * Vertrag src/styles/learning-tokens.css (kanonisch docs/learning-tokens/),
+   * hier nur die Verweise darauf. Moos und Graugrün tragen Nebentext und
+   * Ränder. Damit gehören Hub, SQLPfad und
    * PythonPfad sichtbar zu einer Plattform; Blau bleibt der Fachakzent. Die
    * Kontraste prüft tests/unit/farbkontrast.test.ts.
    */
-  --color-ink-50: #f2f2e9;
-  --color-ink-100: #e8ebdf;
-  --color-ink-200: #cdd5c8;
-  --color-ink-300: #a9b5ab;
-  --color-ink-400: #7f8f84;
-  --color-ink-500: #4b5a51;
-  --color-ink-600: #3f5746;
-  --color-ink-700: #2c3a31;
-  --color-ink-800: #1f2a24;
-  --color-ink-900: #151b19;
-  --color-ink-950: #0b0e0e;
+  --color-ink-50: var(--los-ton-50);
+  --color-ink-100: var(--los-ton-100);
+  --color-ink-200: var(--los-ton-200);
+  --color-ink-300: var(--los-ton-300);
+  --color-ink-400: var(--los-ton-400);
+  --color-ink-500: var(--los-ton-500);
+  --color-ink-600: var(--los-ton-600);
+  --color-ink-700: var(--los-ton-700);
+  --color-ink-800: var(--los-ton-800);
+  --color-ink-900: var(--los-ton-900);
+  --color-ink-950: var(--los-ton-950);
 
   --color-accent-50: #eef4ff;
   --color-accent-100: #dbe6fe;
@@ -92,8 +95,9 @@
    *
    * Eine Leitfarbe je Modul, dazu zwei für die Querbereiche. Seit Roadmap E3
    * gedeckte Töne aus der Farbwelt des Learning OS, in allen Fachanwendungen
-   * dieselben (Zuordnung in src/domain/design/module-theme.ts): Pflaume,
-   * Petrol, Ocker, Taubenblau, Beere für Projekte, Moos fürs Wiederholen.
+   * dieselben (Werte in src/styles/learning-tokens.css, Zuordnung in
+   * src/domain/design/module-theme.ts): Pflaume, Petrol, Ocker, Taubenblau,
+   * Beere für Projekte, Moos fürs Wiederholen.
    * Vorher Violett, Orange und Magenta in voller Sättigung.
    *
    * Neben dem Farbton ist die Helligkeit gestaffelt (Pflaume am dunkelsten,
@@ -102,19 +106,19 @@
    * und Name stehen immer dabei. Die Kontraste prüft
    * tests/unit/farbkontrast.test.ts.
    */
-  --color-modul-0: #5e4378;
-  --color-modul-1: #1d6964;
-  --color-modul-2: #95551d;
-  --color-modul-3: #34568a;
-  --color-projekt: #843856;
-  --color-wiederholen: #4f6e2e;
+  --color-modul-0: var(--los-modul-0);
+  --color-modul-1: var(--los-modul-1);
+  --color-modul-2: var(--los-modul-2);
+  --color-modul-3: var(--los-modul-3);
+  --color-projekt: var(--los-projekt);
+  --color-wiederholen: var(--los-wiederholen);
 
-  --color-modul-0-soft: #ece5f1;
-  --color-modul-1-soft: #dbece8;
-  --color-modul-2-soft: #f6ebde;
-  --color-modul-3-soft: #e0e7f1;
-  --color-projekt-soft: #f2e0e7;
-  --color-wiederholen-soft: #e5edda;
+  --color-modul-0-soft: var(--los-modul-0-weich);
+  --color-modul-1-soft: var(--los-modul-1-weich);
+  --color-modul-2-soft: var(--los-modul-2-weich);
+  --color-modul-3-soft: var(--los-modul-3-weich);
+  --color-projekt-soft: var(--los-projekt-weich);
+  --color-wiederholen-soft: var(--los-wiederholen-weich);
 
   /*
    * Bewegungssystem.
@@ -157,14 +161,8 @@
 }
 
 :root {
-  --lp-platform-bg: #0b0e0e;
-  --lp-platform-fg: #f1f1e9;
-  --lp-platform-muted: #d4dbd3;
-  --lp-platform-subtle: #a2aba5;
-  --lp-platform-hover: #d0fa83;
-  --lp-platform-border: #26302b;
   --surface: var(--color-ink-50);
-  --surface-raised: #fbfbf6;
+  --surface-raised: var(--los-surface);
   --surface-sunken: var(--color-ink-100);
   --border: var(--color-ink-200);
   --border-strong: var(--color-ink-300);
@@ -227,18 +225,18 @@
   --shadow-tint: 220 60% 2%;
   /* Im dunklen Schema müssen die Modulfarben aufgehellt werden, sonst
    * verschwinden sie im Hintergrund. Die Flächen werden dagegen dunkel. */
-  --color-modul-0: #bda8d4;
-  --color-modul-1: #9fd4cb;
-  --color-modul-2: #ecc6a2;
-  --color-modul-3: #a3b9de;
-  --color-projekt: #e4abc0;
-  --color-wiederholen: #bfd99d;
-  --color-modul-0-soft: #2a2134;
-  --color-modul-1-soft: #132f2c;
-  --color-modul-2-soft: #33241a;
-  --color-modul-3-soft: #1b2537;
-  --color-projekt-soft: #331c26;
-  --color-wiederholen-soft: #1f2b17;
+  --color-modul-0: var(--los-modul-0-dunkel);
+  --color-modul-1: var(--los-modul-1-dunkel);
+  --color-modul-2: var(--los-modul-2-dunkel);
+  --color-modul-3: var(--los-modul-3-dunkel);
+  --color-projekt: var(--los-projekt-dunkel);
+  --color-wiederholen: var(--los-wiederholen-dunkel);
+  --color-modul-0-soft: var(--los-modul-0-dunkel-weich);
+  --color-modul-1-soft: var(--los-modul-1-dunkel-weich);
+  --color-modul-2-soft: var(--los-modul-2-dunkel-weich);
+  --color-modul-3-soft: var(--los-modul-3-dunkel-weich);
+  --color-projekt-soft: var(--los-projekt-dunkel-weich);
+  --color-wiederholen-soft: var(--los-wiederholen-dunkel-weich);
   color-scheme: dark;
 }
 
@@ -265,18 +263,18 @@
     --alert-deep: var(--color-alert-700);
     --focus-ring: var(--color-accent-300);
     --shadow-tint: 220 60% 2%;
-    --color-modul-0: #bda8d4;
-    --color-modul-1: #9fd4cb;
-    --color-modul-2: #ecc6a2;
-    --color-modul-3: #a3b9de;
-    --color-projekt: #e4abc0;
-    --color-wiederholen: #bfd99d;
-    --color-modul-0-soft: #2a2134;
-    --color-modul-1-soft: #132f2c;
-    --color-modul-2-soft: #33241a;
-    --color-modul-3-soft: #1b2537;
-    --color-projekt-soft: #331c26;
-    --color-wiederholen-soft: #1f2b17;
+    --color-modul-0: var(--los-modul-0-dunkel);
+    --color-modul-1: var(--los-modul-1-dunkel);
+    --color-modul-2: var(--los-modul-2-dunkel);
+    --color-modul-3: var(--los-modul-3-dunkel);
+    --color-projekt: var(--los-projekt-dunkel);
+    --color-wiederholen: var(--los-wiederholen-dunkel);
+    --color-modul-0-soft: var(--los-modul-0-dunkel-weich);
+    --color-modul-1-soft: var(--los-modul-1-dunkel-weich);
+    --color-modul-2-soft: var(--los-modul-2-dunkel-weich);
+    --color-modul-3-soft: var(--los-modul-3-dunkel-weich);
+    --color-projekt-soft: var(--los-projekt-dunkel-weich);
+    --color-wiederholen-soft: var(--los-wiederholen-dunkel-weich);
     color-scheme: dark;
   }
 }
@@ -350,7 +348,7 @@ body::before {
     ),
     radial-gradient(
       ellipse 60% 45% at 92% 4%,
-      color-mix(in oklab, #d0fa83 14%, transparent),
+      color-mix(in oklab, var(--los-lime) 14%, transparent),
       transparent 68%
     );
 }
@@ -731,7 +729,7 @@ body[data-overlay-open='true'] {
       color-mix(in oklab, var(--color-accent-500) 58%, transparent) 0px,
       transparent 58%
     ),
-    linear-gradient(165deg, #0b0e0e 0%, #121b17 55%, #151b19 100%);
+    linear-gradient(165deg, var(--los-ink) 0%, var(--los-ink-2) 55%, var(--los-charcoal) 100%);
 }
 
 /*
@@ -743,7 +741,7 @@ body[data-overlay-open='true'] {
   font-style: italic;
   font-weight: 500;
   letter-spacing: -0.02em;
-  background-image: linear-gradient(100deg, #b4f5d2 0%, #d0fa83 100%);
+  background-image: linear-gradient(100deg, var(--los-mint) 0%, var(--los-lime) 100%);
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;

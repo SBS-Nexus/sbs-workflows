@@ -27,7 +27,8 @@ node scripts/check-learning-shell.mjs
 
 Der Check (nur Node-Bordmittel, repariert nichts) scheitert, wenn eine Kopie
 fehlt oder abweicht, eine App das Shell-CSS nicht einbindet, eine der sechs
-Dachleistenfarben abweicht oder eine Navigation den Vertrag nicht benutzt
+Dachleistenfarben im Token-Vertrag (`docs/learning-tokens/`) abweicht oder
+eine App sie selbst notiert, oder eine Navigation den Vertrag nicht benutzt
 (`shellNav('<app>')`, `data-lp-app="<app>"`). Er läuft in
 `.github/workflows/lernpfade-ci.yml` als eigener Job, auch wenn nur eine
 App-Kopie geändert wurde.

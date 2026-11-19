@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { AA_FLIESSTEXT, kontrastverhaeltnis } from '@/domain/design/kontrast';
+import { MODULE_THEMES, PROJECT_THEME, REVIEW_THEME } from '@/domain/design/module-theme';
 
 /**
  * Lesbarkeit der Farbwelt, in beiden Schemata.
@@ -23,15 +24,37 @@ const GLOBALS = readFileSync(
   'utf8',
 );
 
+/*
+ * Die Farbwerte selbst stehen seit Roadmap E3 im gemeinsamen Token-Vertrag;
+ * globals.css verweist mit `var(--los-…)` darauf. Gerechnet wird mit dem
+ * aufgelösten Wert – sonst prüfte der Test nur noch, dass ein Verweis dasteht.
+ */
+const TOKENS = readFileSync(
+  path.resolve(import.meta.dirname, '..', '..', 'src', 'styles', 'learning-tokens.css'),
+  'utf8',
+);
+
+function aufloesen(wert: string, tiefe = 0): string {
+  const verweis = /^var\((--[\w-]+)\)$/.exec(wert.trim())?.[1];
+  if (!verweis) return wert.trim();
+  if (tiefe > 5) throw new Error(`Verweiskette zu lang: ${wert}`);
+  const muster = new RegExp(`(?<![\\w-])${verweis}:\\s*([^;]+);`);
+  const treffer = muster.exec(TOKENS) ?? muster.exec(GLOBALS);
+  if (!treffer?.[1]) {
+    throw new Error(`${verweis} steht weder im Token-Vertrag noch in globals.css.`);
+  }
+  return aufloesen(treffer[1], tiefe + 1);
+}
+
 function tonwert(stufe: number): string {
-  const treffer = new RegExp(`--color-ink-${stufe}:\\s*(#[0-9a-fA-F]{6})`).exec(GLOBALS);
+  const treffer = new RegExp(`--color-ink-${stufe}:\\s*([^;]+);`).exec(GLOBALS);
   if (!treffer?.[1]) {
     throw new Error(
       `--color-ink-${stufe} steht nicht mehr in globals.css. ` +
         'Wurde die Grundskala umbenannt? Dann gehört dieser Test mit angepasst.',
     );
   }
-  return treffer[1];
+  return aufloesen(treffer[1]);
 }
 
 const KARTE_HELL = '#fbfbf6'; // --surface-raised im hellen Schema (Learning-OS-Papier)
@@ -94,61 +117,49 @@ describe('Kontrastberechnung selbst', () => {
 describe('Modulfarben: gemeinsame Palette der Fachanwendungen', () => {
   /*
    * Roadmap E3: Modul 1 hat in PythonPfad und SQLPfad dieselbe Farbe, im
-   * hellen wie im dunklen Schema. Dieselbe Tabelle steht in beiden Apps in
-   * diesem Test; wer die Palette in einer App ändert, ohne die andere
-   * mitzunehmen, sieht es hier. Abgelöst wird das durch die geteilte
-   * Token-Datei mit Drift-Prüfung.
+   * hellen wie im dunklen Schema. Die Werte stehen im Token-Vertrag
+   * (src/styles/learning-tokens.css), den scripts/check-learning-tokens.mjs in
+   * allen Apps bytegleich hält; globals.css verweist nur darauf. Hier wird
+   * geprüft, dass die Verweise stimmen und die aufgelösten Farben lesbar sind.
    *
    * Vorher trug SQLPfad im dunklen Schema die Werte von PythonPfad, im hellen
    * aber eigene: Modul 2 war hell blau und dunkel petrol.
    */
-  const PALETTE = {
-    'modul-0': { hell: '#5e4378', hellWeich: '#ece5f1', dunkel: '#bda8d4', dunkelWeich: '#2a2134' },
-    'modul-1': { hell: '#1d6964', hellWeich: '#dbece8', dunkel: '#9fd4cb', dunkelWeich: '#132f2c' },
-    'modul-2': { hell: '#95551d', hellWeich: '#f6ebde', dunkel: '#ecc6a2', dunkelWeich: '#33241a' },
-    'modul-3': { hell: '#34568a', hellWeich: '#e0e7f1', dunkel: '#a3b9de', dunkelWeich: '#1b2537' },
-    projekt: { hell: '#843856', hellWeich: '#f2e0e7', dunkel: '#e4abc0', dunkelWeich: '#331c26' },
-    wiederholen: {
-      hell: '#4f6e2e',
-      hellWeich: '#e5edda',
-      dunkel: '#bfd99d',
-      dunkelWeich: '#1f2b17',
-    },
-  } as const;
+  const ROLLEN = ['modul-0', 'modul-1', 'modul-2', 'modul-3', 'projekt', 'wiederholen'] as const;
 
   const DUNKEL_AB = GLOBALS.indexOf(":root[data-theme='dark']");
-  const dunkel = (name: string): string => {
-    const treffer = new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(
-      GLOBALS.slice(DUNKEL_AB),
-    );
-    if (DUNKEL_AB < 0 || !treffer?.[1]) {
-      throw new Error(`--color-${name} fehlt im dunklen Schema von globals.css.`);
-    }
-    return treffer[1];
+  const roh = (name: string, ab = 0): string => {
+    const treffer = new RegExp(`(?<![\\w-])--color-${name}:\\s*([^;]+);`).exec(GLOBALS.slice(ab));
+    if (ab < 0 || !treffer?.[1]) throw new Error(`--color-${name} fehlt in globals.css.`);
+    return treffer[1].trim();
   };
-  const hell = (name: string): string => {
-    const treffer = new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(GLOBALS);
-    if (!treffer?.[1]) throw new Error(`--color-${name} fehlt in globals.css.`);
-    return treffer[1];
-  };
+  const hell = (name: string): string => aufloesen(roh(name));
+  const dunkel = (name: string): string => aufloesen(roh(name, DUNKEL_AB));
 
-  const namen = Object.keys(PALETTE) as (keyof typeof PALETTE)[];
-
-  it.each(namen)('%s steht in beiden Schemata wie in der Palette', (name) => {
-    const soll = PALETTE[name];
-    expect(hell(name)).toBe(soll.hell);
-    expect(hell(`${name}-soft`)).toBe(soll.hellWeich);
-    expect(dunkel(name)).toBe(soll.dunkel);
-    expect(dunkel(`${name}-soft`)).toBe(soll.dunkelWeich);
+  it.each(ROLLEN)('%s verweist in beiden Schemata auf den Token-Vertrag', (name) => {
+    expect(roh(name)).toBe(`var(--los-${name})`);
+    expect(roh(`${name}-soft`)).toBe(`var(--los-${name}-weich)`);
+    expect(roh(name, DUNKEL_AB)).toBe(`var(--los-${name}-dunkel)`);
+    expect(roh(`${name}-soft`, DUNKEL_AB)).toBe(`var(--los-${name}-dunkel-weich)`);
   });
 
-  const PAPIER = hell('ink-50');
-  const SENKE = hell('ink-100');
-  const KARTE = '#fbfbf6';
-  const TINTE = hell('ink-950');
-  const KARTE_DUNKEL = hell('ink-900');
+  it('der Lichtkegel im Kopfbereich hat die volle helle Farbe aus dem Vertrag', () => {
+    // module-theme.ts trägt feste Werte, weil der Kopfbereich in beiden
+    // Schemata dunkel ist. Sie müssen trotzdem dieselben sein.
+    MODULE_THEMES.forEach((theme, index) => {
+      expect(theme.heroAccent, theme.label).toBe(aufloesen(`var(--los-modul-${index})`));
+    });
+    expect(PROJECT_THEME.heroAccent).toBe(aufloesen('var(--los-projekt)'));
+    expect(REVIEW_THEME.heroAccent).toBe(aufloesen('var(--los-wiederholen)'));
+  });
 
-  it.each(namen)('%s ist im hellen Schema lesbar', (name) => {
+  const PAPIER = aufloesen('var(--los-ton-50)');
+  const SENKE = aufloesen('var(--los-ton-100)');
+  const KARTE = aufloesen('var(--los-surface)');
+  const TINTE = aufloesen('var(--los-ton-950)');
+  const KARTE_DUNKEL = aufloesen('var(--los-ton-900)');
+
+  it.each(ROLLEN)('%s ist im hellen Schema lesbar', (name) => {
     const voll = hell(name);
     // Weiße Beschriftung auf der vollen Farbe, die Farbe als Schrift auf
     // Papier, Karte, vertiefter Fläche und der eigenen weichen Fläche.
@@ -157,10 +168,10 @@ describe('Modulfarben: gemeinsame Palette der Fachanwendungen', () => {
     }
   });
 
-  it.each(namen)('%s ist im dunklen Schema lesbar', (name) => {
+  it.each(ROLLEN)('%s ist im dunklen Schema lesbar', (name) => {
     const voll = dunkel(name);
     // Die aufgehellte Farbe als Schrift auf Tinte, dunkler Karte und der
-    // eigenen weichen Fläche; dunkle Schrift auf der vollen Farbe.
+    // eigenen weichen Fläche.
     for (const grund of [TINTE, KARTE_DUNKEL, dunkel(`${name}-soft`)]) {
       expect(kontrastverhaeltnis(voll, grund)).toBeGreaterThanOrEqual(AA_FLIESSTEXT);
     }
