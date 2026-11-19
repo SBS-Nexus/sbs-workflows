@@ -32,6 +32,10 @@ on:
       - '*/src/app/layout.tsx'
       - '*/src/app/error.tsx'
       - '*/src/app/not-found.tsx'
+      # E3: Token-Vertrag (Learning OS) und seine Kopien in Hub und Fach-Apps.
+      - 'docs/learning-tokens/**'
+      - 'scripts/check-learning-tokens.mjs'
+      - '*/src/styles/learning-tokens.css'
       # LP-05B/LP-07: schreibgeschützte Plattformquellen der drei Fach-Apps.
       - 'scripts/check-platform-sources.mjs'
       - '*/src/server/platform/**'
@@ -69,6 +73,10 @@ on:
       - '*/src/app/layout.tsx'
       - '*/src/app/error.tsx'
       - '*/src/app/not-found.tsx'
+      # E3: Token-Vertrag (Learning OS) und seine Kopien in Hub und Fach-Apps.
+      - 'docs/learning-tokens/**'
+      - 'scripts/check-learning-tokens.mjs'
+      - '*/src/styles/learning-tokens.css'
       # LP-05B/LP-07: schreibgeschützte Plattformquellen der drei Fach-Apps.
       - 'scripts/check-platform-sources.mjs'
       - '*/src/server/platform/**'
@@ -134,6 +142,26 @@ jobs:
 
       - name: Komponentenvertrag prüfen
         run: node scripts/check-learning-components.mjs
+
+  # E3: Gleiches Prinzip für den Token-Vertrag des Learning OS (Grundskala,
+  # Signalfarben, Dachleiste, Modulfarben) im Hub und in den drei Fach-Apps —
+  # Kopie bytegleich und eingebunden, keine zweite Quelle für dieselben
+  # Werte, Verträge und Apps verweisen darauf. Nur Node-Bordmittel, repariert
+  # nichts.
+  learning-tokens:
+    name: Token-Vertrag (Drift-Check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Token-Vertrag prüfen
+        run: node scripts/check-learning-tokens.mjs
 
   # LP-05B/LP-07: Die Adapter der Plattformquellen sind in den drei Fach-Apps
   # bytegleich, ihre Schema-Versionen und Quellnamen sind die, die der Hub

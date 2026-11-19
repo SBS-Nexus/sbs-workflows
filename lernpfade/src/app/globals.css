@@ -1,10 +1,12 @@
+@import '../styles/learning-tokens.css';
 @import '../styles/learning-feedback.css';
 @import '../styles/learning-components.css';
 @import '../styles/learning-os.css';
 
 /*
  * Hub-Grundregeln und die Lernansichten (VokabelPfad, Wiederholen,
- * Fortschritt, 404) im Learning OS. Tokens und Kopf-/Bühnenflächen stehen in
+ * Fortschritt, 404) im Learning OS. Die Farben stehen im gemeinsamen Vertrag
+ * `src/styles/learning-tokens.css`, Kopf- und Bühnenflächen in
  * `src/styles/learning-os.css`; die gemeinsamen Verträge oben bleiben
  * unverändert (bytegleich, siehe `scripts/check-learning-*.mjs`).
  */

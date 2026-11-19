@@ -215,6 +215,24 @@ const css = readFileSync(
   'utf8',
 );
 
+/*
+ * Neutrale Töne verweisen seit Roadmap E3 mit `var(--los-…)` auf den
+ * gemeinsamen Token-Vertrag. Gerechnet wird mit dem aufgelösten Hexwert.
+ */
+const tokenCss = readFileSync(
+  path.join(import.meta.dirname, '../../src/styles/learning-tokens.css'),
+  'utf8',
+);
+
+function resolve(value: string, depth = 0): string {
+  const reference = /^var\((--los-[\w-]+)\)$/.exec(value.trim())?.[1];
+  if (!reference) return value.trim();
+  if (depth > 5) throw new Error(`Verweiskette zu lang: ${value}`);
+  const found = new RegExp(`(?<![\\w-])${reference}:\\s*([^;]+);`).exec(tokenCss)?.[1];
+  if (!found) throw new Error(`Token fehlt im Token-Vertrag: ${reference}`);
+  return resolve(found, depth + 1);
+}
+
 /** Alle Blöcke `Selektor { Deklarationen }`, auch innerhalb von `@media`. */
 function blocks(): Array<{ selector: string; body: Record<string, string> }> {
   const result: Array<{ selector: string; body: Record<string, string> }> = [];
@@ -273,7 +291,7 @@ function scheme(app: string, dark: boolean): (name: string) => string {
   return (name) => {
     const value = merged[name];
     if (!value) throw new Error(`Token fehlt: ${name} (${app}, ${dark ? 'dunkel' : 'hell'})`);
-    return value;
+    return resolve(value);
   };
 }
 

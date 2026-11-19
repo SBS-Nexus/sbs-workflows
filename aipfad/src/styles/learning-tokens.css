@@ -1,0 +1,99 @@
+/*
+ * Lernpfade — Learning OS, gemeinsame Gestaltungsgrundlage (Roadmap E3).
+ *
+ * KANONISCH ist `docs/learning-tokens/learning-tokens.css`. Der Hub und die
+ * drei Fach-Apps führen eine bytegleiche Kopie unter
+ * `src/styles/learning-tokens.css` und binden sie in `src/app/globals.css`
+ * ein; `node scripts/check-learning-tokens.mjs` prüft das und dass niemand die
+ * Werte daneben noch einmal selbst notiert.
+ *
+ * Nur Variablen am Wurzelelement – keine Regeln, kein Cascade-Layer, kein
+ * Wechsel des Farbschemas. Welche Stufe hell und welche dunkel gilt,
+ * entscheiden die Verbraucher: die `globals.css` der Apps und die Verträge
+ * `learning-shell`, `learning-components` und `learning-feedback`. Dadurch ist
+ * diese Datei für alle gleich, auch für den Hub, der nur hell ist.
+ *
+ * Die Kontraste der Paarungen prüfen die Verbraucher, wo sie entstehen:
+ * `tests/unit/farbkontrast.test.ts` (PythonPfad, SQLPfad) und
+ * `tests/unit/learning-components.test.ts` (alle Fach-Apps).
+ */
+
+:root {
+  /*
+   * Grundskala, Papier (50) bis Tinte (950). Graugrün statt Kaltgrau oder
+   * Indigo: Moos und Graugrün tragen Nebentext und Ränder.
+   */
+  --los-ton-50: #f2f2e9;
+  --los-ton-100: #e8ebdf;
+  --los-ton-200: #cdd5c8;
+  --los-ton-300: #a9b5ab;
+  --los-ton-400: #7f8f84;
+  --los-ton-500: #4b5a51;
+  --los-ton-600: #3f5746;
+  --los-ton-700: #2c3a31;
+  --los-ton-800: #1f2a24;
+  --los-ton-900: #151b19;
+  --los-ton-950: #0b0e0e;
+
+  /* Rollen, so wie der Hub sie seit LO-UI-001 benennt. */
+  --los-paper: var(--los-ton-50);
+  --los-paper-2: var(--los-ton-100);
+  --los-surface: #fbfbf6;
+  --los-line-paper: var(--los-ton-200);
+  --los-line-paper-strong: #8a998d;
+  --los-text: #141c18;
+  --los-text-muted: var(--los-ton-500);
+  --los-moss: var(--los-ton-600);
+  --los-focus-paper: #1f3b2a;
+  --los-ink: var(--los-ton-950);
+  --los-ink-2: #121b17;
+  --los-charcoal: var(--los-ton-900);
+  --los-cream: #f1f1e9;
+  --los-muted: #a2aba5;
+  --los-line: rgb(229 241 229 / 0.19);
+
+  /* Signalfarben: nur auf Tinte, nie als Fläche unter Fließtext. */
+  --los-lime: #d0fa83;
+  --los-mint: #b4f5d2;
+
+  /*
+   * Plattformleiste (learning-shell), in allen Apps gleich. Als feste Werte,
+   * weil check-learning-shell.mjs sie so festhält.
+   */
+  --lp-platform-bg: #0b0e0e;
+  --lp-platform-fg: #f1f1e9;
+  --lp-platform-muted: #d4dbd3;
+  --lp-platform-subtle: #a2aba5;
+  --lp-platform-hover: #d0fa83;
+  --lp-platform-border: #26302b;
+
+  /*
+   * Modul- und Bereichsfarben (docs/LEARNING-DESIGN-SYSTEM.md, Ebene B).
+   * Je Rolle vier Werte: voll und weich im hellen Schema, voll und weich im
+   * dunklen. Modul 1 ist `modul-0`.
+   */
+  --los-modul-0: #5e4378;
+  --los-modul-0-weich: #ece5f1;
+  --los-modul-0-dunkel: #bda8d4;
+  --los-modul-0-dunkel-weich: #2a2134;
+  --los-modul-1: #1d6964;
+  --los-modul-1-weich: #dbece8;
+  --los-modul-1-dunkel: #9fd4cb;
+  --los-modul-1-dunkel-weich: #132f2c;
+  --los-modul-2: #95551d;
+  --los-modul-2-weich: #f6ebde;
+  --los-modul-2-dunkel: #ecc6a2;
+  --los-modul-2-dunkel-weich: #33241a;
+  --los-modul-3: #34568a;
+  --los-modul-3-weich: #e0e7f1;
+  --los-modul-3-dunkel: #a3b9de;
+  --los-modul-3-dunkel-weich: #1b2537;
+  --los-projekt: #843856;
+  --los-projekt-weich: #f2e0e7;
+  --los-projekt-dunkel: #e4abc0;
+  --los-projekt-dunkel-weich: #331c26;
+  --los-wiederholen: #4f6e2e;
+  --los-wiederholen-weich: #e5edda;
+  --los-wiederholen-dunkel: #bfd99d;
+  --los-wiederholen-dunkel-weich: #1f2b17;
+}

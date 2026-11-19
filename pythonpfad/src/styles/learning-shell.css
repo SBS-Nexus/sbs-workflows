@@ -11,6 +11,9 @@
  * Umdefinition vorhandener App-Tokens (`--surface`, `--text`, `--bg`, `--fg`,
  * `--color-ink-*`, Modulfarben, Editor-Tokens).
  *
+ * Neutrale Töne und die Dachleistenfarben (`--lp-platform-*`) kommen seit
+ * Roadmap E3 aus dem gemeinsamen Vertrag `learning-tokens.css`.
+ *
  * Bewusst NICHT in einem Cascade-Layer: PythonPfad und SQLPfad setzen
  * `:focus-visible` ungeschichtet, und eine ungeschichtete Regel schlägt jede
  * geschichtete. Nur so gilt der gemeinsame Fokus auch dort. Weil jede Regel an
@@ -24,11 +27,11 @@
 /* --- Tokens: neutral, in allen Apps gleich ------------------------------ */
 
 .lp-shell {
-  --lp-shell-surface: #ffffff;
-  --lp-shell-surface-hover: #eef1f6;
-  --lp-shell-text: #111827;
-  --lp-shell-text-muted: #4b5563;
-  --lp-shell-border: #dfe3eb;
+  --lp-shell-surface: var(--los-surface);
+  --lp-shell-surface-hover: var(--los-ton-50);
+  --lp-shell-text: var(--los-text);
+  --lp-shell-text-muted: var(--los-text-muted);
+  --lp-shell-border: var(--los-ton-200);
   --lp-shell-focus: #1d4ed8;
   --lp-shell-on-accent: #ffffff;
 
@@ -40,7 +43,7 @@
   --lp-shell-space-2: 0.5rem;
   --lp-shell-space-3: 0.75rem;
   --lp-shell-target: 2.75rem;
-  --lp-shell-menu-shadow: 0 16px 36px -16px rgb(15 23 42 / 0.35), 0 2px 6px rgb(15 23 42 / 0.1);
+  --lp-shell-menu-shadow: 0 16px 36px -16px rgb(11 14 14 / 0.35), 0 2px 6px rgb(11 14 14 / 0.1);
   --lp-shell-duration-fast: 120ms;
   --lp-shell-duration-base: 200ms;
   --lp-shell-ease: cubic-bezier(0.2, 0, 0, 1);
@@ -71,11 +74,11 @@
 /* Dunkel: ausdrücklich gewählt oder vom System, solange nicht hell gewählt. */
 :root[data-theme='dark'] .lp-shell,
 :root.dark .lp-shell {
-  --lp-shell-surface: #151a24;
-  --lp-shell-surface-hover: #232a37;
-  --lp-shell-text: #f3f4f6;
-  --lp-shell-text-muted: #c4cad5;
-  --lp-shell-border: #2e3646;
+  --lp-shell-surface: var(--los-ton-900);
+  --lp-shell-surface-hover: var(--los-ton-800);
+  --lp-shell-text: var(--los-cream);
+  --lp-shell-text-muted: var(--los-ton-200);
+  --lp-shell-border: var(--los-ton-700);
   --lp-shell-focus: #93c5fd;
   --lp-shell-on-accent: #0b1220;
 }
@@ -100,11 +103,11 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .lp-shell {
-    --lp-shell-surface: #151a24;
-    --lp-shell-surface-hover: #232a37;
-    --lp-shell-text: #f3f4f6;
-    --lp-shell-text-muted: #c4cad5;
-    --lp-shell-border: #2e3646;
+    --lp-shell-surface: var(--los-ton-900);
+    --lp-shell-surface-hover: var(--los-ton-800);
+    --lp-shell-text: var(--los-cream);
+    --lp-shell-text-muted: var(--los-ton-200);
+    --lp-shell-border: var(--los-ton-700);
     --lp-shell-focus: #93c5fd;
     --lp-shell-on-accent: #0b1220;
   }
