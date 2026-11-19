@@ -39,15 +39,16 @@ export const BRAND = {
   colors: {
     /** Grundton der Marke. */
     primary: '#1d3fc4',
-    /** Flächen des dunklen Kopfbereichs, von links oben nach rechts unten. */
-    heroFrom: '#1e1b4b',
-    heroVia: '#312e81',
-    heroTo: '#4c1d95',
-    /** Akzente im Vorschaubild. */
-    mint: '#7ee2b8',
+    /** Flächen des dunklen Kopfbereichs: die Tinte des Learning OS (Roadmap E3). */
+    heroFrom: '#0b0e0e',
+    heroVia: '#121b17',
+    heroTo: '#151b19',
+    /** Akzente im Vorschaubild; Minze wie die Akzentzeile der Startseite. */
+    mint: '#b4f5d2',
     sky: '#93c5fd',
     rose: '#f9a8d4',
-    surfaceLight: '#f6f7f9',
-    surfaceDark: '#0d1017',
+    /** Fensterfarbe: Papier und Tinte, wie --color-ink-50 und -950. */
+    surfaceLight: '#f2f2e9',
+    surfaceDark: '#0b0e0e',
   },
 } as const;

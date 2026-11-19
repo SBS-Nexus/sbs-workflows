@@ -92,9 +92,11 @@ bytegleich findet und eine Person zwischen den Apps keinen Stilbruch sieht.
 (Grundskala Papier bis Tinte, Plattformleiste, Hero auf Tinte mit einem
 Lichtkegel im Fachakzent, Akzentzeile in Serifen-Kursive). SQLPfad seit #86,
 PythonPfad und AIPfad im Folgeschritt; AIPfad behält Plex Mono als
-Auszeichnungsschrift und Bernstein (siehe `aipfad/DESIGN.md`). Offen: eine
-gemeinsame Schrift, ruhigere Modulfarben und die geteilte Token-Datei mit
-Drift-Prüfung.
+Auszeichnungsschrift und Bernstein (siehe `aipfad/DESIGN.md`). Danach die
+gedeckte, plattformweite Modulpalette (`docs/LEARNING-DESIGN-SYSTEM.md`,
+Ebene B). Offen: eine gemeinsame Schrift und die geteilte Token-Datei mit
+Drift-Prüfung, die auch die Flächen der gemeinsamen Komponenten im dunklen
+Schema auf die Tinte bringt (sie tragen dort noch ein Blaugrau).
 
 ### E4 · Ein Konto für alles (L2)
 

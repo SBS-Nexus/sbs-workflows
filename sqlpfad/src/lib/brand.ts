@@ -34,15 +34,16 @@ export const BRAND = {
   colors: {
     /** Grundton der Marke – Petrol, siehe globals.css. */
     primary: '#095d56',
-    /** Flächen des dunklen Kopfbereichs, von links oben nach rechts unten. */
-    heroFrom: '#12102b',
-    heroVia: '#093c39',
-    heroTo: '#211d47',
-    /** Akzente im Vorschaubild. */
-    mint: '#6ed3c7',
+    /** Flächen des dunklen Kopfbereichs: die Tinte des Learning OS (Roadmap E3). */
+    heroFrom: '#0b0e0e',
+    heroVia: '#121b17',
+    heroTo: '#151b19',
+    /** Akzente im Vorschaubild; Minze wie die Akzentzeile der Startseite. */
+    mint: '#b4f5d2',
     sky: '#93c5fd',
     rose: '#f9a8d4',
-    surfaceLight: '#f4f2fb',
-    surfaceDark: '#12102b',
+    /** Fensterfarbe: Papier und Tinte, wie --color-ink-50 und -950. */
+    surfaceLight: '#f2f2e9',
+    surfaceDark: '#0b0e0e',
   },
 } as const;
