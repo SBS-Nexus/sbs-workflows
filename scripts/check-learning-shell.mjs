@@ -50,12 +50,12 @@ const APPS = [
 
 /** Plattformweit identische Dachleistenfarben (seit LP-04, unverändert). */
 const PLATFORM_COLORS = {
-  '--lp-platform-bg': '#111827',
-  '--lp-platform-fg': '#ffffff',
-  '--lp-platform-muted': '#d1d5db',
-  '--lp-platform-subtle': '#9ca3af',
-  '--lp-platform-hover': '#c7d2fe',
-  '--lp-platform-border': '#374151',
+  '--lp-platform-bg': '#0b0e0e',
+  '--lp-platform-fg': '#f1f1e9',
+  '--lp-platform-muted': '#d4dbd3',
+  '--lp-platform-subtle': '#a2aba5',
+  '--lp-platform-hover': '#d0fa83',
+  '--lp-platform-border': '#26302b',
 };
 
 const CSS_IMPORT = "@import '../styles/learning-shell.css';";

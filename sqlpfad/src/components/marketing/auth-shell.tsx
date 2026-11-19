@@ -65,9 +65,7 @@ export function AuthShell({
           <p className="text-display-sm font-black leading-[1.05] tracking-[-0.02em]">
             Deine erste
             <br />
-            <span className="bg-gradient-to-r from-[#6ed3c7] to-[#93c5fd] bg-clip-text text-transparent">
-              eigene Abfrage
-            </span>
+            <span className="los-akzentzeile">eigene Abfrage</span>
             <br />
             ist gleich hier.
           </p>

@@ -135,9 +135,7 @@ export default function LandingPage(): React.ReactElement {
               <br />
               Abfragen schreiben.
               <br />
-              <span className="bg-gradient-to-r from-[#6ed3c7] via-[#93c5fd] to-[#f9a8d4] bg-clip-text text-transparent">
-                Daten wirklich nutzen.
-              </span>
+              <span className="los-akzentzeile">Daten wirklich nutzen.</span>
             </h1>
 
             <p className="mt-5 max-w-xl text-lg text-white/80">
