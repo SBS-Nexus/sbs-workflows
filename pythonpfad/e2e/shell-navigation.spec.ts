@@ -279,7 +279,8 @@ test('Theme, Bewegung und Fokusfarbe der Shell; axe ohne schwere Befunde', async
     }
     await expect(page.locator('html')).toHaveAttribute('data-theme', thema);
     const flaeche = await stil(kopf, 'background-color');
-    expect(flaeche).toBe(thema === 'dark' ? 'rgb(21, 26, 36)' : 'rgb(255, 255, 255)');
+    // Learning-OS-Tinte und -Papier aus dem Token-Vertrag (--los-ton-900, --los-surface).
+    expect(flaeche).toBe(thema === 'dark' ? 'rgb(21, 27, 25)' : 'rgb(251, 251, 246)');
     expect(
       kontrast(await stil(ruhig, 'color'), flaeche),
       `${thema}: ruhiger Eintrag`,

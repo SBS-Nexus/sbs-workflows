@@ -10,27 +10,31 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 type Schema = 'light' | 'dark';
 
-/** Erwartete Vertragsfarben (learning-feedback.css): Fläche · Rand · Text. */
+/**
+ * Erwartete Vertragsfarben (learning-feedback.css): Fläche · Rand · Text.
+ * „neutral" und „gesperrt" kommen seit Roadmap E3 aus dem Token-Vertrag
+ * (learning-tokens.css, Grundskala --los-ton-*), die übrigen Töne sind fest.
+ */
 export const VERTRAGSFARBEN: Record<Schema, Record<string, [string, string, string]>> = {
   light: {
-    neutral: ['#f3f4f6', '#6b7280', '#374151'],
+    neutral: ['#e8ebdf', '#4b5a51', '#2c3a31'],
     info: ['#e8f1fb', '#2563a6', '#1c4f86'],
     success: ['#e7f5ec', '#1d7a46', '#155c35'],
     warning: ['#fdf4dd', '#a16207', '#734805'],
     danger: ['#fdeeed', '#c0281c', '#981c12'],
     due: ['#f2eefc', '#6d45c6', '#55349f'],
     'in-progress': ['#e5f4f8', '#0e7490', '#0b5c72'],
-    locked: ['#f4f4f5', '#71717a', '#3f3f46'],
+    locked: ['#f2f2e9', '#4b5a51', '#3f5746'],
   },
   dark: {
-    neutral: ['#1f2530', '#8b95a5', '#d4d9e1'],
+    neutral: ['#1f2a24', '#7f8f84', '#cdd5c8'],
     info: ['#11263d', '#6aaee8', '#b3d6f6'],
     success: ['#0f2b1c', '#4cc38a', '#9be3bd'],
     warning: ['#30240b', '#e2a83c', '#f5d38f'],
     danger: ['#371614', '#f2867c', '#f9b9b3'],
     due: ['#231a3c', '#a98ae8', '#d2c2f6'],
     'in-progress': ['#0c2a33', '#4fc1dd', '#a6dfee'],
-    locked: ['#23252a', '#8d929b', '#c9cdd4'],
+    locked: ['#1f2a24', '#7f8f84', '#a9b5ab'],
   },
 };
 
