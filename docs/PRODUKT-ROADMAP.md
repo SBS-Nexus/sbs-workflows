@@ -124,7 +124,9 @@ im Hub, Dateien und Stapel im Token-Vertrag.
 Rückfall, Zusammenführung nur über bestätigte E-Mail-Adressen und Etappen
 E4.0–E4.5. **Offen vor E4.1:** Plattform-Domain für `konto.…` (zugleich für den
 Hub), Bestätigung des Dienstes, Mailanbieter mit EU-Verarbeitung, Regel für den
-zweiten Faktor. Geschätzt 10–20 USD im Monat.
+zweiten Faktor. **E4.0 erledigt** (`docs/E4-0-MACHBARKEIT.md`): ZITADEL
+erfüllt alle Tore, die Anmelde-App ist MIT, App-Hashes werden übernommen, und
+heute gibt es 2 Konten. Gemessen ca. 7–12 USD im Monat.
 
 ### E5 · Für Unternehmen (L5)
 

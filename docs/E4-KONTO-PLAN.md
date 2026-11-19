@@ -12,6 +12,19 @@ AIPfad und im Hub angemeldet ist, ohne ein zweites Mal ein Passwort einzugeben,
 bestehende Konten mit seiner E-Mail-Adresse wiedergefunden hat, sein Passwort
 per E-Mail zurücksetzen kann und sich an einer Stelle überall abmeldet.
 
+> **Stand nach E4.0 (19.11.2026, `docs/E4-0-MACHBARKEIT.md`):** ZITADEL v4.20.5
+> erfüllt alle Tore.
+>
+> - Die Anmelde-App steht unter **MIT**.
+> - App-Hashes im scrypt-Format werden angenommen.
+> - Rückkanal-Abmeldung und PKCE S256 sind vorhanden.
+> - Der Dienst braucht 0,31 GB Arbeitsspeicher, Postgres 0,16 GB.
+> - Heute gibt es **2 Konten** (je eines in PythonPfad und SQLPfad), ohne
+>   Überschneidung.
+>
+> Kosten neu geschätzt: ca. 7–12 USD im Monat. Offen sind noch die
+> Entscheidungen 1, 3 und 4 in Abschnitt 9.
+
 ---
 
 ## 1. Ausgangslage
@@ -228,6 +241,16 @@ endgültigen Preis.
 | Domain für `konto.…`       | 0 € mit vorhandener Domain, sonst ca. 10–20 € im **Jahr**              | gleich                         |
 | **Summe**                  | **ca. 10–20 USD/Monat**                                                | **ca. 20–30 USD/Monat**        |
 
+**Gemessen in E4.0:**
+
+| Dienst                 | Speicher         | Kosten im Monat  |
+| ---------------------- | ---------------- | ---------------- |
+| ZITADEL                | 0,31 GB          | ca. 3 USD        |
+| Postgres               | 0,16 GB          | ca. 1,5–2 USD    |
+| CPU nach Last          | Spitze 0,16 vCPU | wenige USD       |
+| Anmelde-App (erwartet) | 0,2–0,3 GB       | ca. 2–3 USD      |
+| **Zusammen**           |                  | **ca. 7–12 USD** |
+
 ## 9. Entscheidungen, die vor E4.1 fallen müssen
 
 1. **Plattform-Domain** für `konto.…` – und zugleich für den Hub (L6).
@@ -238,7 +261,8 @@ endgültigen Preis.
      Anmeldeseite wirkt nicht vertrauenswürdig und lässt sich nicht
      umziehen, ohne alle Clients neu einzurichten.
 2. **Identitätsdienst bestätigen:** ZITADEL (empfohlen) mit Keycloak als
-   Rückfall, oder gleich Keycloak, wenn eine Lizenz ohne AGPL Vorrang hat.
+   Rückfall. Nach E4.0: Die Anmelde-App ist MIT, der AGPL-Kern läuft
+   unverändert. Aus Lizenzsicht spricht nichts mehr für Keycloak.
 3. **Mailanbieter** mit EU-Verarbeitung. Kandidaten:
    - Brevo (Frankreich/Deutschland),
    - Scaleway TEM (Frankreich),
