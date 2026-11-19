@@ -32,8 +32,13 @@
   --rose: #b63c68;
   --radius-sm: 3px;
   --radius-md: 4px;
-  /* Schriftquelle auch für die gemeinsamen Status- und Komponentenverträge. */
-  --font-sans: "Inter", "Helvetica Neue", Arial, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /*
+   * Schriftquelle auch für die gemeinsamen Status- und Komponentenverträge:
+   * IBM Plex Sans aus dem Token-Vertrag, wie in den drei Fach-Apps. Vorher
+   * stand hier ein Stapel, der mit „Inter" begann – geladen wurde Inter nie,
+   * angezeigt wurde Helvetica oder Arial, je nach Gerät.
+   */
+  --font-sans: var(--los-sans);
   font-family: var(--font-sans);
 }
 

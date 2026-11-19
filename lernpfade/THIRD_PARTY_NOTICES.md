@@ -14,6 +14,27 @@ dienten ausschließlich als Referenz; es wurden weder Code noch bezahlte
 Assets, Templates, Shader oder Markenmerkmale übernommen (Quellenstudie und
 Lizenzgrenze: `docs/LEARNING-OS-DESIGN-20261116.md`, Abschnitt 2).
 
+## IBM Plex (seit Roadmap E3, 19.11.2026)
+
+Der Hub liefert wie PythonPfad, SQLPfad und AIPfad die Schriften **IBM Plex
+Sans** (variabel, 100–700) und **IBM Plex Mono** (400, 600) selbst aus:
+`src/app/schriften/*.woff2`, bytegleich mit
+`docs/learning-tokens/schriften/`.
+
+- Copyright 2017, 2019 IBM Corp. (so in den Metadaten der Dateien).
+- Lizenz: SIL Open Font License, Version 1.1 (in den Metadaten verwiesen als
+  http://scripts.sil.org/OFL). IBM nennt in der Lizenz „Plex" als Reserved
+  Font Name.
+- Herkunft: dieselben Dateien wie in den drei Fach-Apps, dort seit LP-02
+  ausgeliefert. Ob es vollständige Dateien oder Teilmengen der IBM-Ausgabe
+  sind, ist hier nicht festgehalten; das gehört bei der nächsten Lizenzprüfung
+  geklärt, ebenso eine beigelegte Textfassung der Lizenz (die Dateien tragen
+  Vermerk und Lizenzverweis, aber nicht den Lizenztext).
+
+Damit ist der Satz oben zu den Fonts für den aktuellen Stand überholt: Der Hub
+enthält seit E3 diese eine fremde Schriftfamilie, sonst weiterhin keine
+fremden Bilder, Shader oder Illustrationen.
+
 ## Historie: Liquid Sculpture Hero (bis LO-UI-001 enthalten)
 
 Bis zur Learning-OS-Integration beruhte die Startseiten-Hero auf der

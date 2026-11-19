@@ -31,7 +31,9 @@ Der Check (nur Node-Bordmittel, repariert nichts) scheitert, wenn
 - die Grundskala `--color-ink-*` einer Fach-App oder die Modulfarben von
   PythonPfad und SQLPfad eigene Hexwerte tragen statt `var(--los-…)`,
 - die neutralen Töne von Shell, Komponenten oder Statusvertrag nicht auf die
-  Tokens verweisen.
+  Tokens verweisen,
+- eine Schriftdatei fehlt oder abweicht, ein Layout sie nicht lädt oder eine
+  App einen eigenen Schriftstapel trägt.
 
 Er läuft in `.github/workflows/lernpfade-ci.yml` als eigener Job. Die
 Dachleistenfarben hält zusätzlich `check-learning-shell.mjs` mit ihren
@@ -50,6 +52,26 @@ Werten fest.
 - Modul- und Bereichsfarben `--los-modul-0 … -3`, `--los-projekt`,
   `--los-wiederholen`, je mit `-weich`, `-dunkel` und `-dunkel-weich`
   (Tabelle und Regeln: `docs/LEARNING-DESIGN-SYSTEM.md`, Ebene B).
+- Schriftstapel `--los-sans`, `--los-mono` (IBM Plex) und `--los-serif`
+  (System, nur für die Akzentzeile).
+
+## Schriftdateien
+
+`schriften/` enthält IBM Plex Sans (variabel, 100–700) und IBM Plex Mono
+(400, 600) als woff2, Copyright IBM Corp., SIL Open Font License 1.1 – der
+Vermerk und der Lizenzverweis stehen in den Metadaten jeder Datei, der
+Lizenztext selbst noch nicht (offener Punkt, siehe
+`lernpfade/THIRD_PARTY_NOTICES.md`). Kopien:
+
+| Kanonisch (`docs/learning-tokens/schriften/`) | Kopie                  | Apps                     |
+| --------------------------------------------- | ---------------------- | ------------------------ |
+| `plex-sans.woff2`, `plex-mono-400.woff2`, `plex-mono-600.woff2` | `src/app/schriften/` | Python, SQL, AIPfad, Hub |
+
+Jede App lädt sie in `src/app/layout.tsx` mit `next/font/local`
+(`variable: '--font-plex-sans'` bzw. `'--font-plex-mono'`) und setzt beide
+Variablen als Klassen auf `<html>`; `--los-sans` und `--los-mono` greifen
+darauf zu. Der Check prüft Dateien, Laden und dass niemand einen eigenen
+Stapel daneben notiert.
 
 ## Was bewusst nicht drinsteht
 

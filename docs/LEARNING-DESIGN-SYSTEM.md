@@ -285,6 +285,19 @@ Monospace ist Fachtypografie für:
 AIPfad darf in Fachinhalten technisch bleiben; die globale Navigation folgt
 demselben Produktstil wie die übrigen Pfade.
 
+**Schrift (Roadmap E3, 19.11.2026).** Hub und alle Fach-Apps setzen **IBM Plex
+Sans** für Oberfläche und Fließtext und **IBM Plex Mono** für Quelltext,
+selbst ausgeliefert (`font-src 'self'`, kein Schriftennetz). Die Dateien
+liegen kanonisch in `docs/learning-tokens/schriften/` und bytegleich unter
+`src/app/schriften/` jeder App; geladen werden sie mit `next/font/local` als
+`--font-plex-sans` und `--font-plex-mono` am `<html>`. Die Stapel
+`--los-sans`, `--los-mono` und `--los-serif` stehen im Token-Vertrag; Apps
+und Hub verweisen nur darauf. Die Serife trägt ausschließlich die
+Akzentzeile und kommt aus dem System (Iowan Old Style, Palatino, Georgia).
+Vorher zeigte der Hub Helvetica oder Arial – sein Stapel begann mit „Inter",
+geladen wurde Inter nie. Lizenz: SIL Open Font License 1.1, Copyright IBM
+Corp. (`lernpfade/THIRD_PARTY_NOTICES.md`).
+
 ## 7. Motion
 
 Gemeinsame Regel:
