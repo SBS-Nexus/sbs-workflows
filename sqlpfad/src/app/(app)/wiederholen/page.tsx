@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { requireUser } from '@/server/auth/session';
-import { Callout, EmptyState } from '@/components/ui/primitives';
+import { ButtonLink, Callout, EmptyState } from '@/components/ui/primitives';
 import { AufgabenKarte } from '@/components/aufgabe/aufgaben-karte';
 import { ladeAufgabenVorrat } from '@/server/aufgaben-auswahl';
 import {
@@ -82,6 +82,13 @@ export default async function WiederholenSeite(): Promise<React.ReactElement> {
               nochNichts
                 ? 'Wiederholungen entstehen aus bearbeiteten Aufgaben. Solange du noch keine bearbeitet hast, ist hier nichts zu tun – das ist kein Rückstand.'
                 : 'Alles, was ansteht, hast du hinter dir. Hier steht wieder etwas, sobald ein Termin fällig wird.'
+            }
+            action={
+              nochNichts ? (
+                <ButtonLink href="/lernen">Mit Modul 1 beginnen</ButtonLink>
+              ) : (
+                <ButtonLink href="/lernen">Weiterlernen</ButtonLink>
+              )
             }
           />
           {naechster ? (

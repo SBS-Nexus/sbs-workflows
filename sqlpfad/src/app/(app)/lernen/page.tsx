@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { requireUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
-import { CardLink, EmptyState } from '@/components/ui/primitives';
+import { ButtonLink, CardLink, EmptyState } from '@/components/ui/primitives';
+import { hubLinks } from '@/lib/learning-shell';
 import { Icon } from '@/components/ui/icon';
 import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
 
@@ -42,12 +43,22 @@ export default async function LernenSeite(): Promise<React.ReactElement> {
   );
 
   if (modulListe.length === 0) {
+    // Ohne Inhalte gibt es hier nichts zu tun; der nächste Schritt führt zu
+    // den anderen Pfaden im Hub – nur, wenn seine Adresse konfiguriert ist.
+    const hub = hubLinks(process.env.NEXT_PUBLIC_LEARNING_HUB_URL);
     return (
       <div className="space-y-6">
         <h1 className="text-display-sm font-black leading-tight tracking-[-0.02em]">Lernpfad</h1>
         <EmptyState
           title="Noch keine Lektionen eingespielt"
           description="Auf dieser Installation sind noch keine Inhalte vorhanden. Sobald sie eingespielt sind, beginnt hier dein Weg."
+          action={
+            hub ? (
+              <ButtonLink href={hub.home} variant="secondary">
+                Andere Lernpfade ansehen
+              </ButtonLink>
+            ) : undefined
+          }
         />
       </div>
     );

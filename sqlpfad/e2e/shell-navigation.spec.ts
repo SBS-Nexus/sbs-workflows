@@ -4,6 +4,7 @@ import { Client } from 'pg';
 import {
   beschriftungen,
   erwarteKeineSchwerenAxeBefunde,
+  erwarteAnderePfade,
   erwartePlattformleiste,
   erwarteSichtbarenFokus,
   erwarteWirklichSichtbar,
@@ -88,6 +89,7 @@ test('Vertrag auf jeder Breite: gleiche Bereiche, gleiche Reihenfolge, Abmelden 
         'page',
       );
       await erwartePlattformleiste(page);
+      await erwarteAnderePfade(page, 'sql');
 
       const kopf = page.getByRole('banner');
       if (breite >= 768) {

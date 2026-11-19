@@ -30,7 +30,7 @@ import {
   type CardDraft,
   type FieldErrorState,
 } from './vocab-fields';
-import { Button, EmptyState } from '@/components/ui/primitives';
+import { Button, ButtonLink, EmptyState } from '@/components/ui/primitives';
 
 function toInput(draft: CardDraft): CardInput {
   return { term: draft.term, translation: draft.translation, context: draft.context, tags: splitTagInput(draft.tags) };
@@ -115,6 +115,11 @@ export function VocabDeckView({
             size="compact"
             title="Noch keine Karten"
             description="Lege oben die erste Karte für dieses Deck an."
+            action={
+              <ButtonLink href="#new-card-title" variant="secondary" size="sm">
+                Erste Karte anlegen
+              </ButtonLink>
+            }
           />
         ) : (
           <>

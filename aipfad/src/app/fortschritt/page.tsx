@@ -4,7 +4,13 @@ import { getCurrentUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
 import { veroeffentlichteAufgabe, veroeffentlichteLektion } from '@/server/content/publication';
 import { AppHeader } from '@/components/app/app-header';
-import { Card, EmptyState, ProgressBar, SectionHeading } from '@/components/ui/primitives';
+import {
+  ButtonLink,
+  Card,
+  EmptyState,
+  ProgressBar,
+  SectionHeading,
+} from '@/components/ui/primitives';
 import { describeMastery } from '@/domain/mastery/mastery';
 
 export const metadata: Metadata = {
@@ -91,7 +97,8 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
         {mastery.length === 0 ? (
           <EmptyState
             title="Noch keine Übung"
-            description="Sobald du die erste Aufgabe bearbeitest, erscheint hier dein Kompetenzstand je Konzept."
+            description="Dein Kompetenzstand je Konzept entsteht aus bearbeiteten Aufgaben. Die erste wartet in deinem Lernpfad."
+            action={<ButtonLink href="/pfad">Zum Lernpfad</ButtonLink>}
           />
         ) : (
           <ul className="space-y-3">
