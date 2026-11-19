@@ -119,9 +119,12 @@ im Hub, Dateien und Stapel im Token-Vertrag.
 - Danach Fortschritt und Wiederholungen pfadübergreifend im Hub, unabhängig von
   Domain-Grenzen. Das löst auch L6.
 
-**Braucht eine Entscheidung:** einen eigenen Identitätsdienst betreiben (Daten
-bleiben in der EU, mehr Aufwand) oder einen gehosteten Anbieter nutzen
-(schneller, laufende Kosten, AVV nötig).
+**Entschieden:** eigener Identitätsdienst (Daten bleiben in der EU).
+**Plan:** `docs/E4-KONTO-PLAN.md`, mit ZITADEL als Empfehlung, Keycloak als
+Rückfall, Zusammenführung nur über bestätigte E-Mail-Adressen und Etappen
+E4.0–E4.5. **Offen vor E4.1:** Plattform-Domain für `konto.…` (zugleich für den
+Hub), Bestätigung des Dienstes, Mailanbieter mit EU-Verarbeitung, Regel für den
+zweiten Faktor. Geschätzt 10–20 USD im Monat.
 
 ### E5 · Für Unternehmen (L5)
 
