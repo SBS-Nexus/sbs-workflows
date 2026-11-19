@@ -24,3 +24,11 @@ test('nur gültige http(s)-Adressen werden zu Links', () => {
 test('Git & GitHub verweist ohne eigenen GitPfad auf die Git-Lektion im AIPfad', () => {
   assert.equal(hrefOf('git'), 'https://ai.example.test/lektion/warum-versionsverwaltung/1');
 });
+
+test('Startlinks der Wege folgen denselben Adressen wie die Pfadzeilen', () => {
+  const [einstieg, fachbereich] = os.LEARNING_OS_ROUTES;
+  assert.equal(einstieg?.start.href, undefined, 'Python ohne gültige Adresse: kein Startlink');
+  assert.equal(fachbereich?.start.href, 'https://sql.example.test');
+  assert.equal(einstieg?.companion.href, 'https://ai.example.test/lektion/warum-versionsverwaltung/1');
+  assert.equal(einstieg?.companion.linkLabel, 'Git-Grundlagen ansehen');
+});

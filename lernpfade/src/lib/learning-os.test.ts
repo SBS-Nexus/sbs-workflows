@@ -54,3 +54,41 @@ test('keine erfundenen Fortschritts- oder Leistungswerte in den Pfadtexten', () 
     assert.doesNotMatch(text, /\d+\s*%|\bXP\b|Punkte|Level\s*\d/i, track.slug);
   }
 });
+
+test('empfohlene Reihenfolge wie in der Roadmap: Einstieg Python → SQL → AI, Fachbereich SQL → AI', () => {
+  assert.deepEqual(
+    os.LEARNING_OS_ROUTES.map((route) => [route.id, route.steps.map((step) => step.slug)]),
+    [
+      ['einstieg', ['python', 'sql', 'ai']],
+      ['fachbereich', ['sql', 'ai']],
+    ],
+  );
+  // Git & GitHub begleitet den Einstieg von der ersten Woche an.
+  const einstieg = os.LEARNING_OS_ROUTES.find((route) => route.id === 'einstieg');
+  assert.match(einstieg?.companion.text ?? '', /Git & GitHub/);
+  assert.match(einstieg?.companion.text ?? '', /ersten Woche/);
+});
+
+test('jeder Schritt begründet seine Stelle; Namen und Status aus dem Katalog', () => {
+  for (const route of os.LEARNING_OS_ROUTES) {
+    for (const step of route.steps) {
+      assert.ok(step.why.length > 40, `${route.id}/${step.slug}: Begründung fehlt`);
+      assert.doesNotMatch(step.why, /\d+\s*%|\bXP\b|Punkte|Level\s*\d/i, `${route.id}/${step.slug}`);
+    }
+  }
+  assert.deepEqual(
+    os.LEARNING_OS_ROUTES[0]?.steps.map((step) => [step.appName, step.statusLabel]),
+    [
+      ['PythonPfad', 'Verfügbar'],
+      ['SQLPfad', 'Verfügbar'],
+      ['AIPfad', 'In Ausbau'],
+    ],
+  );
+});
+
+test('ohne konfigurierte Apps: kein Startlink, kein Git-Link – nur der Hinweis', () => {
+  for (const route of os.LEARNING_OS_ROUTES) {
+    assert.equal('href' in route.start, false, `${route.id}: kein toter Startlink`);
+    assert.equal('href' in route.companion, false, `${route.id}: kein toter Begleitlink`);
+  }
+});
