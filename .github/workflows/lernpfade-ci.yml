@@ -36,6 +36,7 @@ on:
       - 'docs/learning-tokens/**'
       - 'scripts/check-learning-tokens.mjs'
       - '*/src/styles/learning-tokens.css'
+      - '*/src/app/schriften/**'
       # LP-05B/LP-07: schreibgeschützte Plattformquellen der drei Fach-Apps.
       - 'scripts/check-platform-sources.mjs'
       - '*/src/server/platform/**'
@@ -77,6 +78,7 @@ on:
       - 'docs/learning-tokens/**'
       - 'scripts/check-learning-tokens.mjs'
       - '*/src/styles/learning-tokens.css'
+      - '*/src/app/schriften/**'
       # LP-05B/LP-07: schreibgeschützte Plattformquellen der drei Fach-Apps.
       - 'scripts/check-platform-sources.mjs'
       - '*/src/server/platform/**'

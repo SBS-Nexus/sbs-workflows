@@ -27,9 +27,9 @@
  */
 
 @theme {
-  --font-sans:
-    var(--font-plex-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  /* Stapel aus dem Token-Vertrag (learning-tokens.css), wie im Hub. */
+  --font-sans: var(--los-sans);
+  --font-mono: var(--los-mono);
 
   /*
    * Grundskala: Papier bis Tinte des Learning OS, dieselben Werte wie im Hub,
@@ -119,7 +119,7 @@
  * bewusst ein Bruch – die eine Zeile, die nicht nach Datenblatt klingt.
  */
 @utility los-akzentzeile {
-  font-family: 'Iowan Old Style', 'Baskerville', 'Palatino Linotype', Georgia, serif;
+  font-family: var(--los-serif);
   font-style: italic;
   font-weight: 500;
   letter-spacing: -0.02em;

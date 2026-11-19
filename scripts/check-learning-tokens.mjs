@@ -15,6 +15,11 @@
  *     statt eigene Hexwerte zu tragen.
  *  4. Die gemeinsamen Verträge beziehen ihre neutralen Töne (Flächen, Text,
  *     Ränder) aus den Tokens und nicht mehr aus einem eigenen Kaltgrau.
+ *  5. Schrift: Die IBM-Plex-Dateien aus `docs/learning-tokens/schriften/`
+ *     liegen bytegleich unter `src/app/schriften/`, jede App lädt sie in
+ *     `src/app/layout.tsx` als `--font-plex-sans`/`--font-plex-mono` am
+ *     <html>, und `--font-sans`/`--font-mono` verweisen auf die Stapel des
+ *     Vertrags statt eigene zu tragen.
  *
  * Es wird nichts repariert. Aufruf: `node scripts/check-learning-tokens.mjs`.
  * Exit-Code 0 = alles im Vertrag, 1 = Drift (mit Liste der Befunde).
@@ -33,6 +38,20 @@ const TARGET = 'src/styles/learning-tokens.css';
 const CSS_IMPORT = "@import '../styles/learning-tokens.css';";
 const STUFEN = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
 const ROLLEN = ['modul-0', 'modul-1', 'modul-2', 'modul-3', 'projekt', 'wiederholen'];
+const SCHRIFTEN = ['plex-sans.woff2', 'plex-mono-400.woff2', 'plex-mono-600.woff2'];
+const SCHRIFT_ORDNER = path.join(root, 'docs', 'learning-tokens', 'schriften');
+/** Woran im Layout erkennbar ist, dass die Schrift geladen und gesetzt wird. */
+const LAYOUT_NEEDS = [
+  "from 'next/font/local'",
+  "'./schriften/plex-sans.woff2'",
+  "'./schriften/plex-mono-400.woff2'",
+  "'./schriften/plex-mono-600.woff2'",
+  "variable: '--font-plex-sans'",
+  "variable: '--font-plex-mono'",
+  '${plexSans.variable} ${plexMono.variable}',
+];
+/** Eigene Schriftstapel neben dem Vertrag. */
+const EIGENE_SCHRIFT = /Iowan Old Style|['"]Inter['"]|Helvetica Neue/;
 
 /** Vertragsdatei → Eigenschaften, die auf `var(--los-…)` verweisen müssen. */
 const NEUTRAL = {
@@ -173,6 +192,51 @@ if (canonical === null) {
   }
 }
 
+// 5. Schrift
+for (const datei of SCHRIFTEN) {
+  const kanonisch = read(path.join(SCHRIFT_ORDNER, datei));
+  if (kanonisch === null) {
+    fail(`kanonische Schrift fehlt: ${rel(path.join(SCHRIFT_ORDNER, datei))}`);
+    continue;
+  }
+  for (const dir of APPS) {
+    const ziel = path.join(root, dir, 'src/app/schriften', datei);
+    const kopie = read(ziel);
+    if (kopie === null) fail(`Schrift fehlt: ${rel(ziel)}`);
+    else if (!kopie.equals(kanonisch)) fail(`Schrift weicht ab: ${rel(ziel)}`);
+  }
+}
+for (const dir of APPS) {
+  const layoutFile = path.join(root, dir, 'src/app/layout.tsx');
+  const layout = read(layoutFile)?.toString('utf8');
+  if (layout === undefined) fail(`fehlt: ${rel(layoutFile)}`);
+  else {
+    for (const needle of LAYOUT_NEEDS) {
+      if (!layout.includes(needle)) fail(`${rel(layoutFile)} lädt die Schrift nicht wie vereinbart (${needle} fehlt)`);
+    }
+    const html = /<html[\s\S]*?>/.exec(layout)?.[0] ?? '';
+    if (!html.includes('plexSans.variable')) fail(`${rel(layoutFile)}: <html> trägt die Schriftvariablen nicht`);
+  }
+  const globalsFile = path.join(root, dir, 'src/app/globals.css');
+  const globals = read(globalsFile)?.toString('utf8');
+  if (globals === undefined) continue;
+  const erwartet = dir === 'lernpfade' ? [['--font-sans', 'var(--los-sans)']] : [['--font-sans', 'var(--los-sans)'], ['--font-mono', 'var(--los-mono)']];
+  for (const [name, soll] of erwartet) {
+    const gefunden = werte(globals, name);
+    if (gefunden.length === 0) fail(`${rel(globalsFile)}: ${name} fehlt`);
+    for (const wert of gefunden) {
+      if (wert !== soll) fail(`${rel(globalsFile)}: ${name} ist ${wert}, erwartet ${soll}`);
+    }
+  }
+  const eigene = [globalsFile];
+  if (dir === 'lernpfade') eigene.push(path.join(root, dir, 'src/styles/learning-os.css'));
+  for (const file of eigene) {
+    const css = read(file)?.toString('utf8');
+    if (css !== undefined && EIGENE_SCHRIFT.test(ohneKommentare(css)))
+      fail(`${rel(file)} notiert einen eigenen Schriftstapel; er gehört in den Token-Vertrag`);
+  }
+}
+
 if (failures.length > 0) {
   console.error(`Lernpfade-Tokens: ${failures.length} Abweichung(en) vom Vertrag`);
   for (const message of failures) console.error(`  ✗ ${message}`);
@@ -185,5 +249,5 @@ if (failures.length > 0) {
 console.log(
   `Lernpfade-Tokens: Token-Vertrag bytegleich in ${APPS.length} Apps und eingebunden, ` +
     'keine zweite Quelle, Grundskala und Modulfarben verweisen darauf, ' +
-    'Verträge beziehen ihre neutralen Töne daraus.',
+    'Verträge beziehen ihre neutralen Töne daraus, Schrift bytegleich geladen und verwiesen.',
 );

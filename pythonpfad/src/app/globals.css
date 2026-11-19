@@ -32,9 +32,9 @@
    * stehen: Sie greift, bevor die Schrift eingetroffen ist, und dann, wenn
    * jemand das Laden von Schriften unterbunden hat.
    */
-  --font-sans:
-    var(--font-plex-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  /* Stapel aus dem Token-Vertrag (learning-tokens.css), wie im Hub. */
+  --font-sans: var(--los-sans);
+  --font-mono: var(--los-mono);
 
   /*
    * Die Grundskala.
@@ -737,7 +737,7 @@ body[data-overlay-open='true'] {
  * Kursive in Minze bis Limette statt eines Regenbogenverlaufs.
  */
 @utility los-akzentzeile {
-  font-family: 'Iowan Old Style', 'Baskerville', 'Palatino Linotype', Georgia, serif;
+  font-family: var(--los-serif);
   font-style: italic;
   font-weight: 500;
   letter-spacing: -0.02em;

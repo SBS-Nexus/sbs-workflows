@@ -97,7 +97,8 @@ gedeckte, plattformweite Modulpalette (`docs/LEARNING-DESIGN-SYSTEM.md`,
 Ebene B). Danach der Token-Vertrag `docs/learning-tokens/`: eine bytegleiche
 Datei in Hub und allen Apps, auf die Apps, Shell, Komponenten und Statusvertrag
 verweisen; die gemeinsamen Komponenten stehen damit auch im dunklen Schema auf
-der Tinte statt auf Blaugrau. Offen: eine gemeinsame Schrift.
+der Tinte statt auf Blaugrau. Zuletzt die gemeinsame Schrift: IBM Plex auch
+im Hub, Dateien und Stapel im Token-Vertrag.
 
 ### E4 · Ein Konto für alles (L2)
 
