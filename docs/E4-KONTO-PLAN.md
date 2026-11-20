@@ -23,7 +23,8 @@ per E-Mail zurücksetzen kann und sich an einer Stelle überall abmeldet.
 >   Überschneidung.
 >
 > Kosten neu geschätzt: ca. 7–12 USD im Monat. Die Domain steht fest
-> (`lernpfade.net`, `konto.lernpfade.net`), der Mailversand auch (Scaleway TEM).
+> (`lernpfade.net`, `konto.lernpfade.net`), der Mailversand auch (Scaleway TEM,
+> seit 20.11.2026 eingerichtet und für `lernpfade.net` verifiziert).
 > Offen ist noch Entscheidung 4 in Abschnitt 9: der zweite Faktor.
 
 ---
@@ -288,11 +289,25 @@ endgültigen Preis.
    Strato-Postfach taugt als kostenloser Notbehelf für die Testumgebung,
    nicht für Anmeldecodes im Betrieb: Dort zählt, dass die Mail ankommt.
 
-   Einrichtung:
-   - Das Scaleway-Konto legst du selbst an, mit Zahlungsmittel; ich gebe dort
-     nichts ein.
-   - Die Absenderdomain `lernpfade.net` bekommt SPF, DKIM und DMARC bei
-     Strato. Diese Einträge setze ich nach Freigabe.
+   Einrichtung – **erledigt am 20.11.2026, Domain bei Scaleway „Verified“**:
+   - Scaleway-Organisation „LearnIT“, Projekt `lernpfade`, Tarif Essential in
+     `fr-par`. Konto und Zahlungsmittel hast du selbst angelegt.
+   - Absenderdomain `lernpfade.net`, bei Strato eingetragen:
+
+     | Eintrag     | Name                                              | Wert                                                          |
+     | ----------- | ------------------------------------------------- | ------------------------------------------------------------- |
+     | SPF (TXT)   | `lernpfade.net`                                   | `v=spf1 include:_spf.tem.scaleway.com -all`                   |
+     | DKIM (TXT)  | `9cac10ab-1b37-4888-8f90-add4591fe11a._domainkey` | öffentlicher Schlüssel aus der Scaleway-Konsole (420 Zeichen) |
+     | DMARC (TXT) | `_dmarc`                                          | `v=DMARC1;p=reject;` (Strato-Standardregel, unverändert)      |
+
+   - Der MX bleibt bei Strato (`smtpin.rzone.de`), damit `lernpfade.net`
+     weiter Mail empfangen kann. Die Strato-SPF-Regel steht auf „Keine“. Soll
+     später auch Strato-Mail von `lernpfade.net` senden, muss Strato in den
+     SPF-Eintrag.
+   - Für ZITADEL (E4.1): SMTP `smtp.tem.scaleway.com`, Port 465 (TLS),
+     Benutzer = Projekt-ID, Passwort = API-Schlüssel einer IAM-Anwendung mit
+     Rechten nur für Transactional Email. Den Schlüssel erzeugst du und trägst
+     ihn selbst als Railway-Geheimwert ein.
 
 4. **Zweiter Faktor:** freiwillig für Lernende, Pflicht für alle mit
    Admin- oder Organisationsrechten – so vorgeschlagen.
