@@ -22,8 +22,9 @@ per E-Mail zurücksetzen kann und sich an einer Stelle überall abmeldet.
 > - Heute gibt es **2 Konten** (je eines in PythonPfad und SQLPfad), ohne
 >   Überschneidung.
 >
-> Kosten neu geschätzt: ca. 7–12 USD im Monat. Offen sind noch die
-> Entscheidungen 1, 3 und 4 in Abschnitt 9.
+> Kosten neu geschätzt: ca. 7–12 USD im Monat. Die Domain steht fest
+> (`lernpfade.net`, `konto.lernpfade.net`). Offen sind noch die Entscheidungen 3
+> und 4 in Abschnitt 9: Mailanbieter und zweiter Faktor.
 
 ---
 
@@ -253,13 +254,19 @@ endgültigen Preis.
 
 ## 9. Entscheidungen, die vor E4.1 fallen müssen
 
-1. **Plattform-Domain** für `konto.…` – und zugleich für den Hub (L6).
-   - Eine der vorhandenen Domains bei Strato, etwa eine Marken-Domain von SBS
-     Nexus.
-   - Oder eine neue Domain. `lernpfade.de` ist vergeben.
-   - Ohne eigene Domain geht es nicht. Eine `*.up.railway.app`-Adresse als
-     Anmeldeseite wirkt nicht vertrauenswürdig und lässt sich nicht
-     umziehen, ohne alle Clients neu einzurichten.
+1. **Plattform-Domain – entschieden am 19.11.2026: `lernpfade.net`.**
+   - Bei Strato als Inklusiv-Domain im Paket Hosting Pro bestellt, 0 €
+     (Bestellvorgang 33277). Strato meldet die Einrichtung per E-Mail.
+   - Verwendung: `lernpfade.net` für den Hub (L6), `konto.lernpfade.net` für
+     die Anmeldung.
+   - DNS wie bei den Fach-Apps: `www` und `konto` als CNAME auf Railway, die
+     nackte Domain per 301 auf `www` (Strato kann keinen CNAME auf der
+     nackten Domain).
+   - `lernpfade.app` wäre frei gewesen (18 € im ersten Jahr, danach
+     21,60 €), wurde aber wegen der Kosten verworfen. `.net` erzwingt
+     HTTPS nicht schon im Browser; die Dienste senden HSTS, später ist ein
+     Eintrag in die HSTS-Preload-Liste möglich.
+   - Geprüft und vergeben: `lernpfade.de`, `.com`, `.org`, `.eu`, `lernpfad.de`.
 2. **Identitätsdienst bestätigen:** ZITADEL (empfohlen) mit Keycloak als
    Rückfall. Nach E4.0: Die Anmelde-App ist MIT, der AGPL-Kern läuft
    unverändert. Aus Lizenzsicht spricht nichts mehr für Keycloak.

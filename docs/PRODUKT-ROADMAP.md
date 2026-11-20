@@ -126,7 +126,8 @@ E4.0–E4.5. **Offen vor E4.1:** Plattform-Domain für `konto.…` (zugleich fü
 Hub), Bestätigung des Dienstes, Mailanbieter mit EU-Verarbeitung, Regel für den
 zweiten Faktor. **E4.0 erledigt** (`docs/E4-0-MACHBARKEIT.md`): ZITADEL
 erfüllt alle Tore, die Anmelde-App ist MIT, App-Hashes werden übernommen, und
-heute gibt es 2 Konten. Gemessen ca. 7–12 USD im Monat.
+heute gibt es 2 Konten. Gemessen ca. 7–12 USD im Monat. **Domain entschieden:** `lernpfade.net`
+(Inklusiv-Domain bei Strato, 0 €), Anmeldung unter `konto.lernpfade.net`.
 
 ### E5 · Für Unternehmen (L5)
 
