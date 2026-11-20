@@ -23,8 +23,8 @@ per E-Mail zurücksetzen kann und sich an einer Stelle überall abmeldet.
 >   Überschneidung.
 >
 > Kosten neu geschätzt: ca. 7–12 USD im Monat. Die Domain steht fest
-> (`lernpfade.net`, `konto.lernpfade.net`). Offen sind noch die Entscheidungen 3
-> und 4 in Abschnitt 9: Mailanbieter und zweiter Faktor.
+> (`lernpfade.net`, `konto.lernpfade.net`), der Mailversand auch (Scaleway TEM).
+> Offen ist noch Entscheidung 4 in Abschnitt 9: der zweite Faktor.
 
 ---
 
@@ -270,7 +270,7 @@ endgültigen Preis.
 2. **Identitätsdienst bestätigen:** ZITADEL (empfohlen) mit Keycloak als
    Rückfall. Nach E4.0: Die Anmelde-App ist MIT, der AGPL-Kern läuft
    unverändert. Aus Lizenzsicht spricht nichts mehr für Keycloak.
-3. **Mailanbieter** mit EU-Verarbeitung – verglichen am 20.11.2026. Bedarf:
+3. **Mailanbieter – entschieden am 20.11.2026: Scaleway TEM** (Tarif Essential), Verarbeitung in der EU. Bedarf:
    Bestätigungs- und Zurücksetzen-Mails, anfangs wenige pro Tag. ZITADEL kann
    SMTP und HTTP.
 
