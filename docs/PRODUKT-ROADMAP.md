@@ -119,9 +119,24 @@ im Hub, Dateien und Stapel im Token-Vertrag.
 - Danach Fortschritt und Wiederholungen pfadübergreifend im Hub, unabhängig von
   Domain-Grenzen. Das löst auch L6.
 
-**Braucht eine Entscheidung:** einen eigenen Identitätsdienst betreiben (Daten
-bleiben in der EU, mehr Aufwand) oder einen gehosteten Anbieter nutzen
-(schneller, laufende Kosten, AVV nötig).
+**Entschieden:** eigener Identitätsdienst (Daten bleiben in der EU).
+**Plan:** `docs/E4-KONTO-PLAN.md`, mit ZITADEL als Dienst, Keycloak als
+Rückfall, Zusammenführung nur über bestätigte E-Mail-Adressen und Etappen
+E4.0–E4.5. **E4.0 erledigt** (`docs/E4-0-MACHBARKEIT.md`): ZITADEL erfüllt alle
+Tore, die Anmelde-App ist MIT, App-Hashes werden übernommen, und heute gibt es
+2 Konten. Gemessen ca. 7–12 USD im Monat.
+
+**Alle Entscheidungen vor E4.1 sind gefallen (Stand 20.11.2026):**
+
+- Domain `lernpfade.net` (Inklusiv-Domain bei Strato, 0 €), Anmeldung unter
+  `konto.lernpfade.net`.
+- Mailversand über Scaleway TEM (Paris), eingerichtet und für `lernpfade.net`
+  verifiziert.
+- Zweiter Faktor freiwillig für Lernende, Pflicht für Admin- und
+  Organisationsrechte.
+
+**Nächster Schritt:** E4.1, der Betrieb von ZITADEL und der Anmelde-App auf
+Railway.
 
 ### E5 · Für Unternehmen (L5)
 
