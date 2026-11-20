@@ -270,12 +270,29 @@ endgültigen Preis.
 2. **Identitätsdienst bestätigen:** ZITADEL (empfohlen) mit Keycloak als
    Rückfall. Nach E4.0: Die Anmelde-App ist MIT, der AGPL-Kern läuft
    unverändert. Aus Lizenzsicht spricht nichts mehr für Keycloak.
-3. **Mailanbieter** mit EU-Verarbeitung. Kandidaten:
-   - Brevo (Frankreich/Deutschland),
-   - Scaleway TEM (Frankreich),
-   - Mailjet (EU-Rechenzentren).
+3. **Mailanbieter** mit EU-Verarbeitung – verglichen am 20.11.2026. Bedarf:
+   Bestätigungs- und Zurücksetzen-Mails, anfangs wenige pro Tag. ZITADEL kann
+   SMTP und HTTP.
 
-   Vor der Wahl prüfe ich Preis und AVV auf den Herstellerseiten.
+   | Anbieter                           | Kosten für uns                                                                            | Standort, Firma                                                               | Hinweise                                                                                                                        |
+   | ---------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+   | **Scaleway TEM** (Tarif Essential) | 300 Mails/Monat frei, danach 0,25 € je 1.000; kein Grundpreis                             | Paris (`fr-par`), Scaleway SAS (Frankreich), eigene Rechenzentren             | nur für Transaktionsmails gedacht, SMTP und API, anfangs bis 10.000 Mails/Monat; neues Konto mit Zahlungsmittel nötig           |
+   | **Brevo** (Free)                   | 300 Mails/Tag frei (Angabe aus Vergleichsseiten, Herstellerseite rendert erst im Browser) | EU (OVH Frankreich/Deutschland, Google Cloud Belgien), Brevo SAS (Frankreich) | SMTP und API, AVV im Konto; eigentlich eine Marketing-Plattform                                                                 |
+   | **Mailjet** (Free)                 | 6.000 Mails/Monat, höchstens 200/Tag                                                      | EU-Server, Sinch (Schweden)                                                   | SMTP und API; Unterauftragsverarbeiter teils in den USA; das Mailjet-Logo entfällt erst ab dem Tarif Essential                  |
+   | **Strato-Postfach** (im Paket)     | 0 €, vorhanden                                                                            | Deutschland, Strato GmbH                                                      | DKIM-Signatur für alles über `smtp.strato.de`; Versandgrenzen nicht veröffentlicht, geteilte IPs, Berichte über Spam-Einstufung |
+
+   **Empfehlung: Scaleway TEM.** Es ist ein reiner Transaktionsdienst ohne
+   US-Mutter mit eigenen EU-Rechenzentren. Das ist das stärkste Argument
+   gegenüber Firmenkunden. Bei unserem Aufkommen kostet es praktisch nichts,
+   und ein Wachstum auf 10.000 Mails im Monat läge bei rund 2,50 €. Das
+   Strato-Postfach taugt als kostenloser Notbehelf für die Testumgebung,
+   nicht für Anmeldecodes im Betrieb: Dort zählt, dass die Mail ankommt.
+
+   Einrichtung:
+   - Das Scaleway-Konto legst du selbst an, mit Zahlungsmittel; ich gebe dort
+     nichts ein.
+   - Die Absenderdomain `lernpfade.net` bekommt SPF, DKIM und DMARC bei
+     Strato. Diese Einträge setze ich nach Freigabe.
 
 4. **Zweiter Faktor:** freiwillig für Lernende, Pflicht für alle mit
    Admin- oder Organisationsrechten – so vorgeschlagen.
