@@ -120,14 +120,23 @@ im Hub, Dateien und Stapel im Token-Vertrag.
   Domain-Grenzen. Das löst auch L6.
 
 **Entschieden:** eigener Identitätsdienst (Daten bleiben in der EU).
-**Plan:** `docs/E4-KONTO-PLAN.md`, mit ZITADEL als Empfehlung, Keycloak als
+**Plan:** `docs/E4-KONTO-PLAN.md`, mit ZITADEL als Dienst, Keycloak als
 Rückfall, Zusammenführung nur über bestätigte E-Mail-Adressen und Etappen
-E4.0–E4.5. **Offen vor E4.1:** Plattform-Domain für `konto.…` (zugleich für den
-Hub), Bestätigung des Dienstes, Mailanbieter mit EU-Verarbeitung, Regel für den
-zweiten Faktor. **E4.0 erledigt** (`docs/E4-0-MACHBARKEIT.md`): ZITADEL
-erfüllt alle Tore, die Anmelde-App ist MIT, App-Hashes werden übernommen, und
-heute gibt es 2 Konten. Gemessen ca. 7–12 USD im Monat. **Domain entschieden:** `lernpfade.net`
-(Inklusiv-Domain bei Strato, 0 €), Anmeldung unter `konto.lernpfade.net`.
+E4.0–E4.5. **E4.0 erledigt** (`docs/E4-0-MACHBARKEIT.md`): ZITADEL erfüllt alle
+Tore, die Anmelde-App ist MIT, App-Hashes werden übernommen, und heute gibt es
+2 Konten. Gemessen ca. 7–12 USD im Monat.
+
+**Alle Entscheidungen vor E4.1 sind gefallen (Stand 20.11.2026):**
+
+- Domain `lernpfade.net` (Inklusiv-Domain bei Strato, 0 €), Anmeldung unter
+  `konto.lernpfade.net`.
+- Mailversand über Scaleway TEM (Paris), eingerichtet und für `lernpfade.net`
+  verifiziert.
+- Zweiter Faktor freiwillig für Lernende, Pflicht für Admin- und
+  Organisationsrechte.
+
+**Nächster Schritt:** E4.1, der Betrieb von ZITADEL und der Anmelde-App auf
+Railway.
 
 ### E5 · Für Unternehmen (L5)
 

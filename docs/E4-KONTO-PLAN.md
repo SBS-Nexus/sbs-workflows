@@ -25,7 +25,8 @@ per E-Mail zurücksetzen kann und sich an einer Stelle überall abmeldet.
 > Kosten neu geschätzt: ca. 7–12 USD im Monat. Die Domain steht fest
 > (`lernpfade.net`, `konto.lernpfade.net`), der Mailversand auch (Scaleway TEM,
 > seit 20.11.2026 eingerichtet und für `lernpfade.net` verifiziert).
-> Offen ist noch Entscheidung 4 in Abschnitt 9: der zweite Faktor.
+> Der zweite Faktor ist am 20.11.2026 entschieden. **Alle Entscheidungen aus
+> Abschnitt 9 sind gefallen, E4.1 kann beginnen.**
 
 ---
 
@@ -309,8 +310,15 @@ endgültigen Preis.
      Rechten nur für Transactional Email. Den Schlüssel erzeugst du und trägst
      ihn selbst als Railway-Geheimwert ein.
 
-4. **Zweiter Faktor:** freiwillig für Lernende, Pflicht für alle mit
-   Admin- oder Organisationsrechten – so vorgeschlagen.
+4. **Zweiter Faktor – entschieden am 20.11.2026:** freiwillig für Lernende,
+   Pflicht für alle mit Admin- oder Organisationsrechten.
+   - ZITADEL kann den zweiten Faktor nur je Instanz oder Organisation
+     erzwingen, nicht je Rolle. Die Pflicht setzen deshalb die Apps durch: In
+     Admin- und Organisationsbereichen prüfen sie, ob die Anmeldung mit
+     zweitem Faktor erfolgte (Claim `amr` im Token), und schicken sonst zur
+     Einrichtung bzw. zur erneuten Anmeldung. Ob ZITADEL `amr` dafür
+     verlässlich liefert, prüft E4.1 als Erstes.
+   - Lernende sehen das Angebot im Konto, werden aber nicht gedrängt.
 
 ## 10. Risiken
 
