@@ -31,7 +31,8 @@
 	}
 
 	handle / {
-		redir /ui/v2/login/ 302
+		# Ohne `*` läse Caddy den ersten Pfad als Bedingung statt als Ziel.
+		redir * /ui/v2/login/ 302
 	}
 
 	handle /ui/v2/login* {
