@@ -13,7 +13,11 @@
 //   node konto/einrichtung/einrichten.mjs --basis https://konto.lernpfade.net \
 //     --schluessel /pfad/einrichtung.pem --nutzer einrichtung \
 //     --mail-endpunkt https://<konto-mail>.up.railway.app/ --ausgabe /pfad/geheim \
-//     [--login-token-erneuern] [--mail-neu]
+//     [--login-token-erneuern] [--mail-neu] [--ueber https://<konto-proxy>.up.railway.app]
+//
+// --ueber schickt die Anfragen an eine andere Adresse desselben Proxys (etwa
+// solange das DNS für konto.lernpfade.net noch fehlt). Das Token bleibt auf
+// --basis ausgestellt; der Proxy setzt den Host ohnehin auf konto.lernpfade.net.
 import { createPrivateKey, sign } from 'node:crypto';
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -30,12 +34,14 @@ const { values: arg } = parseArgs({
     'login-token-erneuern': { type: 'boolean', default: false },
     'mail-neu': { type: 'boolean', default: false },
     'nur-pruefen': { type: 'boolean', default: false },
+    ueber: { type: 'string' },
   },
 });
 for (const pflicht of ['basis', 'schluessel', 'ausgabe']) {
   if (!arg[pflicht]) throw new Error(`--${pflicht} fehlt`);
 }
 const BASIS = arg.basis.replace(/\/$/, '');
+const ZIEL = (arg.ueber ?? arg.basis).replace(/\/$/, '');
 
 // --- Anmeldung als System-Nutzer -------------------------------------------
 
@@ -60,13 +66,13 @@ const TOKEN = systemToken();
 
 /** Fehler, die beim zweiten Lauf erwartbar sind und nichts bedeuten. */
 const SCHON_SO =
-  /already exists|alreadyexists|not changed|notchanged|has not been changed|no changes|existiert bereits|nicht geändert/i;
+  /already exists|alreadyexists|not changed|notchanged|has not been changed|no changes|existiert bereits|nicht (?:ver)?ändert|nicht geändert/i;
 
 async function api(methode, pfad, koerper, { orgId, erlaubt = [] } = {}) {
   const kopf = { authorization: `Bearer ${TOKEN}`, accept: 'application/json' };
   if (koerper !== undefined) kopf['content-type'] = 'application/json';
   if (orgId) kopf['x-zitadel-orgid'] = orgId;
-  const antwort = await fetch(BASIS + pfad, {
+  const antwort = await fetch(ZIEL + pfad, {
     method: methode,
     headers: kopf,
     body: koerper === undefined ? undefined : JSON.stringify(koerper),
