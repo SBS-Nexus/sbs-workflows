@@ -1,0 +1,13 @@
+{
+  "name": "konto-mail",
+  "private": true,
+  "description": "Mailversand für den Identitätsdienst: ZITADEL-HTTP-Anbieter → Scaleway Transactional Email",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test"
+  }
+}

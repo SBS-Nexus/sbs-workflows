@@ -12,7 +12,7 @@ ZITADEL in Betrieb geht.
   gelaufen.
 
 Bis E4.2 hängt keine App am Dienst. Die Apps bleiben unverändert, und ein
-Fehlversuch lässt sich durch Löschen der vier Dienste vollständig zurücknehmen.
+Fehlversuch lässt sich durch Löschen der fünf Dienste vollständig zurücknehmen.
 
 ## 1. Aufbau
 
@@ -25,9 +25,11 @@ Fehlversuch lässt sich durch Löschen der vier Dienste vollständig zurücknehm
                  ▼                                   ▼
           konto-login                           konto
           (Anmelde-App, privat)  ── API ──▶     (ZITADEL v4.20.5, privat, h2c)
-                                                     │
-                                                konto-db
-                                                (Postgres 17, Laufwerk, Sicherung)
+                                                     │            │ Mail (HTTPS, signiert)
+                                                konto-db          ▼
+                                                (Postgres 17,   konto-mail ──▶ Scaleway TEM
+                                                 Laufwerk,      (öffentlich,   (HTTPS-API)
+                                                 Sicherung)      nur signiert)
 ```
 
 - **Ein Host für alles.** Anmelde-App und Dienst laufen unter derselben Domain.
@@ -39,7 +41,7 @@ Fehlversuch lässt sich durch Löschen der vier Dienste vollständig zurücknehm
   Adresse. Sie sprechen über das private Railway-Netz.
 - Projekt `sbs-lernpfade-staging`, dort laufen auch die Apps. Region
   `europe-west4`.
-- Der Proxy liegt im Repository (`konto/proxy/`, Caddyfile und Dockerfile),
+- Proxy und Mail-Dienst liegen im Repository (`konto/proxy/`, `konto/mail/`),
   damit Änderungen durch die Prüfung gehen. ZITADEL und die Anmelde-App laufen
   zunächst als feste Images (`ghcr.io/zitadel/zitadel:v4.20.5`,
   `ghcr.io/zitadel/zitadel-login:v4.20.5`, jeweils mit Digest).
@@ -59,7 +61,8 @@ kann. Deshalb:
 - **Masterkey und Cookie-Geheimnis** erzeuge ich lokal und übergebe sie als
   Datei an Railway (`--variables @datei`). Der Masterkey gehört zusätzlich in
   die Sicherung: Ohne ihn sind die verschlüsselten Daten in der Datenbank nicht
-  lesbar. Wo er sicher liegt, entscheidest du (Passwortmanager).
+  lesbar. Du kopierst ihn aus der Railway-Variable `ZITADEL_MASTERKEY` in deinen
+  Passwortmanager.
 - **Zugang der Anmelde-App:** Das Skript legt den Maschinennutzer
   `login-client` mit der Rolle `IAM_LOGIN_CLIENT` an, erzeugt seinen Token und
   übergibt ihn als Datei an Railway. Im Protokoll erscheint nur der Statuscode.
@@ -70,18 +73,34 @@ kann. Deshalb:
 
 ## 3. Mailversand
 
-- SMTP über Scaleway TEM:
-  - Server `smtp.tem.scaleway.com:465` mit TLS.
-  - Benutzer ist die Projekt-ID.
-  - Absender `konto@lernpfade.net`, Name „Lernpfade“.
-- **Das Passwort ist ein API-Schlüssel, den du erzeugst.** Dafür legst du in
-  Scaleway eine IAM-Anwendung an, nur mit dem Recht „Transactional Email“.
-  Den Schlüssel trägst du selbst als Railway-Variable
-  `ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_SMTP_PASSWORD` beim Dienst `konto`
-  ein, **bevor** ZITADEL zum ersten Mal startet. ZITADEL übernimmt die
-  Mail-Einstellung nur beim Anlegen der Instanz.
-- Mailtexte auf Deutsch. Die mitgelieferten Texte sprechen von „Zitadel“ und
-  werden durch eigene ersetzt.
+**Nicht per SMTP.** Railway sperrt ausgehendes SMTP im Tarif Hobby (Ports 25,
+465, 587, 2525). Der Wechsel auf Pro hätte den Grundpreis von 5 auf 20 USD im
+Monat gehoben. Stattdessen:
+
+- ZITADEL gibt Mails an einen **HTTP-Anbieter** ab. Es schickt dabei keine
+  fertige Mail, sondern die Teile: Empfänger, Betreff, Text mit Code, Link.
+- **`konto-mail`** (`konto/mail/`, Node ohne Abhängigkeiten) baut daraus die
+  Mail im Learning-OS-Design, als HTML und als Text. Verschickt wird sie über
+  die HTTPS-API von Scaleway TEM, Absender `konto@lernpfade.net`, Name
+  „Lernpfade“.
+- **Öffentlich, aber nur signiert.** ZITADEL ruft keine privaten Adressen auf.
+  Seine Sperrliste enthält `fc00::/7`, dort liegt das private Railway-Netz, und
+  diese Sperre soll bleiben. Deshalb hat `konto-mail` eine Railway-Adresse und
+  nimmt nur Anfragen an, die so beschaffen sind:
+  - mit gültiger Signatur von ZITADEL (`ZITADEL-Signature`, HMAC-SHA256,
+    höchstens 5 Minuten alt),
+  - jede Signatur nur einmal,
+  - höchstens 60 Mails pro Minute.
+
+  Adressen und Codes kommen nie ins Protokoll.
+
+- **Der Scaleway-Schlüssel kommt von dir.** Du legst in Scaleway eine
+  IAM-Anwendung an, nur mit dem Recht, Mails zu senden, und trägst ihren
+  Secret Key selbst als Railway-Variable `SCW_SECRET_KEY` beim Dienst
+  `konto-mail` ein. Den Signaturschlüssel erzeugt ZITADEL; das Skript übergibt
+  ihn per Datei an Railway.
+- Mailtexte auf Deutsch und Englisch (`konto/einrichtung/texte.mjs`). Die
+  mitgelieferten Texte sprechen von „Zitadel“ und werden ersetzt.
 
 ## 4. Sicherheits-Checkliste (Einstellungen)
 
@@ -102,10 +121,10 @@ kann. Deshalb:
 
 ## 5. Schritte
 
-1. **E4.1a Dienst steht** – DNS `konto`, die vier Dienste, Sicherung, Einrichtung
+1. **E4.1a Dienst steht** – DNS `konto`, die fünf Dienste, Sicherung, Einrichtung
    per Skript, Mail. Prüfung von außen: OIDC-Discovery, Anmeldeseite,
    Sicherheitskopfzeilen, Mail an dich kommt an. Die Anmelde-App ist noch das
-   unveränderte Image von ZITADEL, mit unseren Farben und IBM Plex aus den
+   unveränderte Image von ZITADEL, mit unseren Farben aus den
    Markeneinstellungen.
 2. **E4.1b Eigene Anmelde-App** – Abzweig von `apps/login` (v4.20.5, MIT) als
    `konto/login/`:
@@ -124,12 +143,12 @@ kann. Deshalb:
 
 ## 6. Was du beiträgst
 
-- Freigabe der DNS-Einträge bei Strato für `konto.lernpfade.net`: einen CNAME
-  auf Railway und einen TXT-Eintrag zur Bestätigung (`_railway-verify.konto`).
-- Die E-Mail der ersten Admin-Person.
+- ~~Freigabe der DNS-Einträge bei Strato für `konto.lernpfade.net`~~ – erteilt
+  am 20.11.2026.
+- ~~Die E-Mail der ersten Admin-Person~~ – `ki@sbsdeutschland.de`.
 - Den Scaleway-API-Schlüssel als Railway-Variable (Abschnitt 3).
-- Den Masterkey in deinem Passwortmanager ablegen. Ich lege ihn dir dafür in
-  eine geschützte Datei und lösche sie danach.
+- Den Masterkey in deinem Passwortmanager ablegen (aus der Railway-Variable
+  `ZITADEL_MASTERKEY`).
 - Den Rundgang (Abschnitt 5, Schritt 3).
 
 ## 7. Kosten
@@ -142,6 +161,7 @@ Nach Verbrauch bei Railway, gemessen in E4.0:
 | konto-db     | ca. 0,16 GB     | ca. 1,5–2 USD                     |
 | konto-login  | ca. 0,2–0,3 GB  | ca. 2–3 USD                       |
 | konto-proxy  | ca. 0,03 GB     | unter 0,5 USD                     |
+| konto-mail   | ca. 0,04 GB     | unter 0,5 USD                     |
 | Sicherungen  | –               | wenige Cent (Speicher nach Größe) |
 | **Zusammen** |                 | **ca. 7–12 USD**                  |
 
@@ -149,7 +169,7 @@ Dazu kommt der Mailversand: 300 Mails im Monat frei, danach 0,25 € je 1.000.
 
 ## 8. Rücknahme
 
-Bis E4.2 nutzt keine App den Dienst. Zurück heißt: die vier Dienste und das
+Bis E4.2 nutzt keine App den Dienst. Zurück heißt: die fünf Dienste und das
 Laufwerk löschen, die DNS-Einträge für `konto` entfernen. Es gehen keine
 Lerndaten verloren.
 

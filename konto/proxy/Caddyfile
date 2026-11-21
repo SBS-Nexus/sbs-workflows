@@ -1,0 +1,63 @@
+# konto-proxy: ein Host für ZITADEL und die Anmelde-App (docs/E4-1-BAUPLAN.md).
+#
+# Railway beendet TLS am Rand und reicht HTTP an diesen Dienst weiter.
+# Beide Ziele liegen im privaten Railway-Netz. Sie sehen immer den Host
+# konto.lernpfade.net, auch beim Test über die Railway-Adresse.
+#
+# Die Begrenzung zählt je X-Real-IP. Railway setzt diesen Kopf am Rand und
+# überschreibt, was der Browser mitschickt (geprüft in R1, Tor B6).
+{
+	admin off
+	auto_https off
+}
+
+:{$PORT:8080} {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	@post method POST
+
+	handle /healthz {
+		respond "ok" 200
+	}
+
+	# Kennzahlen und Debug-Seiten von ZITADEL bleiben im privaten Netz.
+	handle /debug/* {
+		respond 404
+	}
+
+	handle / {
+		redir /ui/v2/login/ 302
+	}
+
+	handle /ui/v2/login* {
+		route {
+			# Anmeldeversuche je IP begrenzen. Großzügig, weil ganze Firmen
+			# hinter einer Adresse sitzen können (Schulung um 9 Uhr).
+			rate_limit @post {
+				zone anmeldung {
+					key {http.request.header.X-Real-IP}
+					events 120
+					window 1m
+				}
+			}
+			reverse_proxy {$LOGIN_UPSTREAM:konto-login.railway.internal:3000} {
+				header_up Host {$ZITADEL_DOMAIN:konto.lernpfade.net}
+				header_up X-Forwarded-Host {$ZITADEL_DOMAIN:konto.lernpfade.net}
+				header_up X-Forwarded-Proto https
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy h2c://{$ZITADEL_UPSTREAM:konto.railway.internal:8080} {
+			header_up Host {$ZITADEL_DOMAIN:konto.lernpfade.net}
+			header_up X-Forwarded-Host {$ZITADEL_DOMAIN:konto.lernpfade.net}
+			header_up X-Forwarded-Proto https
+		}
+	}
+}
