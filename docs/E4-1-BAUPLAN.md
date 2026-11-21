@@ -26,8 +26,8 @@ ZITADEL in Betrieb geht.
 > - **Offen:**
 >   - DNS für `konto` bei Strato,
 >   - der Scaleway-Schlüssel bei `konto-mail`,
->   - die Sicherung: Railway bietet Sicherungen nach Zeitplan nur im Tarif Pro
->     an (Abschnitt 7).
+>   - der Wechsel auf Railway Pro (entschieden am 21.11.2026, Abschnitt 7),
+>     danach Sicherungen einschalten und eine Wiederherstellung proben.
 
 Bis E4.2 hängt keine App am Dienst. Die Apps bleiben unverändert, und ein
 Fehlversuch lässt sich durch Löschen der fünf Dienste vollständig zurücknehmen.
@@ -185,14 +185,27 @@ Nach Verbrauch bei Railway, gemessen in E4.0:
 
 Dazu kommt der Mailversand: 300 Mails im Monat frei, danach 0,25 € je 1.000.
 
-**Sicherung – noch zu entscheiden.** Railway sichert Laufwerke nach Zeitplan nur
-im Tarif Pro (Antwort der API: „Manual backups and backup schedules are only
-available for Pro workspaces“). Das betrifft auch die Datenbanken der Apps (E6).
+**Sicherung – entschieden am 21.11.2026: Railway Pro.** Railway sichert
+Laufwerke nach Zeitplan nur im Tarif Pro (Antwort der API: „Manual backups and
+backup schedules are only available for Pro workspaces“). Das betrifft auch die
+Datenbanken der Apps (E6).
 
-| Weg                  | Kosten                                                                                                                         | Aufwand                                                                                                         |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| **Railway Pro**      | Grundpreis 20 statt 5 USD, darin 20 USD Verbrauch. Bei rund 18–22 USD Verbrauch nach E4.1 sind das etwa 0–4 USD mehr im Monat. | Sicherungen aller Laufwerke per Klick; SMTP wäre ebenfalls frei                                                 |
-| **Eigene Sicherung** | wenige Cent (Scaleway Object Storage in Paris)                                                                                 | Dienst mit `pg_dump` nach Zeitplan, verschlüsselt, weiterer Scaleway-Schlüssel, Wiederherstellung selbst proben |
+Gemessen am 21.11.2026 liegt der Verbrauch des Workspace bei rund 25 USD im
+Monat. Davon entfallen etwa 12 USD auf den SQL Server und etwa 8 USD auf ein
+anderes Projekt im selben Workspace. Die fünf konto-Dienste kommen im Leerlauf
+auf rund 5,6 USD dazu, zusammen also rund 31 USD. Hobby (5 USD, darin 5 USD
+Verbrauch) und Pro (20 USD, darin 20 USD Verbrauch) kosten damit gleich viel.
+Die Preise je Einheit sind in beiden Tarifen gleich. Pro wird erst teurer, wenn
+der Verbrauch unter 20 USD fällt.
+
+| Weg                          | Kosten                                         | Aufwand                                                                                                         |
+| ---------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Railway Pro** (gewählt)    | wie heute, mindestens 20 USD im Monat          | Sicherungen aller Laufwerke nach Zeitplan; dazu 30 statt 7 Tage Protokolle                                      |
+| Eigene Sicherung (verworfen) | wenige Cent (Scaleway Object Storage in Paris) | Dienst mit `pg_dump` nach Zeitplan, verschlüsselt, weiterer Scaleway-Schlüssel, Wiederherstellung selbst proben |
+
+Nach dem Wechsel: Sicherungen täglich, wöchentlich und monatlich für `konto-db`
+und die drei App-Datenbanken; einmal eine Wiederherstellung von `konto-db`
+proben, solange dort nur das Admin-Konto liegt.
 
 ## 8. Rücknahme
 
