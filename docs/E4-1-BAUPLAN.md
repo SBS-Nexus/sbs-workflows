@@ -23,9 +23,14 @@ ZITADEL in Betrieb geht.
 >   - deutsche Anmeldeseite, `/` leitet dorthin weiter,
 >   - `/debug/*` gesperrt, HSTS, `nosniff`, `Referrer-Policy`,
 >   - `konto-mail` lehnt unsignierte Anfragen ab.
+> - `konto.lernpfade.net` ist seit 21.11.2026 live (CNAME und `_railway-verify.konto`
+>   bei Strato, Let's-Encrypt-Zertifikat über Railway).
+> - Scaleway: IAM-Anwendung `lernpfade-konto-mail` mit der Richtlinie
+>   `lernpfade-konto-mail-versand`, nur `TransactionalEmailEmailApiCreate` im
+>   Projekt `lernpfade` (kein SMTP, keine Domain-Einstellungen).
 > - **Offen:**
->   - DNS für `konto` bei Strato,
->   - der Scaleway-Schlüssel bei `konto-mail`,
+>   - den API-Schlüssel der Anwendung erzeugen und als `SCW_SECRET_KEY` bei
+>     `konto-mail` eintragen (macht die Inhaberin),
 >   - der Wechsel auf Railway Pro (entschieden am 21.11.2026, Abschnitt 7),
 >     danach Sicherungen einschalten und eine Wiederherstellung proben.
 
