@@ -1,0 +1,50 @@
+name: Konto (Identitätsdienst)
+
+# E4.1: Mail-Dienst und Proxy des Identitätsdienstes (konto/, docs/E4-1-BAUPLAN.md).
+on:
+  pull_request:
+    paths:
+      - 'konto/**'
+      - '.github/workflows/konto-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'konto/**'
+      - '.github/workflows/konto-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  mail:
+    name: konto-mail – Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Tests
+        working-directory: konto/mail
+        run: node --test
+
+      - name: Einrichtungsskript und Texte laden
+        run: |
+          node --check konto/einrichtung/einrichten.mjs
+          node -e 'import("./konto/einrichtung/texte.mjs").then((m) => { for (const [s, t] of Object.entries(m.NACHRICHTEN)) for (const [k, v] of Object.entries(t)) for (const f of ["title", "subject", "text", "buttonText"]) if (!v[f]) throw new Error(`${s}/${k}: ${f} fehlt`); })'
+
+  proxy:
+    name: konto-proxy – Image bauen, Caddyfile prüfen
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      # Das Dockerfile führt `caddy validate` aus; ein Fehler im Caddyfile bricht den Bau ab.
+      - name: Image bauen
+        run: docker build --tag konto-proxy:ci konto/proxy

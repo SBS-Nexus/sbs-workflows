@@ -1,0 +1,337 @@
+#!/usr/bin/env node
+// Richtet die ZITADEL-Instanz auf konto.lernpfade.net ein (docs/E4-1-BAUPLAN.md).
+//
+// Meldet sich als System-Nutzer mit einem selbst signierten JWT an. Der
+// öffentliche Schlüssel steht während der Einrichtung in ZITADEL_SYSTEMAPIUSERS.
+// Danach wird er dort entfernt und der private Schlüssel gelöscht.
+//
+// Ausgabe: nur Schritte und Statuscodes. Neue Geheimnisse (Token der
+// Anmelde-App, Signaturschlüssel des Mailanbieters) landen als JSON in
+// --ausgabe (Dateirechte 600) und gehen von dort per Datei an Railway.
+//
+// Aufruf:
+//   node konto/einrichtung/einrichten.mjs --basis https://konto.lernpfade.net \
+//     --schluessel /pfad/einrichtung.pem --nutzer einrichtung \
+//     --mail-endpunkt https://<konto-mail>.up.railway.app/ --ausgabe /pfad/geheim \
+//     [--login-token-erneuern] [--mail-neu] [--ueber https://<konto-proxy>.up.railway.app]
+//
+// --ueber schickt die Anfragen an eine andere Adresse desselben Proxys (etwa
+// solange das DNS für konto.lernpfade.net noch fehlt). Das Token bleibt auf
+// --basis ausgestellt; der Proxy setzt den Host ohnehin auf konto.lernpfade.net.
+import { createPrivateKey, sign } from 'node:crypto';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseArgs } from 'node:util';
+import { NACHRICHTEN } from './texte.mjs';
+
+const { values: arg } = parseArgs({
+  options: {
+    basis: { type: 'string' },
+    schluessel: { type: 'string' },
+    nutzer: { type: 'string', default: 'einrichtung' },
+    'mail-endpunkt': { type: 'string' },
+    ausgabe: { type: 'string' },
+    'login-token-erneuern': { type: 'boolean', default: false },
+    'mail-neu': { type: 'boolean', default: false },
+    'nur-pruefen': { type: 'boolean', default: false },
+    ueber: { type: 'string' },
+  },
+});
+for (const pflicht of ['basis', 'schluessel', 'ausgabe']) {
+  if (!arg[pflicht]) throw new Error(`--${pflicht} fehlt`);
+}
+const BASIS = arg.basis.replace(/\/$/, '');
+const ZIEL = (arg.ueber ?? arg.basis).replace(/\/$/, '');
+
+// --- Anmeldung als System-Nutzer -------------------------------------------
+
+const b64url = (daten) => Buffer.from(daten).toString('base64url');
+function systemToken() {
+  const jetzt = Math.floor(Date.now() / 1000);
+  const kopf = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const inhalt = b64url(
+    JSON.stringify({
+      iss: arg.nutzer,
+      sub: arg.nutzer,
+      aud: BASIS,
+      iat: jetzt,
+      exp: jetzt + 600,
+    }),
+  );
+  const schluessel = createPrivateKey(readFileSync(arg.schluessel));
+  const signatur = sign('RSA-SHA256', Buffer.from(`${kopf}.${inhalt}`), schluessel);
+  return `${kopf}.${inhalt}.${b64url(signatur)}`;
+}
+const TOKEN = systemToken();
+
+/** Fehler, die beim zweiten Lauf erwartbar sind und nichts bedeuten. */
+const SCHON_SO =
+  /already exists|alreadyexists|not changed|notchanged|has not been changed|no changes|existiert bereits|nicht (?:ver)?ändert|nicht geändert/i;
+
+async function api(methode, pfad, koerper, { orgId, erlaubt = [] } = {}) {
+  const kopf = { authorization: `Bearer ${TOKEN}`, accept: 'application/json' };
+  if (koerper !== undefined) kopf['content-type'] = 'application/json';
+  if (orgId) kopf['x-zitadel-orgid'] = orgId;
+  const antwort = await fetch(ZIEL + pfad, {
+    method: methode,
+    headers: kopf,
+    body: koerper === undefined ? undefined : JSON.stringify(koerper),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const text = await antwort.text();
+  let daten = {};
+  try {
+    daten = text ? JSON.parse(text) : {};
+  } catch {
+    daten = { message: text.slice(0, 200) };
+  }
+  return {
+    status: antwort.status,
+    ok: antwort.ok,
+    daten,
+    erlaubt: erlaubt.includes(antwort.status),
+  };
+}
+
+let fehler = 0;
+async function schritt(name, methode, pfad, koerper, optionen) {
+  const r = await api(methode, pfad, koerper, optionen);
+  const harmlos = !r.ok && SCHON_SO.test(String(r.daten?.message ?? ''));
+  if (r.ok || harmlos || r.erlaubt) {
+    console.log(`OK     ${name} (${r.status}${harmlos ? ', schon so' : ''})`);
+  } else {
+    fehler += 1;
+    // Fehlermeldungen von ZITADEL enthalten keine Geheimnisse; gekürzt trotzdem.
+    console.log(`FEHLER ${name} (${r.status}) ${String(r.daten?.message ?? '').slice(0, 160)}`);
+  }
+  return r;
+}
+
+function schreibeGeheim(datei, variablen) {
+  mkdirSync(arg.ausgabe, { recursive: true, mode: 0o700 });
+  const pfad = join(arg.ausgabe, datei);
+  writeFileSync(pfad, JSON.stringify(variablen), { mode: 0o600 });
+  chmodSync(pfad, 0o600);
+  console.log(`DATEI  ${datei} geschrieben (${Object.keys(variablen).join(', ')})`);
+}
+
+// --- Ablauf -----------------------------------------------------------------
+
+const org = await schritt('Standard-Organisation lesen', 'GET', '/admin/v1/orgs/default');
+const orgId = org.daten?.org?.id;
+if (!orgId) throw new Error('Standard-Organisation nicht gefunden – Zugang prüfen');
+if (arg['nur-pruefen']) {
+  console.log(fehler === 0 ? 'Zugang funktioniert.' : 'Zugang fehlerhaft.');
+  process.exit(fehler === 0 ? 0 : 1);
+}
+
+// Passwörter: Länge statt Zeichenregeln (Bauplan, Abschnitt 4).
+await schritt('Passwortregeln', 'PUT', '/admin/v1/policies/password/complexity', {
+  minLength: 12,
+  hasUppercase: false,
+  hasLowercase: false,
+  hasNumber: false,
+  hasSymbol: false,
+});
+
+// Keine Dauersperre nach Passwörtern (Fremde könnten Konten sperren); 5 Codes.
+await schritt('Sperrregeln', 'PUT', '/admin/v1/policies/password/lockout', {
+  maxPasswordAttempts: 0,
+  maxOtpAttempts: 5,
+});
+
+await schritt('Anmelderegeln', 'PUT', '/admin/v1/policies/login', {
+  allowUsernamePassword: true,
+  allowRegister: true,
+  allowExternalIdp: false,
+  forceMfa: false,
+  forceMfaLocalOnly: false,
+  passwordlessType: 'PASSWORDLESS_TYPE_ALLOWED',
+  hidePasswordReset: false,
+  ignoreUnknownUsernames: true,
+  defaultRedirectUri: '',
+  passwordCheckLifetime: '864000s', // 10 Tage
+  externalLoginCheckLifetime: '864000s',
+  mfaInitSkipLifetime: '0s', // Lernende werden nicht zum zweiten Faktor gedrängt
+  secondFactorCheckLifetime: '64800s', // 18 Stunden
+  multiFactorCheckLifetime: '43200s', // 12 Stunden
+  allowDomainDiscovery: false,
+  disableLoginWithEmail: false,
+  disableLoginWithPhone: true,
+});
+
+// Zweiter Faktor: TOTP und Sicherheitsschlüssel; kein SMS, kein Mail-Code.
+for (const typ of ['SECOND_FACTOR_TYPE_OTP', 'SECOND_FACTOR_TYPE_U2F']) {
+  await schritt(
+    `Zweiter Faktor ${typ}`,
+    'POST',
+    '/admin/v1/policies/login/second_factors',
+    { type: typ },
+    { erlaubt: [409] },
+  );
+}
+for (const typ of ['SECOND_FACTOR_TYPE_OTP_EMAIL', 'SECOND_FACTOR_TYPE_OTP_SMS']) {
+  await schritt(
+    `Zweiter Faktor ${typ} aus`,
+    'DELETE',
+    `/admin/v1/policies/login/second_factors/${typ}`,
+    undefined,
+    { erlaubt: [404] },
+  );
+}
+// Passkeys (ein Faktor mit Nutzerprüfung zählt in amr als mfa).
+await schritt(
+  'Passkeys',
+  'POST',
+  '/admin/v1/policies/login/multi_factors',
+  { type: 'MULTI_FACTOR_TYPE_U2F_WITH_VERIFICATION' },
+  { erlaubt: [409] },
+);
+
+await schritt('Domain-Regeln', 'PUT', '/admin/v1/policies/domain', {
+  userLoginMustBeDomain: false,
+  validateOrgDomains: false,
+  smtpSenderAddressMatchesInstanceDomain: false,
+});
+await schritt('Benachrichtigung bei Passwortänderung', 'PUT', '/admin/v1/policies/notification', {
+  passwordChange: true,
+});
+
+// Marke: Learning OS (docs/learning-tokens, docs/learning-feedback).
+await schritt('Markenfarben', 'PUT', '/admin/v1/policies/label', {
+  primaryColor: '#0b0e0e',
+  backgroundColor: '#f2f2e9',
+  fontColor: '#141c18',
+  warnColor: '#c0281c',
+  primaryColorDark: '#d0fa83',
+  backgroundColorDark: '#0b0e0e',
+  fontColorDark: '#f1f1e9',
+  warnColorDark: '#f2867c',
+  hideLoginNameSuffix: true,
+  disableWatermark: true,
+  themeMode: 'THEME_MODE_AUTO',
+});
+await schritt('Markenfarben aktivieren', 'POST', '/admin/v1/policies/label/_activate', {});
+
+await schritt('Standardsprache Deutsch', 'PUT', '/admin/v1/languages/default/de');
+await schritt('Sprachen und Organisationsregistrierung', 'PUT', '/admin/v1/restrictions', {
+  disallowPublicOrgRegistration: true,
+  allowedLanguages: { list: ['de', 'en'] },
+});
+
+for (const [sprache, texte] of Object.entries(NACHRICHTEN)) {
+  for (const [typ, text] of Object.entries(texte)) {
+    await schritt(
+      `Mailtext ${typ} (${sprache})`,
+      'PUT',
+      `/admin/v1/text/message/${typ}/${sprache}`,
+      { language: sprache, ...text },
+    );
+  }
+}
+
+// Mailversand über konto-mail (HTTP-Anbieter mit Signatur).
+if (arg['mail-endpunkt']) {
+  const liste = await schritt('Mailanbieter lesen', 'POST', '/admin/v1/email/_search', {});
+  const alle = liste.daten?.result ?? [];
+  const passende = alle.filter((p) => p.http?.endpoint === arg['mail-endpunkt']);
+  if (passende.length > 0 && !arg['mail-neu']) {
+    console.log(
+      'OK     Mailanbieter vorhanden (Signaturschlüssel unverändert; --mail-neu erneuert ihn)',
+    );
+  } else {
+    const neu = await schritt('Mailanbieter anlegen', 'POST', '/admin/v1/email/http', {
+      endpoint: arg['mail-endpunkt'],
+      description: 'konto-mail → Scaleway Transactional Email',
+    });
+    if (neu.ok && neu.daten?.id && neu.daten?.signingKey) {
+      schreibeGeheim('konto-mail.json', {
+        ZITADEL_SIGNING_KEY: neu.daten.signingKey,
+      });
+      await schritt(
+        'Mailanbieter aktivieren',
+        'POST',
+        `/admin/v1/email/${neu.daten.id}/_activate`,
+        {},
+      );
+      for (const alt of alle) {
+        await schritt(
+          `Alten Mailanbieter entfernen (${alt.id})`,
+          'DELETE',
+          `/admin/v1/email/${alt.id}`,
+        );
+      }
+    }
+  }
+} else {
+  console.log('HINWEIS --mail-endpunkt fehlt: Mailanbieter nicht eingerichtet');
+}
+
+// Zugang der Anmelde-App: Maschinennutzer mit IAM_LOGIN_CLIENT und Token.
+const suche = await schritt(
+  'Anmelde-App-Nutzer suchen',
+  'POST',
+  '/management/v1/users/_search',
+  {
+    queries: [
+      {
+        userNameQuery: {
+          userName: 'login-client',
+          method: 'TEXT_QUERY_METHOD_EQUALS',
+        },
+      },
+    ],
+  },
+  { orgId },
+);
+let loginNutzer = suche.daten?.result?.[0]?.id;
+let neuAngelegt = false;
+if (!loginNutzer) {
+  const angelegt = await schritt(
+    'Anmelde-App-Nutzer anlegen',
+    'POST',
+    '/management/v1/users/machine',
+    {
+      userName: 'login-client',
+      name: 'Anmelde-App',
+      description: 'konto-login (ZITADEL Login v2)',
+      accessTokenType: 'ACCESS_TOKEN_TYPE_BEARER',
+    },
+    { orgId },
+  );
+  loginNutzer = angelegt.daten?.userId;
+  neuAngelegt = Boolean(loginNutzer);
+}
+if (loginNutzer) {
+  await schritt(
+    'Rolle IAM_LOGIN_CLIENT',
+    'POST',
+    '/admin/v1/members',
+    { userId: loginNutzer, roles: ['IAM_LOGIN_CLIENT'] },
+    { erlaubt: [409] },
+  );
+  if (neuAngelegt || arg['login-token-erneuern']) {
+    // Läuft nach zwei Jahren ab; Erneuern steht in konto/README.md.
+    const ablauf = new Date(Date.now() + 2 * 365 * 24 * 3600 * 1000).toISOString();
+    const pat = await schritt(
+      'Token der Anmelde-App',
+      'POST',
+      `/management/v1/users/${loginNutzer}/pats`,
+      { expirationDate: ablauf },
+      { orgId },
+    );
+    if (pat.ok && pat.daten?.token) {
+      schreibeGeheim('konto-login.json', {
+        ZITADEL_SERVICE_USER_TOKEN: pat.daten.token,
+      });
+      console.log(`HINWEIS Token gilt bis ${ablauf.slice(0, 10)}`);
+    }
+  } else {
+    console.log(
+      'OK     Token der Anmelde-App unverändert (--login-token-erneuern erzeugt ein neues)',
+    );
+  }
+}
+
+console.log(fehler === 0 ? 'Fertig, ohne Fehler.' : `Fertig mit ${fehler} Fehler(n).`);
+process.exit(fehler === 0 ? 0 : 1);
