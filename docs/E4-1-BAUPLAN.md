@@ -11,6 +11,24 @@ ZITADEL in Betrieb geht.
 - Der Rundgang Registrieren → Bestätigen → Zurücksetzen → Abmelden ist
   gelaufen.
 
+> **Stand 21.11.2026 (E4.1a):**
+>
+> - Alle fünf Dienste laufen auf Railway. Die Einrichtung per Skript lief ohne
+>   Fehler; ein zweiter Lauf ändert nichts.
+> - Einrichtungs-Nutzer und Startpasswort sind entfernt, lokale Geheimnisse
+>   gelöscht.
+> - Von außen geprüft:
+>   - Discovery mit Aussteller `https://konto.lernpfade.net`, PKCE S256,
+>     Rückkanal-Abmeldung,
+>   - deutsche Anmeldeseite, `/` leitet dorthin weiter,
+>   - `/debug/*` gesperrt, HSTS, `nosniff`, `Referrer-Policy`,
+>   - `konto-mail` lehnt unsignierte Anfragen ab.
+> - **Offen:**
+>   - DNS für `konto` bei Strato,
+>   - der Scaleway-Schlüssel bei `konto-mail`,
+>   - die Sicherung: Railway bietet Sicherungen nach Zeitplan nur im Tarif Pro
+>     an (Abschnitt 7).
+
 Bis E4.2 hängt keine App am Dienst. Die Apps bleiben unverändert, und ein
 Fehlversuch lässt sich durch Löschen der fünf Dienste vollständig zurücknehmen.
 
@@ -166,6 +184,15 @@ Nach Verbrauch bei Railway, gemessen in E4.0:
 | **Zusammen** |                 | **ca. 7–12 USD**                  |
 
 Dazu kommt der Mailversand: 300 Mails im Monat frei, danach 0,25 € je 1.000.
+
+**Sicherung – noch zu entscheiden.** Railway sichert Laufwerke nach Zeitplan nur
+im Tarif Pro (Antwort der API: „Manual backups and backup schedules are only
+available for Pro workspaces“). Das betrifft auch die Datenbanken der Apps (E6).
+
+| Weg                  | Kosten                                                                                                                         | Aufwand                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| **Railway Pro**      | Grundpreis 20 statt 5 USD, darin 20 USD Verbrauch. Bei rund 18–22 USD Verbrauch nach E4.1 sind das etwa 0–4 USD mehr im Monat. | Sicherungen aller Laufwerke per Klick; SMTP wäre ebenfalls frei                                                 |
+| **Eigene Sicherung** | wenige Cent (Scaleway Object Storage in Paris)                                                                                 | Dienst mit `pg_dump` nach Zeitplan, verschlüsselt, weiterer Scaleway-Schlüssel, Wiederherstellung selbst proben |
 
 ## 8. Rücknahme
 
