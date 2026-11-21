@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { requireUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
 import { istSqlRunnerVerfuegbar } from '@/server/env';
-import { Callout, Card, EmptyState, SectionHeading } from '@/components/ui/primitives';
+import { ButtonLink, Callout, Card, EmptyState, SectionHeading } from '@/components/ui/primitives';
 import { Wissenslandkarte, type KonzeptZeile } from '@/components/fortschritt/wissenslandkarte';
 import { ausDatenmodellArt } from '@/domain/aufgabe/art';
 import { bewerteKonzept, type AufgabenErgebnis } from '@/domain/aufgabe/kompetenz';
@@ -10,6 +10,9 @@ import { amErgebnisPruefbar } from '@/domain/aufgabe/ausfuehrung';
 import type { Versuchsergebnis } from '@/domain/aufgabe/auswahl';
 import { minutenHeute } from '@/server/lernsitzung';
 import { formatiereDauer } from '@/domain/lernsitzung';
+
+/** So viele Begriffe sieht, wer noch nichts geübt hat; der Rest liegt hinter einem Aufklapper. */
+const ERSTE_BEGRIFFE = 4;
 
 export const metadata: Metadata = { title: 'Überblick' };
 
@@ -104,6 +107,16 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
     };
   });
 
+  /*
+   * Wer noch nichts geübt hat, bekommt nicht alle Begriffe als Wand aus
+   * „Noch offen" zu sehen, sondern die nächsten in Lehrplanreihenfolge. Der
+   * Rest bleibt eine Zeile weiter erreichbar.
+   */
+  const nochNichtsGeuebt = landkarte.every(
+    (konzept) =>
+      konzept.kompetenz.stand === 'ungeuebt' || konzept.kompetenz.stand === 'nicht-beurteilbar',
+  );
+
   return (
     <div className="space-y-10">
       <div>
@@ -112,9 +125,14 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
         </h1>
         <p className="mt-2 text-lg text-[var(--text-muted)]">
           {bearbeiteteAufgaben === 0
-            ? 'Hier siehst du künftig, wo du stehst und was als Nächstes dran ist.'
+            ? 'Dein Überblick füllt sich mit der ersten bearbeiteten Aufgabe. Am besten startest du mit Modul 1.'
             : `Du hast bisher ${bearbeiteteAufgaben} ${bearbeiteteAufgaben === 1 ? 'Aufgabe' : 'Aufgaben'} bearbeitet.`}
         </p>
+        {bearbeiteteAufgaben === 0 ? (
+          <ButtonLink href="/lernen" className="mt-5">
+            Mit Modul 1 beginnen
+          </ButtonLink>
+        ) : null}
       </div>
 
       {/* Zustand der Ausführung – ehrlich, auch wenn er unbequem ist. */}
@@ -137,6 +155,7 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
           <EmptyState
             title="Noch keine Lektionen eingespielt"
             description="Auf dieser Installation sind noch keine Inhalte vorhanden. Sobald sie eingespielt sind, steht hier dein Lernpfad."
+            action={<ButtonLink href="/lernen">Zum Lernpfad</ButtonLink>}
           />
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
@@ -173,12 +192,35 @@ export default async function FortschrittPage(): Promise<React.ReactElement> {
       {landkarte.length > 0 ? (
         <section aria-labelledby="landkarte">
           <SectionHeading id="landkarte">Was schon sitzt</SectionHeading>
-          <p className="text-[0.95rem] text-[var(--text-muted)]">
-            Ein Wort je Begriff und die Zahlen dahinter – keine Prozente. Was hier vorliegt, sind
-            ein paar Aufgabenergebnisse; &bdquo;73 % JOIN&ldquo; wäre eine Genauigkeit, die es nicht
-            gibt.
-          </p>
-          <Wissenslandkarte konzepte={landkarte} />
+          {nochNichtsGeuebt ? (
+            <>
+              <p className="text-[0.95rem] text-[var(--text-muted)]">
+                Im Kurs lernst du {landkarte.length} Begriffe. Jeder zeigt dir hier in einem Wort,
+                wie sicher er sitzt, sobald du Aufgaben dazu bearbeitet hast. Als Erstes sind diese
+                dran:
+              </p>
+              <Wissenslandkarte konzepte={landkarte.slice(0, ERSTE_BEGRIFFE)} />
+              {landkarte.length > ERSTE_BEGRIFFE ? (
+                <details className="mt-4">
+                  <summary className="cursor-pointer text-[0.95rem] font-semibold text-[var(--accent)]">
+                    Alle weiteren {landkarte.length - ERSTE_BEGRIFFE} Begriffe ansehen
+                  </summary>
+                  <Wissenslandkarte
+                    konzepte={landkarte.slice(ERSTE_BEGRIFFE)}
+                    bezeichnung="Weitere Begriffe des Kurses"
+                  />
+                </details>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <p className="text-[0.95rem] text-[var(--text-muted)]">
+                Jeder Begriff zeigt in einem Wort, wie sicher er sitzt – gestützt auf deine
+                bisherigen Aufgaben, ohne Prozente, die genauer klängen, als sie sind.
+              </p>
+              <Wissenslandkarte konzepte={landkarte} />
+            </>
+          )}
         </section>
       ) : null}
     </div>

@@ -116,7 +116,7 @@ describe('Aufbewahrung (Integration mit echter Datenbank)', () => {
   });
 
   it('bleibt sicher, wenn zwei Läufe sich überschneiden', async () => {
-    // Vercel sichert keine Zustellung "genau einmal" zu; Aufrufe können sich
+    // Kein Zeitplan sichert eine Zustellung "genau einmal" zu; Aufrufe können sich
     // überschneiden oder doppelt ankommen. Die Löschbedingung selbst trägt
     // das: Zwei gleichzeitige Läufe löschen zusammen dieselbe Menge, und
     // keiner scheitert.

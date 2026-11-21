@@ -33,7 +33,10 @@ export default function WissenslandkartePage(): React.ReactElement {
 
         <p className="mt-6 max-w-2xl text-sm text-[var(--fg-muted)]">
           Alphabetische Liste stattdessen? Sieh dir das{' '}
-          <a href="/glossar" className="font-medium text-signal-500 underline underline-offset-4">
+          <a
+            href="/glossar"
+            className="font-medium text-signal-600 underline underline-offset-4 dark:text-signal-300"
+          >
             Glossar
           </a>{' '}
           an.

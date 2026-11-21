@@ -99,7 +99,7 @@ export function VocabSession({
   if (finished) {
     const followUp = sessionFollowUp(store, selection, actions.now);
     return (
-      <section className="vocab-panel vocab-session-done" aria-labelledby="session-done-title">
+      <section className="los-stage los-bleed vocab-session-done" aria-labelledby="session-done-title">
         <p className="eyebrow">Daily Review</p>
         <h1 id="session-done-title" ref={doneRef} tabIndex={-1}>
           Session abgeschlossen
@@ -153,7 +153,7 @@ export function VocabSession({
   const last = session.results[session.results.length - 1];
 
   return (
-    <section className="vocab-panel vocab-session" aria-labelledby="session-title">
+    <section className="los-stage los-bleed vocab-session" aria-labelledby="session-title">
       <div className="vocab-panel-head">
         <div>
           <p className="eyebrow">Daily Review · {task.deckName}</p>

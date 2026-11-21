@@ -5,7 +5,7 @@ import { requireUser } from '@/server/auth/session';
 import { isEnabled } from '@/server/feature-flags';
 import { listOrganisations } from '@/server/services/organisation-service';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/domain/organisation/permissions';
-import { Badge, Card, EmptyState, SectionHeading } from '@/components/ui/primitives';
+import { Badge, ButtonLink, Card, EmptyState, SectionHeading } from '@/components/ui/primitives';
 import { CreateOrganisationForm } from './create-organisation-form';
 import { IllustrationBuild } from '@/components/ui/illustration';
 
@@ -41,6 +41,7 @@ export default async function OrganisationsPage(): Promise<React.ReactElement> {
           illustration={<IllustrationBuild />}
           title="Du gehörst noch keiner Organisation an"
           description="Wenn dich jemand eingeladen hat, öffne einfach den Einladungslink. Du kannst hier auch selbst eine Organisation anlegen – zum Beispiel für einen Kurs, den du gibst."
+          action={<ButtonLink href="#neue-organisation">Organisation anlegen</ButtonLink>}
         />
       ) : (
         <section aria-labelledby="meine-organisationen">

@@ -5,6 +5,7 @@ import {
   activeShellHref,
   hubLinks,
   isWithin,
+  otherPaths,
   shellNav,
   type ShellApp,
 } from '@/lib/learning-shell';
@@ -127,5 +128,36 @@ describe('Hub-Ziele der Dachleiste', () => {
     ]) {
       expect(hubLinks(value), value).toBeNull();
     }
+  });
+});
+
+describe('Andere Lernpfade in der Dachleiste', () => {
+  const alle = {
+    python: 'https://www.pythonpfad.de/',
+    sql: 'https://www.sqlpfad.de',
+    ai: 'https://www.aipfad.de//',
+  } as const;
+
+  it('nennt die anderen Apps in Vertragsreihenfolge, nie die eigene', () => {
+    expect(otherPaths('python', alle)).toEqual([
+      { app: 'sql', name: 'SQLPfad', href: 'https://www.sqlpfad.de' },
+      { app: 'ai', name: 'AIPfad', href: 'https://www.aipfad.de' },
+    ]);
+    expect(otherPaths('sql', alle).map((path) => path.app)).toEqual(['python', 'ai']);
+    expect(otherPaths('ai', alle).map((path) => path.app)).toEqual(['python', 'sql']);
+  });
+
+  it('erfindet ohne Konfiguration keine Adresse und lässt Unbrauchbares weg', () => {
+    expect(otherPaths('python', { python: undefined, sql: undefined, ai: undefined })).toEqual([]);
+    expect(
+      otherPaths('sql', {
+        python: 'javascript:alert(1)',
+        sql: 'https://www.sqlpfad.de',
+        ai: 'https://nutzer:geheim@www.aipfad.de',
+      }),
+    ).toEqual([]);
+    expect(
+      otherPaths('ai', { python: '  ', sql: 'https://www.sqlpfad.de?x=1', ai: undefined }),
+    ).toEqual([]);
   });
 });

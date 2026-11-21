@@ -5,7 +5,7 @@ import { isEnabled } from '@/server/feature-flags';
 import { requireUser } from '@/server/auth/session';
 import { getAuditLog, getOrgContext, listCohorts } from '@/server/services/organisation-service';
 import { ROLE_LABELS, can } from '@/domain/organisation/permissions';
-import { Badge, Card, EmptyState, SectionHeading } from '@/components/ui/primitives';
+import { Badge, ButtonLink, Card, EmptyState, SectionHeading } from '@/components/ui/primitives';
 import { CohortAndInviteForms } from './cohort-and-invite-forms';
 import { IllustrationBuild } from '@/components/ui/illustration';
 
@@ -71,7 +71,14 @@ export default async function OrganisationDetailPage({
             description={
               darfVerwalten
                 ? 'Lege unten eine an – zum Beispiel eine Klasse oder einen Kursdurchgang.'
-                : 'Sobald du einer Kohorte zugeordnet wirst, erscheint sie hier.'
+                : 'Sobald du einer Kohorte zugeordnet wirst, erscheint sie hier. Bis dahin lernst du ganz normal weiter.'
+            }
+            action={
+              darfVerwalten ? (
+                <ButtonLink href="#neue-kohorte">Kohorte anlegen</ButtonLink>
+              ) : (
+                <ButtonLink href="/lernen">Zum Lernpfad</ButtonLink>
+              )
             }
           />
         ) : (

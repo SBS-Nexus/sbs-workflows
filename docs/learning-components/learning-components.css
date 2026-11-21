@@ -28,6 +28,10 @@
  * noch umdefiniert; einzig `--font-sans` dient als Schriftquelle und
  * `--lp-ui-area` als freiwillige Bereichsfarbe (siehe README).
  *
+ * Neutrale Töne (Flächen, Text, Ränder, Spur) kommen seit Roadmap E3 aus dem
+ * gemeinsamen Vertrag `learning-tokens.css` (`--los-*`), den jede App neben
+ * dieser Datei einbindet: Papier und Tinte des Learning OS statt Kaltgrau.
+ *
  * Pfad-Akzent: `data-lp-app` am Wurzelelement (`python`, `sql`, `ai`, `hub`).
  * Statusfarben (Gefahr, Erfolg, Warnung) sind in allen Apps gleich und
  * entsprechen dem Statusvertrag aus LP-03B.
@@ -41,22 +45,22 @@
   --lp-ui-font: var(--font-sans, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif);
 
   /* Neutral (hell) */
-  --lp-ui-surface: #ffffff;
-  --lp-ui-surface-sunken: #f3f5f9;
-  --lp-ui-track: #e3e7ee;
-  --lp-ui-text: #111827;
-  --lp-ui-text-muted: #4b5563;
-  --lp-ui-border: #dfe3eb;
-  --lp-ui-border-strong: #b9c0cc;
+  --lp-ui-surface: var(--los-surface);
+  --lp-ui-surface-sunken: var(--los-ton-50);
+  --lp-ui-track: var(--los-ton-100);
+  --lp-ui-text: var(--los-text);
+  --lp-ui-text-muted: var(--los-text-muted);
+  --lp-ui-border: var(--los-ton-200);
+  --lp-ui-border-strong: var(--los-ton-300);
   --lp-ui-focus: #1d4ed8;
-  --lp-ui-disabled-bg: #e5e7eb;
-  --lp-ui-disabled-fg: #6b7280;
+  --lp-ui-disabled-bg: var(--los-ton-100);
+  --lp-ui-disabled-fg: var(--los-ton-400);
 
   /* Sekundär: helle Fläche, dunklere Unterkante */
-  --lp-ui-secondary-bg: #ffffff;
-  --lp-ui-secondary-hover: #f3f5f9;
-  --lp-ui-secondary-border: #c9cfda;
-  --lp-ui-secondary-edge: #aeb6c4;
+  --lp-ui-secondary-bg: var(--los-surface);
+  --lp-ui-secondary-hover: var(--los-ton-50);
+  --lp-ui-secondary-border: var(--los-ton-200);
+  --lp-ui-secondary-edge: var(--los-ton-300);
 
   /* Pfad-Akzent; ohne `data-lp-app` der Plattformwert des Hubs */
   --lp-ui-accent: #3155d5;
@@ -84,7 +88,7 @@
   --lp-ui-warning-soft: #fdf4dd;
   --lp-ui-info-text: #1c4f86;
   --lp-ui-info-soft: #e8f1fb;
-  --lp-ui-neutral: #6b7280;
+  --lp-ui-neutral: var(--los-ton-400);
 
   /* Form */
   --lp-ui-radius-sm: 0.75rem;
@@ -138,20 +142,20 @@
  * setzt `data-theme="light"` und bleibt hell. */
 :root[data-theme='dark'] .lp-ui,
 :root.dark .lp-ui {
-  --lp-ui-surface: #151a24;
-  --lp-ui-surface-sunken: #0f131b;
-  --lp-ui-track: #2a3140;
-  --lp-ui-text: #f3f4f6;
-  --lp-ui-text-muted: #c4cad5;
-  --lp-ui-border: #2e3646;
-  --lp-ui-border-strong: #465063;
+  --lp-ui-surface: var(--los-ton-900);
+  --lp-ui-surface-sunken: var(--los-ton-950);
+  --lp-ui-track: var(--los-ton-700);
+  --lp-ui-text: var(--los-cream);
+  --lp-ui-text-muted: var(--los-ton-200);
+  --lp-ui-border: var(--los-ton-700);
+  --lp-ui-border-strong: var(--los-ton-600);
   --lp-ui-focus: #93c5fd;
-  --lp-ui-disabled-bg: #262c38;
-  --lp-ui-disabled-fg: #9aa3b2;
-  --lp-ui-secondary-bg: #1d2330;
-  --lp-ui-secondary-hover: #252c3b;
-  --lp-ui-secondary-border: #3a4354;
-  --lp-ui-secondary-edge: #0b0e14;
+  --lp-ui-disabled-bg: var(--los-ton-800);
+  --lp-ui-disabled-fg: var(--los-ton-400);
+  --lp-ui-secondary-bg: var(--los-ton-800);
+  --lp-ui-secondary-hover: var(--los-ton-700);
+  --lp-ui-secondary-border: var(--los-ton-600);
+  --lp-ui-secondary-edge: var(--los-ton-950);
   --lp-ui-accent: #a5b8f5;
   --lp-ui-accent-hover: #c7d3fa;
   --lp-ui-accent-edge: #6f86d8;
@@ -175,7 +179,7 @@
   --lp-ui-warning-soft: #30240b;
   --lp-ui-info-text: #b3d6f6;
   --lp-ui-info-soft: #11263d;
-  --lp-ui-neutral: #8b95a5;
+  --lp-ui-neutral: var(--los-ton-400);
 }
 
 :root[data-theme='dark'][data-lp-app='python'] .lp-ui,
@@ -210,20 +214,20 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .lp-ui {
-    --lp-ui-surface: #151a24;
-    --lp-ui-surface-sunken: #0f131b;
-    --lp-ui-track: #2a3140;
-    --lp-ui-text: #f3f4f6;
-    --lp-ui-text-muted: #c4cad5;
-    --lp-ui-border: #2e3646;
-    --lp-ui-border-strong: #465063;
+    --lp-ui-surface: var(--los-ton-900);
+    --lp-ui-surface-sunken: var(--los-ton-950);
+    --lp-ui-track: var(--los-ton-700);
+    --lp-ui-text: var(--los-cream);
+    --lp-ui-text-muted: var(--los-ton-200);
+    --lp-ui-border: var(--los-ton-700);
+    --lp-ui-border-strong: var(--los-ton-600);
     --lp-ui-focus: #93c5fd;
-    --lp-ui-disabled-bg: #262c38;
-    --lp-ui-disabled-fg: #9aa3b2;
-    --lp-ui-secondary-bg: #1d2330;
-    --lp-ui-secondary-hover: #252c3b;
-    --lp-ui-secondary-border: #3a4354;
-    --lp-ui-secondary-edge: #0b0e14;
+    --lp-ui-disabled-bg: var(--los-ton-800);
+    --lp-ui-disabled-fg: var(--los-ton-400);
+    --lp-ui-secondary-bg: var(--los-ton-800);
+    --lp-ui-secondary-hover: var(--los-ton-700);
+    --lp-ui-secondary-border: var(--los-ton-600);
+    --lp-ui-secondary-edge: var(--los-ton-950);
     --lp-ui-accent: #a5b8f5;
     --lp-ui-accent-hover: #c7d3fa;
     --lp-ui-accent-edge: #6f86d8;
@@ -247,7 +251,7 @@
     --lp-ui-warning-soft: #30240b;
     --lp-ui-info-text: #b3d6f6;
     --lp-ui-info-soft: #11263d;
-    --lp-ui-neutral: #8b95a5;
+    --lp-ui-neutral: var(--los-ton-400);
   }
 
   :root:not([data-theme='light'])[data-lp-app='python'] .lp-ui {
@@ -365,13 +369,14 @@
   --lp-ui-button-edge: var(--lp-ui-danger-soft-edge);
 }
 
-/* Auf dunklen Kopfflächen: unabhängig vom Farbschema, weißer Fokusring. */
+/* Auf dunklen Kopfflächen: unabhängig vom Farbschema, weißer Fokusring.
+ * Creme und Tinte des Learning OS statt Weiß und Kaltgrau (Roadmap E3). */
 .lp-ui-button[data-lp-variant='on-dark'] {
-  --lp-ui-button-bg: #ffffff;
-  --lp-ui-button-hover: #eef1f6;
-  --lp-ui-button-fg: #111827;
-  --lp-ui-button-border: #ffffff;
-  --lp-ui-button-edge: #c3cad6;
+  --lp-ui-button-bg: var(--los-cream);
+  --lp-ui-button-hover: var(--los-ton-100);
+  --lp-ui-button-fg: var(--los-ink);
+  --lp-ui-button-border: var(--los-cream);
+  --lp-ui-button-edge: var(--los-ton-300);
   --lp-ui-button-focus: #ffffff;
 }
 

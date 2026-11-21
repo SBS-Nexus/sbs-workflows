@@ -157,6 +157,43 @@ export function erwarteteHubZiele(): { home: string; review: string; progress: s
   return { home: basis, review: `${basis}/wiederholen`, progress: `${basis}/fortschritt` };
 }
 
+/**
+ * Erwartete „Andere Lernpfade" — wie im Vertrag aus der Umgebung abgeleitet:
+ * die beiden anderen Apps, nur mit gesetzter Adresse, ohne Schrägstrich am Ende.
+ */
+export function erwarteteAnderePfade(
+  app: 'python' | 'sql' | 'ai',
+): { name: string; href: string }[] {
+  const quellen = [
+    ['python', 'PythonPfad', process.env.NEXT_PUBLIC_PYTHONPFAD_URL],
+    ['sql', 'SQLPfad', process.env.NEXT_PUBLIC_SQLPFAD_URL],
+    ['ai', 'AIPfad', process.env.NEXT_PUBLIC_AIPFAD_URL],
+  ] as const;
+  return quellen
+    .filter(([id, , roh]) => id !== app && roh?.trim())
+    .map(([, name, roh]) => ({ name, href: roh!.trim().replace(/\/+$/, '') }));
+}
+
+export async function erwarteAnderePfade(page: Page, app: 'python' | 'sql' | 'ai'): Promise<void> {
+  const erwartet = erwarteteAnderePfade(app);
+  const andere = page.getByRole('navigation', { name: 'Andere Lernpfade' });
+  if (erwartet.length === 0) {
+    await expect(andere, 'ohne App-Adressen keine Verweise auf andere Pfade').toHaveCount(0);
+    return;
+  }
+  const breite = page.viewportSize()?.width ?? 0;
+  if (breite < 640) {
+    // Unter 640 px führt „Alle Pfade" zum Hub; die Leiste bleibt einzeilig.
+    await expect(andere).toHaveCount(0);
+    return;
+  }
+  const links = andere.getByRole('link');
+  await expect(links).toHaveText(erwartet.map((pfad) => pfad.name));
+  expect(await links.evaluateAll((a) => a.map((link) => link.getAttribute('href')))).toEqual(
+    erwartet.map((pfad) => pfad.href),
+  );
+}
+
 export async function erwartePlattformleiste(page: Page): Promise<void> {
   const erwartet = erwarteteHubZiele();
   const plattform = page.getByRole('navigation', { name: 'Lernpfade-Plattform' });

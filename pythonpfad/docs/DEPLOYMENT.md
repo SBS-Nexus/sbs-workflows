@@ -108,8 +108,11 @@ location /pyodide/ {
 }
 ```
 
-`X-Forwarded-For` wird für die Ratenbegrenzung ausgewertet. Ohne diesen Header
-teilen sich alle Anfragen einen Zähler.
+Die Ratenbegrenzung liest zuerst `X-Real-IP`, sonst den rechten Eintrag von
+`X-Forwarded-For` (`src/server/security/client-ip.ts`). Beide Zeilen oben sind
+deshalb Pflicht. Fehlt `proxy_set_header X-Real-IP`, reicht nginx einen vom
+Client mitgeschickten Wert durch, und jeder Versuch bekäme einen frischen
+Zähler. Ohne beide Kopfzeilen teilen sich alle Anfragen einen Zähler.
 
 ---
 
@@ -215,7 +218,7 @@ Dateinamen sorgen dafür, dass Browser die neue Fassung laden.
 - [ ] `SEED_DEMO_USERS` nicht gesetzt; keine Beispielkonten in der Datenbank
 - [ ] Datenbankbenutzer mit minimalen Rechten
 - [ ] Sicherung eingerichtet und einmal wiederhergestellt
-- [ ] `X-Forwarded-For` wird durchgereicht
+- [ ] Der Proxy setzt `X-Real-IP` und hängt `X-Forwarded-For` an (Abschnitt 4)
 - [ ] Aufbewahrungsfrist mit der Datenschutzerklärung abgeglichen
 - [ ] `npm run verify` läuft in der Auslieferungskette
 - [ ] `npm audit` in der Auslieferungskette

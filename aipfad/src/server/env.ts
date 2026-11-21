@@ -41,7 +41,8 @@ const envSchema = z.object({
    * wirkungslos — beides still. E02 hat dafür die Richtung vorgegeben: Was
    * der Betrieb braucht, wird beim Start geprüft, nicht beim ersten Aufruf.
    *
-   * Mindestens 16 Zeichen, passend zur heutigen Vercel-Empfehlung.
+   * Mindestens 16 Zeichen. Die Grenze stammt aus der Vercel-Empfehlung und
+   * gilt für den Railway-Cron unverändert.
    */
   CRON_SECRET: z
     .string({ error: 'CRON_SECRET fehlt. Vorlage: .env.example' })

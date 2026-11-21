@@ -100,10 +100,13 @@ test('Ausfall aller Quellen (Mock) bleibt sichtbar und nicht fatal', async ({ pa
 
 test('Hub: VokabelPfad ist als lokaler MVP verlinkt, ohne Audio-Versprechen', async ({ page }) => {
   await page.goto('/');
-  const card = page.locator('.path-card').filter({ hasText: 'VokabelPfad' });
-  await expect(card).toContainText('Lokaler MVP');
-  await expect(card).toHaveAttribute('href', '/vokabeln');
-  await expect(card).not.toContainText(/Aussprache|Audio/);
-  await expect(page.getByRole('link', { name: /VokabelPfad öffnen/ })).toHaveAttribute('href', '/vokabeln');
+  // Learning OS: eigener Abschnitt statt Pfadkarte; Status aus dem Katalog.
+  const section = page.getByRole('region', { name: /Lernen ist gut.*Behalten ist besser/s });
+  await expect(section).toContainText('VokabelPfad · Lokaler MVP');
+  await expect(section.getByRole('link', { name: 'VokabelPfad ausprobieren' })).toHaveAttribute('href', '/vokabeln');
+  await expect(section.getByRole('link', { name: 'Alle Wiederholungen' })).toHaveAttribute('href', '/wiederholen');
+  await expect(section).toContainText('lokal in deinem Browser');
+  await expect(section).not.toContainText(/Aussprache|Audio/);
+  await expect(page.getByRole('navigation', { name: 'Seitennavigation' }).getByRole('link', { name: 'Vokabeln' })).toHaveAttribute('href', '/vokabeln');
   await expectNoSeriousA11yViolations(page, 'Hub-Startseite');
 });

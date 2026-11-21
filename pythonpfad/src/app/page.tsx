@@ -163,9 +163,7 @@ export default async function LandingPage({
               <br />
               Selbst schreiben.
               <br />
-              <span className="bg-gradient-to-r from-[#7ee2b8] via-[#93c5fd] to-[#f9a8d4] bg-clip-text text-transparent">
-                Wirklich anwenden.
-              </span>
+              <span className="los-akzentzeile">Wirklich anwenden.</span>
             </h1>
 
             <p className="mt-5 max-w-xl text-lg text-white/80">
@@ -244,23 +242,27 @@ export default async function LandingPage({
             </p>
           </div>
 
+          {/*
+           * Die Schritte tragen alle den Fachakzent und nicht reihum die
+           * Modulfarben: Modulfarben stehen für Module, und ein Schritt des
+           * Ablaufs ist keines. Vorher wechselte die Farbe von Karte zu Karte
+           * nur zur Zierde (Roadmap E3).
+           */}
           <ol className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {SCHRITTE.map((item, index) => {
-              const theme = moduleTheme(index);
               return (
                 <li
                   key={item.title}
-                  style={themeStyle(theme)}
-                  className="reveal-on-scroll hover-lift group list-none rounded-2xl border-2 border-[var(--border)] bg-[var(--surface-raised)] p-6 hover:border-[var(--akzent)]"
+                  className="reveal-on-scroll hover-lift group list-none rounded-2xl border-2 border-[var(--border)] bg-[var(--surface-raised)] p-6 hover:border-[var(--accent)]"
                 >
                   <div className="flex items-center gap-3">
                     <span
                       aria-hidden="true"
-                      className="flex size-11 items-center justify-center rounded-2xl bg-[var(--akzent-soft)] text-[var(--akzent)] transition-transform duration-200 group-hover:scale-110"
+                      className="flex size-11 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)] transition-transform duration-200 group-hover:scale-110"
                     >
                       <Icon name={item.icon} size={22} />
                     </span>
-                    <span className="text-sm font-bold uppercase tracking-widest text-[var(--akzent)]">
+                    <span className="text-sm font-bold uppercase tracking-widest text-[var(--accent)]">
                       Schritt {index + 1}
                     </span>
                   </div>

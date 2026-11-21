@@ -165,8 +165,12 @@ export function LiveReview({ sources }: { sources: readonly LiveSourceConfig[] }
   const configBySource = new Map(sources.map((source) => [source.source, source]));
 
   return (
-    <section className="live-review" aria-labelledby="live-title">
+    <section className="los-section live-review" aria-labelledby="live-title">
       <div className="live-heading">
+        <p className="los-lane-label">
+          <span className="los-lane-dot" data-lane="live" aria-hidden="true" />
+          LIVE · nur gelesen aus den Apps
+        </p>
         <h2 id="live-title">Fällig in deinen Lernpfaden</h2>
         <p>
           Nur Anzeige: Bearbeitet, bewertet und neu geplant wird in der jeweiligen App. Lernpfade

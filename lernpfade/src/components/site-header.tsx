@@ -1,35 +1,51 @@
-/** Kopfzeile der Unterseiten des Hubs mit Rückweg zur Startseite. */
+export type SiteSection = 'start' | 'vokabeln' | 'wiederholen' | 'fortschritt';
+
+/** Bildmarke des Learning OS: drei Signalstriche, rein dekorativ. */
+export function BrandMark(): React.ReactElement {
+  return (
+    <span className="los-brand-mark" aria-hidden="true">
+      <span />
+      <span />
+      <span />
+    </span>
+  );
+}
+
+/**
+ * Gemeinsame Kopfzeile aller Hub-Routen (Startseite, VokabelPfad,
+ * Wiederholen, Fortschritt, 404). Eine Navigation „Seitennavigation", die
+ * aktuelle Route trägt `aria-current="page"`. Unter 900 px steht die
+ * Navigation als eigene Zeile im Fluss unter der Marke — nichts liegt über
+ * dem Inhalt, nichts läuft über den Rand.
+ */
 export function SiteHeader({
   current,
 }: {
   /** Ohne Angabe (etwa auf der 404-Seite) ist kein Eintrag aktuell. */
-  current?: 'vokabeln' | 'wiederholen' | 'fortschritt';
+  current?: SiteSection;
 }): React.ReactElement {
+  const here = (section: SiteSection): 'page' | undefined => (current === section ? 'page' : undefined);
   return (
-    <header className="site-header site-header-sub">
-      <div className="shell header-inner">
-        <a className="brand" href="/" aria-label="Lernpfade Startseite">
-          <span className="brand-mark" aria-hidden="true">
-            LP
-          </span>
-          <span>
-            <strong>Lernpfade</strong>
-            <small>SBS Nexus Learning</small>
-          </span>
+    <header className="los-header">
+      <a className="los-brand" href="/" aria-label="Lernpfade Startseite" aria-current={here('start')}>
+        <BrandMark />
+        <span>
+          lernpfade<span className="los-brand-period">.</span>
+        </span>
+        <small>by SBS Nexus</small>
+      </a>
+      <nav className="los-nav" aria-label="Seitennavigation">
+        <a href={current === 'start' ? '#lernpfade' : '/#lernpfade'}>Pfade</a>
+        <a href="/vokabeln" aria-current={here('vokabeln')}>
+          Vokabeln
         </a>
-        <nav aria-label="Seitennavigation">
-          <a href="/">Pfade</a>
-          <a href="/vokabeln" aria-current={current === 'vokabeln' ? 'page' : undefined}>
-            Vokabeln
-          </a>
-          <a href="/wiederholen" aria-current={current === 'wiederholen' ? 'page' : undefined}>
-            Wiederholen
-          </a>
-          <a href="/fortschritt" aria-current={current === 'fortschritt' ? 'page' : undefined}>
-            Fortschritt
-          </a>
-        </nav>
-      </div>
+        <a href="/wiederholen" aria-current={here('wiederholen')}>
+          Wiederholen
+        </a>
+        <a href="/fortschritt" aria-current={here('fortschritt')}>
+          Fortschritt
+        </a>
+      </nav>
     </header>
   );
 }
