@@ -190,6 +190,20 @@ Monat gehoben. Stattdessen:
    - Automatisch läuft derselbe Rundgang ab E4.2 in der CI gegen einen
      ZITADEL-Container.
 
+   **axe-Lauf am 22.11.2026** (`konto/pruefung/axe.mjs`, WCAG 2.2 A/AA, sieben
+   Seiten × hell/dunkel × Desktop/mobil = 28 Ansichten): jede Ansicht mit
+   Befund, vier Regeln, alle „serious“, alle aus der Vorlage von ZITADEL:
+
+   | Regel                | Wo                            | Ursache                                                                                      |
+   | -------------------- | ----------------------------- | -------------------------------------------------------------------------------------------- |
+   | `html-has-lang`      | alle Seiten                   | `<html>` ohne `lang` im Layout der Anmelde-App                                               |
+   | `autocomplete-valid` | Registrierung, Passwortseiten | `firstname`/`lastname` statt `given-name`/`family-name`, `password` statt `current-password` |
+   | `link-name`          | Passwort, Zurücksetzen        | Pfeil-Link zum Kontowechsel ohne Text (nur SVG)                                              |
+   | `color-contrast`     | Bestätigen (hell)             | gelber Hinweiskasten mit festen Farben, 2,56:1                                               |
+
+   Über Texte oder Markeneinstellungen ist keiner davon zu beheben. Das Tor
+   bleibt offen, bis der eigene Bau (Stufe 2) sie behebt.
+
 ## 6. Was du beiträgst
 
 - ~~Freigabe der DNS-Einträge bei Strato für `konto.lernpfade.net`~~ – erteilt
