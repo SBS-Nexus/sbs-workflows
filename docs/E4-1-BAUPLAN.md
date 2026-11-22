@@ -167,6 +167,14 @@ Monat gehoben. Stattdessen:
      - Live geprüft, hell und dunkel, Desktop und mobil. Die Anmelde-App hält
        Einstellungen bis zu 60 Minuten im Speicher; nach einer Änderung
        `konto-login` neu starten.
+   - **Stufe 2 läuft seit 22.11.2026 (zuerst vorgezogen wegen Sicherheit):**
+     ZITADELs Image `zitadel-login:v4.20.5` nutzt Next.js 16.4.3. Dafür gibt
+     es sieben Sicherheitshinweise mittlerer Schwere, behoben ab 16.4.5,
+     darunter „Cross-client response injection and disclosure in self-hosted
+     Next.js applications forwarding fetched responses“. Auch der Hauptzweig
+     von ZITADEL steht noch bei 16.4.3. `konto/login/` baut die App deshalb
+     aus dem Quelltext mit Patches; die ersten beiden heben Next.js auf 16.4.6
+     und setzen `<html lang>`.
    - **Stufe 2, vor E4.4: eigener Bau.** Learning-OS-Aufbau statt der Karte
      von ZITADEL und NFKC-Normalisierung des Passworts (nötig für übernommene
      Konten mit Sonderformen wie Ligaturen, siehe E4.0).
