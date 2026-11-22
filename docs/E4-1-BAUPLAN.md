@@ -31,6 +31,9 @@ ZITADEL in Betrieb geht.
 > - **Mailversand geprüft am 22.11.2026:** „Passwort vergessen“ für das
 >   Admin-Konto → ZITADEL schickt signiert an `konto-mail` → Scaleway nimmt die
 >   Mail an (Status 200, 210 ms). Eine unsignierte Anfrage wird abgelehnt (401).
+> - **Rundgang, erster Teil (22.11.2026):** Die Inhaberin hat über „Passwort
+>   vergessen“ mit dem Code aus der Mail ihr Admin-Passwort gesetzt. Offen sind
+>   noch Registrieren und Bestätigen mit einem neuen Konto sowie Abmelden.
 > - **Offen:**
 >   - der Wechsel auf Railway Pro zum **17.12.2026** (Beginn des nächsten
 >     Abrechnungszeitraums, ohne anteiligen Aufpreis; Abschnitt 7), danach
