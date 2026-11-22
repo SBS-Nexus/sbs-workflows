@@ -28,9 +28,10 @@ ZITADEL in Betrieb geht.
 > - Scaleway: IAM-Anwendung `lernpfade-konto-mail` mit der Richtlinie
 >   `lernpfade-konto-mail-versand`, nur `TransactionalEmailEmailApiCreate` im
 >   Projekt `lernpfade` (kein SMTP, keine Domain-Einstellungen).
+> - **Mailversand geprüft am 22.11.2026:** „Passwort vergessen“ für das
+>   Admin-Konto → ZITADEL schickt signiert an `konto-mail` → Scaleway nimmt die
+>   Mail an (Status 200, 210 ms). Eine unsignierte Anfrage wird abgelehnt (401).
 > - **Offen:**
->   - den API-Schlüssel der Anwendung erzeugen und als `SCW_SECRET_KEY` bei
->     `konto-mail` eintragen (macht die Inhaberin),
 >   - der Wechsel auf Railway Pro zum **17.12.2026** (Beginn des nächsten
 >     Abrechnungszeitraums, ohne anteiligen Aufpreis; Abschnitt 7), danach
 >     Sicherungen einschalten und eine Wiederherstellung proben.
@@ -174,6 +175,11 @@ Monat gehoben. Stattdessen:
        den unsichtbaren Screenreader-Text „Server size“. Er ist fest
        eingebaut und lässt sich über Texte nicht ändern; der eigene Bau
        behebt ihn.
+     - Weitere Befunde in der Vorlage, am 22.11.2026 live gesehen:
+       - Das Eingabefeld der E-Mail-Adresse hat für Screenreader keinen Namen.
+       - Die Knöpfe für das Farbschema heißen fest „Switch to light mode“ usw.
+       - Die E-Mail-Adresse steht als `loginName` in der URL der Passwortseite
+         und landet damit in Protokollen und Verläufen.
 
 3. **E4.1c Tor** – Checkliste abhaken, axe auf allen Kontoseiten, Rundgang.
    - Den Rundgang mit echter Registrierung machst du auf `konto.lernpfade.net`.

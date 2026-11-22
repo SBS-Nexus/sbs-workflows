@@ -25,8 +25,16 @@ const MAX_INHALT = 64 * 1024;
 const gesehen = new SchonGesehen();
 const drossel = new Drossel(KONFIG.mailsJeMinute, 60_000);
 
+/** Kurztext für die Protokollansicht von Railway (liest JSON-Zeilen über `message`). */
+function kurztext(eintrag) {
+  if (eintrag.start) return `konto-mail gestartet (bereit: ${eintrag.bereit})`;
+  if (eintrag.status === 200) return `Mail versendet: ${eintrag.ereignis}`;
+  return `Abgelehnt (${eintrag.status}): ${eintrag.grund ?? 'ohne Grund'}`;
+}
+
 function protokoll(eintrag) {
-  process.stdout.write(`${JSON.stringify({ zeit: new Date().toISOString(), ...eintrag })}\n`);
+  const zeile = { message: kurztext(eintrag), zeit: new Date().toISOString(), ...eintrag };
+  process.stdout.write(`${JSON.stringify(zeile)}\n`);
 }
 
 function bereit() {
