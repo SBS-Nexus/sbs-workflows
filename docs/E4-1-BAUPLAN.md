@@ -31,8 +31,9 @@ ZITADEL in Betrieb geht.
 > - **Offen:**
 >   - den API-Schlüssel der Anwendung erzeugen und als `SCW_SECRET_KEY` bei
 >     `konto-mail` eintragen (macht die Inhaberin),
->   - der Wechsel auf Railway Pro (entschieden am 21.11.2026, Abschnitt 7),
->     danach Sicherungen einschalten und eine Wiederherstellung proben.
+>   - der Wechsel auf Railway Pro zum **17.12.2026** (Beginn des nächsten
+>     Abrechnungszeitraums, ohne anteiligen Aufpreis; Abschnitt 7), danach
+>     Sicherungen einschalten und eine Wiederherstellung proben.
 
 Bis E4.2 hängt keine App am Dienst. Die Apps bleiben unverändert, und ein
 Fehlversuch lässt sich durch Löschen der fünf Dienste vollständig zurücknehmen.
@@ -207,6 +208,13 @@ der Verbrauch unter 20 USD fällt.
 | ---------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | **Railway Pro** (gewählt)    | wie heute, mindestens 20 USD im Monat          | Sicherungen aller Laufwerke nach Zeitplan; dazu 30 statt 7 Tage Protokolle                                      |
 | Eigene Sicherung (verworfen) | wenige Cent (Scaleway Object Storage in Paris) | Dienst mit `pg_dump` nach Zeitplan, verschlüsselt, weiterer Scaleway-Schlüssel, Wiederherstellung selbst proben |
+
+**Zeitpunkt: 17.12.2026.** Der Abrechnungszeitraum läuft vom 17. bis 17. eines
+Monats. Ein Wechsel mitten im Zeitraum wird nach Auskunft von Railway-Mitarbeitern
+anteilig berechnet (am 22.11. rund 12,50 USD), die offizielle Doku sagt dazu
+nichts Genaues. Die Inhaberin will jetzt nichts zahlen, deshalb erst zum
+Zeitraumwechsel. Bis dahin hat `konto-db` keine Sicherung; dort liegt nur das
+Admin-Konto.
 
 Nach dem Wechsel: Sicherungen täglich, wöchentlich und monatlich für `konto-db`
 und die drei App-Datenbanken; einmal eine Wiederherstellung von `konto-db`
