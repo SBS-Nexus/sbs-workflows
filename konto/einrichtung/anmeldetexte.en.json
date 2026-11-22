@@ -1,0 +1,19 @@
+{
+  "common": {
+    "title": "Sign in to Lernpfade"
+  },
+  "loginname": {
+    "description": "Sign in with your email address – one account for all Lernpfade paths."
+  },
+  "idp": {
+    "signInWithZitadel": "Continue with single sign-on"
+  },
+  "register": {
+    "description": "One account for Python, SQL and AI – your progress stays in every path."
+  },
+  "device": {
+    "request": {
+      "disclaimer": "By clicking Allow, you allow {appName} to use this information from your Lernpfade account. You can revoke this access at any time."
+    }
+  }
+}

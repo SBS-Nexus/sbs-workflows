@@ -22,6 +22,7 @@ import { createPrivateKey, sign } from 'node:crypto';
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
+import { iconSvg, logoSvg, schriftDatei } from './marke.mjs';
 import { NACHRICHTEN } from './texte.mjs';
 
 const { values: arg } = parseArgs({
@@ -105,6 +106,24 @@ async function schritt(name, methode, pfad, koerper, optionen) {
     console.log(`FEHLER ${name} (${r.status}) ${String(r.daten?.message ?? '').slice(0, 160)}`);
   }
   return r;
+}
+
+/** Lädt eine Datei in die Assets-API (Logo, Icon, Schrift); max. 512 KB laut ZITADEL. */
+async function hochladen(name, pfad, inhalt, typ, dateiname) {
+  const formular = new FormData();
+  formular.append('file', new Blob([inhalt], { type: typ }), dateiname);
+  const antwort = await fetch(ZIEL + pfad, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${TOKEN}` },
+    body: formular,
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (antwort.ok) {
+    console.log(`OK     ${name} (${antwort.status})`);
+  } else {
+    fehler += 1;
+    console.log(`FEHLER ${name} (${antwort.status}) ${(await antwort.text()).slice(0, 160)}`);
+  }
 }
 
 function schreibeGeheim(datei, variablen) {
@@ -211,7 +230,26 @@ await schritt('Markenfarben', 'PUT', '/admin/v1/policies/label', {
   disableWatermark: true,
   themeMode: 'THEME_MODE_AUTO',
 });
-await schritt('Markenfarben aktivieren', 'POST', '/admin/v1/policies/label/_activate', {});
+// Logo (hell/dunkel), Icon und IBM Plex für die Anmeldeseite (konto/einrichtung/marke.mjs).
+const ASSETS = '/assets/v1/instance/policy/label';
+await hochladen('Logo hell', `${ASSETS}/logo`, logoSvg('hell'), 'image/svg+xml', 'logo-hell.svg');
+await hochladen(
+  'Logo dunkel',
+  `${ASSETS}/logo/dark`,
+  logoSvg('dunkel'),
+  'image/svg+xml',
+  'logo-dunkel.svg',
+);
+await hochladen('Icon hell', `${ASSETS}/icon`, iconSvg(), 'image/svg+xml', 'icon.svg');
+await hochladen('Icon dunkel', `${ASSETS}/icon/dark`, iconSvg(), 'image/svg+xml', 'icon.svg');
+await hochladen(
+  'Schrift IBM Plex Sans',
+  `${ASSETS}/font`,
+  schriftDatei(),
+  'font/woff2',
+  'plex-sans.woff2',
+);
+await schritt('Marke aktivieren', 'POST', '/admin/v1/policies/label/_activate', {});
 
 await schritt('Standardsprache Deutsch', 'PUT', '/admin/v1/languages/default/de');
 await schritt('Sprachen und Organisationsregistrierung', 'PUT', '/admin/v1/restrictions', {
@@ -228,6 +266,19 @@ for (const [sprache, texte] of Object.entries(NACHRICHTEN)) {
       { language: sprache, ...text },
     );
   }
+}
+
+// Texte der Anmeldeseite (Login v2): Du-Ton der Lernpfade, ohne „Zitadel“.
+// Die Anmelde-App führt sie mit ihren eingebauten Texten zusammen.
+for (const sprache of ['de', 'en']) {
+  const texte = JSON.parse(
+    readFileSync(new URL(`./anmeldetexte.${sprache}.json`, import.meta.url), 'utf8'),
+  );
+  await schritt(`Anmeldetexte (${sprache})`, 'PUT', '/v2/settings/hosted_login_translation', {
+    instance: true,
+    locale: sprache,
+    translations: texte,
+  });
 }
 
 // Mailversand über konto-mail (HTTP-Anbieter mit Signatur).
