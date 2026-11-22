@@ -48,6 +48,37 @@ index 46ceb4e..35fda08 100644
 +    "dark": "Dark theme"
    }
  }
+diff --git a/apps/login/src/app/(login)/layout.tsx b/apps/login/src/app/(login)/layout.tsx
+index 3ef90ae..7ed637e 100644
+--- a/apps/login/src/app/(login)/layout.tsx
++++ b/apps/login/src/app/(login)/layout.tsx
+@@ -31,6 +31,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
+   const { serviceConfig } = getServiceConfig(_headers);
+   // Lernpfade: Sprache für Screenreader und Silbentrennung (WCAG 3.1.1).
+   const locale = await getLocale();
++  const tTheme = await getTranslations("theme");
++  const themeLabels = { light: tTheme("light"), system: tTheme("system"), dark: tTheme("dark") };
+ 
+   let languages = LANGS;
+   try {
+@@ -60,7 +62,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
+                       <div className="h-40"></div>
+                     </Skeleton>
+                     <div className="flex flex-row items-center justify-end space-x-4 py-4">
+-                      <ThemeSwitch />
++                      <ThemeSwitch labels={themeLabels} />
+                     </div>
+                   </div>
+                 </BackgroundWrapper>
+@@ -74,7 +76,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
+                     <div>{children}</div>
+                     <div className="mx-auto flex max-w-[440px] flex-row items-center justify-end space-x-4 px-4 py-4 md:max-w-full md:px-8">
+                       <LanguageSwitcher languages={languages} />
+-                      <ThemeSwitch />
++                      <ThemeSwitch labels={themeLabels} />
+                     </div>
+                   </div>
+                 </BackgroundWrapper>
 diff --git a/apps/login/src/components/alert.tsx b/apps/login/src/components/alert.tsx
 index d61d977..7ce0055 100644
 --- a/apps/login/src/components/alert.tsx
@@ -158,31 +189,30 @@ index d1ad9ac..b1f5cc7 100644
                {...register("lastname", { required: t("required.lastname") })}
                label={t("labels.lastname")}
 diff --git a/apps/login/src/components/theme-switch.tsx b/apps/login/src/components/theme-switch.tsx
-index dd9e9e1..b80fbb7 100644
+index dd9e9e1..4001564 100644
 --- a/apps/login/src/components/theme-switch.tsx
 +++ b/apps/login/src/components/theme-switch.tsx
-@@ -3,6 +3,7 @@
- import { APPEARANCE_STYLES, getComponentRoundness, getThemeConfig } from "@/lib/theme";
- import { ComputerDesktopIcon, MoonIcon, SunIcon } from "@heroicons/react/24/outline";
- import { ThemeMode } from "@zitadel/proto/zitadel/settings/v2/branding_settings_pb";
-+import { useTranslations } from "next-intl";
- import { useTheme } from "next-themes";
- import { useEffect, useState } from "react";
- import { useThemeMode } from "./branding-context";
-@@ -40,6 +41,7 @@ function getSelectedButtonStyle(isSelected: boolean): string {
- export default function ThemeSwitch() {
+@@ -37,7 +37,13 @@ function getSelectedButtonStyle(isSelected: boolean): string {
+   }
+ }
+ 
+-export default function ThemeSwitch() {
++type ThemeSwitchLabels = { light: string; system: string; dark: string };
++
++// Lernpfade: Beschriftungen kommen vom Layout, weil diese Komponente auch im
++// Suspense-Fallback außerhalb des NextIntlClientProvider gerendert wird.
++const ENGLISH_LABELS: ThemeSwitchLabels = { light: "Light theme", system: "System theme", dark: "Dark theme" };
++
++export default function ThemeSwitch({ labels = ENGLISH_LABELS }: { labels?: ThemeSwitchLabels }) {
    const [mounted, setMounted] = useState(false);
    const { theme, setTheme } = useTheme();
-+  const t = useTranslations("theme");
    const themeMode = useThemeMode();
-   const toggleRoundness = getThemeToggleRoundness();
-   const cardAppearance = getThemeSwitchCardAppearance();
-@@ -61,21 +63,24 @@ export default function ThemeSwitch() {
+@@ -61,21 +67,24 @@ export default function ThemeSwitch() {
        <button
          className={`flex h-8 w-8 flex-row items-center justify-center ${toggleRoundness} transition-colors ${getSelectedButtonStyle(theme === "light")}`}
          onClick={() => setTheme("light")}
 -        aria-label="Switch to light mode"
-+        aria-label={t("light")}
++        aria-label={labels.light}
 +        aria-pressed={theme === "light"}
        >
          <SunIcon className="h-5 w-5" />
@@ -191,7 +221,7 @@ index dd9e9e1..b80fbb7 100644
          className={`flex h-8 w-8 flex-row items-center justify-center ${toggleRoundness} transition-colors ${getSelectedButtonStyle(theme === "system")}`}
          onClick={() => setTheme("system")}
 -        aria-label="Switch to system mode"
-+        aria-label={t("system")}
++        aria-label={labels.system}
 +        aria-pressed={theme === "system"}
        >
          <ComputerDesktopIcon className="h-4 w-4" />
@@ -200,7 +230,7 @@ index dd9e9e1..b80fbb7 100644
          className={`flex h-8 w-8 flex-row items-center justify-center ${toggleRoundness} transition-colors ${getSelectedButtonStyle(theme === "dark")}`}
          onClick={() => setTheme("dark")}
 -        aria-label="Switch to dark mode"
-+        aria-label={t("dark")}
++        aria-label={labels.dark}
 +        aria-pressed={theme === "dark"}
        >
          <MoonIcon className="h-4 w-4" />
