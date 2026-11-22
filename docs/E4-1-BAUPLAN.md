@@ -150,14 +150,30 @@ Monat gehoben. Stattdessen:
    Sicherheitskopfzeilen, Mail an dich kommt an. Die Anmelde-App ist noch das
    unveränderte Image von ZITADEL, mit unseren Farben aus den
    Markeneinstellungen.
-2. **E4.1b Eigene Anmelde-App** – Abzweig von `apps/login` (v4.20.5, MIT) als
-   `konto/login/`:
-   - Learning-OS-Gestaltung über den Token-Vertrag und IBM Plex,
-   - deutsche Texte in unserem Ton,
-   - NFKC-Normalisierung des Passworts vor dem Absenden (nötig für übernommene
-     Konten, siehe E4.0).
-
-   Ersetzt das Image im Dienst `konto-login`.
+2. **E4.1b Anmeldeseite in unserer Marke – in zwei Stufen** (entschieden am
+   22.11.2026):
+   - **Stufe 1, erledigt am 22.11.2026: Texte und Marke per Konfiguration.**
+     - Alle 322 deutschen Texte im Du-Ton
+       (`konto/einrichtung/anmeldetexte.de.json`, über
+       `SetHostedLoginTranslation`); im Englischen sind nur die Stellen mit
+       „Zitadel“ ersetzt.
+     - Logo hell und dunkel aus der Learning-OS-Marke mit eingebettetem IBM
+       Plex, Icon, IBM Plex als Schrift (`konto/einrichtung/marke.mjs`, über
+       die Assets-API).
+     - Live geprüft, hell und dunkel, Desktop und mobil. Die Anmelde-App hält
+       Einstellungen bis zu 60 Minuten im Speicher; nach einer Änderung
+       `konto-login` neu starten.
+   - **Stufe 2, vor E4.4: eigener Bau.** Learning-OS-Aufbau statt der Karte
+     von ZITADEL und NFKC-Normalisierung des Passworts (nötig für übernommene
+     Konten mit Sonderformen wie Ligaturen, siehe E4.0).
+     - Die Anmelde-App hängt an den internen Paketen `@zitadel/client` und
+       `@zitadel/proto`. Auf npm liegt davon nur 1.3.1.
+     - Ein eigener Bau heißt daher: ZITADEL-Quelltext beim Tag holen, unsere
+       Änderungen darüberlegen und das Monorepo mit `buf generate` bauen.
+     - Bekannter Fehler in der Vorlage: Die Auswahl „Passkey / Passwort“ trägt
+       den unsichtbaren Screenreader-Text „Server size“. Er ist fest
+       eingebaut und lässt sich über Texte nicht ändern; der eigene Bau
+       behebt ihn.
 
 3. **E4.1c Tor** – Checkliste abhaken, axe auf allen Kontoseiten, Rundgang.
    - Den Rundgang mit echter Registrierung machst du auf `konto.lernpfade.net`.
