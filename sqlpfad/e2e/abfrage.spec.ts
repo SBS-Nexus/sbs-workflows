@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { messe } from './komponenten-pruefung';
 
 /**
  * Die Werkbank.
@@ -54,6 +55,63 @@ test('der Editor nimmt Eingaben an', async ({ page }) => {
 
   await schreibeSql(page, 'SELECT Name FROM Kunden');
   await expect(page.locator('.cm-content')).toContainText('SELECT Name FROM Kunden');
+});
+
+test('Syntaxfarben lesbar, Name vorhanden, Zeilennummern auf Zeilenhöhe — hell und dunkel', async ({
+  page,
+}) => {
+  /*
+   * Vorher kamen die Farben aus CodeMirrors Vorgabe für helle Flächen:
+   * `SELECT` stand im dunklen Schema mit 1,6:1 auf der Editorfläche. Der
+   * Unit-Test rechnet die Farbmarken nach; dieser hier stellt sicher, dass der
+   * Editor sie auch wirklich benutzt.
+   */
+  await meldeAn(page);
+  for (const schema of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: schema });
+    await page.goto('/abfrage');
+    const inhalt = page.locator('.cm-content');
+    await expect(inhalt).toHaveAttribute('aria-label', 'SQL-Abfrage');
+    await inhalt.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
+    for (const zeile of ['SELECT Name, Stadt', 'FROM Kunden -- nur Mannheim']) {
+      await inhalt.pressSequentially(zeile);
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('Enter');
+    }
+    await inhalt.pressSequentially("WHERE Stadt = N'Mannheim' AND [KundeId] > 2");
+    await page.keyboard.press('Escape');
+
+    for (const klasse of ['tok-keyword', 'tok-string', 'tok-number', 'tok-comment', 'tok-name']) {
+      const token = page.locator(`.cm-content .${klasse}`).first();
+      await expect(token, klasse).toBeVisible();
+      expect((await messe(token)).contrast, `${klasse} ${schema}`).toBeGreaterThanOrEqual(4.5);
+    }
+    // `[KundeId]` ist ein Name und trägt die Textfarbe, nicht die einer Zeichenkette.
+    const farbe = (sel: string) =>
+      page
+        .locator(sel)
+        .first()
+        .evaluate((node) => getComputedStyle(node).color);
+    expect(await farbe('.cm-content .tok-name')).toBe(await farbe('.cm-content'));
+
+    await expect
+      .poll(() =>
+        page.locator('.cm-editor').evaluate((editor) => {
+          const oben = (liste: Element[]) =>
+            liste.map((element) => Math.round(element.getBoundingClientRect().top));
+          const nummern = [...editor.querySelectorAll('.cm-lineNumbers .cm-gutterElement')].filter(
+            (element) => getComputedStyle(element).visibility !== 'hidden',
+          );
+          return (
+            JSON.stringify(oben(nummern)) ===
+            JSON.stringify(oben([...editor.querySelectorAll('.cm-line')]))
+          );
+        }),
+      )
+      .toBe(true);
+  }
 });
 
 test('ohne Runner wird kein Ergebnis erfunden', async ({ page }) => {

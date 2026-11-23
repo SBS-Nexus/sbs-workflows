@@ -245,7 +245,7 @@ export default function LandingPage(): React.ReactElement {
             </div>
 
             <div className="mt-12 grid gap-5 lg:grid-cols-3">
-              <Card className="border-2">
+              <Card>
                 <h3 className="text-lg font-bold tracking-tight">Eine Datenbank für dich allein</h3>
                 <p className="mt-2 text-[0.95rem] text-[var(--text-muted)]">
                   Du bekommst eine eigene Übungsdatenbank. Du kannst darin Zeilen ändern, Tabellen
@@ -254,7 +254,7 @@ export default function LandingPage(): React.ReactElement {
                 </p>
               </Card>
 
-              <Card className="border-2">
+              <Card>
                 <h3 className="text-lg font-bold tracking-tight">
                   Getrennt von allem, was dich betrifft
                 </h3>
@@ -265,7 +265,7 @@ export default function LandingPage(): React.ReactElement {
                 </p>
               </Card>
 
-              <Card className="border-2">
+              <Card>
                 <h3 className="text-lg font-bold tracking-tight">
                   Offline geht vieles, nicht alles
                 </h3>

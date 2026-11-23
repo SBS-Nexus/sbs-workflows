@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import './globals.css';
 import { BRAND } from '@/lib/brand';
 import { siteUrl } from '@/server/site';
+import { LearningPlatformBar } from '@/components/navigation/learning-platform-bar';
 
 /*
  * Schriften.
@@ -120,6 +121,7 @@ export default function RootLayout({
   return (
     <html
       lang="de"
+      data-lp-app="sql"
       suppressHydrationWarning
       className={`${plexSans.variable} ${plexMono.variable}`}
     >
@@ -130,6 +132,7 @@ export default function RootLayout({
         <a href="#hauptinhalt" className="skip-link">
           Direkt zum Hauptinhalt springen
         </a>
+        <LearningPlatformBar app="sql" />
         {children}
       </body>
     </html>

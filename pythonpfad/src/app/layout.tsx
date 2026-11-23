@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import './globals.css';
 import { getCurrentUser } from '@/server/auth/session';
 import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
+import { LearningPlatformBar } from '@/components/navigation/learning-platform-bar';
 import { BRAND } from '@/lib/brand';
 import { siteUrl } from '@/server/site';
 
@@ -127,6 +128,7 @@ export default async function RootLayout({
   return (
     <html
       lang="de"
+      data-lp-app="python"
       {...(user?.theme === 'light' || user?.theme === 'dark' ? { 'data-theme': user.theme } : {})}
       {...(user?.reduceMotion ? { 'data-reduce-motion': 'true' } : {})}
       suppressHydrationWarning
@@ -140,6 +142,7 @@ export default async function RootLayout({
           Direkt zum Hauptinhalt springen
         </a>
         <ServiceWorkerRegistration />
+        <LearningPlatformBar app="python" />
         {children}
       </body>
     </html>

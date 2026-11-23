@@ -34,6 +34,8 @@ Dark mode inverts the ink scale (paper → near-black `ink-950`, ink → `ink-50
 - Section rhythm uses hairline dividers and generous whitespace; "what you'll learn" renders as a typographic spec-list (mono labels, left-aligned, like a datasheet) rather than a grid of icon-tile cards. Cards are reserved for places that genuinely need visual separation (module previews, lesson cards in the library).
 - Small border radius (`--radius-md` ≈ 6px) — precise, not the zero-radius newspaper look and not the soft/rounded SaaS look.
 
+**Platform components (LP-03A–C)**: Shell, badges/callouts and — since LP-03C — buttons, cards, progress bars, empty and error states come from the shared Lernpfade contracts (`docs/learning-shell/`, `docs/learning-feedback/`, `docs/learning-components/`). They keep AIPfad's amber accent (`data-lp-app="ai"`) but use the platform geometry (control radius 0.875rem, card radius 1.25rem, tactile bottom edge that sinks when pressed) and the product sans for labels. The small 6 px radius and the mono display face above apply to AIPfad's own surfaces and content (headings, labs, context graph), not to these shared components.
+
 **Signature**: the **Context Graph** — a real, data-driven DAG of the actual taught concepts (Terminal → Dateien → Tokens → Context Window → Nachrichtenrollen → Prompting), laid out with the level-layering algorithm shared with PythonPfad's Wissenslandkarte (SVG connective lines in `wire-500`, real `<button>` nodes for keyboard/AT access — never `<text>` inside the SVG). It appears in miniature on the landing page and in full under `/wissenslandkarte`. It is functional, not decorative: every node is the real concept page.
 
 ## Self-critique against generic AI-design defaults

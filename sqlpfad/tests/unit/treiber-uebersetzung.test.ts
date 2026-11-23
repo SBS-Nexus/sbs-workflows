@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { SqlAbbruchFehler, SqlMotorFehler, SqlZeitlimitFehler } from '@/domain/sql/runner';
-import { uebersetzeTreiberfehler, zuResultset } from '@/domain/sql/treiber-uebersetzung';
+import {
+  type TreiberErgebnismenge,
+  type TreiberSpalte,
+  ersteErgebnismenge,
+  uebersetzeTreiberfehler,
+  zuResultset,
+} from '@/domain/sql/treiber-uebersetzung';
 import {
   alsBezeichner,
   sandboxDatenbankName,
@@ -73,6 +79,48 @@ describe('Treiberergebnis in ein Resultset', () => {
     const ergebnis = zuResultset([], [{ name: 'Name' }]);
     expect(ergebnis.spalten).toEqual(['Name']);
     expect(ergebnis.zeilen).toEqual([]);
+  });
+});
+
+/**
+ * Eine Ergebnismenge in der Form, die `mssql` 12 bei `batch()` im
+ * `arrayRowMode` tatsächlich liefert: ein Array mit den Spalten als nicht
+ * aufzählbarer Eigenschaft – abgelesen gegen SQL Server 2025.
+ */
+function menge(zeilen: unknown[][], spalten: TreiberSpalte[]): TreiberErgebnismenge {
+  return Object.defineProperty(zeilen, 'columns', { value: spalten, enumerable: false });
+}
+
+describe('Erste Ergebnismenge aus dem Treiberergebnis', () => {
+  it('liest die Spalten an der Ergebnismenge, wie batch() sie liefert', () => {
+    // Ohne Gesamtfeld `columns`: Genau so verwarf der Motor vorher jedes SELECT.
+    const ergebnis = ersteErgebnismenge({
+      recordsets: [menge([['Anna Brandt', 'Mannheim']], [{ name: 'Name' }, { name: 'Stadt' }])],
+      rowsAffected: [1],
+    });
+    expect(ergebnis).toEqual({ spalten: ['Name', 'Stadt'], zeilen: [['Anna Brandt', 'Mannheim']] });
+  });
+
+  it('nimmt das Gesamtfeld, wenn nur query() es setzt', () => {
+    const ergebnis = ersteErgebnismenge({ recordsets: [[[1]]], columns: [[{ name: 'Anzahl' }]] });
+    expect(ergebnis?.spalten).toEqual(['Anzahl']);
+  });
+
+  it('wertet nur die erste von mehreren Ergebnismengen aus', () => {
+    const ergebnis = ersteErgebnismenge({
+      recordsets: [menge([[1]], [{ name: 'a' }]), menge([[2]], [{ name: 'b' }])],
+    });
+    expect(ergebnis).toEqual({ spalten: ['a'], zeilen: [[1]] });
+  });
+
+  it('behält eine leere Ergebnismenge mit ihren Spalten', () => {
+    const ergebnis = ersteErgebnismenge({ recordsets: [menge([], [{ name: 'Name' }])] });
+    expect(ergebnis).toEqual({ spalten: ['Name'], zeilen: [] });
+  });
+
+  it('liefert nichts, wenn es keine Ergebnismenge gibt (etwa bei UPDATE)', () => {
+    expect(ersteErgebnismenge({ recordsets: [], rowsAffected: [1] })).toBeUndefined();
+    expect(ersteErgebnismenge({})).toBeUndefined();
   });
 });
 

@@ -105,7 +105,12 @@ export function ProjektWerkbank({
           Deine Lösung
         </h2>
 
-        <SqlEditor wert={sql} beiAenderung={setSql} datensatz={datensatz} />
+        <SqlEditor
+          wert={sql}
+          beiAenderung={setSql}
+          datensatz={datensatz}
+          beschriftung="Deine Lösung als SQL"
+        />
 
         <div>
           <label htmlFor="notizen" className="block text-sm font-semibold">

@@ -1,0 +1,56 @@
+import type { ReviewItem } from './model';
+
+export const DEMO_REVIEW_ITEMS: readonly ReviewItem[] = [
+  {
+    id: 'language-en-retrieval',
+    domain: 'language',
+    pathSlug: 'vokabeln',
+    prompt: 'retrieval',
+    answer: 'Abruf · Wiederauffinden',
+    example: 'In RAG bedeutet retrieval das gezielte Wiederauffinden relevanter Informationen.',
+  },
+  {
+    id: 'python-list-comprehension',
+    domain: 'python',
+    pathSlug: 'python',
+    conceptSlug: 'list-comprehension',
+    prompt: 'Was erzeugt eine List Comprehension?',
+    answer: 'Eine neue Liste aus einer kompakten Iteration mit optionaler Bedingung.',
+    example: '[x * 2 for x in values if x > 0]',
+  },
+  {
+    id: 'sql-left-join',
+    domain: 'sql',
+    pathSlug: 'sql',
+    conceptSlug: 'left-join',
+    prompt: 'Was garantiert ein LEFT JOIN?',
+    answer: 'Alle Zeilen der linken Tabelle bleiben im Ergebnis erhalten.',
+    example: 'Fehlende Treffer rechts erscheinen als NULL.',
+  },
+  {
+    id: 'git-fetch',
+    domain: 'git',
+    pathSlug: 'git',
+    conceptSlug: 'git-fetch',
+    prompt: 'Was verändert git fetch?',
+    answer: 'Es aktualisiert Remote-Referenzen, aber nicht deinen Arbeitsbaum.',
+    example: 'fetch holt Informationen; merge oder rebase verändert deinen aktuellen Verlauf.',
+  },
+  {
+    id: 'ai-embedding',
+    domain: 'ai',
+    pathSlug: 'ai',
+    conceptSlug: 'embedding',
+    prompt: 'Was ist ein Embedding?',
+    answer: 'Eine numerische Repräsentation, in der semantische Ähnlichkeit messbar wird.',
+    example: 'Ähnliche Inhalte liegen im Vektorraum typischerweise näher beieinander.',
+  },
+  {
+    id: 'ai-context-window',
+    domain: 'ai',
+    pathSlug: 'ai',
+    conceptSlug: 'context-window',
+    prompt: 'Was begrenzt das Context Window?',
+    answer: 'Wie viel Eingabekontext ein Modell in einem einzelnen Lauf berücksichtigen kann.',
+  },
+];

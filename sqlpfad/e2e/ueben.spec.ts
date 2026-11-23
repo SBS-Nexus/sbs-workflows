@@ -111,20 +111,31 @@ test('eine Lektion lässt sich abschließen', async ({ page }) => {
     const optionen = karte.getByRole('radio');
     const zahlfeld = karte.locator('input[type=number]');
 
+    /*
+     * Erst wenn die Abgabe zurück ist, zählt die Rückmeldung: Der Knopf heißt
+     * während der Abgabe „Einen Moment …" und erst danach wieder „Antwort
+     * abgeben", und die alte Rückmeldung ist beim Absenden schon weg. Vorher
+     * nahm der Test das Urteil über die vorige Option für das neue und schickte
+     * nach der richtigen noch eine falsche ab (Review DEV-01, F2).
+     */
+    const gibAb = async (): Promise<boolean> => {
+      await karte.getByRole('button', { name: /Antwort abgeben/i }).click();
+      await expect(karte.getByRole('button', { name: /Antwort abgeben/i })).toBeEnabled();
+      const urteil = karte.getByText(/^(Stimmt|Noch nicht)$/);
+      await expect(urteil).toBeVisible();
+      return (await urteil.innerText()) === 'Stimmt';
+    };
+
     if ((await optionen.count()) > 0) {
       for (let wahl = 0; wahl < (await optionen.count()); wahl += 1) {
         await optionen.nth(wahl).check();
-        await karte.getByRole('button', { name: /Antwort abgeben/i }).click();
-        await expect(karte.getByText(/Stimmt|Noch nicht/)).toBeVisible();
-        if (await karte.getByText('Stimmt').isVisible()) break;
+        if (await gibAb()) break;
       }
     } else if ((await zahlfeld.count()) > 0) {
       // Die Tabelle Mitarbeitende hat vier Zeilen - das steht in der Aufgabe.
       for (const versuch of ['4', '8', '0', '12', '26']) {
         await zahlfeld.fill(versuch);
-        await karte.getByRole('button', { name: /Antwort abgeben/i }).click();
-        await expect(karte.getByText(/Stimmt|Noch nicht/)).toBeVisible();
-        if (await karte.getByText('Stimmt').isVisible()) break;
+        if (await gibAb()) break;
       }
     }
     // Schreibaufgaben bleiben offen: Sie brauchen den Übungsserver, und genau

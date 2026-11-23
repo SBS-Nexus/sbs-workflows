@@ -1,0 +1,32 @@
+{
+  "format": "lernpfade-vokabeln",
+  "schemaVersion": 1,
+  "exportedAt": "2026-10-04T12:00:00.000Z",
+  "progressIncluded": false,
+  "hinweis": "Enthält nur Decks und Karten, keinen Lernfortschritt. Wiederholungsstände bleiben in dem Browser, in dem sie entstanden sind.",
+  "decks": [
+    {
+      "id": "beispiel-reisen",
+      "name": "Beispiel: Reisen",
+      "description": "Kleines Beispieldeck für den Import.",
+      "sourceLanguage": "en",
+      "targetLanguage": "de",
+      "origin": {
+        "kind": "self",
+        "label": "Lernpfade-Beispieldatei"
+      },
+      "cards": [
+        {
+          "id": "beispiel-reisen-luggage",
+          "term": "luggage",
+          "translation": "Gepäck",
+          "context": "Our luggage arrived one day late.",
+          "tags": [
+            "reisen"
+          ],
+          "html": "<img src=x onerror=alert(1)>"
+        }
+      ]
+    }
+  ]
+}

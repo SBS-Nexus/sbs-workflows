@@ -2,6 +2,7 @@ import { prisma } from '@/server/db/prisma';
 import { ausDatenmodellArt } from '@/domain/aufgabe/art';
 import type { Kandidat, Versuchsstand } from '@/domain/aufgabe/auswahl';
 import type { AufgabenAnsicht } from '@/components/aufgabe/aufgaben-karte';
+import { baueAufgabenAnsicht } from '@/server/lernen/aufgaben-ansicht';
 import type { UebungsDatensatz } from '@/domain/sql/schema';
 import { UEBUNGSDATEN } from '@/content';
 
@@ -80,23 +81,11 @@ export async function ladeAufgabenVorrat(userId: string): Promise<AufgabenVorrat
       });
     }
 
-    // Dieselbe Beschränkung wie auf der Lektionsseite: Die richtige Antwort
-    // bleibt auf dem Server, es geht nur, was zur Anzeige gebraucht wird.
-    const nutzlast = aufgabe.payload as { optionen?: unknown } | null;
-    ansichten.set(aufgabe.slug, {
-      slug: aufgabe.slug,
-      art,
-      titel: aufgabe.title,
-      aufgabenstellung: aufgabe.prompt,
-      optionen: Array.isArray(nutzlast?.optionen)
-        ? nutzlast.optionen.filter((eintrag): eintrag is string => typeof eintrag === 'string')
-        : [],
-      startSql: aufgabe.starterSql ?? '',
-      hinweise: Array.isArray(aufgabe.hints)
-        ? aufgabe.hints.filter((eintrag): eintrag is string => typeof eintrag === 'string')
-        : [],
-      hatLoesung: Boolean(aufgabe.solutionSql ?? aufgabe.solutionNotes),
-    });
+    // Dieselbe Ansicht wie auf der Lektionsseite – samt derselben
+    // Anzeigereihenfolge der Optionen, sonst rechnete der Server eine Antwort
+    // auf die falschen Optionen zurück.
+    const ansicht = baueAufgabenAnsicht(aufgabe, userId);
+    if (ansicht) ansichten.set(aufgabe.slug, ansicht);
 
     datensaetze.set(
       aufgabe.slug,

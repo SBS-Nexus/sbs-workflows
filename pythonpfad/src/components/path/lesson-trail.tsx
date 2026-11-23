@@ -47,16 +47,31 @@ const STEP = 132;
 const AMPLITUDE = 22;
 
 export function LessonTrail({ modules }: { modules: readonly TrailModule[] }): ReactNode {
+  /*
+   * Die nächste Station: die erste Lektion in Kursreihenfolge, die noch nicht
+   * abgeschlossen ist – begonnen oder nicht. Vorher war nur eine begonnene
+   * Lektion hervorgehoben; wer neu war, sah eine Strecke aus lauter gleichen
+   * grauen Punkten und musste raten, wo es losgeht.
+   */
+  const naechste =
+    modules.flatMap((mod) => mod.lessons).find((lesson) => lesson.state !== 'COMPLETED')?.slug ??
+    null;
   return (
     <div className="space-y-10">
       {modules.map((mod) => (
-        <ModuleSection key={mod.slug} mod={mod} />
+        <ModuleSection key={mod.slug} mod={mod} naechste={naechste} />
       ))}
     </div>
   );
 }
 
-function ModuleSection({ mod }: { mod: TrailModule }): ReactNode {
+function ModuleSection({
+  mod,
+  naechste,
+}: {
+  mod: TrailModule;
+  naechste: string | null;
+}): ReactNode {
   const theme = moduleTheme(mod.order);
   const erledigt = mod.lessons.filter((lesson) => lesson.state === 'COMPLETED').length;
 
@@ -146,7 +161,7 @@ function ModuleSection({ mod }: { mod: TrailModule }): ReactNode {
                 className="absolute w-[10.5rem] -translate-x-1/2 -translate-y-1/2 text-center"
                 style={{ left: `${point.x}%`, top: `${point.y}px` }}
               >
-                <TrailNode lesson={lesson} nummer={index + 1} />
+                <TrailNode lesson={lesson} nummer={index + 1} aktuell={lesson.slug === naechste} />
               </li>
             );
           })}
@@ -156,37 +171,67 @@ function ModuleSection({ mod }: { mod: TrailModule }): ReactNode {
   );
 }
 
-function TrailNode({ lesson, nummer }: { lesson: TrailLesson; nummer: number }): ReactNode {
-  const aktiv = lesson.state === 'IN_PROGRESS';
+/*
+ * Eine Station ist ein Knopf zum Anfassen: Sie hat eine Unterkante, die beim
+ * Drücken einsinkt – dieselbe Sprache wie die Knöpfe des Komponentenvertrags
+ * (LP-03C). Erledigte und die nächste Station sind in der Modulfarbe gefüllt,
+ * die Kante ist ein dunklerer Ton derselben Farbe. Bewegt wird nur, was einen
+ * Zustand erklärt: der Puls hinter der nächsten Station. Das frühere
+ * Dauer-Schweben der aktiven Station ist entfallen (LEARNING-DESIGN-SYSTEM §7).
+ */
+const KANTE_GEFUELLT =
+  'border-b-4 border-[color-mix(in_oklab,var(--akzent)_68%,black)] bg-[var(--akzent)] text-[var(--text-inverse)]';
+
+function TrailNode({
+  lesson,
+  nummer,
+  aktuell,
+}: {
+  lesson: TrailLesson;
+  nummer: number;
+  aktuell: boolean;
+}): ReactNode {
   const fertig = lesson.state === 'COMPLETED';
+  const begonnen = lesson.state === 'IN_PROGRESS';
 
   return (
     <Link
       href={`/lernen/${lesson.slug}`}
+      aria-current={aktuell ? 'step' : undefined}
       className="group flex flex-col items-center gap-1.5 rounded-2xl focus-visible:outline-offset-4"
     >
       <span aria-hidden="true" className="relative flex items-center justify-center">
         {/* Der Puls liegt hinter der Station und wird von ihr überdeckt. Er
-            markiert genau eine Stelle je Modul: die, an der es weitergeht. */}
-        {aktiv ? (
+            markiert genau eine Stelle auf der ganzen Strecke: die nächste. */}
+        {aktuell ? (
           <span className="animate-pulse-ring absolute size-[4.5rem] rounded-full bg-[var(--akzent)]" />
+        ) : null}
+        {/* Sprechblase über der nächsten Station: dunkler Text auf heller
+            Fläche, damit sie in jeder Modulfarbe lesbar bleibt. */}
+        {aktuell ? (
+          <span className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg border-2 border-[var(--akzent)] bg-[var(--surface-raised)] px-2.5 py-0.5 text-xs font-black tracking-wide text-[var(--text)] shadow-sm">
+            {begonnen ? 'Weiter' : 'Start'}
+          </span>
         ) : null}
         <span
           className={cx(
-            'relative flex items-center justify-center rounded-full font-black transition-transform',
-            'duration-200 group-hover:scale-110 group-active:translate-y-1',
-            fertig &&
-              'size-16 border-b-4 border-[var(--akzent)] bg-[var(--akzent)] text-[var(--text-inverse)]',
-            aktiv &&
-              'animate-float size-[4.5rem] border-4 border-[var(--akzent)] bg-[var(--surface-raised)] text-[var(--akzent)] shadow-[0_0_0_6px_var(--akzent-soft)]',
-            !fertig &&
-              !aktiv &&
-              'size-16 border-b-4 border-[var(--border-strong)] bg-[var(--surface-sunken)] text-[var(--text-muted)]',
+            'relative flex items-center justify-center rounded-full font-black',
+            'transition-[transform,border-bottom-width] duration-150 group-hover:scale-105',
+            'group-active:translate-y-[2px] group-active:border-b-2',
+            aktuell && cx('size-[4.5rem]', KANTE_GEFUELLT),
+            !aktuell && fertig && cx('size-16', KANTE_GEFUELLT),
+            !aktuell &&
+              begonnen &&
+              'size-16 border-4 border-[var(--akzent)] bg-[var(--surface-raised)] text-[var(--akzent)]',
+            !aktuell &&
+              !fertig &&
+              !begonnen &&
+              'size-16 border-b-4 border-[color-mix(in_oklab,var(--border)_62%,black)] bg-[var(--border)] text-[var(--text-muted)]',
           )}
         >
           {fertig ? (
             <Icon name="haken" size={30} />
-          ) : aktiv ? (
+          ) : aktuell || begonnen ? (
             <Icon name="abspielen" size={26} />
           ) : (
             <span className="text-xl">{nummer}</span>
@@ -203,18 +248,14 @@ function TrailNode({ lesson, nummer }: { lesson: TrailLesson; nummer: number }):
         className={cx(
           'line-clamp-2 rounded-lg bg-[var(--surface)] px-1.5 text-[0.8125rem] font-bold leading-snug',
           'group-hover:underline',
-          aktiv
-            ? 'text-[var(--akzent)]'
-            : fertig
-              ? 'text-[var(--text)]'
-              : 'text-[var(--text-muted)]',
+          aktuell || fertig ? 'text-[var(--text)]' : 'text-[var(--text-muted)]',
         )}
       >
         {lesson.title}
       </span>
       {/* Nur für Hilfstechnik: Ohne diesen Zusatz hieße jeder Link nur „Titel". */}
       <span className="sr-only">
-        {`Lektion ${nummer}, etwa ${lesson.estimatedMinutes} Minuten, ${ZUSTAND_TEXT[lesson.state]}`}
+        {`Lektion ${nummer}, etwa ${lesson.estimatedMinutes} Minuten, ${ZUSTAND_TEXT[lesson.state]}${aktuell ? ', nächster Schritt' : ''}`}
       </span>
     </Link>
   );

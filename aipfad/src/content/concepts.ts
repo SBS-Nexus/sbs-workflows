@@ -298,4 +298,196 @@ export const concepts: ConceptDraft[] = [
     difficulty: 4,
     prerequisiteSlugs: ['aenderungen-zuruecknehmen'],
   },
+
+  // --- Stufe 9: Embeddings & semantische Suche (LP-10A) ---------------------
+  {
+    slug: 'vektor-und-dimension',
+    name: 'Vektor und Dimension',
+    description:
+      'Ein Vektor ist eine geordnete Liste von Zahlen; jede Position heißt Dimension. Zwei Vektoren lassen sich nur vergleichen, wenn sie gleich viele Dimensionen haben und jede Position dasselbe bedeutet. Ein Vektor hat eine Richtung und eine Länge.',
+    difficulty: 2,
+    prerequisiteSlugs: ['embedding'],
+  },
+  {
+    slug: 'text-embedding',
+    name: 'Text-Embedding',
+    description:
+      'Ein Text-Embedding bildet einen ganzen Satz, Absatz oder ein Dokument auf einen einzigen Vektor ab — anders als ein Token-Embedding, das zu einem einzelnen Token gehört. Ähnlich gemeinte Texte sollen nahe beieinanderliegen. Was "ähnlich" heißt, hat das Modell aus seinen Trainingsdaten gelernt, nicht aus einer Definition.',
+    difficulty: 3,
+    prerequisiteSlugs: ['vektor-und-dimension'],
+  },
+  {
+    slug: 'skalarprodukt-und-vektorlaenge',
+    name: 'Skalarprodukt und Vektorlänge',
+    description:
+      'Das Skalarprodukt multipliziert zwei Vektoren Position für Position und addiert die Produkte. Die Vektorlänge (Norm) ist die Wurzel aus dem Skalarprodukt eines Vektors mit sich selbst. Beide zusammen sind die Bausteine der Kosinusähnlichkeit.',
+    difficulty: 2,
+    prerequisiteSlugs: ['vektor-und-dimension'],
+  },
+  {
+    slug: 'kosinus-aehnlichkeit',
+    name: 'Kosinusähnlichkeit',
+    description:
+      'Die Kosinusähnlichkeit teilt das Skalarprodukt durch das Produkt beider Vektorlängen. Sie misst nur die Richtung, nicht die Länge, und liegt zwischen −1 und 1: 1 heißt gleiche Richtung, 0 heißt senkrecht. Für einen Nullvektor ist sie nicht definiert.',
+    difficulty: 3,
+    prerequisiteSlugs: ['skalarprodukt-und-vektorlaenge'],
+  },
+  {
+    slug: 'semantische-suche',
+    name: 'Semantische Suche',
+    description:
+      'Semantische Suche vergleicht das Embedding einer Anfrage mit den Embeddings vieler Dokumente und sortiert die Dokumente nach Ähnlichkeit. Sie findet auch Treffer ohne gemeinsames Wort, kann aber Dokumente hoch einstufen, die nur thematisch verwandt sind.',
+    difficulty: 3,
+    prerequisiteSlugs: ['text-embedding', 'kosinus-aehnlichkeit'],
+  },
+  {
+    slug: 'top-k-retrieval',
+    name: 'Top-k und Schwelle',
+    description:
+      'Top-k nimmt die k Dokumente mit den höchsten Scores aus der Rangliste. Eine Rangliste hat immer einen ersten Platz, auch wenn nichts passt; erst eine Mindestähnlichkeit (Schwelle) erlaubt die Antwort "nichts Passendes gefunden". Beide Werte müssen an den eigenen Daten geprüft werden.',
+    difficulty: 3,
+    prerequisiteSlugs: ['semantische-suche'],
+  },
+  {
+    slug: 'relevanz-vs-aehnlichkeit',
+    name: 'Relevanz ist nicht Ähnlichkeit',
+    description:
+      'Ähnlichkeit ist eine berechnete Zahl, Relevanz ein fachliches Urteil: Beantwortet dieses Dokument die Frage? Ein Treffer kann sehr ähnlich und trotzdem nutzlos sein (False Positive), ein passendes Dokument kann zu niedrig landen (False Negative).',
+    difficulty: 3,
+    prerequisiteSlugs: ['semantische-suche', 'halluzination'],
+  },
+  {
+    slug: 'precision-und-recall',
+    name: 'Precision und Recall',
+    description:
+      'Precision ist der Anteil relevanter Dokumente unter den gelieferten Treffern; Recall ist der Anteil der gefundenen unter allen relevanten Dokumenten. Ein größeres k hebt meist den Recall und senkt die Precision. Beide brauchen ein fachliches Urteil, welche Dokumente relevant sind.',
+    difficulty: 4,
+    prerequisiteSlugs: ['top-k-retrieval', 'relevanz-vs-aehnlichkeit'],
+  },
+  {
+    slug: 'chunking',
+    name: 'Chunking',
+    description:
+      'Lange Dokumente werden vor dem Einbetten in Abschnitte (Chunks) geteilt, weil ein einziger Vektor für ein langes Dokument viele Themen vermischt. Zu kleine Chunks verlieren den Zusammenhang, etwa wenn eine Regel und ihre Ausnahme getrennt werden; zu große verwässern die Bedeutung.',
+    difficulty: 4,
+    prerequisiteSlugs: ['text-embedding', 'context-window'],
+  },
+
+  // --- Stufe 10: RAG – Wissen mit Quellen nutzen (LP-10B) -------------------
+  {
+    slug: 'chunk-overlap-und-trennstellen',
+    name: 'Chunk-Größe, Overlap und Trennstellen',
+    description:
+      'Chunk-Größe legt fest, wie viel Text ein Abschnitt umfasst; Overlap lässt aufeinanderfolgende Chunks einen Teil teilen. Trennstellen entlang inhaltlicher Grenzen halten zusammen, was zusammengehört — etwa eine Regel und ihre Ausnahme. Eine ungünstige Trennstelle macht einen Satz unverständlich.',
+    difficulty: 3,
+    prerequisiteSlugs: ['chunking'],
+  },
+  {
+    slug: 'chunk-metadaten',
+    name: 'Metadaten und Quellen eines Chunks',
+    description:
+      'Jeder Chunk trägt mit, woher er stammt: Quellenkennung, Version, Gültigkeit und Position im Dokument. Ohne diese Metadaten lässt sich eine Antwort nicht belegen und eine veraltete Fassung nicht von der aktuellen unterscheiden.',
+    difficulty: 2,
+    prerequisiteSlugs: ['chunking'],
+  },
+  {
+    slug: 'rag-pipeline',
+    name: 'RAG-Pipeline',
+    description:
+      'Retrieval-Augmented Generation verbindet Suche und Antwort: Chunks werden nach Ähnlichkeit zur Frage gerankt, die besten landen im Kontext, und nur auf dieser Grundlage darf geantwortet werden. Das Ranking findet Kandidaten; ob sie die Frage beantworten, ist eine eigene Prüfung.',
+    difficulty: 3,
+    prerequisiteSlugs: ['top-k-retrieval', 'chunk-metadaten'],
+  },
+  {
+    slug: 'quellenidentifikation',
+    name: 'Quellenidentifikation',
+    description:
+      'Zu jedem Treffer gehört die Frage, aus welchem Dokument, welcher Version und welcher Stelle er stammt. Erst damit lässt sich ein Beleg nachprüfen, ein Widerspruch auflösen und eine veraltete Quelle aussortieren.',
+    difficulty: 3,
+    prerequisiteSlugs: ['rag-pipeline'],
+  },
+  {
+    slug: 'kontextbudget',
+    name: 'Kontextbudget',
+    description:
+      'Der Kontext für eine Antwort ist begrenzt. Welche Chunks hineinpassen, hängt von ihrer Größe, ihrem Rang und dem verfügbaren Budget ab. Was nicht hineinpasst, steht für die Antwort nicht zur Verfügung — auch wenn es gefunden wurde.',
+    difficulty: 3,
+    prerequisiteSlugs: ['rag-pipeline', 'context-window'],
+  },
+  {
+    slug: 'belegte-antwort',
+    name: 'Belegte Antwort',
+    description:
+      'Eine belegte Antwort enthält nur Aussagen, die ein Chunk im Kontext tatsächlich stützt, und verweist auf genau diesen Chunk. Was sich nicht belegen lässt, wird als unbelegt gekennzeichnet oder weggelassen. "Nicht genügend Informationen" ist ein korrektes Ergebnis.',
+    difficulty: 3,
+    prerequisiteSlugs: ['quellenidentifikation', 'kontextbudget', 'halluzination'],
+  },
+  {
+    slug: 'rag-fehlerbilder',
+    name: 'RAG-Fehlerbilder',
+    description:
+      'Typische Fehler einer RAG-Antwort: erfundene Quellenverweise, veraltete oder widersprüchliche Dokumente, zerschnittene Belege, fehlende Treffer durch Top-k oder Budget und Antworten, die nur einen Teil der Frage abdecken. Jeder Fehler hat eine andere Ursache in der Pipeline.',
+    difficulty: 4,
+    prerequisiteSlugs: [
+      'belegte-antwort',
+      'chunk-overlap-und-trennstellen',
+      'relevanz-vs-aehnlichkeit',
+    ],
+  },
+  {
+    slug: 'rag-evaluation',
+    name: 'RAG-Evaluation',
+    description:
+      'RAG wird an zwei Stellen geprüft: Hat das Retrieval die nötigen Belege in den Kontext gebracht, und stützt die Antwort jede ihrer Aussagen? Eine gute Suche mit schlechter Antwort ist ein anderer Fehler als eine gute Antwort auf schlechter Grundlage.',
+    difficulty: 4,
+    prerequisiteSlugs: ['rag-fehlerbilder', 'precision-und-recall'],
+  },
+  {
+    slug: 'json-vertrag',
+    name: 'JSON-Ausgabevertrag',
+    description:
+      'Ein JSON-Ausgabevertrag legt vorab fest, welche Felder und Typen eine maschinenlesbare Antwort haben soll. Das ist eine prüfbare Datenform und keine Garantie für korrekte Tatsachen.',
+    difficulty: 2,
+    prerequisiteSlugs: ['prompt-constraints-und-beispiele'],
+  },
+  {
+    slug: 'schema-validierung',
+    name: 'Strikte Schema-Validierung',
+    description:
+      'Eine strikte Validierung prüft JSON-Syntax, Feldnamen, Datentypen und zulässige Werte. Ungültige Eingaben werden mit einem erklärten Fehler abgelehnt und nicht still korrigiert.',
+    difficulty: 3,
+    prerequisiteSlugs: ['json-vertrag'],
+  },
+  {
+    slug: 'ausgabe-und-wahrheit',
+    name: 'Struktur gegen Wahrheit',
+    description:
+      'Formal gültige Ausgaben können falsche oder unbelegte Behauptungen enthalten. Quellenbelege und fachliche Richtigkeit müssen daher unabhängig von der JSON-Struktur bewertet werden.',
+    difficulty: 3,
+    prerequisiteSlugs: ['schema-validierung', 'belegte-antwort'],
+  },
+  {
+    slug: 'tool-aufruf',
+    name: 'Tool-Aufruf als Vorschlag',
+    description:
+      'Ein Modell kann Werkzeugname und Argumente vorschlagen. Das erzeugt noch keine tatsächliche Ausführung und keine Berechtigung. Die Anwendung entscheidet eigenständig über beides.',
+    difficulty: 3,
+    prerequisiteSlugs: ['json-vertrag', 'nachrichtenrollen'],
+  },
+  {
+    slug: 'tool-berechtigung',
+    name: 'Tool-Allowlist und Berechtigung',
+    description:
+      'Eine feste Werkzeugliste, ein strikter Argumentvertrag und serverseitig überprüfte Rechte verhindern, dass ein Modell oder ein Dokument unerlaubte Aktionen selbst freischaltet.',
+    difficulty: 3,
+    prerequisiteSlugs: ['tool-aufruf', 'schema-validierung'],
+  },
+  {
+    slug: 'tool-resultat-untrusted',
+    name: 'Tool-Ergebnisse als nicht vertrauenswürdige Daten',
+    description:
+      'Ein Werkzeug kann manipulierte Texte zurückgeben. Solche Daten dürfen keine höher priorisierten Anweisungen, neue Berechtigungen oder unauthorisierte Folgeaktionen erzeugen.',
+    difficulty: 4,
+    prerequisiteSlugs: ['tool-berechtigung', 'belegte-antwort'],
+  },
 ];

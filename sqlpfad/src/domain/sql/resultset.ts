@@ -41,6 +41,50 @@ export interface Resultset {
   zeilen: SqlWert[][];
 }
 
+/** `Date.toISOString()` – genau diese Form, nichts Ähnliches. */
+const ISO_ZEITPUNKT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+/**
+ * Ein Resultset, das durch JSON gegangen ist, wieder in Treiberwerte bringen.
+ *
+ * Zwei Wege führen durch JSON: die Antwort des Runner-Dienstes und das
+ * erwartete Ergebnis in der Plattformdatenbank. Unterwegs wird aus einem
+ * `Date` ein Text und aus einem `Uint8Array` ein Objekt mit Zahlenschlüsseln.
+ * Ohne diese Rückwandlung zeigte `/abfrage` ein Datum als
+ * `2026-01-08T00:00:00.000Z`, und der Vergleich verglich Text mit Text, wo
+ * Zeitpunkte gemeint sind.
+ *
+ * Zurückgewandelt wird nur, was genau die Form von `toISOString()` hat. Ein
+ * Text in einer Ergebnisspalte, der zufällig so aussieht, würde ebenfalls zum
+ * Zeitpunkt – in Übungsdaten kommt das nicht vor, und beide Seiten eines
+ * Vergleichs gehen durch dieselbe Rückwandlung.
+ *
+ * Gibt `null` zurück, wenn der Wert kein Resultset ist.
+ */
+export function resultsetAusJson(wert: unknown): Resultset | null {
+  if (typeof wert !== 'object' || wert === null) return null;
+  const { spalten, zeilen } = wert as { spalten?: unknown; zeilen?: unknown };
+  if (!Array.isArray(spalten) || !spalten.every((name) => typeof name === 'string')) return null;
+  if (!Array.isArray(zeilen) || !zeilen.every((zeile) => Array.isArray(zeile))) return null;
+  return {
+    spalten: spalten as string[],
+    zeilen: (zeilen as unknown[][]).map((zeile) => zeile.map(sqlWertAusJson)),
+  };
+}
+
+function sqlWertAusJson(wert: unknown): SqlWert {
+  if (wert === null || wert === undefined) return null;
+  if (typeof wert === 'string') return ISO_ZEITPUNKT.test(wert) ? new Date(wert) : wert;
+  if (typeof wert === 'number' || typeof wert === 'boolean') return wert;
+  if (wert instanceof Date || wert instanceof Uint8Array) return wert;
+  if (typeof wert === 'object') {
+    // So kommt ein Uint8Array aus JSON.stringify zurück: {"0": 1, "1": 2, …}.
+    const werte = Object.values(wert as Record<string, unknown>);
+    if (werte.every((byte) => typeof byte === 'number')) return new Uint8Array(werte as number[]);
+  }
+  return String(wert);
+}
+
 export interface VergleichsOptionen {
   /**
    * Zählt die Reihenfolge der Zeilen?

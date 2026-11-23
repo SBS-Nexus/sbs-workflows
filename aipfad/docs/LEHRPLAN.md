@@ -32,8 +32,8 @@ Wissenslandkarte, Nachschlagen, Glossar, Setup-Center.
 | 6 — HTTP & APIs                       | Voraussetzung für Stufe 7 (AI-APIs), noch nicht erreicht.                                                                                                                                                                                       |
 | 7 — AI-APIs & SDKs                    | Würde Provider-Beispielcode brauchen, aktuell gegen offizielle Doku zu verifizieren — bewusst zurückgestellt statt aus dem Gedächtnis erfunden.                                                                                                 |
 | 8 — Structured Outputs & Tool Calling | Baut auf Stufe 7 auf.                                                                                                                                                                                                                           |
-| 9 — Embeddings (volle Tiefe)          | Diese Runde deckt die Grundidee in Stufe 4 ab; Vektor-Suche/Ähnlichkeitsmaße im Detail folgen hier.                                                                                                                                             |
-| 10 — RAG                              | Baut auf Stufe 9 auf.                                                                                                                                                                                                                           |
+| 9 — Embeddings (volle Tiefe)          | **In LP-10A umgesetzt** (siehe unten "Stand der Umsetzung: Stufe 9"). RAG bleibt bewusst Stufe 10.                                                                                                                                              |
+| 10 — RAG                              | **In LP-10B umgesetzt** (siehe unten "Stand der Umsetzung: Stufe 10"). Didaktische Pipeline ohne Modell, Embedding-API oder Vektordatenbank.                                                                                                    |
 | 11 — Agents                           | Baut auf Tool Calling (Stufe 8) auf.                                                                                                                                                                                                            |
 | 12 — MCP                              | Baut auf Agents auf.                                                                                                                                                                                                                            |
 | 13 — AI-Coding                        | Baut auf Git/GitHub (Stufe 2) auf — ergibt ohne diese keinen Sinn.                                                                                                                                                                              |
@@ -105,3 +105,106 @@ gehören didaktisch hinter einen sicheren Umgang mit den Grundlagen. Ebenso
 GitHub-Themen wie Branch Protection, CODEOWNERS, Secrets, Environments,
 Deployments und Dependabot: Sie sind im Lernstoff eingeordnet, aber nicht
 vertieft. Das ist Stoff für eine spätere Stufe, nicht ein Versehen.
+
+## Stand der Umsetzung: Stufe 9 (LP-10A, Embeddings & semantische Suche)
+
+Ein Modul mit vier Lektionen und dreizehn bewertbaren Aufgaben, angehängt
+an das Ende des Kurses (die Reihenfolge bestehender Module bleibt
+unverändert). Es setzt die Grundidee aus Stufe 4 voraus und wiederholt sie
+nicht:
+
+1. **Vektoren und Embeddings** — Text als Zahlenvektor, Dimensionen,
+   Token- gegen Text-Embedding, Grenzen und Fehlerquellen.
+2. **Ähnlichkeit berechnen** — Skalarprodukt, Vektorlänge,
+   Kosinusähnlichkeit von Hand; warum Ähnlichkeit keine Wahrheit ist.
+3. **Semantisches Retrieval** — Ablauf, Top-k, Schwelle, Schlüsselwort-
+   gegen semantische Suche, Umgang mit fehlenden Treffern.
+4. **Retrieval richtig beurteilen** — Relevanz gegen Ähnlichkeit, False
+   Positives/Negatives, Precision und Recall, Chunking, Wahl eines anderen
+   Verfahrens.
+
+Neun neue Konzepte hängen über `embedding` am bestehenden Graphen. Dazu das
+Lab **„Semantische Suche verstehen"** (`SEMANTIC_RETRIEVAL`, additive
+Migration `20261107120000_semantic_retrieval_lab`): Anfrage und Suchbestand
+wählen, didaktische Beispielvektoren ansehen, Kosinusähnlichkeit samt
+Rechenweg, Rangliste, Top-k von 1 bis 5, Schwelle, Treffer mit Quelltext,
+ein bewusst irreführender Treffer und zwei inhaltliche Entscheidungen, ohne
+die sich das Lab nicht abschließen lässt. Die Mathematik liegt rein in
+`src/domain/retrieval/`.
+
+### Bewusst noch nicht enthalten
+
+Kein vollständiges RAG, keine echte Embedding-API, keine Vektordatenbank,
+keine LLM-Generierung, keine Modellnamen, Preise oder API-Parameter.
+Hybride Suche und Re-Ranking sind als Begriff angerissen (Lektion 4), nicht
+als eigenes Verfahren ausgearbeitet.
+
+## Stand der Umsetzung: Stufe 10 (LP-10B, RAG – Wissen mit Quellen nutzen)
+
+Ein Modul mit vier Lektionen und dreizehn bewertbaren Aufgaben, angehängt
+hinter Stufe 9. Es setzt Kosinusähnlichkeit, Ranking und Top-k voraus und
+wiederholt sie nicht:
+
+1. **Von Dokumenten zu Chunks** — Aufbereitung, Chunk-Größe, Overlap,
+   Trennstellen, Metadaten und Quellen, Kontextverlust.
+2. **Retrieval für RAG** — Pipeline, Top-k, Relevanz gegen Ranking-Score,
+   Quellenidentifikation.
+3. **Kontext und belegte Antworten** — Kontextbudget, Auswahl und
+   Reihenfolge, Quellenbelege, „nicht genügend Informationen".
+4. **RAG-Fehler erkennen** — erfundene Quellen, veraltete und
+   widersprüchliche Dokumente, unvollständige Antworten, zerschnittene
+   Belege, Retrieval- gegen Antwortqualität, Evaluation.
+
+Acht neue Konzepte hängen über `chunking` an Stufe 9 und über
+`halluzination` an Stufe 4. Dazu das **RAG-Pipeline-Lab** (`RAG_PIPELINE`,
+additive Migration `20261108120000_rag_pipeline_lab`).
+
+### Was echt und was simuliert ist
+
+| Baustein                                   | Stand                                                                                       |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Chunking nach Sätzen mit Größe und Overlap | echte, deterministische Rechnung (`domain/rag/chunking.ts`)                                 |
+| Ranking und Top-k                          | echte Rechnung, unverändert aus LP-10A (`domain/retrieval/`)                                |
+| Kontextauswahl unter Budget                | echte Rechnung (`domain/rag/kontext.ts`)                                                    |
+| Belegprüfung und Evaluation                | echte Rechnung gegen redaktionelle Belegverweise (`domain/rag/antwort.ts`, `evaluation.ts`) |
+| Satzvektoren                               | **simuliert**: didaktische Beispielvektoren, kein Embedding-Modell                          |
+| Chunk-Vektor                               | **vereinfacht**: Summe der Satzvektoren                                                     |
+| Kontextbudget                              | **simuliert**: Wort-Einheiten, keine Tokens eines Modells                                   |
+| Antwort                                    | **simuliert**: vorgegebene Aussagen mit verknüpften Belegen, keine generierte Antwort       |
+
+### Bewusste didaktische Vereinfachungen
+
+Chunks bestehen aus ganzen Sätzen. Ein Beleg zählt nur, wenn alle Sätze
+seiner Belegsgruppe im selben Chunk stehen — zwei getrennte Chunks werden
+nicht zusammengelesen. Das Budget überspringt einen zu großen Chunk und lässt
+kleinere nachrücken. Widerspruch und Veraltung sind redaktionell markiert,
+nicht erkannt.
+
+### Offen für einen produktiven Einsatz
+
+Echte Embeddings und ein Vektorindex, ein Modellaufruf mit Belegpflicht,
+Zugriffsrechte je Dokument, automatische Versionierung des Bestands, eine
+Evaluationsmenge aus echten Fragen und ein Schutz gegen Anweisungen in
+Dokumenttexten (Prompt Injection) gehören nicht zu diesem Lernmodul.
+
+## LP-11A – Structured Outputs und Tool Calling (Offline-Grundlagen)
+
+**Stand:** LP-11A ist im Integrationsbranch umgesetzt; die drei Lektionen und das Offline-Lab haben den redaktionellen Status `PUBLISHED`. Das bedeutet **nicht**, dass der Integrationsbranch produktiv ausgerollt oder die Enum-Migration in einer Produktionsdatenbank angewendet wurde. Die Stufen 6 (HTTP & APIs) und 7 (AI-APIs) sind weiterhin offen. Dieses Modul ist daher nur die Offline-Grundlage von Stufe 8, keine vollständige Anbieter-/SDK-Integration.
+
+Das Modul enthält drei einführende Lektionen zu JSON-Ausgabeverträgen, Tool-Aufruf-Vorschlägen sowie der Vertrauensgrenze von Tool-Ergebnissen. Das interaktive Vertragslabor validiert Beispiel-JSON und erlaubte, ausschließlich lesende Werkzeugaufrufe; es führt **keine** echte Funktion aus. Es nutzt die bestehende Lab-Persistenz und ein zusätzliches Prisma-Enum `TOOL_CALLING`, dessen additive Migration vor einer späteren produktiven Bereitstellung notwendig wäre. Alle Ergebnisse sind deterministisch. Die reguläre Behandlung von Authentifizierung, Berechtigung, Fehlern und Kosten einer realen Provider-Integration bleibt für die Stufen 6/7 und einen späteren praktischen Stufe-8-Slice offen.
+
+## LP-11B.2 – Nacharbeit am Offline-Vertragslabor
+
+Die zusätzliche Offline-Lab-Station behandelt eine manipulierte
+Tool-Rückgabe mit eingeschleuster Aufforderung. Die Lernenden entscheiden,
+ob der Fundtext nur als untrusted Dateninhalt zu behandeln ist.
+Eine KI- oder Werkzeugausführung findet nicht statt.
+
+Doppelte JSON-Objektschlüssel werden in dieser didaktischen Variante
+nicht still überschrieben, sondern abgelehnt. Die Redaktion behält
+die Gültigkeitskennzeichen für Seed und Inhaltstest, der Browser
+erhält jedoch nur die Projektionsfassung ohne erwartetGueltig.
+Die erklärenden Beispieltexte sind bewusst öffentlich, nicht geheim.
+
+Die vollständige Stufe 8 mit echten Provider-APIs bleibt bis nach den
+offenen HTTP-/AI-API-Grundlagen außerhalb des Scopes.

@@ -43,8 +43,18 @@ Rechtsberatung."
 Kein "Coming soon" an Kernfunktionen, die als implementiert dargestellt
 werden. Kein Platzhaltertext, keine Fake-Zahlen, keine simulierten
 KI-Antworten außer ausdrücklich als Simulator/Lab gekennzeichnet (Terminal-
-Simulator, Tokenizer, Context-Window, Prompt-Repair – alle vier sind
-deterministisch und als Lab erkennbar beschriftet).
+Simulator, Tokenizer, Context-Window, Prompt-Repair, die drei Git-Labs und
+das Retrieval-Lab und das RAG-Pipeline-Lab – alle sind deterministisch und
+als Lab erkennbar beschriftet; die beiden Retrieval-Labs kennzeichnen ihre
+Vektoren zusätzlich ausdrücklich als didaktische Beispielvektoren).
+
+Das RAG-Pipeline-Lab enthält einen **Antwort-Simulator**, keine KI-Antwort:
+Er zeigt vorgegebene Aussagen und prüft, ob ein Chunk im Kontext sie belegt.
+Als Tatsache erscheint nur, was belegt ist; jeder Quellenverweis zeigt auf
+einen Chunk, der tatsächlich im Kontext liegt. Unbelegte, veraltete,
+widersprüchliche Aussagen und erfundene Quellen werden sichtbar
+zurückgehalten. Dokumenttexte sind Daten: Sie werden nur als Text
+dargestellt und nie ausgewertet oder ausgeführt.
 
 ## Validierung
 
@@ -54,3 +64,16 @@ anderem: existierende Konzeptreferenzen, Zyklenfreiheit im Konzeptgraphen,
 aufsteigende Hinweisstufen, Platzhaltertext, Lernziel-Formulierung
 ("kannst"/"erkennst"/"weißt", nie "kennenlernen"), mindestens eine Aufgabe
 je Lektion mit Gerüst-Stufe ≥ 4.
+
+## LP-11A – strikt offline
+
+JSON und Werkzeugaufträge sind hier ausschließlich synthetische, redaktionell festgelegte Beispiele. `suche_richtlinie` ist ein fiktiver Lesename, keine integrierte Funktion. Es erfolgen keine Modell- oder Netzwerkaufrufe. Eine formal gültige strukturierte Ausgabe beweist keine faktische Richtigkeit. Alle Tool-Rückgabewerte gelten als untrusted Daten. Die Schutzprüfung des Labs ist eine Lernübung, keine Autorisierungsschicht für produktive Systeme.
+
+## LP-11B.2 – Offenlegung und synthetische Tool-Rückgaben
+
+Die Projektion toToolCallingClientConfig entfernt redaktionelle
+Gültigkeitskennzeichen aus dem im Browser sichtbaren Datensatz.
+Das ist keine Geheimhaltung didaktischer Musterlösungen: Das Lab
+prüft weiterhin deterministisch im Client. Die zusätzliche
+Tool-Rückgabe enthält nur synthetische Textdaten. Eingeschleuste
+Befehle bleiben Daten und werden nicht ausgeführt.

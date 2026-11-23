@@ -1,0 +1,203 @@
+name: Lernpfade Hub
+
+on:
+  pull_request:
+    paths:
+      - 'lernpfade/**'
+      - '.github/workflows/lernpfade-ci.yml'
+      # LP-03A: Shell-Vertrag und seine Kopien in den drei Fach-Apps.
+      - 'docs/learning-shell/**'
+      - 'scripts/check-learning-shell.mjs'
+      - '*/src/styles/learning-shell.css'
+      - '*/src/lib/learning-shell.ts'
+      - '*/tests/unit/learning-shell.test.ts'
+      - '*/src/components/*/learning-platform-bar.tsx'
+      - '*/src/components/*/shell-menu.tsx'
+      - '*/src/components/navigation/app-nav.tsx'
+      - '*/src/components/app/app-header.tsx'
+      - '*/src/app/globals.css'
+      # LP-03B: Statusvertrag (Badges, Callouts) und seine Kopien/Adapter.
+      - 'docs/learning-feedback/**'
+      - 'scripts/check-learning-feedback.mjs'
+      - '*/src/styles/learning-feedback.css'
+      - '*/src/lib/learning-feedback.ts'
+      - '*/tests/unit/learning-feedback.test.ts'
+      - '*/src/components/ui/primitives.tsx'
+      # LP-03C: Komponentenvertrag (Button, Card, ProgressBar, Empty-/ErrorState).
+      - 'docs/learning-components/**'
+      - 'scripts/check-learning-components.mjs'
+      - '*/src/styles/learning-components.css'
+      - '*/src/lib/learning-components.ts'
+      - '*/tests/unit/learning-components.test.ts'
+      - '*/src/app/layout.tsx'
+      - '*/src/app/error.tsx'
+      - '*/src/app/not-found.tsx'
+      # LP-05B/LP-07: schreibgeschützte Plattformquellen der drei Fach-Apps.
+      - 'scripts/check-platform-sources.mjs'
+      - '*/src/server/platform/**'
+      - '*/src/app/api/platform/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'lernpfade/**'
+      - '.github/workflows/lernpfade-ci.yml'
+      # LP-03A: Shell-Vertrag und seine Kopien in den drei Fach-Apps.
+      - 'docs/learning-shell/**'
+      - 'scripts/check-learning-shell.mjs'
+      - '*/src/styles/learning-shell.css'
+      - '*/src/lib/learning-shell.ts'
+      - '*/tests/unit/learning-shell.test.ts'
+      - '*/src/components/*/learning-platform-bar.tsx'
+      - '*/src/components/*/shell-menu.tsx'
+      - '*/src/components/navigation/app-nav.tsx'
+      - '*/src/components/app/app-header.tsx'
+      - '*/src/app/globals.css'
+      # LP-03B: Statusvertrag (Badges, Callouts) und seine Kopien/Adapter.
+      - 'docs/learning-feedback/**'
+      - 'scripts/check-learning-feedback.mjs'
+      - '*/src/styles/learning-feedback.css'
+      - '*/src/lib/learning-feedback.ts'
+      - '*/tests/unit/learning-feedback.test.ts'
+      - '*/src/components/ui/primitives.tsx'
+      # LP-03C: Komponentenvertrag (Button, Card, ProgressBar, Empty-/ErrorState).
+      - 'docs/learning-components/**'
+      - 'scripts/check-learning-components.mjs'
+      - '*/src/styles/learning-components.css'
+      - '*/src/lib/learning-components.ts'
+      - '*/tests/unit/learning-components.test.ts'
+      - '*/src/app/layout.tsx'
+      - '*/src/app/error.tsx'
+      - '*/src/app/not-found.tsx'
+      # LP-05B/LP-07: schreibgeschützte Plattformquellen der drei Fach-Apps.
+      - 'scripts/check-platform-sources.mjs'
+      - '*/src/server/platform/**'
+      - '*/src/app/api/platform/**'
+
+permissions:
+  contents: read
+
+jobs:
+  # LP-03A: Die drei Fach-Apps führen bytegleiche Kopien des Shell-Vertrags.
+  # Der Check läuft mit Node-Bordmitteln, braucht keine Installation und
+  # repariert nichts — eine fehlende oder abweichende Kopie lässt ihn scheitern.
+  learning-shell:
+    name: Shell-Vertrag (Drift-Check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Shell-Vertrag prüfen
+        run: node scripts/check-learning-shell.mjs
+
+  # LP-03B: Gleiches Prinzip für den Statusvertrag (Badges, Callouts) in den
+  # drei Fach-Apps und im Hub — Kopien bytegleich, CSS eingebunden, Adapter
+  # tatsächlich angebunden. Nur Node-Bordmittel, repariert nichts.
+  learning-feedback:
+    name: Statusvertrag (Drift-Check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Statusvertrag prüfen
+        run: node scripts/check-learning-feedback.mjs
+
+  # LP-03C: Gleiches Prinzip für den Komponentenvertrag (Button, Card,
+  # ProgressBar, EmptyState, ErrorState) in den drei Fach-Apps und im Hub —
+  # Kopien bytegleich, CSS eingebunden, Pfad-Akzent gesetzt, Adapter sowie
+  # Fehler- und 404-Seiten tatsächlich angebunden. Den Vertragstest selbst
+  # (Logik und aus dem CSS nachgerechnete Kontraste) führt die AIPfad-CI aus;
+  # weil Test und CSS bytegleich sind, gilt das Ergebnis für alle Kopien.
+  learning-components:
+    name: Komponentenvertrag (Drift-Check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Komponentenvertrag prüfen
+        run: node scripts/check-learning-components.mjs
+
+  # LP-05B/LP-07: Die Adapter der Plattformquellen sind in den drei Fach-Apps
+  # bytegleich, ihre Schema-Versionen und Quellnamen sind die, die der Hub
+  # annimmt, und jede App meldet sich unter ihrem eigenen Namen. Nur
+  # Node-Bordmittel, repariert nichts.
+  platform-sources:
+    name: Plattformquellen (Drift-Check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Plattformquellen prüfen
+        run: node scripts/check-platform-sources.mjs
+
+  build:
+    name: Typecheck, tests and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lernpfade
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Abhängigkeiten installieren
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit-Tests
+        run: npm run test
+
+      - name: Produktionsbuild
+        run: npm run build
+
+      # LP-06: Browser-Tests gegen einen echten Produktionsbuild (ohne Retries).
+      # Die Playwright-Konfiguration baut dafür selbst neu und schaltet die
+      # LP-05B-Quellen auf lokale MOCK-Adressen (page.route) – keine echten Apps,
+      # keine Secrets.
+      - name: Playwright-Browser installieren
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-End- und Accessibility-Tests (VokabelPfad, Wiederholen)
+        run: npm run test:e2e
+
+      - name: Testbericht und Screenshots sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lernpfade-playwright
+          path: |
+            lernpfade/playwright-report/
+            lernpfade/test-results/
+          retention-days: 14

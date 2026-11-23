@@ -74,3 +74,28 @@ describe('Der Stand eines Konzepts', () => {
     }
   });
 });
+
+describe('Konzepte, die nur über Schreibaufgaben geübt werden', () => {
+  const schreiben = (letztesErgebnis?: AufgabenErgebnis['letztesErgebnis']): AufgabenErgebnis => ({
+    art: 'ABFRAGE_SCHREIBEN',
+    amErgebnisPruefbar: true,
+    letztesErgebnis,
+  });
+
+  it('sind ohne Übungsserver nicht beurteilbar', () => {
+    expect(bewerteKonzept([schreiben('PASSED')]).stand).toBe('nicht-beurteilbar');
+  });
+
+  it('werden mit Übungsserver beurteilt wie jedes andere', () => {
+    const mit = { uebungsserver: true };
+    expect(bewerteKonzept([schreiben()], mit).stand).toBe('ungeuebt');
+    expect(bewerteKonzept([schreiben('PASSED'), schreiben()], mit).stand).toBe('angefangen');
+    expect(bewerteKonzept([schreiben('PASSED'), schreiben('FAILED')], mit).stand).toBe('wackelig');
+    expect(bewerteKonzept([schreiben('PASSED')], mit)).toEqual({
+      stand: 'sitzt',
+      gesamt: 1,
+      bearbeitet: 1,
+      geloest: 1,
+    });
+  });
+});

@@ -133,6 +133,7 @@ export function erstelleDienst(optionen: DienstOptionen): ReturnType<typeof crea
                 ? (daten.erlaubteKlassen as string[])
                 : [],
               ...(daten.grenzen ? { grenzen: daten.grenzen } : {}),
+              ...(daten.verwerfen === true ? { verwerfen: true } : {}),
             } as Parameters<SqlRunner['execute']>[0]),
           };
         } finally {

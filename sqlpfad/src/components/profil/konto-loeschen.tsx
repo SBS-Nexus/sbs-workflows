@@ -100,7 +100,7 @@ export function KontoLoeschen(): React.ReactElement {
           </div>
         </form>
       ) : (
-        <Button type="button" variant="ghost" onClick={() => setOffen(true)}>
+        <Button type="button" variant="danger-secondary" onClick={() => setOffen(true)}>
           Konto löschen
         </Button>
       )}

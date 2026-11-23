@@ -8,8 +8,10 @@ import { SchemaExplorer } from '@/components/sql/schema-explorer';
 import { UEBUNGSDATEN } from '@/content';
 import { Card, SectionHeading } from '@/components/ui/primitives';
 import { Icon } from '@/components/ui/icon';
-import { AufgabenKarte, type AufgabenAnsicht } from '@/components/aufgabe/aufgaben-karte';
-import { ausDatenmodellArt } from '@/domain/aufgabe/art';
+import { type AufgabenAnsicht } from '@/components/aufgabe/aufgaben-karte';
+import { Lektionsverlauf } from '@/components/aufgabe/lektionsverlauf';
+import { ladeLektionsstand } from '@/server/lernen/lektionsstand';
+import { baueAufgabenAnsicht } from '@/server/lernen/aufgaben-ansicht';
 
 export async function generateMetadata({
   params,
@@ -65,40 +67,21 @@ export default async function LektionsSeite({
   });
 
   const datensatz = UEBUNGSDATEN.find((eintrag) => eintrag.slug === lektion.practiceSchema?.slug);
+  // Nach dem Anlegen des Fortschritts oben gelesen – sonst fehlte er beim ersten Besuch.
+  const stand = await ladeLektionsstand(user.id, lektion.id);
   const lernziele = Array.isArray(lektion.objectives) ? (lektion.objectives as string[]) : [];
 
   /*
    * Was an den Browser geht - und was ausdrücklich nicht.
    *
    * Die Nutzlast einer Aufgabe enthält neben den Optionen auch `richtig` und
-   * `aufloesung`. Beides bleibt hier: Ein Auswahlfeld, dessen richtige Antwort
-   * im Quelltext der Seite steht, prüft nichts. Deshalb wird die Ansicht Feld
-   * für Feld zusammengesetzt und nicht die Zeile durchgereicht - bei einem
-   * `...aufgabe` wäre die nächste hinzugefügte Spalte still mit dabei.
+   * `aufloesung`. Beides bleibt auf dem Server; die Ansicht baut
+   * `baueAufgabenAnsicht` Feld für Feld, mit der Anzeigereihenfolge der
+   * Optionen für diese Person.
    */
   const aufgaben = lektion.exercises.flatMap((aufgabe): AufgabenAnsicht[] => {
-    const art = ausDatenmodellArt(aufgabe.type);
-    if (!art) return [];
-
-    const nutzlast = aufgabe.payload as { optionen?: unknown } | null;
-    const optionen = Array.isArray(nutzlast?.optionen)
-      ? nutzlast.optionen.filter((eintrag): eintrag is string => typeof eintrag === 'string')
-      : [];
-
-    return [
-      {
-        slug: aufgabe.slug,
-        art,
-        titel: aufgabe.title,
-        aufgabenstellung: aufgabe.prompt,
-        optionen,
-        startSql: aufgabe.starterSql ?? '',
-        hinweise: Array.isArray(aufgabe.hints)
-          ? aufgabe.hints.filter((eintrag): eintrag is string => typeof eintrag === 'string')
-          : [],
-        hatLoesung: Boolean(aufgabe.solutionSql ?? aufgabe.solutionNotes),
-      },
-    ];
+    const ansicht = baueAufgabenAnsicht(aufgabe, user.id);
+    return ansicht ? [ansicht] : [];
   });
 
   return (
@@ -143,16 +126,7 @@ export default async function LektionsSeite({
 
           <section aria-labelledby="aufgaben">
             <SectionHeading id="aufgaben">Aufgaben</SectionHeading>
-            <ol className="space-y-3">
-              {aufgaben.map((aufgabe, index) => (
-                <AufgabenKarte
-                  key={aufgabe.slug}
-                  aufgabe={aufgabe}
-                  nummer={index + 1}
-                  datensatz={datensatz}
-                />
-              ))}
-            </ol>
+            <Lektionsverlauf aufgaben={aufgaben} datensatz={datensatz} anfangsstand={stand} />
             <p className="mt-4 text-sm text-[var(--text-muted)]">
               Zum freien Ausprobieren mit denselben Tabellen gibt es{' '}
               <Link href="/abfrage" className="font-medium text-[var(--accent)] underline">

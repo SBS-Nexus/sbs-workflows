@@ -49,7 +49,7 @@ test('Registrierung bis Fortschrittsanzeige', async ({ page }) => {
   await expect(page).toHaveURL(/\/4$/);
   await expect(page.getByText(/Lektion abgeschlossen|Noch nicht ganz/)).toBeVisible();
 
-  await page.getByRole('link', { name: 'Fortschritt' }).click();
+  await page.getByRole('link', { name: 'Fortschritt', exact: true }).click();
   await expect(page).toHaveURL(/\/fortschritt$/);
   await expect(page.getByText('Lektionen abgeschlossen')).toBeVisible();
 });

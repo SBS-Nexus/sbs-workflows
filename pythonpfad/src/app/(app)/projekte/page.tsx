@@ -13,10 +13,10 @@ export const metadata: Metadata = { title: 'Projekte' };
 
 const STATUS_LABELS: Record<
   string,
-  { label: string; tone: 'neutral' | 'info' | 'success' | 'caution' }
+  { label: string; tone: 'neutral' | 'in-progress' | 'success' | 'caution' }
 > = {
   NOT_STARTED: { label: 'noch nicht begonnen', tone: 'neutral' },
-  IN_PROGRESS: { label: 'in Arbeit', tone: 'info' },
+  IN_PROGRESS: { label: 'in Arbeit', tone: 'in-progress' },
   SUBMITTED: { label: 'Reflexion fehlt', tone: 'caution' },
   NEEDS_REVISION: { label: 'teilweise erfüllt', tone: 'caution' },
   ACCEPTED: { label: 'abgenommen', tone: 'success' },

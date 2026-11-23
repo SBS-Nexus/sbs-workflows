@@ -1,5 +1,9 @@
 import type { Aufgabenart } from '@/content/typen';
-import { istBeurteilbar } from '@/domain/aufgabe/abschluss';
+import {
+  OHNE_UEBUNGSSERVER,
+  zaehltZurBeurteilung,
+  type Beurteilungsrahmen,
+} from '@/domain/aufgabe/abschluss';
 import type { Versuchsergebnis } from '@/domain/aufgabe/auswahl';
 
 /**
@@ -49,6 +53,8 @@ export type Kompetenzstand =
 export interface AufgabenErgebnis {
   art: Aufgabenart;
   letztesErgebnis?: Versuchsergebnis;
+  /** Bewertet der Übungsserver diese Aufgabe am Ergebnis? */
+  amErgebnisPruefbar?: boolean;
 }
 
 export interface Kompetenz {
@@ -61,8 +67,11 @@ export interface Kompetenz {
   geloest: number;
 }
 
-export function bewerteKonzept(aufgaben: readonly AufgabenErgebnis[]): Kompetenz {
-  const beurteilbare = aufgaben.filter((aufgabe) => istBeurteilbar(aufgabe.art));
+export function bewerteKonzept(
+  aufgaben: readonly AufgabenErgebnis[],
+  rahmen: Beurteilungsrahmen = OHNE_UEBUNGSSERVER,
+): Kompetenz {
+  const beurteilbare = aufgaben.filter((aufgabe) => zaehltZurBeurteilung(aufgabe, rahmen));
 
   if (beurteilbare.length === 0) {
     return { stand: 'nicht-beurteilbar', gesamt: 0, bearbeitet: 0, geloest: 0 };

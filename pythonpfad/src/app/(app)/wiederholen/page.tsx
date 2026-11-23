@@ -70,6 +70,7 @@ export default async function ReviewPage(): Promise<React.ReactElement> {
         </section>
       ) : (
         <EmptyState
+          kind="done"
           illustration={<IllustrationRuhe />}
           title="Heute steht keine Wiederholung an"
           description="Das ist kein Versäumnis – der Plan richtet sich nach deinem Verlauf. Nutze die Zeit für eine neue Lektion oder ein Projekt."
@@ -136,7 +137,7 @@ export default async function ReviewPage(): Promise<React.ReactElement> {
             >
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-bold tracking-tight">{set.title}</h3>
-                <Badge tone={set.available ? 'success' : 'neutral'}>
+                <Badge tone={set.available ? 'neutral' : 'locked'}>
                   {set.available ? 'verfügbar' : 'gesperrt'}
                 </Badge>
               </div>

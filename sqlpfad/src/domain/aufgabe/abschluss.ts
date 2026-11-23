@@ -14,12 +14,13 @@ import type { Versuchsergebnis } from '@/domain/aufgabe/auswahl';
  * Deshalb zählen hier die Aufgaben, die sich **ohne Übungsserver beurteilen
  * lassen**.
  *
- * Das ist ausdrücklich der Stand von heute und keine dauerhafte Eigenschaft
- * einer Schreibaufgabe. Sobald der Runner steht, **muss diese Datei angepasst
- * werden** – `istBeurteilbar` entscheidet allein anhand der Antwortform und
- * weiß nichts von der Verfügbarkeit des Servers. Wer das übersieht, hat eine
- * Anwendung, die Abfragen ausführen kann und die Schreibaufgaben trotzdem
- * weiter vom Abschluss ausnimmt.
+ * Ist der Übungsserver eingeschaltet, zählen zusätzlich die Schreibaufgaben,
+ * die er am Ergebnis bewertet (`istAmErgebnisPruefbar`: lesend, mit
+ * erwartetem Ergebnis). Das entscheidet `zaehltZurBeurteilung` mit dem
+ * `Beurteilungsrahmen` – Abschluss, Wissenslandkarte und die Fortschrittsquelle
+ * für den Hub wenden dieselbe Regel an. Ohne diese Unterscheidung konnte eine
+ * Lektion als abgeschlossen gelten, deren Schreibaufgaben noch offen waren,
+ * obwohl der Server sie längst bewertete.
  *
  * Was ausdrücklich **nicht** genügt: eine angesehene Lösung. Sie sagt nichts
  * darüber aus, ob die Aufgabe allein gelingt.
@@ -28,11 +29,30 @@ import type { Versuchsergebnis } from '@/domain/aufgabe/auswahl';
 export interface AufgabenStand {
   art: Aufgabenart;
   letztesErgebnis?: Versuchsergebnis;
+  /** Bewertet der Übungsserver diese Aufgabe am Ergebnis? Siehe `istAmErgebnisPruefbar`. */
+  amErgebnisPruefbar?: boolean;
 }
+
+/** Unter welchen Bedingungen beurteilt wird. */
+export interface Beurteilungsrahmen {
+  /** Ist der Übungsserver eingeschaltet und angeschlossen? */
+  uebungsserver: boolean;
+}
+
+export const OHNE_UEBUNGSSERVER: Beurteilungsrahmen = { uebungsserver: false };
 
 /** Lässt sich diese Aufgabenart ohne Übungsserver beurteilen? */
 export function istBeurteilbar(art: Aufgabenart): boolean {
   return antwortform(art) !== 'sql';
+}
+
+/** Zählt diese Aufgabe unter diesen Bedingungen zu dem, was beurteilt wird? */
+export function zaehltZurBeurteilung(
+  aufgabe: Pick<AufgabenStand, 'art' | 'amErgebnisPruefbar'>,
+  rahmen: Beurteilungsrahmen,
+): boolean {
+  if (istBeurteilbar(aufgabe.art)) return true;
+  return rahmen.uebungsserver && aufgabe.amErgebnisPruefbar === true;
 }
 
 /**
@@ -42,8 +62,30 @@ export function istBeurteilbar(art: Aufgabenart): boolean {
  * gälte eine Lektion aus lauter Schreibaufgaben als abgeschlossen, ohne dass
  * jemand etwas getan hätte.
  */
-export function istLektionAbgeschlossen(aufgaben: readonly AufgabenStand[]): boolean {
-  const beurteilbare = aufgaben.filter((aufgabe) => istBeurteilbar(aufgabe.art));
+export function istLektionAbgeschlossen(
+  aufgaben: readonly AufgabenStand[],
+  rahmen: Beurteilungsrahmen = OHNE_UEBUNGSSERVER,
+): boolean {
+  const beurteilbare = aufgaben.filter((aufgabe) => zaehltZurBeurteilung(aufgabe, rahmen));
   if (beurteilbare.length === 0) return false;
   return beurteilbare.every((aufgabe) => aufgabe.letztesErgebnis === 'PASSED');
+}
+
+/** Wie weit eine Lektion ist – nach derselben Regel wie der Abschluss. */
+export interface Lektionsfortschritt {
+  /** Aufgaben, die unter diesen Bedingungen beurteilt werden. */
+  gesamt: number;
+  /** Davon beim letzten Versuch gelöst. */
+  geloest: number;
+}
+
+export function fasseLektionZusammen(
+  aufgaben: readonly AufgabenStand[],
+  rahmen: Beurteilungsrahmen = OHNE_UEBUNGSSERVER,
+): Lektionsfortschritt {
+  const beurteilbare = aufgaben.filter((aufgabe) => zaehltZurBeurteilung(aufgabe, rahmen));
+  return {
+    gesamt: beurteilbare.length,
+    geloest: beurteilbare.filter((aufgabe) => aufgabe.letztesErgebnis === 'PASSED').length,
+  };
 }

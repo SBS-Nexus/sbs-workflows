@@ -70,7 +70,7 @@ export default async function PathPage(): Promise<React.ReactElement> {
         </div>
 
         {nextStep.kind === 'review' ? (
-          <Card className="mb-8 border-signal-500">
+          <Card className="mb-8" emphasis="accent">
             <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-signal-600 dark:text-signal-300">
               Nächster Schritt
             </p>
@@ -85,7 +85,7 @@ export default async function PathPage(): Promise<React.ReactElement> {
             </ButtonLink>
           </Card>
         ) : nextStep.kind === 'lesson' && nextStep.lessonSlug ? (
-          <Card className="mb-8 border-signal-500">
+          <Card className="mb-8" emphasis="accent">
             <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-signal-600 dark:text-signal-300">
               Nächster Schritt
             </p>
@@ -132,7 +132,15 @@ export default async function PathPage(): Promise<React.ReactElement> {
                         >
                           {lesson.title}
                         </Link>
-                        <Badge tone={state === 'COMPLETED' ? 'success' : 'neutral'}>
+                        <Badge
+                          tone={
+                            state === 'COMPLETED'
+                              ? 'success'
+                              : state === 'IN_PROGRESS'
+                                ? 'in-progress'
+                                : 'neutral'
+                          }
+                        >
                           {state === 'COMPLETED'
                             ? 'Abgeschlossen'
                             : state === 'IN_PROGRESS'
