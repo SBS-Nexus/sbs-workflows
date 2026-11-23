@@ -102,3 +102,35 @@ Im Haupt-Checkout läuft parallel die Arbeit an AIPfad E07 (Audit-Grundlage,
 Zweig `claude/aipfad-e07-audit-foundation`). Sie berührt ebenfalls
 `prisma/schema.prisma`. Die Migrationen beider Zweige müssen beim Merge
 zusammengeführt werden.
+
+## 8. Stand
+
+**23.11.2026, Schritte 1 und 2 umgesetzt** (Zweig
+`claude/e4-2-aipfad-anbindung-20261123`):
+
+- Schema und Migration `20261123120000_zentrale_anmeldung`, rein additiv bis
+  auf das jetzt optionale `passwordHash`. Gegen echtes Postgres angewendet;
+  `prisma migrate diff` zeigt keine Abweichung zum Schema.
+- Module unter `aipfad/src/server/auth/`:
+  - `zentral.ts`: Discovery, Start, Rückkehr, Abmelde-Adresse, Rückkanal.
+  - `zentral-zustand.ts`: signierter Zustand und Rücksprungziele.
+  - `zentral-identitaet.ts`: Claims und Prüfung des Logout-Tokens.
+  - `zentral-konto.ts`: Kontoregeln.
+  - `zentral-cookie.ts`.
+- Routen `/auth/anmelden`, `/auth/rueckkehr` und `/auth/abmelden-rueckkanal`,
+  dazu die Hinweisseite `/auth/fehler` mit acht Gründen.
+  - `/anmelden` und `/registrieren` leiten mit Schalter weiter.
+  - Das Abmelden geht über das gemeinsame Konto.
+  - Geschützte Seiten merken sich das Ziel (`?ziel=`).
+- Abweichung vom Plan: Für das Abmelden ohne Rückfrage speichert die Sitzung
+  das ID-Token als `id_token_hint` (`AuthSession.oidcIdToken`).
+- `oauth4webapi` ist per `overrides` auf 3.8.8 festgelegt. 3.8.9 war beim
+  Einbau erst drei Tage alt, die Zwei-Wochen-Regel gilt auch für transitive
+  Pakete.
+- Tests:
+  - Einheiten: 28 neue, dazu 7 zur Konfiguration.
+  - Integration: 9 Kontoregeln und Rückkanal gegen echtes Postgres.
+  - E2E: deaktivierte Routen, Ziel, Hinweisseite mit axe hell und dunkel.
+
+Offen sind Schritt 3 (ZITADEL-Anwendung, Ausrollen mit Schalter `aus`),
+Schritt 4 (E2E gegen echten ZITADEL) und Schritt 5 (Rundgang, Schalter `an`).

@@ -8,6 +8,8 @@ import { prisma } from '@/server/db/prisma';
 import { Prisma } from '@/generated/prisma/client';
 import { checkPasswordStrength, hashPassword, verifyPassword } from '@/server/auth/password';
 import { createSession, destroySession, pruneExpiredSessions } from '@/server/auth/session';
+import { abmeldeAdresse, zentraleAnmeldungAktiv, zentralerZugang } from '@/server/auth/zentral';
+import { logger } from '@/server/observability/logger';
 import { clientIpAus } from '@/server/security/client-ip';
 import { enforceRateLimit, RATE_LIMITS, RateLimitError } from '@/server/security/rate-limit';
 
@@ -82,7 +84,19 @@ async function enforcePerAccountLimit(
   await enforceRateLimit(`${prefix}-konto:${email.toLowerCase()}`, config);
 }
 
+/**
+ * Läuft die Anmeldung über das gemeinsame Konto (E4.2), nehmen die eigenen
+ * Formulare nichts mehr an. Die Seiten leiten dann ohnehin weiter; diese
+ * Prüfung hält auch direkte Aufrufe der Server Actions ab.
+ */
+const ZENTRAL_HINWEIS: FormState = {
+  ok: false,
+  error: 'Die Anmeldung läuft jetzt über dein Lernpfade-Konto. Lade die Seite bitte neu.',
+};
+
 export async function registerAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  if (zentraleAnmeldungAktiv()) return ZENTRAL_HINWEIS;
+
   const parsed = registerSchema.safeParse({
     name: formData.get('name'),
     email: formData.get('email'),
@@ -156,6 +170,8 @@ export async function registerAction(_previous: FormState, formData: FormData): 
 }
 
 export async function loginAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  if (zentraleAnmeldungAktiv()) return ZENTRAL_HINWEIS;
+
   const parsed = loginSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
@@ -200,7 +216,25 @@ export async function loginAction(_previous: FormState, formData: FormData): Pro
   redirect(user.onboardingCompleted ? '/pfad' : '/onboarding');
 }
 
+/**
+ * Beendet die Sitzung in AIPfad. War sie über das gemeinsame Konto
+ * entstanden, geht es dort weiter, damit die Abmeldung auch dort gilt; das
+ * Konto leitet danach zur Startseite zurück. Ist es nicht erreichbar, bleibt
+ * die Person in AIPfad trotzdem abgemeldet.
+ */
 export async function logoutAction(): Promise<void> {
-  await destroySession();
-  redirect('/');
+  const beendet = await destroySession();
+  const zugang = beendet.zentral ? zentralerZugang() : null;
+
+  let ziel = '/';
+  if (zugang) {
+    try {
+      ziel = (await abmeldeAdresse(zugang, beendet.idToken)).href;
+    } catch (fehler) {
+      logger.warn('Abmeldung beim gemeinsamen Konto nicht möglich', {
+        errorType: fehler instanceof Error ? fehler.name : 'unbekannt',
+      });
+    }
+  }
+  redirect(ziel);
 }

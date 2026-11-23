@@ -9,6 +9,11 @@ const GEPRUEFTE_VARIABLEN = [
   'RETENTION_MODE',
   'AUTH_SECRET',
   'NEXT_RUNTIME',
+  'FEATURE_ZENTRALE_ANMELDUNG',
+  'AUTH_ISSUER',
+  'AUTH_CLIENT_ID',
+  'AUTH_CLIENT_SECRET',
+  'AUTH_STATE_SECRET',
 ] as const;
 
 const vorher = Object.fromEntries(
@@ -25,6 +30,23 @@ function gueltigeUmgebung(): void {
   process.env.RETENTION_MODE = 'dry-run';
   process.env.NEXT_RUNTIME = 'nodejs';
   delete process.env.AUTH_SECRET;
+  for (const name of [
+    'FEATURE_ZENTRALE_ANMELDUNG',
+    'AUTH_ISSUER',
+    'AUTH_CLIENT_ID',
+    'AUTH_CLIENT_SECRET',
+    'AUTH_STATE_SECRET',
+  ]) {
+    delete process.env[name];
+  }
+}
+
+/** Testwerte, keine echten Geheimnisse. */
+function zentraleAnmeldung(): void {
+  process.env.AUTH_ISSUER = 'https://konto.lernpfade.test';
+  process.env.AUTH_CLIENT_ID = '345678901234567890';
+  process.env.AUTH_CLIENT_SECRET = 'testgeheimnis-client-nur-fuer-unit-tests';
+  process.env.AUTH_STATE_SECRET = 'testgeheimnis-zustand-nur-fuer-unit-tests-0000';
 }
 
 describe('Konfigurationsvertrag beim Serverstart', () => {
@@ -110,6 +132,64 @@ describe('Konfigurationsvertrag beim Serverstart', () => {
     const { getEnv } = await import('@/server/env');
 
     expect(getEnv().RETENTION_MODE).toBe('dry-run');
+  });
+
+  describe('Gemeinsames Konto (E4.2)', () => {
+    it('ist ohne AUTH_*-Werte aus und startet', async () => {
+      const { getEnv } = await import('@/server/env');
+      expect(getEnv().FEATURE_ZENTRALE_ANMELDUNG).toBe('aus');
+      expect(getEnv().AUTH_ISSUER).toBe('');
+    });
+
+    it('startet mit vollständigen Werten, mit und ohne Schalter', async () => {
+      for (const schalter of ['aus', 'an'] as const) {
+        vi.resetModules();
+        gueltigeUmgebung();
+        zentraleAnmeldung();
+        process.env.FEATURE_ZENTRALE_ANMELDUNG = schalter;
+        const { register } = await import('@/instrumentation');
+        await expect(register()).resolves.toBeUndefined();
+      }
+    });
+
+    it('verlangt mit Schalter alle vier Werte', async () => {
+      process.env.FEATURE_ZENTRALE_ANMELDUNG = 'an';
+      const { register } = await import('@/instrumentation');
+      await expect(register()).rejects.toThrow('AUTH_ISSUER fehlt');
+    });
+
+    it('nimmt keine halbe Konfiguration an', async () => {
+      zentraleAnmeldung();
+      delete process.env.AUTH_STATE_SECRET;
+      const { register } = await import('@/instrumentation');
+      await expect(register()).rejects.toThrow('AUTH_STATE_SECRET fehlt');
+    });
+
+    it('weist einen Aussteller ohne https ab, außer localhost', async () => {
+      zentraleAnmeldung();
+      process.env.AUTH_ISSUER = 'http://konto.lernpfade.test';
+      const { register } = await import('@/instrumentation');
+      await expect(register()).rejects.toThrow('AUTH_ISSUER muss');
+
+      const { istZulaessigerAussteller } = await import('@/server/env');
+      expect(istZulaessigerAussteller('http://localhost:8080')).toBe(true);
+      expect(istZulaessigerAussteller('https://konto.lernpfade.net')).toBe(true);
+      expect(istZulaessigerAussteller('https://konto.lernpfade.net/?x=1')).toBe(false);
+      expect(istZulaessigerAussteller('kein-url')).toBe(false);
+    });
+
+    it('weist zu kurze Geheimnisse ab', async () => {
+      zentraleAnmeldung();
+      process.env.AUTH_STATE_SECRET = 'zu-kurz';
+      const { register } = await import('@/instrumentation');
+      await expect(register()).rejects.toThrow('mindestens 32 Zeichen');
+    });
+
+    it('weist einen unbekannten Schalterwert ab', async () => {
+      process.env.FEATURE_ZENTRALE_ANMELDUNG = 'vielleicht';
+      const { register } = await import('@/instrumentation');
+      await expect(register()).rejects.toThrow('FEATURE_ZENTRALE_ANMELDUNG');
+    });
   });
 
   it('importiert die Node-Konfiguration in einem Edge-Instrumentierungslauf nicht', async () => {
