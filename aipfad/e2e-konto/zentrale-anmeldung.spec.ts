@@ -70,6 +70,23 @@ test('der zweite Besuch kennt das Konto, und die Rückkanal-Abmeldung beendet di
     .not.toBe(200);
 });
 
+test('geht der Anmeldezustand verloren, startet AIPfad die Anmeldung selbst neu', async ({
+  page,
+  context,
+}) => {
+  const { bestaetigt } = testkonten();
+
+  await page.goto('/anmelden');
+  await expect(page).toHaveURL(new RegExp(`^${ANMELDUNG}/loginname`));
+  // Wie nach mehr als dreißig Minuten auf der Seite des Kontos.
+  await context.clearCookies({ name: 'aipfad_anmeldung' });
+
+  await anmeldenBeimKonto(page, bestaetigt);
+  // Kein Hinweis „zu lange gedauert“: AIPfad startet neu, das Konto
+  // bestätigt ohne Rückfrage, und es geht weiter.
+  await expect(page).toHaveURL('/pfad');
+});
+
 test('ohne bestätigte Adresse geht es nicht in AIPfad', async ({ page }) => {
   const { unbestaetigt } = testkonten();
 

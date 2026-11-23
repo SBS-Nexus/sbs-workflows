@@ -169,6 +169,32 @@ Gemergt als PR #98 (`80a34aa`).
     Abmelden ab. Behoben in `zentral.ts`.
   - Auf Seiten mit bekannter Organisation zeigte die Anmeldung eingebaute
     Texte in Sie-Form. Behoben durch Texte auch auf Organisationsebene
-    (`einrichten.mjs`); auf konto.lernpfade.net nachzuziehen.
+    (`einrichten.mjs`); auf konto.lernpfade.net am 23.11. gesetzt.
 
-Offen ist Schritt 5: Rundgang mit einer echten Adresse, danach Schalter `an`.
+Gemergt als PR #99 (`e58abd0`), AIPfad läuft auf diesem Stand.
+
+**23.11.2026, Schritt 5: Schalter `an`.**
+
+- Rundgang der Inhaberin mit echter Adresse: Registrieren, Bestätigen,
+  Anmelden in AIPfad (`art: neu`).
+- Dabei aufgefallen: Die Registrierung dauerte 13 Minuten, länger als der
+  Anmeldezustand galt. Die erste Rückkehr endete auf „Die Anmeldung hat zu
+  lange gedauert“, „Neu starten“ führte in sechs Sekunden weiter. Behoben:
+  - Der Zustand gilt jetzt dreißig Minuten.
+  - Ohne gültigen Zustand startet AIPfad die Anmeldung einmal selbst neu,
+    ohne Schleife und ohne den mitgebrachten Code einzulösen.
+  - Abgedeckt in der Strecke gegen den echten ZITADEL (fünfter Ablauf).
+- Abmelden: In den Protokollen des Kontos kam beim Rundgang kein Aufruf von
+  `end_session` an. Das Abmelden lief also vermutlich nicht über den Knopf in AIPfad.
+  - Der Weg selbst ist in der CI-Strecke gegen den echten ZITADEL belegt.
+  - Live angenommen wird die registrierte Abmelde-Adresse (302); ohne
+    Schrägstrich lehnt ZITADEL sie ab (400).
+- `FEATURE_ZENTRALE_ANMELDUNG=an` seit 23.11.2026, mit demselben Bau neu
+  gestartet. Live geprüft:
+  - `/anmelden` und geschützte Seiten führen zum Konto, mit Ziel.
+  - `/registrieren` führt zu „Konto erstellen“.
+  - Offene Seiten bleiben offen.
+
+E4.2 ist damit abgeschlossen. Nächster Schritt laut Plan: E4.3/E4.4,
+PythonPfad und SQLPfad an dasselbe Konto (`konto/einrichtung/anwendungen.mjs`
+ergänzen, Modul aus `aipfad/src/server/auth/zentral*.ts` als Vertrag).

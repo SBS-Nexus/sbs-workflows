@@ -9,7 +9,7 @@ import {
   type AbmeldeAuftrag,
   type ZentraleIdentitaet,
 } from '@/server/auth/zentral-identitaet';
-import { type AnmeldeZustand } from '@/server/auth/zentral-zustand';
+import { type AnmeldeZustand, ZWEITER_VERSUCH } from '@/server/auth/zentral-zustand';
 
 /**
  * Anbindung an das gemeinsame Konto der Lernpfade (konto.lernpfade.net,
@@ -83,12 +83,12 @@ export interface AnmeldeStart {
 /** Baut die Adresse beim gemeinsamen Konto und den dazu passenden Zustand. */
 export async function starteAnmeldung(
   zugang: Zugang,
-  optionen: { ziel: string | null; registrieren: boolean },
+  optionen: { ziel: string | null; registrieren: boolean; zweiterVersuch?: boolean },
 ): Promise<AnmeldeStart> {
   const config = await konfiguration(zugang);
   const codeVerifier = oidc.randomPKCECodeVerifier();
   const zustand: AnmeldeZustand = {
-    state: oidc.randomState(),
+    state: `${optionen.zweiterVersuch ? ZWEITER_VERSUCH : ''}${oidc.randomState()}`,
     nonce: oidc.randomNonce(),
     codeVerifier,
     ziel: optionen.ziel,

@@ -12,6 +12,8 @@ import { absoluteUrl } from '@/server/site';
  * und Ziel im signierten Cookie und leitet zu konto.lernpfade.net.
  * `?modus=registrieren` öffnet dort gleich die Registrierung, `?ziel=/pfad`
  * bestimmt, wohin es danach geht (nur relative Pfade dieser App).
+ * `?erneut=1` kommt nur von /auth/rueckkehr und kennzeichnet den zweiten
+ * Versuch nach verlorenem Zustand (`nachVerlorenemZustand()`).
  */
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +35,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const { adresse, zustand } = await starteAnmeldung(zugang, {
       ziel,
       registrieren: request.nextUrl.searchParams.get('modus') === 'registrieren',
+      zweiterVersuch: request.nextUrl.searchParams.get('erneut') === '1',
     });
     (await cookies()).set(
       zustandsCookieName(),

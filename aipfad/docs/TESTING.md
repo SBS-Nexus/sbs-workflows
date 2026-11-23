@@ -235,15 +235,18 @@ Gegenseite ist echt: ZITADEL v4.20.5 und die eigene Anmelde-App aus
 sie mit demselben Skript wie konto.lernpfade.net, Testkonten entstehen mit
 zufälligen Passwörtern.
 
-Vier Abläufe:
+Fünf Abläufe:
 
 1. Anmelden von einer geschützten Seite aus, Onboarding, Abmelden. Danach
    meldet weder AIPfad noch das Konto still wieder an, und beim Konto ist
    keine Sitzung aus dem Test offen.
 2. Zweiter Besuch ohne Onboarding. Dann endet die Sitzung beim Konto von
    außen, und die Rückkanal-Abmeldung beendet die Sitzung in AIPfad.
-3. Ein Konto mit unbestätigter Adresse kommt nur bis zur Bestätigungsseite.
-4. `/registrieren` öffnet die Registrierung beim Konto.
+3. Geht der Anmeldezustand unterwegs verloren (wie nach mehr als dreißig
+   Minuten), startet AIPfad die Anmeldung selbst neu und landet auf `/pfad`
+   statt auf der Hinweisseite.
+4. Ein Konto mit unbestätigter Adresse kommt nur bis zur Bestätigungsseite.
+5. `/registrieren` öffnet die Registrierung beim Konto.
 
 Lokal:
 
