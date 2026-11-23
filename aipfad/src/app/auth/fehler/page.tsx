@@ -29,7 +29,7 @@ const HINWEISE: Record<string, Hinweis> = {
   },
   abgelaufen: {
     titel: 'Die Anmeldung hat zu lange gedauert',
-    text: 'Ein Anmeldeversuch gilt zehn Minuten. Starte ihn einfach noch einmal.',
+    text: 'Ein Anmeldeversuch gilt dreißig Minuten. Starte ihn einfach noch einmal.',
     erneut: 'Neu starten',
   },
   'adresse-unbestaetigt': {

@@ -67,9 +67,17 @@ das Sitzungsverfahren oben unverändert.
   (`src/server/auth/zentral.ts`). Das ID-Token wird auf Signatur (RS256),
   Aussteller, Zielgruppe, Ablauf und `nonce` geprüft.
 - **Zustand:** `state`, `nonce`, PKCE-Verifier und Ziel liegen in einem
-  HMAC-SHA256-signierten Cookie (`src/server/auth/zentral-zustand.ts`), zehn
-  Minuten gültig und nur einmal verwendbar. Es ist `httpOnly` und
-  `SameSite=Lax`, unter https mit `__Host-`-Präfix.
+  HMAC-SHA256-signierten Cookie (`src/server/auth/zentral-zustand.ts`),
+  dreißig Minuten gültig und nur einmal verwendbar. Es ist `httpOnly` und
+  `SameSite=Lax`, unter https mit `__Host-`-Präfix. Dreißig statt zehn
+  Minuten, weil eine Registrierung mit Bestätigungsmail im ersten Rundgang
+  13 Minuten dauerte.
+- **Verlorener Zustand:** Kommt die Rückkehr mit Code, aber ohne gültigen
+  Zustand an, startet AIPfad die Anmeldung genau einmal neu
+  (`nachVerlorenemZustand()`). Der mitgebrachte Code wird nie eingelöst,
+  eine untergeschobene Anmeldung (Login-CSRF) bleibt ausgeschlossen. Der
+  zweite Versuch trägt ein Kennzeichen im `state`; scheitert auch er, etwa
+  bei gesperrten Cookies, erscheint die Hinweisseite statt einer Schleife.
 - **Rücksprungziele:** nur relative Pfade derselben App (`sicheresZiel()`),
   nie in `/auth`, `/anmelden`, `/registrieren` oder `/api`. Damit gibt es
   keinen offenen Redirect.

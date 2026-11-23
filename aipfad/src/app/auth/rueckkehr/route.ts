@@ -14,7 +14,7 @@ import {
 } from '@/server/auth/zentral';
 import { zustandsCookieName, zustandsCookieOptionen } from '@/server/auth/zentral-cookie';
 import { kontoFuerIdentitaet } from '@/server/auth/zentral-konto';
-import { oeffneZustand } from '@/server/auth/zentral-zustand';
+import { nachVerlorenemZustand, oeffneZustand } from '@/server/auth/zentral-zustand';
 import { logger, newRequestId, shortUserId } from '@/server/observability/logger';
 import { absoluteUrl, siteUrl } from '@/server/site';
 
@@ -52,10 +52,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   cookieStore.set(zustandsCookieName(), '', { ...zustandsCookieOptionen(), maxAge: 0 });
 
   if (!zustand) {
-    // Häufigster Fall: Ein zweiter Tab hat die Anmeldung schon abgeschlossen.
+    // Ein zweiter Tab hat die Anmeldung womöglich schon abgeschlossen.
     if (await getCurrentUser()) return weiter('/pfad');
-    logger.warn('Rückkehr ohne gültigen Anmeldezustand', { requestId });
-    return fehler('abgelaufen');
+    const weg = nachVerlorenemZustand(request.nextUrl.searchParams);
+    logger.warn('Rückkehr ohne gültigen Anmeldezustand', { requestId, weg });
+    return weg === 'neu-starten' ? weiter('/auth/anmelden?erneut=1') : fehler('abgelaufen');
   }
 
   // Die öffentliche Adresse, nicht die interne hinter dem Proxy: Sie geht als

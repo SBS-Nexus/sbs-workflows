@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  nachVerlorenemZustand,
   oeffneZustand,
   sicheresZiel,
   versiegleZustand,
   ZUSTAND_GUELTIG_MS,
+  ZWEITER_VERSUCH,
   type AnmeldeZustand,
 } from '@/server/auth/zentral-zustand';
 
@@ -109,5 +111,28 @@ describe('Rücksprungziele (kein offener Redirect)', () => {
     expect(sicheresZiel(['/pfad'])).toBeNull();
     expect(sicheresZiel(undefined)).toBeNull();
     expect(sicheresZiel(`/${'a'.repeat(600)}`)).toBeNull();
+  });
+});
+
+describe('Rückkehr ohne gültigen Zustand', () => {
+  const p = (abfrage: string) => new URLSearchParams(abfrage);
+
+  it('gilt dreißig Minuten, damit eine Registrierung mit Bestätigung durchkommt', () => {
+    expect(ZUSTAND_GUELTIG_MS).toBe(30 * 60 * 1000);
+  });
+
+  it('startet einmal neu, wenn das Konto einen Code geschickt hat', () => {
+    expect(nachVerlorenemZustand(p('code=abc&state=xyz'))).toBe('neu-starten');
+  });
+
+  it('startet keinen dritten Versuch (keine Schleife, etwa bei gesperrten Cookies)', () => {
+    expect(nachVerlorenemZustand(p(`code=abc&state=${ZWEITER_VERSUCH}xyz`))).toBe('hinweis');
+  });
+
+  it('zeigt den Hinweis ohne Code oder mit Fehler vom Konto', () => {
+    expect(nachVerlorenemZustand(p('state=xyz'))).toBe('hinweis');
+    expect(nachVerlorenemZustand(p('error=access_denied&state=xyz'))).toBe('hinweis');
+    expect(nachVerlorenemZustand(p('code=abc&error=x&state=xyz'))).toBe('hinweis');
+    expect(nachVerlorenemZustand(p(''))).toBe('hinweis');
   });
 });

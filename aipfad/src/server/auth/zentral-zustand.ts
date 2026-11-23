@@ -22,7 +22,35 @@ export interface AnmeldeZustand {
   erstellt: number;
 }
 
-export const ZUSTAND_GUELTIG_MS = 10 * 60 * 1000;
+/**
+ * Dreißig Minuten: Eine Registrierung mit Bestätigungsmail, Passwortregeln
+ * und einem vertippten Code dauerte beim ersten Rundgang 13 Minuten. Mit den
+ * zuvor geltenden zehn Minuten endete sie auf der Hinweisseite.
+ */
+export const ZUSTAND_GUELTIG_MS = 30 * 60 * 1000;
+
+/**
+ * Kennzeichen im OAuth-`state` eines zweiten Versuchs. Es reist über das
+ * gemeinsame Konto in der Adresse mit zurück, auch wenn das Cookie fehlt.
+ */
+export const ZWEITER_VERSUCH = 'w.';
+
+/**
+ * Was tun, wenn die Rückkehr ohne gültigen Zustand ankommt (abgelaufen, in
+ * einem anderen Browser begonnen, Cookie gelöscht)?
+ *
+ * Kam ein Code zurück, ist die Person beim Konto angemeldet. Dann startet
+ * die Anmeldung einmal neu; das Konto bestätigt ohne Rückfrage, und es geht
+ * nahtlos weiter. Der zurückgekommene Code wird dabei nie eingelöst, eine
+ * untergeschobene Anmeldung ist so ausgeschlossen. War es schon der zweite
+ * Versuch (Kennzeichen im `state`, etwa weil Cookies gesperrt sind), oder
+ * kam kein Code, erscheint die Hinweisseite statt einer Schleife.
+ */
+export function nachVerlorenemZustand(parameter: URLSearchParams): 'neu-starten' | 'hinweis' {
+  const state = parameter.get('state') ?? '';
+  if (!parameter.get('code') || parameter.has('error')) return 'hinweis';
+  return state.startsWith(ZWEITER_VERSUCH) ? 'hinweis' : 'neu-starten';
+}
 
 /** Trennt diese Signaturen von allen anderen Verwendungen des Schlüssels. */
 const ZWECK = 'aipfad-anmeldung-v1';
