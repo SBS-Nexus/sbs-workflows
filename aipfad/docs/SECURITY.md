@@ -50,6 +50,48 @@ ergänzt um die für AIPfad relevanten Unterschiede dieser Ausbaustufe.
   Meldung ("E-Mail-Adresse oder Passwort stimmen nicht") — dort ist die
   Zeit- und Antwortgleichheit bewusst vollständig durchgehalten.
 
+## Anmeldung über das gemeinsame Konto (E4.2)
+
+Plan und Begründung: `docs/E4-2-BAUPLAN.md` im Repository-Wurzelverzeichnis.
+Das gemeinsame Konto (konto.lernpfade.net, ZITADEL) bestätigt, wer jemand
+ist. Sitzung, Rollen und Lernstand bleiben in AIPfad; nach der Rückkehr gilt
+das Sitzungsverfahren oben unverändert.
+
+- **Schalter:** `FEATURE_ZENTRALE_ANMELDUNG` (`aus` als Vorgabe). Ohne die
+  vier `AUTH_*`-Werte antworten `/auth/*` mit 404. Eine halbe Konfiguration
+  verhindert den Start (`src/server/env.ts`). Mit `an` leiten `/anmelden` und
+  `/registrieren` weiter, und `loginAction()` und `registerAction()` nehmen
+  auch bei direktem Aufruf nichts mehr an.
+- **Ablauf:** OpenID Connect, Code-Flow mit PKCE (S256), `state`, `nonce` und
+  Client-Secret (`client_secret_basic`), über `openid-client`
+  (`src/server/auth/zentral.ts`). Das ID-Token wird auf Signatur (RS256),
+  Aussteller, Zielgruppe, Ablauf und `nonce` geprüft.
+- **Zustand:** `state`, `nonce`, PKCE-Verifier und Ziel liegen in einem
+  HMAC-SHA256-signierten Cookie (`src/server/auth/zentral-zustand.ts`), zehn
+  Minuten gültig und nur einmal verwendbar. Es ist `httpOnly` und
+  `SameSite=Lax`, unter https mit `__Host-`-Präfix.
+- **Rücksprungziele:** nur relative Pfade derselben App (`sicheresZiel()`),
+  nie in `/auth`, `/anmelden`, `/registrieren` oder `/api`. Damit gibt es
+  keinen offenen Redirect.
+- **Kontoregeln** (`src/server/auth/zentral-konto.ts`): Treffer über `sub`.
+  Ohne Treffer zählt nur eine **bestätigte** Adresse (`email_verified`). Ein
+  vorhandenes Konto wird nur verbunden, solange es noch mit keinem anderen
+  `sub` verbunden ist. Eine unbestätigte Adresse verbindet und erzeugt nie
+  etwas. So kann niemand über eine fremde Adresse ein Konto übernehmen oder
+  eine Adresse für die echte Person blockieren.
+- **Verwaltungsrechte** nur mit zweitem Faktor (`amr` enthält `mfa`).
+- **Abmelden:** Endet die Sitzung in AIPfad, geht es zum `end_session_endpoint`
+  des Kontos (`id_token_hint`, `post_logout_redirect_uri` auf die
+  Startseite). Das ID-Token liegt dafür an der Sitzung
+  (`AuthSession.oidcIdToken`); es enthält nur, was ohnehin im Konto steht.
+- **Rückkanal-Abmeldung:** `POST /auth/abmelden-rueckkanal` nach OpenID
+  Connect Back-Channel Logout 1.0, Abschnitt 2.6: Signatur gegen die JWKS des
+  Kontos, Aussteller, Zielgruppe, `iat` höchstens fünf Minuten alt, `jti`,
+  das Logout-Ereignis, `sid` oder `sub`, kein `nonce`. Beendet werden nur
+  Sitzungen, die über das gemeinsame Konto entstanden sind.
+- **Protokolle** enthalten weder Adresse noch Name noch Token, nur gekürzte
+  Konto-IDs und Gründe.
+
 ## Kein Live-KI-Aufruf in dieser Ausbaustufe
 
 Anders als PythonPfads optionaler KI-Tutor macht AIPfad in dieser

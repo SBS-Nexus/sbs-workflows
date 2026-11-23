@@ -48,6 +48,19 @@ test('Anmeldung: keine serious/critical Verstöße', async ({ page }) => {
   await expectNoSeriousViolations(page);
 });
 
+test('Hinweis zur Anmeldung über das gemeinsame Konto: hell und dunkel ohne Verstöße', async ({
+  page,
+}) => {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.goto('/auth/fehler?grund=adresse-unbestaetigt');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'Bitte bestätige zuerst deine E-Mail-Adresse',
+    );
+    await expectNoSeriousViolations(page);
+  }
+});
+
 test('Pfad (angemeldet): keine serious/critical Verstöße', async ({ page }) => {
   await registriere(page, 'A11y Test');
   await onboardingAbschliessen(page);

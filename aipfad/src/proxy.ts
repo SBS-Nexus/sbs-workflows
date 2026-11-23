@@ -69,6 +69,9 @@ export default function proxy(request: NextRequest): NextResponse {
     const url = request.nextUrl.clone();
     url.pathname = '/anmelden';
     url.search = '';
+    // Nach der Anmeldung geht es dorthin zurück; geprüft wird das Ziel erst
+    // beim Verwenden (`sicheresZiel()` in server/auth/zentral-zustand.ts).
+    url.searchParams.set('ziel', `${pathname}${request.nextUrl.search}`);
     return withStrictTransport(NextResponse.redirect(url));
   }
 
