@@ -157,5 +157,18 @@ Gemergt als PR #98 (`80a34aa`).
   - `/anmelden` zeigt weiter das eigene Formular.
   - Der Rückkanal lehnt ungültige Token mit 400 ab.
 
-Offen sind Schritt 4 (E2E gegen echten ZITADEL in der CI) und Schritt 5
-(Rundgang mit einer echten Adresse, danach Schalter `an`).
+**23.11.2026, Schritt 4:** Strecke gegen einen echten ZITADEL
+(`.github/workflows/aipfad-konto-e2e.yml`, `konto/pruefung/e2e/`,
+`aipfad/e2e-konto/`).
+
+- Vier Abläufe, lokal zweimal hintereinander grün (Einzelheiten in
+  `aipfad/docs/TESTING.md`): Anmelden mit Onboarding und Abmelden,
+  Rückkanal-Abmeldung, Bestätigungspflicht, Registrierung.
+- Die Strecke hat zwei Fehler gefunden, die live gewesen wären:
+  - Die Abmelde-Adresse kam ohne Schrägstrich, darum lehnte ZITADEL das
+    Abmelden ab. Behoben in `zentral.ts`.
+  - Auf Seiten mit bekannter Organisation zeigte die Anmeldung eingebaute
+    Texte in Sie-Form. Behoben durch Texte auch auf Organisationsebene
+    (`einrichten.mjs`); auf konto.lernpfade.net nachzuziehen.
+
+Offen ist Schritt 5: Rundgang mit einer echten Adresse, danach Schalter `an`.

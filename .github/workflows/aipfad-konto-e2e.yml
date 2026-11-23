@@ -1,0 +1,95 @@
+name: AIPfad – gemeinsames Konto (E2E)
+
+# Strecke gegen einen echten ZITADEL (E4.2, Schritt 4; docs/E4-2-BAUPLAN.md):
+# ZITADEL v4.20.5 und die eigene Anmelde-App aus konto/login laufen per
+# Docker Compose auf dem Runner, eingerichtet mit demselben Skript wie
+# konto.lernpfade.net. AIPfad läuft mit Schalter `an` dagegen. Läuft bei
+# Änderungen an AIPfad und am Konto, weil beide Seiten den Ablauf tragen.
+on:
+  push:
+    branches: [main]
+    paths: ['aipfad/**', 'konto/**', '.github/workflows/aipfad-konto-e2e.yml']
+  pull_request:
+    paths: ['aipfad/**', 'konto/**', '.github/workflows/aipfad-konto-e2e.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Anmeldung gegen echten ZITADEL
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aipfad
+          POSTGRES_PASSWORD: aipfad
+          POSTGRES_DB: aipfad
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U aipfad"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://aipfad:aipfad@localhost:5432/aipfad?schema=public
+      APP_URL: http://127.0.0.1:3101
+      DEPLOYMENT_ID: ${{ github.sha }}
+      # Testwert, kein echtes Geheimnis (wie in aipfad-ci.yml).
+      CRON_SECRET: 'ci-testgeheimnis-kein-echtes-geheimnis'
+      RETENTION_MODE: 'dry-run'
+      SEED_DEMO_USERS: 'false'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: aipfad/package-lock.json
+
+      - name: Arbeitsordner für Testgeheimnisse
+        run: echo "KONTO_E2E_DIR=$RUNNER_TEMP/konto-e2e" >> "$GITHUB_ENV"
+
+      - name: Anmelde-App bauen (konto/login)
+        run: docker build -t lernpfade/konto-login:e2e konto/login
+
+      - name: Test-ZITADEL starten und einrichten
+        run: konto/pruefung/e2e/starte.sh
+
+      - name: AIPfad – Abhängigkeiten, Datenbank, Produktionsbuild
+        working-directory: aipfad
+        run: |
+          npm ci
+          npm run db:deploy
+          npm run db:seed
+          npm run build
+
+      - name: Browser
+        working-directory: aipfad
+        run: npx playwright install --with-deps chromium
+
+      - name: Anmelden, Rückkanal, Bestätigungspflicht
+        working-directory: aipfad
+        run: npx playwright test -c playwright.konto.config.ts
+
+      - name: Protokolle der Testumgebung
+        if: failure()
+        run: docker compose -f konto/pruefung/e2e/compose.yaml logs --no-color --tail 300
+
+      - name: Testbericht sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aipfad-konto-e2e-report
+          path: aipfad/playwright-report/
+          retention-days: 14
+
+      - name: Aufräumen
+        if: always()
+        run: docker compose -f konto/pruefung/e2e/compose.yaml down -v
