@@ -13,7 +13,7 @@ const NM = (
 const require = createRequire(NM);
 const { chromium } = require('playwright');
 const AXE = readFileSync(NM + 'axe-core/axe.min.js', 'utf8');
-const BASIS = 'https://konto.lernpfade.net/ui/v2/login';
+const BASIS = (process.env.PRUEF_BASIS ?? 'https://konto.lernpfade.net').replace(/\/$/, '') + '/ui/v2/login';
 const ADRESSE = 'axe-pruefung@example.test';
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 

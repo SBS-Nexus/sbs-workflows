@@ -10,6 +10,7 @@ Plan und Begründung: `docs/E4-1-BAUPLAN.md`, E4.1b Stufe 2.
 | `0001-next-16.4.6.patch`      | Next.js 16.4.3 → 16.4.6 (sieben Sicherheitshinweise, behoben ab 16.4.5); Lock-Datei neu aufgelöst                                                                                                                                                 |
 | `0002-html-lang.patch`        | `<html lang>` aus der aktiven Sprache (WCAG 3.1.1, axe `html-has-lang`)                                                                                                                                                                           |
 | `0003-barrierefreiheit.patch` | `autocomplete` (`given-name`, `family-name`, `current-password`), Name für den Link zum Kontowechsel, übersetzter Name der Methodenauswahl statt „Server size“, übersetzte Farbschema-Knöpfe mit `aria-pressed`, Kontrast im gelben Hinweiskasten |
+| `0004-passwort-nfkc.patch`    | Passwörter vor dem Prüfen und Setzen nach Unicode NFKC normalisieren, wie die Apps beim Hashen (Anmelden, Zurücksetzen, Ändern, Registrieren; nicht LDAP); mit Test                                                                               |
 
 ## Lokal bauen
 
