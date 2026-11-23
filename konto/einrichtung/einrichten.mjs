@@ -14,6 +14,8 @@
 //     --schluessel /pfad/einrichtung.pem --nutzer einrichtung \
 //     --mail-endpunkt https://<konto-mail>.up.railway.app/ --ausgabe /pfad/geheim \
 //     [--login-token-erneuern] [--mail-neu] [--ueber https://<konto-proxy>.up.railway.app]
+//     [--anwendungen [--anwendung-basis aipfad=http://127.0.0.1:3101]
+//      [--secret-erneuern aipfad]]
 //
 // --ueber schickt die Anfragen an eine andere Adresse desselben Proxys (etwa
 // solange das DNS für konto.lernpfade.net noch fehlt). Das Token bleibt auf
@@ -22,6 +24,7 @@ import { createPrivateKey, sign } from 'node:crypto';
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
+import { ANWENDUNGEN, PROJEKT, oidcEinstellungen } from './anwendungen.mjs';
 import { iconSvg, logoSvg, schriftDatei } from './marke.mjs';
 import { NACHRICHTEN } from './texte.mjs';
 
@@ -36,6 +39,9 @@ const { values: arg } = parseArgs({
     'mail-neu': { type: 'boolean', default: false },
     'nur-pruefen': { type: 'boolean', default: false },
     ueber: { type: 'string' },
+    anwendungen: { type: 'boolean', default: false },
+    'anwendung-basis': { type: 'string', multiple: true, default: [] },
+    'secret-erneuern': { type: 'string', multiple: true, default: [] },
   },
 });
 for (const pflicht of ['basis', 'schluessel', 'ausgabe']) {
@@ -381,6 +387,116 @@ if (loginNutzer) {
     console.log(
       'OK     Token der Anmelde-App unverändert (--login-token-erneuern erzeugt ein neues)',
     );
+  }
+}
+
+// Anwendungen am gemeinsamen Konto (E4.2): Projekt, OIDC-Anwendungen und
+// die Rückkanal-Abmeldung. Neue Zugangsdaten landen je Anwendung in
+// <schluessel>-auth.json (AUTH_CLIENT_ID, AUTH_CLIENT_SECRET).
+if (arg.anwendungen) {
+  const basisFuer = Object.fromEntries(
+    arg['anwendung-basis'].map((eintrag) => {
+      const [schluessel, basis] = eintrag.split('=');
+      return [schluessel, basis.replace(/\/$/, '')];
+    }),
+  );
+
+  const funktion = await schritt(
+    'Rückkanal-Abmeldung einschalten',
+    'PUT',
+    '/v2/features/instance',
+    {
+      enableBackChannelLogout: true,
+    },
+  );
+  if (funktion.ok) {
+    const stand = await schritt('Funktionen lesen', 'GET', '/v2/features/instance');
+    console.log(
+      `HINWEIS Rückkanal=${stand.daten?.enableBackChannelLogout?.enabled} LoginV2=${stand.daten?.loginV2?.required}`,
+    );
+  }
+
+  const projekte = await schritt(
+    `Projekt ${PROJEKT} suchen`,
+    'POST',
+    '/management/v1/projects/_search',
+    { queries: [{ nameQuery: { name: PROJEKT, method: 'TEXT_QUERY_METHOD_EQUALS' } }] },
+    { orgId },
+  );
+  let projektId = projekte.daten?.result?.[0]?.id;
+  if (!projektId) {
+    const neu = await schritt(
+      `Projekt ${PROJEKT} anlegen`,
+      'POST',
+      '/management/v1/projects',
+      {
+        name: PROJEKT,
+        projectRoleAssertion: false,
+        projectRoleCheck: false,
+        hasProjectCheck: false,
+      },
+      { orgId },
+    );
+    projektId = neu.daten?.id;
+  }
+
+  if (projektId) {
+    const vorhanden = await schritt(
+      'Anwendungen lesen',
+      'POST',
+      `/management/v1/projects/${projektId}/apps/_search`,
+      { query: { limit: 100 } },
+      { orgId },
+    );
+    for (const anwendung of ANWENDUNGEN) {
+      const basis = basisFuer[anwendung.schluessel] ?? anwendung.basis;
+      const einstellungen = oidcEinstellungen(basis);
+      const app = (vorhanden.daten?.result ?? []).find((a) => a.name === anwendung.name);
+
+      if (!app) {
+        const neu = await schritt(
+          `Anwendung ${anwendung.name} anlegen (${basis})`,
+          'POST',
+          `/management/v1/projects/${projektId}/apps/oidc`,
+          { name: anwendung.name, ...einstellungen },
+          { orgId },
+        );
+        if (neu.ok && neu.daten?.clientSecret) {
+          schreibeGeheim(`${anwendung.schluessel}-auth.json`, {
+            AUTH_CLIENT_ID: neu.daten.clientId,
+            AUTH_CLIENT_SECRET: neu.daten.clientSecret,
+          });
+        }
+        continue;
+      }
+
+      await schritt(
+        `Anwendung ${anwendung.name} einstellen (${basis})`,
+        'PUT',
+        `/management/v1/projects/${projektId}/apps/${app.id}/oidc_config`,
+        einstellungen,
+        { orgId },
+      );
+      if (arg['secret-erneuern'].includes(anwendung.schluessel)) {
+        const secret = await schritt(
+          `Client-Secret ${anwendung.name} erneuern`,
+          'POST',
+          `/management/v1/projects/${projektId}/apps/${app.id}/oidc_config/_generate_client_secret`,
+          {},
+          { orgId },
+        );
+        if (secret.ok && secret.daten?.clientSecret) {
+          schreibeGeheim(`${anwendung.schluessel}-auth.json`, {
+            AUTH_CLIENT_ID: app.oidcConfig?.clientId,
+            AUTH_CLIENT_SECRET: secret.daten.clientSecret,
+          });
+        }
+      } else {
+        console.log(
+          `OK     Client-Secret ${anwendung.name} unverändert (--secret-erneuern ${anwendung.schluessel})`,
+        );
+      }
+    }
   }
 }
 
