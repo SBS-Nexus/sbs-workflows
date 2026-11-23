@@ -12,8 +12,10 @@ export const ANWENDUNGEN = [
  * OIDC-Einstellungen einer Web-Anwendung: Code-Flow, Client-Secret per Basic,
  * Adresse und Name im ID-Token, Rückkanal-Abmeldung. Eine Adresse über http
  * (nur die CI-Strecke auf localhost) braucht in ZITADEL den Entwicklungsmodus.
+ * `rueckkanal` weicht nur in der CI-Strecke ab: Dort erreicht ZITADEL die App
+ * aus dem Container über host.docker.internal statt über 127.0.0.1.
  */
-export function oidcEinstellungen(basis) {
+export function oidcEinstellungen(basis, rueckkanal = basis) {
   return {
     redirectUris: [`${basis}/auth/rueckkehr`],
     postLogoutRedirectUris: [`${basis}/`],
@@ -28,6 +30,6 @@ export function oidcEinstellungen(basis) {
     idTokenRoleAssertion: false,
     idTokenUserinfoAssertion: true,
     clockSkew: '0s',
-    backChannelLogoutUri: `${basis}/auth/abmelden-rueckkanal`,
+    backChannelLogoutUri: `${rueckkanal}/auth/abmelden-rueckkanal`,
   };
 }

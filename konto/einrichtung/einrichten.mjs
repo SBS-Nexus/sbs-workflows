@@ -15,17 +15,17 @@
 //     --mail-endpunkt https://<konto-mail>.up.railway.app/ --ausgabe /pfad/geheim \
 //     [--login-token-erneuern] [--mail-neu] [--ueber https://<konto-proxy>.up.railway.app]
 //     [--anwendungen [--anwendung-basis aipfad=http://127.0.0.1:3101]
-//      [--secret-erneuern aipfad]]
+//      [--rueckkanal-basis aipfad=http://host.docker.internal:3101] [--secret-erneuern aipfad]]
 //
 // --ueber schickt die Anfragen an eine andere Adresse desselben Proxys (etwa
 // solange das DNS für konto.lernpfade.net noch fehlt). Das Token bleibt auf
 // --basis ausgestellt; der Proxy setzt den Host ohnehin auf konto.lernpfade.net.
-import { createPrivateKey, sign } from 'node:crypto';
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { ANWENDUNGEN, PROJEKT, oidcEinstellungen } from './anwendungen.mjs';
 import { iconSvg, logoSvg, schriftDatei } from './marke.mjs';
+import { systemToken } from './zugang.mjs';
 import { NACHRICHTEN } from './texte.mjs';
 
 const { values: arg } = parseArgs({
@@ -41,6 +41,7 @@ const { values: arg } = parseArgs({
     ueber: { type: 'string' },
     anwendungen: { type: 'boolean', default: false },
     'anwendung-basis': { type: 'string', multiple: true, default: [] },
+    'rueckkanal-basis': { type: 'string', multiple: true, default: [] },
     'secret-erneuern': { type: 'string', multiple: true, default: [] },
   },
 });
@@ -52,28 +53,15 @@ const ZIEL = (arg.ueber ?? arg.basis).replace(/\/$/, '');
 
 // --- Anmeldung als System-Nutzer -------------------------------------------
 
-const b64url = (daten) => Buffer.from(daten).toString('base64url');
-function systemToken() {
-  const jetzt = Math.floor(Date.now() / 1000);
-  const kopf = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const inhalt = b64url(
-    JSON.stringify({
-      iss: arg.nutzer,
-      sub: arg.nutzer,
-      aud: BASIS,
-      iat: jetzt,
-      exp: jetzt + 600,
-    }),
-  );
-  const schluessel = createPrivateKey(readFileSync(arg.schluessel));
-  const signatur = sign('RSA-SHA256', Buffer.from(`${kopf}.${inhalt}`), schluessel);
-  return `${kopf}.${inhalt}.${b64url(signatur)}`;
-}
-const TOKEN = systemToken();
+const TOKEN = systemToken({
+  nutzer: arg.nutzer,
+  aussteller: BASIS,
+  schluesselPfad: arg.schluessel,
+});
 
 /** Fehler, die beim zweiten Lauf erwartbar sind und nichts bedeuten. */
 const SCHON_SO =
-  /already exists|alreadyexists|not changed|notchanged|has not been changed|no changes|existiert bereits|nicht (?:ver)?ändert|nicht geändert/i;
+  /already exists|alreadyexists|not changed|notchanged|has not been changed|no changes|existiert bereits|nicht (?:ver)?ändert|nicht geändert|keine änderungen/i;
 
 async function api(methode, pfad, koerper, { orgId, erlaubt = [] } = {}) {
   const kopf = { authorization: `Bearer ${TOKEN}`, accept: 'application/json' };
@@ -276,6 +264,10 @@ for (const [sprache, texte] of Object.entries(NACHRICHTEN)) {
 
 // Texte der Anmeldeseite (Login v2): Du-Ton der Lernpfade, ohne „Zitadel“.
 // Die Anmelde-App führt sie mit ihren eingebauten Texten zusammen.
+// Zweimal gesetzt: Kennt die Anmelde-App die Organisation (etwa auf der
+// Bestätigungsseite), fragt sie deren Texte ab, und ZITADEL ergänzt die dann
+// aus den eingebauten Texten statt aus denen der Instanz (gefunden mit der
+// CI-Strecke zu E4.2: „Benutzer verifizieren“ statt unseres Titels).
 for (const sprache of ['de', 'en']) {
   const texte = JSON.parse(
     readFileSync(new URL(`./anmeldetexte.${sprache}.json`, import.meta.url), 'utf8'),
@@ -285,6 +277,12 @@ for (const sprache of ['de', 'en']) {
     locale: sprache,
     translations: texte,
   });
+  await schritt(
+    `Anmeldetexte (${sprache}, Organisation)`,
+    'PUT',
+    '/v2/settings/hosted_login_translation',
+    { organizationId: orgId, locale: sprache, translations: texte },
+  );
 }
 
 // Mailversand über konto-mail (HTTP-Anbieter mit Signatur).
@@ -394,27 +392,24 @@ if (loginNutzer) {
 // die Rückkanal-Abmeldung. Neue Zugangsdaten landen je Anwendung in
 // <schluessel>-auth.json (AUTH_CLIENT_ID, AUTH_CLIENT_SECRET).
 if (arg.anwendungen) {
-  const basisFuer = Object.fromEntries(
-    arg['anwendung-basis'].map((eintrag) => {
-      const [schluessel, basis] = eintrag.split('=');
-      return [schluessel, basis.replace(/\/$/, '')];
-    }),
-  );
-
-  const funktion = await schritt(
-    'Rückkanal-Abmeldung einschalten',
-    'PUT',
-    '/v2/features/instance',
-    {
-      enableBackChannelLogout: true,
-    },
-  );
-  if (funktion.ok) {
-    const stand = await schritt('Funktionen lesen', 'GET', '/v2/features/instance');
-    console.log(
-      `HINWEIS Rückkanal=${stand.daten?.enableBackChannelLogout?.enabled} LoginV2=${stand.daten?.loginV2?.required}`,
+  const zuordnung = (liste) =>
+    Object.fromEntries(
+      liste.map((eintrag) => {
+        const [schluessel, basis] = eintrag.split('=');
+        return [schluessel, basis.replace(/\/$/, '')];
+      }),
     );
-  }
+  const basisFuer = zuordnung(arg['anwendung-basis']);
+  const rueckkanalFuer = zuordnung(arg['rueckkanal-basis']);
+
+  await schritt('Rückkanal-Abmeldung einschalten', 'PUT', '/v2/features/instance', {
+    enableBackChannelLogout: true,
+  });
+  // Auch wenn sie schon an war ("schon so"): Den Stand lesen und ausgeben.
+  const stand = await schritt('Funktionen lesen', 'GET', '/v2/features/instance');
+  console.log(
+    `HINWEIS Rückkanal=${stand.daten?.enableBackChannelLogout?.enabled} LoginV2=${stand.daten?.loginV2?.required}`,
+  );
 
   const projekte = await schritt(
     `Projekt ${PROJEKT} suchen`,
@@ -450,7 +445,7 @@ if (arg.anwendungen) {
     );
     for (const anwendung of ANWENDUNGEN) {
       const basis = basisFuer[anwendung.schluessel] ?? anwendung.basis;
-      const einstellungen = oidcEinstellungen(basis);
+      const einstellungen = oidcEinstellungen(basis, rueckkanalFuer[anwendung.schluessel] ?? basis);
       const app = (vorhanden.daten?.result ?? []).find((a) => a.name === anwendung.name);
 
       if (!app) {

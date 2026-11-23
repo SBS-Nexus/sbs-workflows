@@ -53,6 +53,22 @@ Für jede Einrichtung gibt es einen befristeten System-Nutzer:
 
 Das Skript ist wiederholbar: Was schon so eingestellt ist, meldet es als „schon so“.
 
+## Einstellungen der Anmelde-App
+
+- `EMAIL_VERIFICATION=true` bei `konto-login` und `konto-login-probe`: Wer
+  seine Adresse noch nicht bestätigt hat, kommt vor dem Abschluss der
+  Anmeldung auf die Bestätigungsseite. Die Apps verbinden ohnehin nur
+  bestätigte Adressen (E4.2); so bleibt niemand auf halbem Weg hängen.
+
+## Prüfung gegen einen echten ZITADEL
+
+`konto/pruefung/e2e/` startet ZITADEL in derselben Version mit der eigenen
+Anmelde-App per Docker Compose. `starte.sh` richtet die Instanz mit
+`einrichten.mjs` ein und legt mit `pruefung/testkonten.mjs` Testkonten an;
+Letzteres läuft nur gegen localhost. Die Strecke in der CI ist
+`.github/workflows/aipfad-konto-e2e.yml`, die Anleitung für lokal steht in
+`aipfad/docs/TESTING.md`.
+
 ## Fristen
 
 - **Token der Anmelde-App:** läuft zwei Jahre nach der Einrichtung ab (Datum

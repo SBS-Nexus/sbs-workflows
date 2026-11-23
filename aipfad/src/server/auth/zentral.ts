@@ -2,7 +2,7 @@ import 'server-only';
 import * as oidc from 'openid-client';
 import { createRemoteJWKSet, type JWTVerifyGetKey } from 'jose';
 import { getEnv } from '@/server/env';
-import { absoluteUrl } from '@/server/site';
+import { absoluteUrl, siteUrl } from '@/server/site';
 import {
   identitaetAusClaims,
   pruefeAbmeldeToken,
@@ -172,7 +172,9 @@ export async function abmeldeAdresse(zugang: Zugang, idToken: string | null): Pr
   const config = await konfiguration(zugang);
   const parameter: Record<string, string> = {
     client_id: zugang.clientId,
-    post_logout_redirect_uri: absoluteUrl('/'),
+    // Genau wie registriert, mit Schrägstrich am Ende: ZITADEL vergleicht die
+    // Adresse zeichengenau (`absoluteUrl('/')` liefert sie ohne).
+    post_logout_redirect_uri: `${siteUrl()}/`,
   };
   if (idToken) parameter.id_token_hint = idToken;
   return oidc.buildEndSessionUrl(config, parameter);

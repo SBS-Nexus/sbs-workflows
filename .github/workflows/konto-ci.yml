@@ -36,6 +36,9 @@ jobs:
       - name: Einrichtungsskript und Texte laden
         run: |
           node --check konto/einrichtung/einrichten.mjs
+          node --check konto/einrichtung/zugang.mjs
+          node --check konto/pruefung/testkonten.mjs
+          bash -n konto/pruefung/e2e/starte.sh
           node -e 'import("./konto/einrichtung/texte.mjs").then((m) => { for (const [s, t] of Object.entries(m.NACHRICHTEN)) for (const [k, v] of Object.entries(t)) for (const f of ["title", "subject", "text", "buttonText"]) if (!v[f]) throw new Error(`${s}/${k}: ${f} fehlt`); })'
 
   proxy:

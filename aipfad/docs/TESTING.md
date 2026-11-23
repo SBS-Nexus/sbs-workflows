@@ -226,6 +226,46 @@ Läuft gegen `npm run build && npm run start` auf Port 3101 (nicht gegen den
 Entwicklungsserver) — bildet damit Server Components, Caching und die
 Content-Security-Policy realistisch ab.
 
+### Anmeldung über das gemeinsame Konto (E4.2) — gegen einen echten ZITADEL
+
+`e2e-konto/zentrale-anmeldung.spec.ts` mit eigener Konfiguration
+(`playwright.konto.config.ts`, ohne Wiederholungen) und Schalter `an`. Die
+Gegenseite ist echt: ZITADEL v4.20.5 und die eigene Anmelde-App aus
+`konto/login` per Docker Compose (`konto/pruefung/e2e/`). Eingerichtet wird
+sie mit demselben Skript wie konto.lernpfade.net, Testkonten entstehen mit
+zufälligen Passwörtern.
+
+Vier Abläufe:
+
+1. Anmelden von einer geschützten Seite aus, Onboarding, Abmelden. Danach
+   meldet weder AIPfad noch das Konto still wieder an, und beim Konto ist
+   keine Sitzung aus dem Test offen.
+2. Zweiter Besuch ohne Onboarding. Dann endet die Sitzung beim Konto von
+   außen, und die Rückkanal-Abmeldung beendet die Sitzung in AIPfad.
+3. Ein Konto mit unbestätigter Adresse kommt nur bis zur Bestätigungsseite.
+4. `/registrieren` öffnet die Registrierung beim Konto.
+
+Lokal:
+
+```sh
+export KONTO_E2E_DIR=$(mktemp -d)
+docker build -t lernpfade/konto-login:e2e konto/login
+konto/pruefung/e2e/starte.sh
+# in aipfad/: Datenbank migrieren und befüllen, npm run build, dann
+npx playwright test -c playwright.konto.config.ts
+docker compose -f konto/pruefung/e2e/compose.yaml down -v
+```
+
+Gefunden hat die Strecke beim ersten Lauf zwei Fehler, die live gewesen
+wären:
+
+- `post_logout_redirect_uri` ging ohne Schrägstrich hinaus, registriert ist
+  sie mit. ZITADEL lehnt das Abmelden dann ab.
+- Kennt die Anmelde-App die Organisation, ergänzt ZITADEL fehlende Texte
+  aus den eingebauten statt aus denen der Instanz. Die Bestätigungsseite
+  zeigte deshalb „Benutzer verifizieren“ in Sie-Form. `einrichten.mjs` setzt
+  die Texte jetzt auch für die Organisation.
+
 ## Was während der Entwicklung zusätzlich manuell verifiziert wurde
 
 Über `playwright-project` (echter Chrome, kein Headless-Mock) wurden diese
