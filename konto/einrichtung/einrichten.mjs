@@ -73,7 +73,7 @@ const TOKEN = systemToken();
 
 /** Fehler, die beim zweiten Lauf erwartbar sind und nichts bedeuten. */
 const SCHON_SO =
-  /already exists|alreadyexists|not changed|notchanged|has not been changed|no changes|existiert bereits|nicht (?:ver)?ändert|nicht geändert/i;
+  /already exists|alreadyexists|not changed|notchanged|has not been changed|no changes|existiert bereits|nicht (?:ver)?ändert|nicht geändert|keine änderungen/i;
 
 async function api(methode, pfad, koerper, { orgId, erlaubt = [] } = {}) {
   const kopf = { authorization: `Bearer ${TOKEN}`, accept: 'application/json' };
@@ -401,20 +401,14 @@ if (arg.anwendungen) {
     }),
   );
 
-  const funktion = await schritt(
-    'Rückkanal-Abmeldung einschalten',
-    'PUT',
-    '/v2/features/instance',
-    {
-      enableBackChannelLogout: true,
-    },
+  await schritt('Rückkanal-Abmeldung einschalten', 'PUT', '/v2/features/instance', {
+    enableBackChannelLogout: true,
+  });
+  // Auch wenn sie schon an war ("schon so"): Den Stand lesen und ausgeben.
+  const stand = await schritt('Funktionen lesen', 'GET', '/v2/features/instance');
+  console.log(
+    `HINWEIS Rückkanal=${stand.daten?.enableBackChannelLogout?.enabled} LoginV2=${stand.daten?.loginV2?.required}`,
   );
-  if (funktion.ok) {
-    const stand = await schritt('Funktionen lesen', 'GET', '/v2/features/instance');
-    console.log(
-      `HINWEIS Rückkanal=${stand.daten?.enableBackChannelLogout?.enabled} LoginV2=${stand.daten?.loginV2?.required}`,
-    );
-  }
 
   const projekte = await schritt(
     `Projekt ${PROJEKT} suchen`,

@@ -132,5 +132,30 @@ zusammengeführt werden.
   - Integration: 9 Kontoregeln und Rückkanal gegen echtes Postgres.
   - E2E: deaktivierte Routen, Ziel, Hinweisseite mit axe hell und dunkel.
 
-Offen sind Schritt 3 (ZITADEL-Anwendung, Ausrollen mit Schalter `aus`),
-Schritt 4 (E2E gegen echten ZITADEL) und Schritt 5 (Rundgang, Schalter `an`).
+Gemergt als PR #98 (`80a34aa`).
+
+**23.11.2026, Schritt 3 live:**
+
+- `einrichten.mjs --anwendungen` hat das Projekt „Lernpfade“ und die
+  Anwendung „AIPfad“ angelegt (Client-ID `400919885422606183`).
+  - Die Rückkanal-Abmeldung der Instanz war schon an.
+  - „Login V2 erforderlich“ ist unverändert an.
+  - Der befristete System-Nutzer ist wieder entfernt, sein Schlüssel gelöscht.
+- AIPfad läuft auf `80a34aa` mit allen vier `AUTH_*`-Werten und Schalter
+  `aus`. Client-Secret und Zustandsschlüssel gingen nur als Datei an
+  Railway; die Dateien sind gelöscht.
+- Die Anmelde-App verlangt jetzt eine bestätigte Adresse, bevor eine
+  Anmeldung abgeschlossen wird (`EMAIL_VERIFICATION=true`, auch auf dem
+  Probedienst).
+- Live geprüft im Browser:
+  - `/auth/anmelden` führt zur Anmeldeseite des Kontos („Willkommen
+    zurück“), mit PKCE, `state`, `nonce` und `ui_locales=de`.
+  - `?modus=registrieren` führt zu „Konto erstellen“.
+  - Das Zustandscookie ist `__Host-`, `Secure`, `HttpOnly` und
+    `SameSite=Lax`.
+  - Eine Rückkehr ohne Zustand landet auf der Hinweisseite.
+  - `/anmelden` zeigt weiter das eigene Formular.
+  - Der Rückkanal lehnt ungültige Token mit 400 ab.
+
+Offen sind Schritt 4 (E2E gegen echten ZITADEL in der CI) und Schritt 5
+(Rundgang mit einer echten Adresse, danach Schalter `an`).
