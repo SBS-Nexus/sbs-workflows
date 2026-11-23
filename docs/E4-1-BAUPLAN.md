@@ -167,6 +167,14 @@ Monat gehoben. Stattdessen:
      - Live geprüft, hell und dunkel, Desktop und mobil. Die Anmelde-App hält
        Einstellungen bis zu 60 Minuten im Speicher; nach einer Änderung
        `konto-login` neu starten.
+   - **Stufe 2 läuft seit 22.11.2026 (zuerst vorgezogen wegen Sicherheit):**
+     ZITADELs Image `zitadel-login:v4.20.5` nutzt Next.js 16.4.3. Dafür gibt
+     es sieben Sicherheitshinweise mittlerer Schwere, behoben ab 16.4.5,
+     darunter „Cross-client response injection and disclosure in self-hosted
+     Next.js applications forwarding fetched responses“. Auch der Hauptzweig
+     von ZITADEL steht noch bei 16.4.3. `konto/login/` baut die App deshalb
+     aus dem Quelltext mit Patches; die ersten beiden heben Next.js auf 16.4.6
+     und setzen `<html lang>`.
    - **Stufe 2, vor E4.4: eigener Bau.** Learning-OS-Aufbau statt der Karte
      von ZITADEL und NFKC-Normalisierung des Passworts (nötig für übernommene
      Konten mit Sonderformen wie Ligaturen, siehe E4.0).
@@ -189,6 +197,38 @@ Monat gehoben. Stattdessen:
      Ich darf dort keine Konten mit Passwort anlegen.
    - Automatisch läuft derselbe Rundgang ab E4.2 in der CI gegen einen
      ZITADEL-Container.
+
+   **axe-Lauf am 22.11.2026** (`konto/pruefung/axe.mjs`, WCAG 2.2 A/AA, sieben
+   Seiten × hell/dunkel × Desktop/mobil = 28 Ansichten): jede Ansicht mit
+   Befund, vier Regeln, alle „serious“, alle aus der Vorlage von ZITADEL:
+
+   | Regel                | Wo                            | Ursache                                                                                      |
+   | -------------------- | ----------------------------- | -------------------------------------------------------------------------------------------- |
+   | `html-has-lang`      | alle Seiten                   | `<html>` ohne `lang` im Layout der Anmelde-App                                               |
+   | `autocomplete-valid` | Registrierung, Passwortseiten | `firstname`/`lastname` statt `given-name`/`family-name`, `password` statt `current-password` |
+   | `link-name`          | Passwort, Zurücksetzen        | Pfeil-Link zum Kontowechsel ohne Text (nur SVG)                                              |
+   | `color-contrast`     | Bestätigen (hell)             | gelber Hinweiskasten mit festen Farben, 2,56:1                                               |
+
+   Über Texte oder Markeneinstellungen ist keiner davon zu beheben. Das Tor
+   bleibt offen, bis der eigene Bau (Stufe 2) sie behebt.
+
+   **Behoben am 23.11.2026:** Nach den Patches 0001–0004 (`konto/login/`)
+   zeigt axe in **allen 28 Ansichten keinen Befund**, auf der Probe und in
+   der Produktion. Dazu kommen:
+
+   - **Sicherheit:** Next.js 16.4.6 statt 16.4.3.
+   - **Proxy gehärtet:** Caddy entfernt `x-zitadel-instance-host`,
+     `x-zitadel-forward-host` und `x-zitadel-public-host` aus
+     Browser-Anfragen. Vorher reichte ein gefälschter Kopf, um die Seite
+     abstürzen zu lassen, und die öffentliche Adresse fließt in Links ein.
+   - **Probedienst `konto-login-probe`:** Neue Builds werden dort zuerst
+     geprüft (Railway-Adresse, Geheimnisse per Referenz von `konto-login`;
+     Tests setzen `PRUEF_KOPF_HOST=konto.lernpfade.net`).
+   - **Störung am 22.11.2026, 17:02–17:10:** Die erste Fassung von 0003 ließ
+     die Farbschema-Knöpfe Übersetzungen laden. Im Ladezustand außerhalb des
+     Providers brach daran jede Kontoseite ab. Zurückgerollt und behoben;
+     Nutzer waren keine betroffen. Seitdem geht jeder Build erst auf die
+     Probe.
 
 ## 6. Was du beiträgst
 

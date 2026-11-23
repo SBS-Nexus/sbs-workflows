@@ -1,0 +1,31 @@
+diff --git a/apps/login/src/app/(login)/layout.tsx b/apps/login/src/app/(login)/layout.tsx
+index 99317af..3ef90ae 100644
+--- a/apps/login/src/app/(login)/layout.tsx
++++ b/apps/login/src/app/(login)/layout.tsx
+@@ -11,7 +11,7 @@ import { getServiceConfig } from "@/lib/server/service-url";
+ import { getAllowedLanguages } from "@/lib/server/zitadel";
+ import * as Tooltip from "@radix-ui/react-tooltip";
+ import type { Metadata } from "next";
+-import { getTranslations } from "next-intl/server";
++import { getLocale, getTranslations } from "next-intl/server";
+ import { Lato } from "next/font/google";
+ import { headers } from "next/headers";
+ import React, { Suspense } from "react";
+@@ -29,6 +29,8 @@ export async function generateMetadata(): Promise<Metadata> {
+ export default async function RootLayout({ children }: { children: React.ReactNode }) {
+   const _headers = await headers();
+   const { serviceConfig } = getServiceConfig(_headers);
++  // Lernpfade: Sprache für Screenreader und Silbentrennung (WCAG 3.1.1).
++  const locale = await getLocale();
+ 
+   let languages = LANGS;
+   try {
+@@ -43,7 +45,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
+   }
+ 
+   return (
+-    <html className={`${lato.className}`} suppressHydrationWarning>
++    <html lang={locale} className={`${lato.className}`} suppressHydrationWarning>
+       <head />
+       <body>
+         <ThemeProvider>
