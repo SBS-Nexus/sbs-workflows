@@ -212,6 +212,24 @@ Monat gehoben. Stattdessen:
    Über Texte oder Markeneinstellungen ist keiner davon zu beheben. Das Tor
    bleibt offen, bis der eigene Bau (Stufe 2) sie behebt.
 
+   **Behoben am 23.11.2026:** Nach den Patches 0001–0004 (`konto/login/`)
+   zeigt axe in **allen 28 Ansichten keinen Befund**, auf der Probe und in
+   der Produktion. Dazu kommen:
+
+   - **Sicherheit:** Next.js 16.4.6 statt 16.4.3.
+   - **Proxy gehärtet:** Caddy entfernt `x-zitadel-instance-host`,
+     `x-zitadel-forward-host` und `x-zitadel-public-host` aus
+     Browser-Anfragen. Vorher reichte ein gefälschter Kopf, um die Seite
+     abstürzen zu lassen, und die öffentliche Adresse fließt in Links ein.
+   - **Probedienst `konto-login-probe`:** Neue Builds werden dort zuerst
+     geprüft (Railway-Adresse, Geheimnisse per Referenz von `konto-login`;
+     Tests setzen `PRUEF_KOPF_HOST=konto.lernpfade.net`).
+   - **Störung am 22.11.2026, 17:02–17:10:** Die erste Fassung von 0003 ließ
+     die Farbschema-Knöpfe Übersetzungen laden. Im Ladezustand außerhalb des
+     Providers brach daran jede Kontoseite ab. Zurückgerollt und behoben;
+     Nutzer waren keine betroffen. Seitdem geht jeder Build erst auf die
+     Probe.
+
 ## 6. Was du beiträgst
 
 - ~~Freigabe der DNS-Einträge bei Strato für `konto.lernpfade.net`~~ – erteilt
