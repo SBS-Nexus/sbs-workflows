@@ -13,7 +13,8 @@ const NM = (
 const require = createRequire(NM);
 const { chromium } = require('playwright');
 const AXE = readFileSync(NM + 'axe-core/axe.min.js', 'utf8');
-const BASIS = (process.env.PRUEF_BASIS ?? 'https://konto.lernpfade.net').replace(/\/$/, '') + '/ui/v2/login';
+const BASIS =
+  (process.env.PRUEF_BASIS ?? 'https://konto.lernpfade.net').replace(/\/$/, '') + '/ui/v2/login';
 const ADRESSE = 'axe-pruefung@example.test';
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -61,7 +62,17 @@ for (const [name, weg] of Object.entries(WEGE)) {
       ['desktop', { width: 1280, height: 860 }],
       ['mobil', { width: 390, height: 844 }],
     ]) {
-      const kontext = await browser.newContext({ colorScheme: schema, viewport, locale: 'de-DE' });
+      // Gegen konto-login-probe: Instanz und öffentliche Adresse wie hinter dem Proxy setzen.
+      const kopfHost = process.env.PRUEF_KOPF_HOST;
+      const extraHTTPHeaders = kopfHost
+        ? { 'x-zitadel-instance-host': kopfHost, 'x-zitadel-public-host': kopfHost }
+        : {};
+      const kontext = await browser.newContext({
+        colorScheme: schema,
+        viewport,
+        locale: 'de-DE',
+        extraHTTPHeaders,
+      });
       const seite = await kontext.newPage();
       let eintrag = { seite: name, schema, geraet };
       try {

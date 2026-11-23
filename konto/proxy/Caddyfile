@@ -47,6 +47,10 @@
 				}
 			}
 			reverse_proxy {$LOGIN_UPSTREAM:konto-login.railway.internal:3000} {
+				# Instanz und öffentliche Adresse bestimmt nur der Proxy, nie der Browser.
+				header_up -X-Zitadel-Instance-Host
+				header_up -X-Zitadel-Forward-Host
+				header_up -X-Zitadel-Public-Host
 				header_up Host {$ZITADEL_DOMAIN:konto.lernpfade.net}
 				header_up X-Forwarded-Host {$ZITADEL_DOMAIN:konto.lernpfade.net}
 				header_up X-Forwarded-Proto https
@@ -56,6 +60,10 @@
 
 	handle {
 		reverse_proxy h2c://{$ZITADEL_UPSTREAM:konto.railway.internal:8080} {
+			# Instanz und öffentliche Adresse bestimmt nur der Proxy, nie der Browser.
+			header_up -X-Zitadel-Instance-Host
+			header_up -X-Zitadel-Forward-Host
+			header_up -X-Zitadel-Public-Host
 			header_up Host {$ZITADEL_DOMAIN:konto.lernpfade.net}
 			header_up X-Forwarded-Host {$ZITADEL_DOMAIN:konto.lernpfade.net}
 			header_up X-Forwarded-Proto https
