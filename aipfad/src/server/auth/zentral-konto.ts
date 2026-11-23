@@ -5,7 +5,7 @@ import { Prisma } from '@/generated/prisma/client';
 import type { ZentraleIdentitaet } from '@/server/auth/zentral-identitaet';
 
 /**
- * Ordnet eine Identität des gemeinsamen Kontos einem Konto in AIPfad zu
+ * Ordnet eine Identität des gemeinsamen Kontos einem Konto der App zu
  * (E4.2, docs/E4-2-BAUPLAN.md, Abschnitt 2):
  *
  *  1. Treffer über `sub`: Das ist dieselbe Person, ganz gleich, welche
@@ -46,7 +46,7 @@ export async function kontoFuerIdentitaet(
 
   if (bekannt) {
     // Hat sich die bestätigte Adresse beim gemeinsamen Konto geändert, zieht
-    // AIPfad nach, solange sie hier frei ist. Sonst bleibt die alte stehen.
+    // die App nach, solange sie hier frei ist. Sonst bleibt die alte stehen.
     if (identitaet.emailBestaetigt && bekannt.email !== identitaet.email) {
       await prisma.user
         .update({ where: { id: bekannt.id }, data: { email: identitaet.email } })

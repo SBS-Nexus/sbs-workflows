@@ -1,0 +1,120 @@
+name: Lernpfade – gemeinsames Konto (E2E)
+
+# Strecke gegen einen echten ZITADEL (E4.2 Schritt 4, E4.4; Vertrag
+# docs/learning-auth/): ZITADEL v4.20.5 und die eigene Anmelde-App aus
+# konto/login laufen per Docker Compose auf dem Runner, eingerichtet mit
+# demselben Skript wie konto.lernpfade.net. Je App ein Lauf mit Schalter `an`.
+# Läuft bei Änderungen an einer App, am Konto oder am Vertrag.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'aipfad/**'
+      - 'pythonpfad/**'
+      - 'sqlpfad/**'
+      - 'konto/**'
+      - 'docs/learning-auth/**'
+      - '.github/workflows/konto-e2e.yml'
+  pull_request:
+    paths:
+      - 'aipfad/**'
+      - 'pythonpfad/**'
+      - 'sqlpfad/**'
+      - 'konto/**'
+      - 'docs/learning-auth/**'
+      - '.github/workflows/konto-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Anmeldung gegen echten ZITADEL (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: aipfad
+            port: 3101
+          - app: pythonpfad
+            port: 3100
+          - app: sqlpfad
+            port: 3100
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ${{ matrix.app }}
+          POSTGRES_PASSWORD: ${{ matrix.app }}
+          POSTGRES_DB: ${{ matrix.app }}
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://${{ matrix.app }}:${{ matrix.app }}@localhost:5432/${{ matrix.app }}?schema=public
+      APP_URL: http://127.0.0.1:${{ matrix.port }}
+      DEPLOYMENT_ID: ${{ github.sha }}
+      SEED_DEMO_USERS: 'false'
+      # Testwerte, keine echten Geheimnisse (wie in den CI-Läufen der Apps).
+      # Jede App liest nur, was sie braucht.
+      CRON_SECRET: 'ci-testgeheimnis-kein-echtes-geheimnis'
+      RETENTION_MODE: 'dry-run'
+      AUTH_SECRET: ci-lauf-geheimnis-ohne-jede-bedeutung-0123456789
+      FEATURE_SQL_RUNNER: 'false'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+
+      - name: Arbeitsordner für Testgeheimnisse
+        run: echo "KONTO_E2E_DIR=$RUNNER_TEMP/konto-e2e" >> "$GITHUB_ENV"
+
+      - name: Anmelde-App bauen (konto/login)
+        run: docker build -t lernpfade/konto-login:e2e konto/login
+
+      - name: Test-ZITADEL starten und einrichten
+        run: konto/pruefung/e2e/starte.sh
+
+      - name: App – Abhängigkeiten, Datenbank, Produktionsbuild
+        working-directory: ${{ matrix.app }}
+        run: |
+          npm ci
+          npm run db:deploy
+          npm run db:seed
+          npm run build
+
+      - name: Browser
+        working-directory: ${{ matrix.app }}
+        run: npx playwright install --with-deps chromium
+
+      - name: Anmelden, Rückkanal, verlorener Zustand, Bestätigungspflicht
+        working-directory: ${{ matrix.app }}
+        run: npx playwright test -c playwright.konto.config.ts
+
+      - name: Protokolle der Testumgebung
+        if: failure()
+        run: docker compose -f konto/pruefung/e2e/compose.yaml logs --no-color --tail 300
+
+      - name: Testbericht sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: konto-e2e-${{ matrix.app }}
+          path: ${{ matrix.app }}/playwright-report/
+          retention-days: 14
+
+      - name: Aufräumen
+        if: always()
+        run: docker compose -f konto/pruefung/e2e/compose.yaml down -v

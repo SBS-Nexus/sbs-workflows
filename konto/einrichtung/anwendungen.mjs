@@ -1,11 +1,13 @@
 // Anwendungen, die sich über das gemeinsame Konto anmelden (E4.2 ff.,
 // docs/E4-2-BAUPLAN.md, Abschnitt 4). Eingerichtet von einrichten.mjs mit
-// --anwendungen; die Pfade entsprechen den Routen in aipfad/src/app/auth/.
+// --anwendungen; die Pfade entsprechen den Routen aus dem Vertrag docs/learning-auth/.
 
 export const PROJEKT = 'Lernpfade';
 
 export const ANWENDUNGEN = [
   { schluessel: 'aipfad', name: 'AIPfad', basis: 'https://www.aipfad.de' },
+  { schluessel: 'pythonpfad', name: 'PythonPfad', basis: 'https://www.pythonpfad.de' },
+  { schluessel: 'sqlpfad', name: 'SQLPfad', basis: 'https://www.sqlpfad.de' },
 ];
 
 /**

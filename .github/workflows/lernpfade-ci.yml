@@ -5,6 +5,17 @@ on:
     paths:
       - 'lernpfade/**'
       - '.github/workflows/lernpfade-ci.yml'
+      # E4.4: Anmeldevertrag und seine Kopien in den drei Fach-Apps.
+      - 'docs/learning-auth/**'
+      - 'scripts/check-learning-auth.mjs'
+      - '*/src/server/auth/zentral*.ts'
+      - '*/src/app/auth/**'
+      - '*/tests/unit/zentral-*.test.ts'
+      - '*/tests/integration/zentrale-anmeldung.test.ts'
+      - '*/e2e-konto/**'
+      - '*/src/server/env.ts'
+      - '*/prisma/schema.prisma'
+      - '*/package.json'
       # LP-03A: Shell-Vertrag und seine Kopien in den drei Fach-Apps.
       - 'docs/learning-shell/**'
       - 'scripts/check-learning-shell.mjs'
@@ -47,6 +58,17 @@ on:
     paths:
       - 'lernpfade/**'
       - '.github/workflows/lernpfade-ci.yml'
+      # E4.4: Anmeldevertrag und seine Kopien in den drei Fach-Apps.
+      - 'docs/learning-auth/**'
+      - 'scripts/check-learning-auth.mjs'
+      - '*/src/server/auth/zentral*.ts'
+      - '*/src/app/auth/**'
+      - '*/tests/unit/zentral-*.test.ts'
+      - '*/tests/integration/zentrale-anmeldung.test.ts'
+      - '*/e2e-konto/**'
+      - '*/src/server/env.ts'
+      - '*/prisma/schema.prisma'
+      - '*/package.json'
       # LP-03A: Shell-Vertrag und seine Kopien in den drei Fach-Apps.
       - 'docs/learning-shell/**'
       - 'scripts/check-learning-shell.mjs'
@@ -145,6 +167,20 @@ jobs:
       - name: Komponentenvertrag prüfen
         run: node scripts/check-learning-components.mjs
 
+  anmeldevertrag:
+    name: Anmeldevertrag (Drift-Check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Anmeldevertrag prüfen
+        run: node scripts/check-learning-auth.mjs
   # E3: Gleiches Prinzip für den Token-Vertrag des Learning OS (Grundskala,
   # Signalfarben, Dachleiste, Modulfarben) im Hub und in den drei Fach-Apps —
   # Kopie bytegleich und eingebunden, keine zweite Quelle für dieselben

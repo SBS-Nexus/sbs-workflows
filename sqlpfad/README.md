@@ -152,6 +152,29 @@ Repository.
 
 ---
 
+### Anmeldung über das gemeinsame Konto (E4.4)
+
+Seit E4.4 kann die App über das gemeinsame Konto (konto.lernpfade.net,
+ZITADEL) anmelden, gesteuert über `FEATURE_ZENTRALE_ANMELDUNG` (Vorgabe `aus`,
+Werte in `.env.example`).
+
+- Der Code kommt aus dem Vertrag `docs/learning-auth/` im
+  Repository-Wurzelverzeichnis, bytegleich mit AIPfad und der jeweils
+  anderen App.
+- Die Sicherheitsbegründung steht in `aipfad/docs/SECURITY.md`, Abschnitt
+  „Anmeldung über das gemeinsame Konto“:
+  - PKCE, `state`, `nonce` und signierter Zustand.
+  - Nur relative Rücksprungziele.
+  - Verknüpfung nur mit bestätigter Adresse; Admins nur mit zweitem Faktor.
+  - Abmelden über `end_session`, dazu die Rückkanal-Abmeldung.
+- Mit Schalter `an` leiten `/anmelden` und `/registrieren` weiter. Die eigenen
+  Formulare nehmen auch bei direktem Aufruf nichts mehr an.
+- Passwort und Löschen: Für Konten ohne lokales Passwort, oder mit Schalter
+  `an`, wird das Passwort im Lernpfade-Konto geändert. Vor dem Löschen steht
+  statt der Passworteingabe eine frische Anmeldung beim Konto
+  (`/auth/anmelden?bestaetigen=1`, `prompt=login`), höchstens zehn Minuten
+  alt. Das getippte Wort bleibt.
+
 ## 5. Datenbank starten
 
 ```bash

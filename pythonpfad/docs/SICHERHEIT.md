@@ -138,6 +138,27 @@ sich im Server-Log wiederfinden lässt.
 
 ---
 
+### 2.11 Anmeldung über das gemeinsame Konto (E4.4)
+
+Seit E4.4 kann die App über das gemeinsame Konto (konto.lernpfade.net,
+ZITADEL) anmelden, gesteuert über `FEATURE_ZENTRALE_ANMELDUNG` (Vorgabe `aus`,
+Werte in `.env.example`).
+
+- Der Code kommt aus dem Vertrag `docs/learning-auth/` im
+  Repository-Wurzelverzeichnis, bytegleich mit AIPfad und der jeweils
+  anderen App.
+- Die Sicherheitsbegründung steht in `aipfad/docs/SECURITY.md`, Abschnitt
+  „Anmeldung über das gemeinsame Konto“:
+  - PKCE, `state`, `nonce` und signierter Zustand.
+  - Nur relative Rücksprungziele.
+  - Verknüpfung nur mit bestätigter Adresse; Admins nur mit zweitem Faktor.
+  - Abmelden über `end_session`, dazu die Rückkanal-Abmeldung.
+- Mit Schalter `an` leiten `/anmelden` und `/registrieren` weiter. Die eigenen
+  Formulare nehmen auch bei direktem Aufruf nichts mehr an.
+- Einladungen: `/einladung` und `/organisation` stehen in den geschützten
+  Pfaden des Proxys. Wer eingeladen ist, kommt nach Anmeldung oder
+  Registrierung beim Konto auf die Einladung zurück.
+
 ## 3. Bewusste Grenzen dieser Version
 
 ### 3.1 Der Browser ist keine Vertrauensgrenze

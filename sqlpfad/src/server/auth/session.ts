@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { prisma } from '@/server/db/prisma';
 import { getEnv } from '@/server/env';
+import { anmeldezeitAus } from '@/server/auth/zentral-identitaet';
 import { isSecureDeployment } from '@/server/site';
 import type { UserModel } from '@/generated/prisma/models';
 
@@ -71,7 +72,13 @@ function cookiesNeedSecureFlag(): boolean {
 }
 
 /** Legt eine neue Sitzung an und setzt die Cookies. */
-export async function createSession(userId: string): Promise<void> {
+/** Bei einer Anmeldung über das gemeinsame Konto (E4.4). */
+export interface ZentraleSitzung {
+  sid: string | null;
+  idToken: string;
+}
+
+export async function createSession(userId: string, zentral?: ZentraleSitzung): Promise<void> {
   const token = randomBytes(32).toString('base64url');
   const csrfSecret = randomBytes(32).toString('base64url');
   const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
@@ -80,7 +87,15 @@ export async function createSession(userId: string): Promise<void> {
   const userAgent = headerList.get('user-agent')?.slice(0, 255) ?? null;
 
   await prisma.authSession.create({
-    data: { userId, tokenHash: hashToken(token), csrfSecret, expiresAt, userAgent },
+    data: {
+      userId,
+      tokenHash: hashToken(token),
+      csrfSecret,
+      expiresAt,
+      userAgent,
+      oidcSid: zentral?.sid ?? null,
+      oidcIdToken: zentral?.idToken ?? null,
+    },
   });
 
   const cookieStore = await cookies();
@@ -103,16 +118,78 @@ export async function createSession(userId: string): Promise<void> {
   });
 }
 
-export async function destroySession(): Promise<void> {
+/**
+ * Beendet die Sitzung dieses Browsers. Gibt zurück, ob sie über das
+ * gemeinsame Konto entstanden war; dann muss die Abmeldung dort weitergehen.
+ */
+export async function destroySession(): Promise<{ zentral: boolean; idToken: string | null }> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
+  let ergebnis = { zentral: false, idToken: null as string | null };
 
   if (token) {
+    const sitzung = await prisma.authSession.findUnique({
+      where: { tokenHash: hashToken(token) },
+      select: { oidcIdToken: true },
+    });
+    if (sitzung?.oidcIdToken) ergebnis = { zentral: true, idToken: sitzung.oidcIdToken };
     await prisma.authSession.deleteMany({ where: { tokenHash: hashToken(token) } });
   }
 
   cookieStore.delete(SESSION_COOKIE);
   cookieStore.delete(CSRF_COOKIE);
+  return ergebnis;
+}
+
+/**
+ * Rückkanal-Abmeldung (E4.2): Beendet die Sitzungen, die zu einer Sitzung
+ * beim gemeinsamen Konto gehören. Mit `sid` genau diese, sonst alle über das
+ * gemeinsame Konto entstandenen Sitzungen der Person. Gibt die Anzahl zurück.
+ */
+export async function destroyZentraleSitzungen(auftrag: {
+  sid: string | null;
+  sub: string | null;
+}): Promise<number> {
+  if (auftrag.sid) {
+    const result = await prisma.authSession.deleteMany({
+      where: {
+        oidcSid: auftrag.sid,
+        ...(auftrag.sub ? { user: { authSubject: auftrag.sub } } : {}),
+      },
+    });
+    return result.count;
+  }
+  if (auftrag.sub) {
+    const result = await prisma.authSession.deleteMany({
+      where: { user: { authSubject: auftrag.sub }, oidcIdToken: { not: null } },
+    });
+    return result.count;
+  }
+  return 0;
+}
+
+/**
+ * Wann sich die Person für diese Sitzung zuletzt beim gemeinsamen Konto
+ * angemeldet hat (`auth_time`), oder `null` bei einer Sitzung ohne das
+ * gemeinsame Konto. Grundlage der Bestätigung vor dem Löschen (E4.4).
+ */
+/** So lange nach einer frischen Anmeldung beim Konto darf gelöscht werden. */
+export const BESTAETIGUNG_GILT_MS = 10 * 60 * 1000;
+
+export async function zentraleAnmeldezeit(): Promise<Date | null> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+  const sitzung = await prisma.authSession.findUnique({
+    where: { tokenHash: hashToken(token) },
+    select: { oidcIdToken: true },
+  });
+  return anmeldezeitAus(sitzung?.oidcIdToken);
+}
+
+/** Liegt die letzte Anmeldung beim gemeinsamen Konto höchstens zehn Minuten zurück? */
+export async function zentralFrischBestaetigt(jetzt: number = Date.now()): Promise<boolean> {
+  const anmeldezeit = await zentraleAnmeldezeit();
+  return anmeldezeit !== null && jetzt - anmeldezeit.getTime() <= BESTAETIGUNG_GILT_MS;
 }
 
 export async function destroyAllSessions(userId: string): Promise<void> {

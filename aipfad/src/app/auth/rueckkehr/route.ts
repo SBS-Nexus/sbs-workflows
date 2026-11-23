@@ -12,16 +12,17 @@ import {
   schliesseAnmeldungAb,
   zentralerZugang,
 } from '@/server/auth/zentral';
+import { STARTSEITE } from '@/server/auth/zentral-app';
 import { zustandsCookieName, zustandsCookieOptionen } from '@/server/auth/zentral-cookie';
 import { kontoFuerIdentitaet } from '@/server/auth/zentral-konto';
 import { nachVerlorenemZustand, oeffneZustand } from '@/server/auth/zentral-zustand';
-import { logger, newRequestId, shortUserId } from '@/server/observability/logger';
+import { kurzeKontoId, neueAnfrageId, protokoll } from '@/server/auth/zentral-protokoll';
 import { absoluteUrl, siteUrl } from '@/server/site';
 
 /**
  * Rückkehr vom gemeinsamen Konto (E4.2). Prüft Zustand und Antwort, löst den
  * Code ein, ordnet das Konto zu (`zentral-konto.ts`) und legt eine
- * AIPfad-Sitzung an. Jeder Fehlschlag endet auf /auth/fehler mit einem
+ * Sitzung der App an. Jeder Fehlschlag endet auf /auth/fehler mit einem
  * Grund, nie auf einer Serverfehlerseite.
  */
 export const dynamic = 'force-dynamic';
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const zugang = zentralerZugang();
   if (!zugang) return new NextResponse('Nicht gefunden.', { status: 404, headers: KEIN_CACHE });
 
-  const requestId = newRequestId();
+  const requestId = neueAnfrageId();
   const cookieStore = await cookies();
   const zustand = oeffneZustand(
     cookieStore.get(zustandsCookieName())?.value,
@@ -53,9 +54,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   if (!zustand) {
     // Ein zweiter Tab hat die Anmeldung womöglich schon abgeschlossen.
-    if (await getCurrentUser()) return weiter('/pfad');
+    if (await getCurrentUser()) return weiter(STARTSEITE);
     const weg = nachVerlorenemZustand(request.nextUrl.searchParams);
-    logger.warn('Rückkehr ohne gültigen Anmeldezustand', { requestId, weg });
+    protokoll.warn('Rückkehr ohne gültigen Anmeldezustand', { requestId, weg });
     return weg === 'neu-starten' ? weiter('/auth/anmelden?erneut=1') : fehler('abgelaufen');
   }
 
@@ -68,10 +69,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     ergebnis = await schliesseAnmeldungAb(zugang, aktuelleAdresse, zustand);
   } catch (ausnahme) {
     if (ausnahme instanceof AnmeldungAbgebrochen) {
-      logger.info('Anmeldung beim gemeinsamen Konto beendet', { requestId, code: ausnahme.code });
+      protokoll.info('Anmeldung beim gemeinsamen Konto beendet', {
+        requestId,
+        code: ausnahme.code,
+      });
       return fehler(ausnahme.code === 'access_denied' ? 'abgebrochen' : 'abgelehnt');
     }
-    logger.error('Rückkehr vom gemeinsamen Konto fehlgeschlagen', {
+    protokoll.error('Rückkehr vom gemeinsamen Konto fehlgeschlagen', {
       requestId,
       errorType: ausnahme instanceof Error ? ausnahme.name : 'unbekannt',
       errorCode:
@@ -83,22 +87,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   if (!ergebnis) {
-    logger.warn('Gemeinsames Konto ohne verwertbare Adresse', { requestId });
+    protokoll.warn('Gemeinsames Konto ohne verwertbare Adresse', { requestId });
     return fehler('unvollstaendig');
   }
 
   const { identitaet, idToken } = ergebnis;
   const konto = await kontoFuerIdentitaet(identitaet);
   if (!konto.ok) {
-    logger.info('Anmeldung über das gemeinsame Konto abgelehnt', { requestId, grund: konto.grund });
+    protokoll.info('Anmeldung über das gemeinsame Konto abgelehnt', {
+      requestId,
+      grund: konto.grund,
+    });
     return fehler(konto.grund);
   }
 
   // Verwaltungsrechte nur mit zweitem Faktor (docs/E4-KONTO-PLAN.md).
   if (konto.role === 'ADMIN' && !identitaet.zweiFaktoren) {
-    logger.warn('Admin-Anmeldung ohne zweiten Faktor abgelehnt', {
+    protokoll.warn('Admin-Anmeldung ohne zweiten Faktor abgelehnt', {
       requestId,
-      user: shortUserId(konto.userId),
+      user: kurzeKontoId(konto.userId),
     });
     return fehler('zweiter-faktor');
   }
@@ -108,12 +115,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   await pruneExpiredSessions();
   await createSession(konto.userId, { sid: identitaet.sid, idToken });
 
-  logger.info('Anmeldung über das gemeinsame Konto', {
+  protokoll.info('Anmeldung über das gemeinsame Konto', {
     requestId,
-    user: shortUserId(konto.userId),
+    user: kurzeKontoId(konto.userId),
     art: konto.art,
     zweiFaktoren: identitaet.zweiFaktoren,
   });
 
-  return weiter(konto.onboardingCompleted ? (zustand.ziel ?? '/pfad') : '/onboarding');
+  return weiter(konto.onboardingCompleted ? (zustand.ziel ?? STARTSEITE) : '/onboarding');
 }

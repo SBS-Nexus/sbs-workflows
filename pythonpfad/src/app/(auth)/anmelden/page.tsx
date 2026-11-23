@@ -2,14 +2,27 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/server/auth/session';
+import { zentraleAnmeldungAktiv } from '@/server/auth/zentral';
+import { sicheresZiel } from '@/server/auth/zentral-zustand';
 import { AuthShell } from '@/components/marketing/auth-shell';
 import { LoginForm } from './login-form';
 
 export const metadata: Metadata = { title: 'Anmelden', alternates: { canonical: '/anmelden' } };
 
-export default async function LoginPage(): Promise<React.ReactElement> {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}): Promise<React.ReactElement> {
   const user = await getCurrentUser();
-  if (user) redirect('/lernen');
+  const ziel = sicheresZiel((await searchParams).ziel);
+  if (user) redirect(ziel ?? '/lernen');
+
+  // E4.4: Mit dem Schalter läuft die Anmeldung über das gemeinsame Konto.
+  if (zentraleAnmeldungAktiv()) {
+    const parameter = new URLSearchParams({ ...(ziel ? { ziel } : {}) });
+    redirect(`/auth/anmelden${parameter.size ? `?${parameter}` : ''}`);
+  }
 
   return (
     <AuthShell

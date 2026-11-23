@@ -2,7 +2,8 @@
 # Startet die Testumgebung des gemeinsamen Kontos und richtet sie so ein wie
 # konto.lernpfade.net (konto/einrichtung/einrichten.mjs), dazu Testkonten.
 # Danach liegen in $KONTO_E2E_DIR (Rechte 700):
-#   aipfad.env       AUTH_*-Werte und Schalter `an` für AIPfad
+#   <app>.env        AUTH_*-Werte und Schalter `an` je App (aipfad, pythonpfad,
+#                    sqlpfad)
 #   testkonten.json  Adressen und Passwörter der Testkonten
 #   einrichtung.pem  Schlüssel des befristeten System-Nutzers
 # Aufräumen: docker compose -f konto/pruefung/e2e/compose.yaml down -v
@@ -37,7 +38,11 @@ node "$WURZEL/konto/einrichtung/einrichten.mjs" \
   --ausgabe "$DIR/geheim" \
   --anwendungen \
   --anwendung-basis aipfad=http://127.0.0.1:3101 \
-  --rueckkanal-basis aipfad=http://host.docker.internal:3101
+  --anwendung-basis pythonpfad=http://127.0.0.1:3100 \
+  --anwendung-basis sqlpfad=http://127.0.0.1:3100 \
+  --rueckkanal-basis aipfad=http://host.docker.internal:3101 \
+  --rueckkanal-basis pythonpfad=http://host.docker.internal:3100 \
+  --rueckkanal-basis sqlpfad=http://host.docker.internal:3100
 
 node -e '
   const fs = require("node:fs");
@@ -54,18 +59,21 @@ node "$WURZEL/konto/pruefung/testkonten.mjs" \
   --schluessel "$DIR/einrichtung.pem" \
   --ausgabe "$DIR/testkonten.json"
 
-node -e '
-  const fs = require("node:fs");
-  const crypto = require("node:crypto");
-  const { AUTH_CLIENT_ID, AUTH_CLIENT_SECRET } = JSON.parse(fs.readFileSync(process.argv[1] + "/geheim/aipfad-auth.json"));
-  const zeilen = [
-    "FEATURE_ZENTRALE_ANMELDUNG=an",
-    "AUTH_ISSUER=http://localhost:8080",
-    `AUTH_CLIENT_ID=${AUTH_CLIENT_ID}`,
-    `AUTH_CLIENT_SECRET=${AUTH_CLIENT_SECRET}`,
-    `AUTH_STATE_SECRET=${crypto.randomBytes(36).toString("base64url")}`,
-  ];
-  fs.writeFileSync(process.argv[1] + "/aipfad.env", zeilen.join("\n") + "\n", { mode: 0o600 });
-' "$DIR"
+for APP in aipfad pythonpfad sqlpfad; do
+  node -e '
+    const fs = require("node:fs");
+    const crypto = require("node:crypto");
+    const [dir, app] = process.argv.slice(1);
+    const { AUTH_CLIENT_ID, AUTH_CLIENT_SECRET } = JSON.parse(fs.readFileSync(`${dir}/geheim/${app}-auth.json`));
+    const zeilen = [
+      "FEATURE_ZENTRALE_ANMELDUNG=an",
+      "AUTH_ISSUER=http://localhost:8080",
+      `AUTH_CLIENT_ID=${AUTH_CLIENT_ID}`,
+      `AUTH_CLIENT_SECRET=${AUTH_CLIENT_SECRET}`,
+      `AUTH_STATE_SECRET=${crypto.randomBytes(36).toString("base64url")}`,
+    ];
+    fs.writeFileSync(`${dir}/${app}.env`, zeilen.join("\n") + "\n", { mode: 0o600 });
+  ' "$DIR" "$APP"
+done
 
 echo "== Bereit: http://localhost:8080 (ZITADEL), http://localhost:3000/ui/v2/login (Anmeldung)"

@@ -34,9 +34,11 @@ describe('Konten und Sitzungen', () => {
   it('legt Konten mit gehashtem Passwort an', async () => {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
 
-    expect(user.passwordHash).not.toContain('einTestPasswort2026');
-    expect(user.passwordHash.startsWith('scrypt$')).toBe(true);
-    expect(await verifyPassword('einTestPasswort2026', user.passwordHash)).toBe(true);
+    // Seit E4.4 optional (Konten aus dem gemeinsamen Konto haben keins).
+    const gespeichert = user.passwordHash ?? '';
+    expect(gespeichert).not.toContain('einTestPasswort2026');
+    expect(gespeichert.startsWith('scrypt$')).toBe(true);
+    expect(await verifyPassword('einTestPasswort2026', gespeichert)).toBe(true);
   });
 
   it('verhindert doppelte E-Mail-Adressen', async () => {

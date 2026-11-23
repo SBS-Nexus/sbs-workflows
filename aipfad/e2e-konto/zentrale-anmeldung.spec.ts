@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { onboardingAbschliessen } from '../e2e/helfer';
+import { abmelden, ANMELDE_COOKIE, onboardingAbschliessen, STARTSEITE } from './app';
 import { ANMELDUNG, anmeldenBeimKonto, kontoApi, testkonten } from './konto';
 
 /**
- * AIPfad am gemeinsamen Konto gegen einen echten ZITADEL (E4.2, Schritt 4;
- * docs/E4-2-BAUPLAN.md, Abschnitt 5). Schalter `an`: /anmelden und
- * /registrieren leiten zum Konto.
+ * Eine App am gemeinsamen Konto gegen einen echten ZITADEL (Vertrag
+ * docs/learning-auth/; E4.2 Schritt 4, E4.4). Schalter `an`: /anmelden und
+ * /registrieren leiten zum Konto. App-eigen ist nur `./app.ts`: Startseite,
+ * Cookie-Name, Onboarding und wo „Abmelden“ steht.
  *
  * Seriell: Der zweite Test nutzt das Konto, das der erste verbunden hat.
  */
@@ -15,22 +16,22 @@ test('anmelden über das Konto, Onboarding, abmelden beendet beide Sitzungen', a
   const { bestaetigt } = testkonten();
   const beginn = Date.now();
 
-  // Geschützte Seite → AIPfad merkt sich das Ziel → Anmeldung beim Konto.
-  await page.goto('/pfad');
+  // Geschützte Seite → die App merkt sich das Ziel → Anmeldung beim Konto.
+  await page.goto(STARTSEITE);
   await anmeldenBeimKonto(page, bestaetigt);
 
   // Neues Konto: zuerst ins Onboarding, nicht ans gemerkte Ziel.
   await expect(page).toHaveURL('/onboarding');
   await onboardingAbschliessen(page);
 
-  // Abmelden in AIPfad meldet auch beim Konto ab und führt zur Startseite.
-  await page.getByRole('button', { name: 'Abmelden' }).first().click();
+  // Abmelden in der App meldet auch beim Konto ab und führt zur Startseite.
+  await abmelden(page);
   await expect(page).toHaveURL('/');
 
-  // Beide Sitzungen sind weg. AIPfad schickt wieder zum Konto, statt still
+  // Beide Sitzungen sind weg. Die App schickt wieder zum Konto, statt still
   // anzumelden; das Konto bietet die Adresse höchstens zur Auswahl an und
   // fragt dann erneut nach dem Passwort.
-  await page.goto('/pfad');
+  await page.goto(STARTSEITE);
   await expect(page).toHaveURL(new RegExp(`^${ANMELDUNG}/(loginname|accounts)`));
 
   // Beim Konto ist keine Sitzung aus diesem Test mehr offen.
@@ -48,10 +49,10 @@ test('der zweite Besuch kennt das Konto, und die Rückkanal-Abmeldung beendet di
   await page.goto('/anmelden');
   await anmeldenBeimKonto(page, bestaetigt);
   // Das Konto ist schon verbunden (erster Test): kein Onboarding mehr.
-  await expect(page).toHaveURL('/pfad');
+  await expect(page).toHaveURL(STARTSEITE);
 
   // Die Sitzung beim Konto endet von außen, etwa durch Abmelden in einer
-  // anderen App. ZITADEL schickt dann ein Logout-Token an AIPfad.
+  // anderen App. ZITADEL schickt dann ein Logout-Token an die App.
   const { sessions = [] } = (await kontoApi('POST', '/v2/sessions/search', {
     queries: [{ userIdQuery: { id: bestaetigt.userId } }],
   })) as { sessions?: Array<{ id: string }> };
@@ -61,16 +62,16 @@ test('der zweite Besuch kennt das Konto, und die Rückkanal-Abmeldung beendet di
   }
 
   // Die Zustellung läuft im Hintergrund von ZITADEL; geprüft wird, bis
-  // AIPfad die Sitzung nicht mehr kennt.
+  // die App die Sitzung nicht mehr kennt.
   await expect
-    .poll(async () => (await page.request.get('/pfad', { maxRedirects: 0 })).status(), {
+    .poll(async () => (await page.request.get(STARTSEITE, { maxRedirects: 0 })).status(), {
       timeout: 30_000,
       intervals: [500, 1000, 2000],
     })
     .not.toBe(200);
 });
 
-test('geht der Anmeldezustand verloren, startet AIPfad die Anmeldung selbst neu', async ({
+test('geht der Anmeldezustand verloren, startet die App die Anmeldung selbst neu', async ({
   page,
   context,
 }) => {
@@ -79,15 +80,15 @@ test('geht der Anmeldezustand verloren, startet AIPfad die Anmeldung selbst neu'
   await page.goto('/anmelden');
   await expect(page).toHaveURL(new RegExp(`^${ANMELDUNG}/loginname`));
   // Wie nach mehr als dreißig Minuten auf der Seite des Kontos.
-  await context.clearCookies({ name: 'aipfad_anmeldung' });
+  await context.clearCookies({ name: ANMELDE_COOKIE });
 
   await anmeldenBeimKonto(page, bestaetigt);
-  // Kein Hinweis „zu lange gedauert“: AIPfad startet neu, das Konto
+  // Kein Hinweis „zu lange gedauert“: Die App startet neu, das Konto
   // bestätigt ohne Rückfrage, und es geht weiter.
-  await expect(page).toHaveURL('/pfad');
+  await expect(page).toHaveURL(STARTSEITE);
 });
 
-test('ohne bestätigte Adresse geht es nicht in AIPfad', async ({ page }) => {
+test('ohne bestätigte Adresse geht es nicht in die App', async ({ page }) => {
   const { unbestaetigt } = testkonten();
 
   await page.goto('/anmelden');

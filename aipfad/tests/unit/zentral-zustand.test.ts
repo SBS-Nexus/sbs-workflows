@@ -87,7 +87,7 @@ describe('Rücksprungziele (kein offener Redirect)', () => {
     ]) {
       const ergebnis = sicheresZiel(ziel);
       if (ergebnis !== null)
-        expect(new URL(ergebnis, 'https://www.aipfad.de').host).toBe('www.aipfad.de');
+        expect(new URL(ergebnis, 'https://app.lernpfade.test').host).toBe('app.lernpfade.test');
       else expect(ergebnis).toBeNull();
     }
     expect(sicheresZiel('//boese.example')).toBeNull();
