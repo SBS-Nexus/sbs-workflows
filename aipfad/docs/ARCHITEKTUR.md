@@ -74,6 +74,18 @@ Grenzenschlüssel nur als SHA-256-Digest — weder IP- noch E-Mail-Adresse liege
 dort im Klartext. Sie ersetzt seit E03 den Zähler im Prozessspeicher, der bei
 mehreren Instanzen wirkungslos war (Einzelheiten in `docs/SECURITY.md`).
 
+`AuditEvent` (Tabelle `audit_events`, seit E07) gehört ebenfalls zu keiner
+der beiden Gruppen: Es ist die Prüfspur der Plattform. Auch sie hat **keinen**
+Fremdschlüssel auf `User` — aber aus dem entgegengesetzten Grund wie
+`AnalyticsEvent`. Dort fehlt er, damit gar kein Personenbezug entsteht; hier
+fehlt er, damit der Bezug eine Kontolöschung **überlebt**. Gespeichert wird
+nur die Akteurskennung, kein Name und keine Adresse. Der einzige Löschweg ist
+die Aufbewahrung nach Alter (`AUDIT_RETENTION_DAYS`), die im Rahmen aus E04A
+mitläuft. Der Satz „jeder nutzerbezogene Fremdschlüssel hat `onDelete:
+Cascade`" gilt weiterhin — er sagt nur nichts mehr darüber, ob nach einer
+Kontolöschung noch personenbezogene Zeilen existieren; siehe
+`docs/SECURITY.md`.
+
 ## 5. Wissenslandkarte / Context Graph
 
 `components/context-graph.tsx`. Ebenenzerlegung des gerichteten,

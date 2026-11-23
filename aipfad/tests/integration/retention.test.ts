@@ -161,7 +161,7 @@ describe('Aufbewahrung (Integration mit echter Datenbank)', () => {
     expect(await prisma.attempt.findUnique({ where: { id: danach } })).not.toBeNull();
   });
 
-  it('führt genau die produktiv angemeldete Regel aus, die Attempt-Regel', async () => {
+  it('führt die produktiv angemeldeten Regeln aus, seit E07 zwei', async () => {
     const bericht = await runRetention({
       rules: PRODUKTIVE_REGELN,
       mode: 'dry-run',
@@ -169,7 +169,9 @@ describe('Aufbewahrung (Integration mit echter Datenbank)', () => {
       runId: 'test-registry',
     });
 
-    expect(bericht.rules.map((r) => r.ruleId)).toEqual(['ATTEMPT_RETENTION']);
+    // Bis E07 stand hier `['ATTEMPT_RETENTION']`. Die Auditregel ist als
+    // Listeneintrag dazugekommen — ohne Änderung an Lauf, Route oder Plan.
+    expect(bericht.rules.map((r) => r.ruleId)).toEqual(['ATTEMPT_RETENTION', 'AUDIT_RETENTION']);
     expect(attemptRetentionRule.retentionDaysEnvVar).toBe('ATTEMPT_RETENTION_DAYS');
   });
 

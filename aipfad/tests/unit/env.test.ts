@@ -5,6 +5,7 @@ const GEPRUEFTE_VARIABLEN = [
   'APP_URL',
   'DEPLOYMENT_ID',
   'ATTEMPT_RETENTION_DAYS',
+  'AUDIT_RETENTION_DAYS',
   'CRON_SECRET',
   'RETENTION_MODE',
   'AUTH_SECRET',
@@ -20,6 +21,7 @@ function gueltigeUmgebung(): void {
   process.env.APP_URL = 'http://127.0.0.1:3101';
   process.env.DEPLOYMENT_ID = 'unit-test-build';
   process.env.ATTEMPT_RETENTION_DAYS = '365';
+  process.env.AUDIT_RETENTION_DAYS = '365';
   // Kein echtes Geheimnis, nur ein hinreichend langer Testwert.
   process.env.CRON_SECRET = 'testgeheimnis-nur-fuer-unit-tests';
   process.env.RETENTION_MODE = 'dry-run';
@@ -80,6 +82,64 @@ describe('Konfigurationsvertrag beim Serverstart', () => {
     const { register } = await import('@/instrumentation');
 
     await expect(register()).rejects.toThrow('mindestens 16 Zeichen');
+  });
+
+  it('verlangt eine Auditfrist, ohne stillen Vorgabewert', async () => {
+    // E07: Für AuditEvent ist die altersbasierte Aufbewahrung der EINZIGE
+    // Löschweg. Ein Vorgabewert hieße, dass eine Bereitstellung ohne
+    // Entscheidung Auditzeilen nach einer Frist löscht, die niemand gewählt
+    // hat — und `.default(...)` nachzurüsten fiele ohne diese Prüfung
+    // niemandem auf.
+    delete process.env.AUDIT_RETENTION_DAYS;
+
+    const { register } = await import('@/instrumentation');
+
+    await expect(register()).rejects.toThrow('AUDIT_RETENTION_DAYS');
+  });
+
+  it('weist die Auditfrist 0 ab, weil sie "nie löschen" hieße', async () => {
+    // Im Aufbewahrungsrahmen bedeutet 0 „abgeschaltet". Für Versuchsdaten
+    // ist das ein zulässiger Ruhezustand, für Auditzeilen wäre es die
+    // Zusage, sie nie zu löschen.
+    process.env.AUDIT_RETENTION_DAYS = '0';
+
+    const { register } = await import('@/instrumentation');
+
+    await expect(register()).rejects.toThrow('größer als 0');
+  });
+
+  it('weist eine negative Auditfrist ab', async () => {
+    process.env.AUDIT_RETENTION_DAYS = '-1';
+
+    const { register } = await import('@/instrumentation');
+
+    await expect(register()).rejects.toThrow('größer als 0');
+  });
+
+  it('weist eine nicht ganzzahlige Auditfrist ab', async () => {
+    process.env.AUDIT_RETENTION_DAYS = '3.5';
+
+    const { register } = await import('@/instrumentation');
+
+    await expect(register()).rejects.toThrow('ganze Zahl');
+  });
+
+  it('nennt bei unlesbarer Auditfrist nicht "fehlt" allein', async () => {
+    // Die Variable steht da, ist aber keine Zahl. Eine Meldung, die nur
+    // „fehlt" sagt, schickte den Betrieb an die falsche Stelle.
+    process.env.AUDIT_RETENTION_DAYS = 'dreihundertfünfundsechzig';
+
+    const { register } = await import('@/instrumentation');
+
+    await expect(register()).rejects.toThrow('fehlt oder ist keine Zahl');
+  });
+
+  it('startet mit einer gültigen Auditfrist', async () => {
+    process.env.AUDIT_RETENTION_DAYS = '30';
+
+    const { register } = await import('@/instrumentation');
+
+    await expect(register()).resolves.toBeUndefined();
   });
 
   it('weist einen unbekannten Aufbewahrungsmodus ab', async () => {

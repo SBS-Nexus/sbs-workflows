@@ -13,10 +13,11 @@ npm run perf:rate-limit    # Zusatzaufwand der Ratenbegrenzung, gegen echte Date
 npm run verify              # typecheck + lint + content:validate + unit + build
 ```
 
-### Unit-Tests — 500 bestehen
+### Unit-Tests — 533 bestehen
 
-`tests/unit/` (17 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
-`retention-runner.test.ts`, `cron-auth.test.ts`,
+`tests/unit/` (19 Dateien): `mastery.test.ts`, `spaced-repetition.test.ts`,
+`retention-runner.test.ts`, `cron-auth.test.ts`, `env.test.ts`,
+`audit-actions.test.ts`, `audit-redaction.test.ts`,
 `hint-ladder.test.ts`, `placement.test.ts`, `grade.test.ts`,
 `content-validation.test.ts`, `rate-limit.test.ts`, `terminal.test.ts`,
 `eintraege.test.ts` sowie die Git-Domäne aus Ausbaustufe 2
@@ -28,12 +29,13 @@ Einstufungslogik, Bewertung je Aufgabentyp (inkl. Verbot von
 Floskel-Rückmeldungen) und die tatsächlich seed-fertigen Inhalte selbst ab
 (Zyklenfreiheit, Platzhaltererkennung, Mindestanzahl Reflexionsfragen).
 
-### Integrationstests — 108 bestehen
+### Integrationstests — 145 bestehen
 
-`tests/integration/`: `auth.test.ts`, `content-publication.test.ts`,
-`exercise-service.test.ts`, `lesson-progress.test.ts`,
-`onboarding-placement.test.ts`, `path-service.test.ts`, `rate-limit.test.ts`,
-`stage2-git.test.ts` — gegen eine echte, separate
+`tests/integration/`: `auth.test.ts`, `audit.test.ts`,
+`content-publication.test.ts`, `exercise-service.test.ts`,
+`lesson-progress.test.ts`, `onboarding-placement.test.ts`,
+`path-service.test.ts`, `rate-limit.test.ts`, `retention.test.ts`,
+`retention-route.test.ts`, `stage2-git.test.ts` — gegen eine echte, separate
 PostgreSQL-Testdatenbank (`TEST_DATABASE_URL`, per Docker-Compose auf
 Port 5433 wie die Entwicklungsdatenbank, eigene Datenbank `aipfad_test`
 innerhalb desselben Containers).
@@ -133,6 +135,133 @@ cutoff` — derselbe Datensatz liefert im Trockenlauf genau einen Kandidaten und
 im anschließenden Ernstfall genau eine Löschung; eine Zeile GENAU auf der
 Grenze bleibt stehen (`lt`, nicht `lte`, unverändert aus der
 Vorgängerfassung übernommen).
+
+### Auditgrundlage (E07)
+
+`tests/unit/audit-actions.test.ts` hält das Verzeichnis der prüfpflichtigen
+Vorgänge zusammen: genau siebzehn, jede Bezeichnung nur einmal, zu jeder
+genau ein Eigentümerpunkt, und keine Bezeichnung mit Eigentümer „E07" — E07
+liefert die Grundlage, nicht die Ereignisse. Geprüft wird außerdem, dass
+geerbte Eigenschaften (`toString`, `constructor`) nicht als gültige Vorgänge
+durchgehen; dafür steht `Object.hasOwn` statt `in`.
+
+`tests/unit/audit-redaction.test.ts` prüft die Schwärzung. Der Kern jeder
+Prüfung ist derselbe: Der ursprüngliche Wert darf im Ergebnis nirgends mehr
+vorkommen — deshalb wird gegen die serialisierte Ausgabe geprüft und nicht
+nur gegen einzelne Felder; ein Feldvergleich übersähe eine Kopie an anderer
+Stelle. Abgedeckt sind verschachtelte Objekte, Objekte innerhalb von Arrays,
+Groß- und Kleinschreibung, jedes einzelne der vierzehn verbotenen Felder
+(einschließlich der deutschen Schreibweise `passwort`, die lange in Regel und
+Prosa auseinanderliefen), die Grenze des Namensvergleichs — `userEmail` und
+`accessToken` werden bewusst NICHT geschwärzt —,
+sehr tiefe Verschachtelung, ein zyklischer Wert (die Funktion terminiert),
+Werte, die kein gültiges JSON sind, und einen eigenen `__proto__`-Schlüssel
+aus JSON. Dieser wird auch verschachtelt fail-closed abgewiesen: Der aktuelle
+Prisma-JSON-Pfad verliert ihn vor JSONB, und eine Auditspur darf akzeptierte
+Metadaten nicht still verkürzen. Zusätzlich werden verschachtelte `Date`-,
+`Map`- und Klassenwerte sowie nicht aufzählbare oder Symbolschlüssel auch
+unterhalb der Wurzel fail-closed abgewiesen, statt durch `Object.entries`
+unbemerkt zu `{}` oder zu einer informationsärmeren Struktur zu werden.
+Nicht-endliche Zahlen werden ebenfalls abgewiesen, bevor JSON sie zu `null`
+macht; `-0` scheitert, bevor JSON es zu `0` normalisiert. Für Arrays sichern eigene Regressionen, dass nur dichte Standard-Arrays
+ohne zusätzliche Eigenschaften akzeptiert werden; Löcher, Unterklassen,
+Symbolschlüssel und sonstige Zusatzfelder scheitern fail-closed.
+
+`tests/integration/audit.test.ts` prüft gegen echte Zeilen, was sich nur
+dort zeigt. Die wichtigste Prüfung ist die Kontolöschung: Ein Konto wird
+angelegt, eine Auditzeile mit seiner Akteurskennung geschrieben, das Konto
+gelöscht — und die Zeile lebt weiter, mit unveränderter Kennung. Das belegt
+die fehlende Kaskade, auf der E04C später aufsetzt. Daneben: Anfügen und
+Lesen, Filter nach Akteur, Organisation und Vorgangsart sowie die Regression,
+dass ein explizit leerer Filter nicht zu „kein Filter" wird, die
+Organisationskennung als undurchsichtiges Abbild ohne Fremdschlüssel, und
+dass Metadaten **gespeichert** geschwärzt sind — gelesen wird dafür direkt
+an der Tabelle, am Dienst vorbei, denn entscheidend ist, was in der
+Datenbank steht, nicht was der Rückgabewert zeigt —, und dass ein eigener
+`__proto__`-Metadatenschlüssel mit eigener Meldung abgewiesen wird und
+keine informationsärmere Auditzeile zurücklässt. Eine weitere Regression
+übergibt einen verschachtelten `Date`-Wert und belegt gegen PostgreSQL, dass
+der Dienst ihn abweist und keine Zeile schreibt, statt ihn als `{}` zu
+persistieren. Dieselbe Datenbankprüfung weist `NaN`, `-0` und ein sparse Array
+zurück und belegt, dass auch dabei keine informationsärmere Auditzeile
+geschrieben wird. Eine erfundene
+Vorgangsbezeichnung wird abgewiesen, und in der Zeile stehen weder Name noch
+Adresse, nur die Kennung.
+
+Vier Prüfungen belegen das Anfügen in der Transaktion des Aufrufers — über
+den Dienst (`appendAuditEventInTransaction`), nicht über ein direktes
+`tx.auditEvent.create`. Das Muster ist das, das E04C braucht: In einer
+Transaktion wird ein Konto gelöscht und `ACCOUNT_DELETED` angefügt. Wird die
+Transaktion nach beiden Schreibvorgängen absichtlich abgebrochen, bleibt
+weder die Löschung noch die Auditzeile; dass die Zeile wirklich in dieser
+Transaktion lag, zeigt sie selbst — innen sichtbar, über den globalen Client
+noch nicht. Gelingt die Transaktion, sind beide festgeschrieben, mit
+serverseitigem Zeitpunkt und geschwärzt gespeicherten Metadaten. Und eine
+ungültige Auditeingabe rollt die Löschung mit zurück. Eine vierte Regression
+weist den globalen Prisma-Client selbst dann zur Laufzeit ab, wenn der
+Typecheck absichtlich umgangen wird, ebenso eine Hülle um sein Delegate
+(`{ auditEvent: prisma.auditEvent }`), die den Typ ohne Cast erfüllt;
+zusätzlich hält eine
+`@ts-expect-error`-Zuweisung fest, dass derselbe Aufruf schon statisch
+unzulässig ist. Gegenprobe beim Schreiben: Schreibt der Dienst dort über den
+globalen Client statt über `tx`, scheitert die Abbruchprüfung.
+
+Siebzehn Prüfungen sichern die Grenzen des Dienstes selbst: dass ein
+fehlendes oder falsches `tx` (`undefined`, `null`, eine Kennung, `{}`, der
+Kontext des Aufrufers) mit eigener
+Meldung statt eines Laufzeitfehlers samt Wert abgewiesen wird, dass
+Fehlermeldungen einzeilig und speicherbar bleiben (kein Zeilenumbruch —
+auch kein U+2028/U+2029 oder NEL — aus
+fremdem Text, kein beim Kürzen halbiertes Ersatzpaar), dass ein Lesefilter
+wie beim Schreiben höchstens 200 Zeichen lang ist, dass eine
+überlange Vorgangsbezeichnung in der Fehlermeldung gekürzt wird (die Meldung
+kann in einem Log landen) und eine, die keine Zeichenkette ist, nur als ihre
+Art erscheint (kein `String()` über fremde Inhalte; ebenso ein
+Symbolschlüssel), dass Metadaten, die kein einfaches Objekt sind (`Map`,
+Klasseninstanz, nicht aufzählbarer oder Symbolschlüssel), abgewiesen werden,
+dass Zeichen, die PostgreSQL nicht
+speichern kann (Nullzeichen, einzelnes Ersatzzeichen), in Kennungsfeldern,
+Metadaten und Lesefiltern mit eigener Meldung abgewiesen werden — ein gültiges
+Ersatzpaar nicht —, dass ein leeres oder vertauschtes Zeitfenster abgewiesen
+wird statt ein falsches Negativ zu liefern, dass eine Zeitgrenze außerhalb der Jahre 1 bis 9999
+abgewiesen wird, dass gespeicherte Metadaten, die kein Objekt sind, beim Lesen
+auffallen und deren Kennung nur bereinigt in der Meldung erscheint, dass eine fehlende
+Vorgangsbezeichnung „fehlt" heißt — auch bei einem geerbten Wert auf
+`Object.prototype` — und gesetzte, aber leere Metadaten (`null`, `undefined`)
+abgewiesen werden, dass die Metadatengröße und die Länge der Kennungsfelder
+begrenzt sind — der Vertrag „knappe betriebliche Tatsachen" stand bis dahin
+nur in der Prosa —, dass ein gesetztes, aber ungültiges Kennungsfeld beim
+Anfügen abgewiesen wird (`actorUserId: undefined` würde sonst still zu „kein
+Akteur"), dass ein unbekanntes Eingabefeld (`actorId` aus einem Spread)
+abgewiesen wird und ein fehlendes `targetType` als „fehlt" gemeldet wird, dass
+die Vorgangsbezeichnung genau einmal gelesen wird (ein Getter mit wechselndem
+Wert schriebe sonst eine ungeprüfte), dass ein explizit leerer Akteurs- oder
+Organisationsfilter nichts findet statt alles, dass ein unbekannter
+Vorgangsfilter (`ACCOUNT_DELETE`, auch `''`) abgewiesen wird statt ein
+falsches Negativ zu liefern, dass ein gesetzter, aber ungültiger Filter
+(`undefined`, ein Prisma-Operator wie `{ not: 'x' }`, ein ungültiges Datum,
+ein unbekannter — auch nicht aufzählbarer — Schlüssel, eine Klasseninstanz
+oder `null`/`undefined` statt eines einfachen Objekts) einen Fehler wirft, statt die
+Abfrage still auf fremde Zeilen auszuweiten, dass ein eigener Getter
+einschränkt und wie `take` und eine Zeitgrenze mit überschriebenem `getTime`
+genau einmal gelesen wird, dass ein Proxy mit widersprüchlichem `has` die
+geprüfte Schlüsselliste nicht umgeht, und dass die gelesene Menge auch bei
+unbrauchbarem Limit
+gedeckelt bleibt; `Number('keine-zahl')` ist genau der Wert, den
+`Number(searchParams.get('take'))` liefert.
+
+Die Auditaufbewahrung wird gegen denselben Rahmen geprüft wie die
+Versuchsdaten: Trockenlauf zählt und löscht nichts, der Ernstfall trifft
+genau die zu alte Zeile, ein zweiter Ernstfall löscht nichts mehr. Zwei
+weitere Prüfungen sind E07-eigen: dass ein Auditlauf keine `Attempt`-Zeile
+anfasst (zwei Datenarten, zwei Fristen, zwei Variablen), und dass eine
+scheiternde Auditregel die Attempt-Semantik gegen echte Zeilen nicht
+verändert. Der allgemeine Teilfehlerfall selbst steht weiterhin im
+Unit-Test und wird hier nicht wiederholt.
+
+Dass die produktive Regelliste seit E07 genau `ATTEMPT_RETENTION` und
+`AUDIT_RETENTION` enthält, hält `tests/integration/retention.test.ts` fest —
+dort stand bis E07 `['ATTEMPT_RETENTION']`.
 
 `tests/integration/retention-route.test.ts` prüft die Route: ohne Kopfzeile
 401 und nichts gelöscht, falsches Geheimnis 401 und nichts gelöscht,

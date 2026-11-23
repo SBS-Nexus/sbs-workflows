@@ -33,11 +33,26 @@ Anfragen annimmt.
 
 ## Umgebungsvariablen
 
-Siehe `.env.example`. Notwendig: `DATABASE_URL`, `DEPLOYMENT_ID` und seit
-E04A `CRON_SECRET`. `APP_URL` hat lokal den Standard `http://localhost:3000`;
-in Produktion muss sie auf die echte HTTPS-Adresse gesetzt werden. Optional:
-`ATTEMPT_RETENTION_DAYS`, `RETENTION_MODE` (Vorgabe `dry-run`),
-`SEED_DEMO_USERS`.
+Siehe `.env.example`. Notwendig: `DATABASE_URL`, `DEPLOYMENT_ID`, seit
+E04A `CRON_SECRET` und seit E07 `AUDIT_RETENTION_DAYS`. `APP_URL` hat lokal
+den Standard `http://localhost:3000`; in Produktion muss sie auf die echte
+HTTPS-Adresse gesetzt werden. Optional: `ATTEMPT_RETENTION_DAYS`,
+`RETENTION_MODE` (Vorgabe `dry-run`), `SEED_DEMO_USERS`.
+
+`AUDIT_RETENTION_DAYS` ist Pflicht, ohne Vorgabewert und **größer als 0**.
+Der Grund liegt in der Datenart: Für `AuditEvent` ist die altersbasierte
+Aufbewahrung der einzige Löschweg — es gibt keinen fachlichen Pfad, der eine
+Auditzeile entfernt. Ein stiller Vorgabewert oder eine 0 (im Rahmen:
+„abgeschaltet") hieße deshalb, Auditzeilen für immer zu behalten; das wäre
+eine Aufbewahrungsentscheidung, die niemand getroffen hat. Deshalb bricht
+der Start ab, statt etwas anzunehmen.
+
+Welche Frist richtig ist, entscheidet die Bereitstellung. `.env.example`
+zeigt `365` als **technischen Beispielwert**; das ist ausdrücklich keine
+rechtliche Empfehlung, und dieses Dokument trifft keine rechtliche
+Einordnung. Wie `ATTEMPT_RETENTION_DAYS` unterliegt die Variable dem
+Bereitstellungszyklus: Eine Änderung wirkt erst in einer neuen
+Bereitstellung.
 
 `CRON_SECRET` ist Pflicht, weil die Anwendung seit E04A einen Zeitplan hat,
 der eine Route mit Löschwirkung aufruft. Ohne Geheimnis wäre entweder die
@@ -73,7 +88,9 @@ Beschreibung eines erfolgten Vorgangs. In dieser Ausbaustufe wurde keine
 Vercel-Einstellung angelegt oder geändert und kein echtes Geheimnis erzeugt.
 
 1. `CRON_SECRET` in der Bereitstellungsumgebung setzen — eigener, zufälliger
-   Wert, mindestens 16 Zeichen, nicht der Platzhalter aus `.env.example`.
+   Wert, mindestens 16 Zeichen, nicht der Platzhalter aus `.env.example` —
+   und `AUDIT_RETENTION_DAYS` auf die für diese Bereitstellung festgelegte
+   positive Frist setzen; `0` ist für Auditzeilen ungültig.
 2. `RETENTION_MODE=dry-run` setzen.
 3. Bereitstellen.
 4. Den nächsten planmäßigen Lauf abwarten oder die Route einmal von Hand mit
@@ -83,6 +100,9 @@ Vercel-Einstellung angelegt oder geändert und kein echtes Geheimnis erzeugt.
    unerwartet hohe Zahl ist der Grund, warum dieser Schritt vor dem nächsten
    steht.
 6. Erst dann `RETENTION_MODE=execute` setzen — ausdrücklich, nicht nebenbei.
+   In diesem Modus löscht derselbe Lauf sowohl abgelaufene `Attempt`- als
+   auch abgelaufene `AuditEvent`-Zeilen nach ihren jeweiligen Fristen;
+   diese Löschungen sind unwiderruflich.
 7. Erneut bereitstellen.
 8. Den nächsten Lauf prüfen: Status `success`, Löschzahlen plausibel.
 9. Weiter beobachten. Ein Lauf mit `partial-failure` oder `failed` antwortet
@@ -104,7 +124,9 @@ Lauf weiter und löscht nichts. Dauerhaft abschalten heißt, den Eintrag aus
 
 Soll sofort nichts mehr gelöscht werden und ist die Zeit für eine
 Bereitstellung zu knapp, hilft keine der Konfigurationsvariablen:
-`ATTEMPT_RETENTION_DAYS=0` ist dieselbe Variable mit derselben Bedingung, und
+`ATTEMPT_RETENTION_DAYS=0` ist dieselbe Variable mit derselben Bedingung
+(`AUDIT_RETENTION_DAYS=0` wäre nicht einmal das: Die Anwendung startet damit
+gar nicht erst), und
 den Eintrag aus `crons` zu entfernen heißt, `vercel.json` zu ändern — also
 wieder eine Bereitstellung. Ohne neue Bereitstellung wirkt nur, das Projekt
 in der Vercel-Oberfläche anzuhalten; das verhindert zugleich jeden anderen

@@ -61,7 +61,7 @@ es gibt keine Mehrfachzählung.
 | ENT-B03 | Aufbewahrungslöschung wird kontrolliert ausgeführt                                     | DATEN             | `VERIFIZIERT`                   | E04A             |
 | ENT-B04 | Keine Datenauskunft (Selbstexport)                                                     | DATEN             | `FEHLT`                         | E04B             |
 | ENT-B05 | Keine Löschung auf Betroffenenwunsch                                                   | DATEN             | `FEHLT`                         | E04C             |
-| ENT-B06 | Kein Auditlog für Unternehmensvorgänge                                                 | DATEN             | `FEHLT`                         | E07              |
+| ENT-B06 | Auditgrundlage vorhanden; fachliche Erzeuger folgen je Punkt                           | DATEN             | `DOKUMENTIERT`                  | E07              |
 | ENT-B07 | Gemeinsame Ratenbegrenzung über PostgreSQL                                             | SICHERHEIT        | `VERIFIZIERT`                   | E03              |
 | ENT-B08 | Ungenutztes CSRF-Verfahren (`DOKUMENTIERT`); `unsafe-inline` in der CSP (`AKZEPTIERT`) | SICHERHEIT        | gemischt                        | E05C, E05D, E05E |
 | ENT-B09 | Kein Leerlauf-Ablauf; Sitzungsentzug ohne Aufrufer                                     | AUTHENTIFIZIERUNG | `DOKUMENTIERT`                  | E05A             |
@@ -191,7 +191,7 @@ ihn prüft.
 | Punkt                               | Zustand           | Beleg                                                                                     |
 | ----------------------------------- | ----------------- | ----------------------------------------------------------------------------------------- |
 | Trennung Lerndaten / Produktanalyse | `IMPLEMENTIERT`   | `AnalyticsEvent` ohne Fremdschlüssel, Datum tagesgenau                                    |
-| Kaskadenlöschung                    | `IMPLEMENTIERT`   | jeder Fremdschlüssel auf `User` mit `onDelete: Cascade`                                   |
+| Kaskadenlöschung                    | `IMPLEMENTIERT`   | jeder Fremdschlüssel auf `User` mit `onDelete: Cascade` — `AuditEvent` hat bewusst keinen |
 | **Aufbewahrungslöschung**           | **`VERIFIZIERT`** | Regelrahmen `src/server/retention/`, Cron `/api/cron/retention` täglich, `RETENTION_MODE` |
 | **Auskunft / Datenexport**          | **`FEHLT`**       | keine Route, keine Oberfläche                                                             |
 | **Löschung auf Betroffenenwunsch**  | **`FEHLT`**       | kein `prisma.user.delete()` im Anwendungscode                                             |
@@ -200,11 +200,14 @@ ihn prüft.
 | **Sicherung / Wiederherstellung**   | **`FEHLT`**       | `docs/DEPLOYMENT.md` hat keinen Abschnitt dazu                                            |
 
 Die Aufbewahrungslöschung ist mit E04A technisch angebunden: Die produktive
-Regelliste unter `src/server/retention/` enthält derzeit
-`ATTEMPT_RETENTION`; `GET /api/cron/retention` ist über
+Regelliste unter `src/server/retention/` enthält seit E07 zwei Regeln,
+`ATTEMPT_RETENTION` und `AUDIT_RETENTION`; `GET /api/cron/retention` ist über
 `Authorization: Bearer <CRON_SECRET>` geschützt, und `vercel.json` ruft die
 Route täglich um 03:00 UTC auf. `RETENTION_MODE=dry-run` zählt nur,
-`execute` löscht nach `createdAt < cutoff`; Frist 0 schaltet die Regel ab.
+`execute` löscht nach der Grenze der jeweiligen Regel — `Attempt` nach
+`createdAt < cutoff`, `AuditEvent` nach `occurredAt < cutoff`. Frist 0
+schaltet eine Regel ab; für `AUDIT_RETENTION_DAYS` ist 0 ausgeschlossen, weil
+die Aufbewahrung dort der einzige Löschweg ist.
 Unit-, Integrations- und Routentests decken Trockenlauf, Ernstfall,
 Idempotenz, überlappende Läufe und Teilfehler ab. Eine reale
 Produktionsbereitstellung wurde in E04A ausdrücklich nicht durchgeführt.
@@ -335,9 +338,20 @@ Trennung aufheben, die der Datenschutzabschnitt trägt.
 Datenbankrecht: Wer auf der Datenbank schreiben darf, kann Zeilen ändern. Die
 genaue Abgrenzung steht in `ENTERPRISE-ROADMAP.md` unter E07.
 
-Ein Auditlog für Unternehmensvorgänge (Rollenwechsel, Organisationseinstellungen,
-Veröffentlichung, Export, Löschung, SSO-Konfiguration) **fehlt** und braucht
-ein eigenes, nur anfügbares Modell.
+Mit E07 gibt es dieses eigene Modell: `AuditEvent`, mit einem Dienst, der
+ausschließlich anfügt und liest, einem kanonischen Verzeichnis von siebzehn
+Vorgangsbezeichnungen samt Eigentümerpunkt, einer rekursiven
+Schwärzungsregel für Metadaten und einer eigenen Aufbewahrungsfrist
+(`AUDIT_RETENTION_DAYS`), die im Rahmen aus E04A mitläuft.
+
+**Was damit NICHT gilt:** dass Unternehmensvorgänge protokolliert werden.
+E07 liefert die Grundlage, nicht die Ereignisse — und zum Zeitpunkt seiner
+Auslieferung gibt es **null** fachliche Ereigniserzeuger. Rollenwechsel,
+Organisationseinstellungen, Export, Löschung und SSO-Konfiguration
+existieren als Vorgänge noch gar nicht; jeder von ihnen bringt seinen
+Erzeuger mit, wenn sein Punkt geliefert wird (E04B, E04C, E08B, E09B, E11A,
+E11B, E12, E13A, E13B). Geprüft ist hier die Grundlage, nicht eine Abdeckung
+fachlicher Vorgänge.
 
 ## L — Inhaltsführung
 

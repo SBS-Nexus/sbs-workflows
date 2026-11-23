@@ -50,9 +50,51 @@ export const attemptRetentionRule: RetentionRule = {
 };
 
 /**
+ * Auditzeilen (`AuditEvent`, E07/ENT-B06).
+ *
+ * Die zweite produktive Regel — und der Beleg, dass der Rahmen aus E04A
+ * hält, was er versprochen hat: Sie kommt hier als Listeneintrag dazu, ohne
+ * eine Zeile am Lauf, an der Route oder am Zeitplan zu ändern.
+ *
+ * Diese Regel ist der EINZIGE Löschweg für Auditzeilen. Sie löscht
+ * ausschließlich nach Alter und kann keine einzelne Spur entfernen; einen
+ * fachlichen Löschpfad gibt es nicht (`src/server/audit/service.ts`).
+ *
+ * Die Frist ist streng größer als 0 (`env.ts`), anders als bei `Attempt`.
+ * Abschalten wäre hier kein Ruhezustand, sondern die Zusage, nie zu
+ * löschen — und damit das Gegenteil des Aufbewahrungsvertrags.
+ */
+function auditRetentionWhere(cutoff: Date): Prisma.AuditEventWhereInput {
+  return { occurredAt: { lt: cutoff } };
+}
+
+export const auditRetentionRule: RetentionRule = {
+  id: 'AUDIT_RETENTION',
+  dataCategory: 'AuditEvent',
+  retentionDaysEnvVar: 'AUDIT_RETENTION_DAYS',
+
+  retentionDays: () => getEnv().AUDIT_RETENTION_DAYS,
+
+  cutoffAt: cutoffFromDays,
+
+  // Dieselbe Bauweise wie bei Attempt: EINE Stelle für die fachliche Grenze,
+  // von Zählen und Löschen gemeinsam benutzt.
+  countCandidates: (cutoff) => prisma.auditEvent.count({ where: auditRetentionWhere(cutoff) }),
+
+  deleteCandidates: async (cutoff) => {
+    const ergebnis = await prisma.auditEvent.deleteMany({ where: auditRetentionWhere(cutoff) });
+    return ergebnis.count;
+  },
+};
+
+/**
  * Die verbindliche Liste für den Betrieb.
  *
- * Heute genau eine Regel. E07 soll `AUDIT_RETENTION` hier anfügen können, ohne
- * am Lauf, an der Route oder am Zeitplan etwas zu ändern.
+ * Seit E07 zwei Regeln. Jede trägt ihre eigene Frist aus ihrer eigenen
+ * Variablen; sie laufen nacheinander und unabhängig, und eine scheiternde
+ * hält die andere nicht auf (siehe `runner.ts`).
  */
-export const PRODUKTIVE_REGELN: readonly RetentionRule[] = [attemptRetentionRule];
+export const PRODUKTIVE_REGELN: readonly RetentionRule[] = [
+  attemptRetentionRule,
+  auditRetentionRule,
+];
