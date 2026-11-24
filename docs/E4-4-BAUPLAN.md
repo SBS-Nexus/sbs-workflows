@@ -229,5 +229,27 @@ Für die beiden Personen ändert sich erst etwas, wenn PythonPfad und SQLPfad
 umschalten. Dann melden sie sich mit dem bisherigen Passwort an, und die
 Anmelde-App verlangt einmal den Code zur Bestätigung der Adresse.
 
-Offen sind die Hinweis-Mail (erst nach Freigabe von Text und Versand) und
-Schritt 5, der Schalter `an`.
+**24.11.2026, Schritt 5 für SQLPfad: Schalter `an`.**
+
+Die Rücknahme wurde vorher geprobt, mit demselben Bau `1d50805` und Neustart
+mit dem vorhandenen Abbild. Jeder Wechsel dauerte rund 35 Sekunden.
+
+| Schritt | Ergebnis (live, im Browser, ohne Fehler)                                                            |
+| ------- | --------------------------------------------------------------------------------------------------- |
+| `an`    | `/anmelden`, `/fortschritt`, `/profil` führen zum Konto, `/registrieren` zu „Konto erstellen“       |
+| `aus`   | eigene Formulare „Anmelden“ und „Konto anlegen“, geschützte Seiten zur eigenen Anmeldung            |
+| `an`    | wie im ersten Schritt; Rückkehr ohne Zustand startet neu, ein zweiter Fehlversuch zeigt den Hinweis |
+
+**Rücknahme:** `FEATURE_ZENTRALE_ANMELDUNG=aus` setzen und den letzten
+Deploy mit dem vorhandenen Abbild neu starten (`deploymentRedeploy`,
+`usePreviousImageTag`). Das dauert rund 35 Sekunden; die eigenen Formulare
+gelten dann wieder. Konten, die erst über das gemeinsame Konto entstanden
+sind, kommen erst nach dem Wiedereinschalten an ihren Lernstand.
+
+Offen:
+
+- Die Fehlerrate bei Anmeldungen beobachten (Tor E4.4). Das Protokoll mit
+  `bereich: zentrale-anmeldung` zeigt Starts, Rückkehren und Gründe.
+- Schalter `an` für PythonPfad, wenn SQLPfad ruhig läuft.
+- Die Hinweis-Mail nur nach Freigabe von Text und Versand. Bei zwei
+  übernommenen Konten ist sie womöglich nicht nötig.
