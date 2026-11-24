@@ -70,3 +70,14 @@ jobs:
       # Holt ZITADEL beim festen Commit, wendet konto/login/patches an und baut die App.
       - name: Image bauen
         run: docker build --tag konto-login:ci konto/login
+
+  uebernahme:
+    name: konto-uebernahme – Job-Image bauen
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      # Kontext ist konto/, wie im Railway-Job (rootDirectory /konto).
+      - name: Image bauen
+        run: docker build --file konto/uebernahme/Dockerfile --tag konto-uebernahme:ci konto

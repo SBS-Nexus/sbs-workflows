@@ -18,8 +18,12 @@
 //     [--quelle aipfad=postgresql://…] [--quelle-json <datei>] [--bericht <datei>]
 //
 // Quellen kommen alternativ aus UEBERNAHME_DB_<APP> (etwa UEBERNAHME_DB_SQLPFAD),
-// damit ein Railway-Job sie über Referenzvariablen bekommt.
-import { readFileSync, writeFileSync } from 'node:fs';
+// damit ein Railway-Job sie über Referenzvariablen bekommt. Ebenso
+// UEBERNAHME_BASIS, UEBERNAHME_MODUS und UEBERNAHME_SCHLUESSEL (der private
+// Schlüssel als Text; er liegt nur während des Laufs in einer Datei mit 600).
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { apiMit, systemToken } from '../einrichtung/zugang.mjs';
 import { namensteile, zitadelHash, zusammenfassen } from './umwandeln.mjs';
@@ -34,6 +38,19 @@ const { values: arg } = parseArgs({
     'quelle-json': { type: 'string' },
     bericht: { type: 'string' },
   },
+});
+arg.basis ??= process.env.UEBERNAHME_BASIS;
+if (process.env.UEBERNAHME_MODUS && !process.argv.includes('--modus')) {
+  arg.modus = process.env.UEBERNAHME_MODUS;
+}
+let schluesselOrdner = null;
+if (!arg.schluessel && process.env.UEBERNAHME_SCHLUESSEL) {
+  schluesselOrdner = mkdtempSync(path.join(tmpdir(), 'uebernahme-'));
+  arg.schluessel = path.join(schluesselOrdner, 'einrichtung.pem');
+  writeFileSync(arg.schluessel, process.env.UEBERNAHME_SCHLUESSEL, { mode: 0o600 });
+}
+process.on('exit', () => {
+  if (schluesselOrdner) rmSync(schluesselOrdner, { recursive: true, force: true });
 });
 for (const pflicht of ['basis', 'schluessel']) {
   if (!arg[pflicht]) throw new Error(`--${pflicht} fehlt`);

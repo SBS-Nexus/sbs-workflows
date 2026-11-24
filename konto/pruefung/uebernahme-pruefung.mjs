@@ -178,8 +178,10 @@ try {
     ],
   });
   const nutzer = suche.daten?.result?.[0];
+  // ZITADEL lässt `false` in der Antwort weg (proto3-JSON): Geprüft wird, dass
+  // die Adresse da ist und NICHT als bestätigt gilt.
   pruefe(
-    nutzer?.human?.email?.isVerified === false,
+    nutzer?.human?.email?.email === adresse('doppelt') && nutzer.human.email.isVerified !== true,
     'Adresse ist unbestätigt (Bestätigung bei der ersten Anmeldung)',
   );
   pruefe(
