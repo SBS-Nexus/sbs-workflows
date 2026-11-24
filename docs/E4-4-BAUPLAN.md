@@ -246,10 +246,27 @@ Deploy mit dem vorhandenen Abbild neu starten (`deploymentRedeploy`,
 gelten dann wieder. Konten, die erst über das gemeinsame Konto entstanden
 sind, kommen erst nach dem Wiedereinschalten an ihren Lernstand.
 
+**24.11.2026, Schritt 5 für PythonPfad: Schalter `an`.** Geprobt wie bei
+SQLPfad:
+
+| Schritt | Dauer | Ergebnis (live, im Browser, ohne Fehler)                                                                                              |
+| ------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `an`    |  47 s | `/anmelden`, `/fortschritt` und `/einladung/…` führen zum Konto, mit Ziel (`ziel=/einladung/…`), `/registrieren` zu „Konto erstellen“ |
+| `aus`   |  34 s | eigene Formulare „Anmelden“ und „Konto anlegen“                                                                                       |
+| `an`    |  35 s | wie im ersten Schritt; Rückkehr ohne Zustand startet neu, ein zweiter Fehlversuch zeigt den Hinweis                                   |
+
+**Damit melden alle drei Apps über das gemeinsame Konto an.**
+
+Erster Blick auf die Fehlerrate (Protokolle seit 24.11.2026, `bereich:
+zentrale-anmeldung`): kein Eintrag der Stufe `error`. Die 13 Warnungen
+stammen alle aus den eigenen Prüfaufrufen: ein ungültiges Logout-Token je
+App sowie Rückkehren ohne Zustand (neu gestartet bzw. Hinweis). Echte
+Anmeldungen kamen in dieser Zeit noch nicht.
+
 Offen:
 
-- Die Fehlerrate bei Anmeldungen beobachten (Tor E4.4). Das Protokoll mit
-  `bereich: zentrale-anmeldung` zeigt Starts, Rückkehren und Gründe.
-- Schalter `an` für PythonPfad, wenn SQLPfad ruhig läuft.
-- Die Hinweis-Mail nur nach Freigabe von Text und Versand. Bei zwei
-  übernommenen Konten ist sie womöglich nicht nötig.
+- Die Fehlerrate weiter beobachten (Tor E4.4).
+- Die Hinweis-Mail nur nach Freigabe von Text und Versand; bei zwei
+  übernommenen Konten womöglich nicht nötig.
+- E4.5: Hub als Client, danach (nach der Frist) die Passwort-Hashes und der
+  lokale Anmeldecode aus den Apps.
