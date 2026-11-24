@@ -118,3 +118,40 @@ jobs:
       - name: Aufräumen
         if: always()
         run: docker compose -f konto/pruefung/e2e/compose.yaml down -v
+
+  uebernahme:
+    name: Kontoübernahme gegen echten ZITADEL
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: konto/uebernahme/package-lock.json
+
+      - name: Arbeitsordner für Testgeheimnisse
+        run: echo "KONTO_E2E_DIR=$RUNNER_TEMP/konto-e2e" >> "$GITHUB_ENV"
+
+      - name: Werkzeug installieren
+        working-directory: konto/uebernahme
+        run: npm ci
+
+      # Nur ZITADEL: Die Probe braucht weder Anmelde-App noch eine App.
+      - name: Test-ZITADEL starten
+        run: konto/pruefung/e2e/starte.sh
+        env:
+          KONTO_E2E_UMFANG: zitadel
+
+      - name: Probe der Übernahme (Probelauf, Einfuhr, zweiter Lauf, Anmeldung)
+        run: node konto/pruefung/uebernahme-pruefung.mjs --basis http://localhost:8080 --schluessel "$KONTO_E2E_DIR/einrichtung.pem"
+
+      - name: Protokolle der Testumgebung
+        if: failure()
+        run: docker compose -f konto/pruefung/e2e/compose.yaml logs --no-color --tail 200
+
+      - name: Aufräumen
+        if: always()
+        run: docker compose -f konto/pruefung/e2e/compose.yaml down -v

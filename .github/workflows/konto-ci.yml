@@ -33,11 +33,19 @@ jobs:
         working-directory: konto/mail
         run: node --test
 
+      - name: Übernahme – Regeln
+        working-directory: konto/uebernahme
+        run: |
+          npm ci
+          npm test
+
       - name: Einrichtungsskript und Texte laden
         run: |
           node --check konto/einrichtung/einrichten.mjs
           node --check konto/einrichtung/zugang.mjs
           node --check konto/pruefung/testkonten.mjs
+          node --check konto/pruefung/uebernahme-pruefung.mjs
+          node --check konto/uebernahme/uebernahme.mjs
           bash -n konto/pruefung/e2e/starte.sh
           node -e 'import("./konto/einrichtung/texte.mjs").then((m) => { for (const [s, t] of Object.entries(m.NACHRICHTEN)) for (const [k, v] of Object.entries(t)) for (const f of ["title", "subject", "text", "buttonText"]) if (!v[f]) throw new Error(`${s}/${k}: ${f} fehlt`); })'
 
