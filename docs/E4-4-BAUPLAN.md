@@ -195,3 +195,26 @@ Offen:
   dann die Einfuhr.
 - Die Hinweis-Mail erst nach Freigabe von Text und Versand.
 - Schritt 5: Schalter `an`.
+
+**24.11.2026, Probelauf auf den echten Daten (E4.3-Tor erfüllt):**
+
+- Werkzeug gemergt als PR #102 (`4996ffe`).
+- Der Probelauf lief als befristeter Railway-Job `konto-uebernahme` im
+  privaten Netz, nur zählend. Danach wurden der Job gelöscht, der
+  System-Nutzer entfernt und der Schlüssel gelöscht.
+
+| Konten                                | AIPfad | PythonPfad | SQLPfad | gesamt |
+| ------------------------------------- | -----: | ---------: | ------: | -----: |
+| gelesen                               |      2 |          1 |       1 |      4 |
+| davon ohne lokales Passwort (zentral) |      2 |          – |       – |      2 |
+| Überschneidungen nach Adresse         |        |            |         |      0 |
+| Personen zum Einführen                |        |            |         |      2 |
+| schon im gemeinsamen Konto            |        |            |         |      0 |
+| **Fehler**                            |        |            |         |  **0** |
+
+Die beiden AIPfad-Konten sind schon über das gemeinsame Konto entstanden und
+brauchen keine Übernahme. Einzuführen sind die beiden Konten aus PythonPfad
+und SQLPfad.
+
+Die Einfuhr selbst wartet auf die ausdrückliche Freigabe der Inhaberin:
+Sie schreibt in das gemeinsame Konto.
