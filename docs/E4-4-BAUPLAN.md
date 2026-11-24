@@ -158,5 +158,40 @@ die bestätigte Adresse.
     ich nicht lokal laufen lassen: Die Platte lief beim Bauen voll. Die CI
     deckt ihn ab.
 
-Offen: Schritt 3 (Einrichten, Ausrollen mit Schalter `aus`), Schritt 4
-(Übernahme der Konten), Schritt 5 (Schalter `an`).
+Gemergt als PR #101 (`1d50805`).
+
+**24.11.2026, Schritt 3 live:**
+
+- In ZITADEL gibt es die Anwendungen „PythonPfad“ (Client-ID
+  `400949556767919273`) und „SQLPfad“ (`400949556969311401`). Der befristete
+  System-Nutzer ist wieder entfernt.
+- Alle drei Apps laufen auf `1d50805`: AIPfad mit Schalter `an`, PythonPfad
+  und SQLPfad mit allen `AUTH_*`-Werten und Schalter `aus`.
+- Live geprüft im Browser, ohne Fehler:
+  - AIPfad leitet Anmelden, Registrieren und geschützte Seiten zum Konto.
+  - PythonPfad und SQLPfad zeigen weiter die eigenen Formulare.
+    Geschützte Seiten und Einladungen geben das Ziel mit.
+  - `/auth/anmelden` führt in allen drei Apps schon zum Konto (Anmelden und
+    Registrieren).
+  - Der Rückkanal lehnt ungültige Token ab, und eine Rückkehr ohne Zustand
+    startet neu.
+
+**Schritt 4, Werkzeug (E4.3):** `konto/uebernahme/`.
+
+- `umwandeln.mjs` mit Unit-Tests: Hash umschreiben, nach Adresse
+  zusammenfassen (zuletzt aktiv gewinnt), Namen aufteilen.
+- `uebernahme.mjs` hat zwei Modi: `probe` (zählen und prüfen) und `einfuhr`
+  (unbestätigte Adresse, ohne Mail). Es gibt nur Zahlen aus, und ein zweiter
+  Lauf ändert nichts.
+- `konto/pruefung/uebernahme-pruefung.mjs` probt gegen einen echten
+  Test-ZITADEL mit erfundenen Konten im App-Format. Neuestes Passwort meldet
+  an, das ältere nicht; die Adresse bleibt unbestätigt; Konten ohne lokales
+  Passwort werden nicht angelegt; NFKC.
+- Die Probe läuft in der CI als Job „Kontoübernahme gegen echten ZITADEL“.
+
+Offen:
+
+- Probelauf auf den echten Daten (nur zählen, im privaten Railway-Netz),
+  dann die Einfuhr.
+- Die Hinweis-Mail erst nach Freigabe von Text und Versand.
+- Schritt 5: Schalter `an`.

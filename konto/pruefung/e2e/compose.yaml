@@ -42,6 +42,10 @@ services:
       ZITADEL_OIDC_DEFAULTLOGOUTURLV2: http://localhost:3000/ui/v2/login/logout?post_logout_redirect=
       ZITADEL_SAML_DEFAULTLOGINURLV2: http://localhost:3000/ui/v2/login/login?samlRequest=
       ZITADEL_SYSTEMAPIUSERS: ${KONTO_E2E_SYSTEMAPIUSERS:-}
+      # Wie auf konto.lernpfade.net: neue Hashes argon2id, übernommene scrypt-Hashes
+      # aus den Apps werden geprüft (E4.0, E4.3).
+      ZITADEL_SYSTEMDEFAULTS_PASSWORDHASHER_HASHER_ALGORITHM: argon2id
+      ZITADEL_SYSTEMDEFAULTS_PASSWORDHASHER_VERIFIERS: scrypt
       # Nur hier: Die Rückkanal-Abmeldung geht an die App auf dem Docker-Host.
       ZITADEL_HTTPCLIENT_DENYLIST: 0.0.0.0/8,169.254.0.0/16
     ports:

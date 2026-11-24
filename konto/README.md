@@ -69,6 +69,20 @@ Letzteres läuft nur gegen localhost. Die Strecke in der CI ist
 `.github/workflows/konto-e2e.yml`, die Anleitung für lokal steht in
 `aipfad/docs/TESTING.md`.
 
+## Übernahme der App-Konten (E4.3)
+
+`konto/uebernahme/uebernahme.mjs` übernimmt die Konten aus den App-Datenbanken
+ins gemeinsame Konto. Plan: `docs/E4-4-BAUPLAN.md`, Abschnitt 4.
+
+- Mit `--modus probe` zählt und prüft es nur; erst `--modus einfuhr`
+  schreibt.
+- Quellen: `--quelle <app>=<postgres-url>` oder `UEBERNAHME_DB_<APP>`.
+- Übernommen werden Adresse, Name und scrypt-Hash, umgeschrieben ins Format
+  von ZITADEL. Die Adresse bleibt unbestätigt, und es geht keine Mail hinaus.
+- Die Ausgabe enthält nur Zahlen. Vorhandene Adressen werden übersprungen.
+- Geprobt wird mit `konto/pruefung/uebernahme-pruefung.mjs` gegen
+  `konto/pruefung/e2e` (`KONTO_E2E_UMFANG=zitadel starte.sh`).
+
 ## Fristen
 
 - **Token der Anmelde-App:** läuft zwei Jahre nach der Einrichtung ab (Datum

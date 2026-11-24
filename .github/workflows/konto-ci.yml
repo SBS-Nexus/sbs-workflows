@@ -33,11 +33,19 @@ jobs:
         working-directory: konto/mail
         run: node --test
 
+      - name: Übernahme – Regeln
+        working-directory: konto/uebernahme
+        run: |
+          npm ci
+          npm test
+
       - name: Einrichtungsskript und Texte laden
         run: |
           node --check konto/einrichtung/einrichten.mjs
           node --check konto/einrichtung/zugang.mjs
           node --check konto/pruefung/testkonten.mjs
+          node --check konto/pruefung/uebernahme-pruefung.mjs
+          node --check konto/uebernahme/uebernahme.mjs
           bash -n konto/pruefung/e2e/starte.sh
           node -e 'import("./konto/einrichtung/texte.mjs").then((m) => { for (const [s, t] of Object.entries(m.NACHRICHTEN)) for (const [k, v] of Object.entries(t)) for (const f of ["title", "subject", "text", "buttonText"]) if (!v[f]) throw new Error(`${s}/${k}: ${f} fehlt`); })'
 
@@ -62,3 +70,14 @@ jobs:
       # Holt ZITADEL beim festen Commit, wendet konto/login/patches an und baut die App.
       - name: Image bauen
         run: docker build --tag konto-login:ci konto/login
+
+  uebernahme:
+    name: konto-uebernahme – Job-Image bauen
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      # Kontext ist konto/, wie im Railway-Job (rootDirectory /konto).
+      - name: Image bauen
+        run: docker build --file konto/uebernahme/Dockerfile --tag konto-uebernahme:ci konto

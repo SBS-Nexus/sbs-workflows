@@ -6,6 +6,8 @@
 #                    sqlpfad)
 #   testkonten.json  Adressen und Passwörter der Testkonten
 #   einrichtung.pem  Schlüssel des befristeten System-Nutzers
+# Mit KONTO_E2E_UMFANG=zitadel startet nur ZITADEL (ohne Einrichtung,
+# Anmelde-App und Testkonten).
 # Aufräumen: docker compose -f konto/pruefung/e2e/compose.yaml down -v
 set -euo pipefail
 
@@ -30,6 +32,13 @@ export KONTO_E2E_SYSTEMAPIUSERS
 
 echo "== ZITADEL starten"
 "${COMPOSE[@]}" up -d --wait --wait-timeout 300 konto-db konto
+
+# KONTO_E2E_UMFANG=zitadel: nur ZITADEL und der Schlüssel des System-Nutzers,
+# etwa für die Probe der Kontoübernahme (konto/pruefung/uebernahme-pruefung.mjs).
+if [ "${KONTO_E2E_UMFANG:-alles}" = "zitadel" ]; then
+  echo "== Bereit: http://localhost:8080 (nur ZITADEL)"
+  exit 0
+fi
 
 echo "== Einrichten wie konto.lernpfade.net"
 node "$WURZEL/konto/einrichtung/einrichten.mjs" \
