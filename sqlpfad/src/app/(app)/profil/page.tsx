@@ -1,5 +1,11 @@
 import type { Metadata } from 'next';
-import { requireUser } from '@/server/auth/session';
+import { requireUser, zentralFrischBestaetigt } from '@/server/auth/session';
+import {
+  passwortAendernAdresse,
+  zentraleAnmeldungAktiv,
+  zentralerZugang,
+} from '@/server/auth/zentral';
+import { buttonAttributes } from '@/lib/learning-components';
 import { prisma } from '@/server/db/prisma';
 import { logoutAction } from '@/server/actions/auth-actions';
 import { Button, Card, SectionHeading } from '@/components/ui/primitives';
@@ -38,8 +44,16 @@ export default async function ProfilPage(): Promise<React.ReactElement> {
       theme: true,
       reduceMotion: true,
       createdAt: true,
+      passwordHash: true,
     },
   });
+
+  // Mit dem gemeinsamen Konto (E4.4) werden Passwort und Bestätigung dort
+  // verwaltet, nicht hier.
+  const zentral = angaben.passwordHash === null || zentraleAnmeldungAktiv();
+  const zugang = zentral ? zentralerZugang() : null;
+  const bestaetigt = zentral ? await zentralFrischBestaetigt() : false;
+  const knopf = buttonAttributes('secondary');
 
   const theme: Theme =
     angaben.theme === 'light' || angaben.theme === 'dark' ? angaben.theme : 'system';
@@ -103,7 +117,26 @@ export default async function ProfilPage(): Promise<React.ReactElement> {
       <section aria-labelledby="passwort">
         <SectionHeading id="passwort">Passwort</SectionHeading>
         <Card>
-          <PasswortForm />
+          {zentral ? (
+            <div className="space-y-4">
+              <p className="text-[var(--text-muted)]">
+                Dein Passwort gilt für alle Lernpfade und wird in deinem Lernpfade-Konto geändert.
+                Dort richtest du auch Passkey oder Authenticator-App ein.
+              </p>
+              {zugang ? (
+                <a
+                  href={passwortAendernAdresse(zugang).href}
+                  className={knopf.className}
+                  data-lp-variant={knopf['data-lp-variant']}
+                  data-lp-size={knopf['data-lp-size']}
+                >
+                  Passwort im Lernpfade-Konto ändern
+                </a>
+              ) : null}
+            </div>
+          ) : (
+            <PasswortForm />
+          )}
         </Card>
       </section>
 
@@ -125,7 +158,7 @@ export default async function ProfilPage(): Promise<React.ReactElement> {
       <section aria-labelledby="loeschen">
         <SectionHeading id="loeschen">Konto löschen</SectionHeading>
         <Card emphasis="danger">
-          <KontoLoeschen />
+          <KontoLoeschen zentral={zentral ? { bestaetigt } : null} />
         </Card>
       </section>
     </div>

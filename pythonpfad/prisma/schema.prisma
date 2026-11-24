@@ -142,7 +142,14 @@ model User {
   id           String @id @default(cuid())
   email        String @unique
   /// scrypt-Hash im Format  scrypt$N$r$p$salt$hash  – nie im Klartext.
-  passwordHash String
+  /// Leer bei Konten aus dem gemeinsamen Konto (konto.lernpfade.net): Sie
+  /// haben in der App kein eigenes Passwort (E4.4).
+  passwordHash String?
+  /// `sub` aus dem ID-Token des gemeinsamen Kontos. Einmal gesetzt, bleibt er
+  /// die Verbindung zwischen beiden Seiten, auch wenn sich die Adresse ändert.
+  authSubject  String?   @unique
+  /// Wann das Konto mit dem gemeinsamen Konto verbunden wurde.
+  authLinkedAt DateTime?
   name         String
   role         Role   @default(LEARNER)
   locale       String @default("de-DE")
@@ -220,11 +227,18 @@ model AuthSession {
   expiresAt  DateTime
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
+  /// `sid` der Sitzung beim gemeinsamen Konto. Darüber beendet die
+  /// Rückkanal-Abmeldung genau diese Sitzung (E4.4).
+  oidcSid    String?
+  /// ID-Token der Anmeldung, nur als `id_token_hint` beim Abmelden. Enthält
+  /// nichts, was nicht ohnehin im Konto steht.
+  oidcIdToken String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
+  @@index([oidcSid])
   @@map("auth_sessions")
 }
 

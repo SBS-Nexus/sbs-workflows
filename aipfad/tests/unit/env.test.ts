@@ -170,12 +170,6 @@ describe('Konfigurationsvertrag beim Serverstart', () => {
       process.env.AUTH_ISSUER = 'http://konto.lernpfade.test';
       const { register } = await import('@/instrumentation');
       await expect(register()).rejects.toThrow('AUTH_ISSUER muss');
-
-      const { istZulaessigerAussteller } = await import('@/server/env');
-      expect(istZulaessigerAussteller('http://localhost:8080')).toBe(true);
-      expect(istZulaessigerAussteller('https://konto.lernpfade.net')).toBe(true);
-      expect(istZulaessigerAussteller('https://konto.lernpfade.net/?x=1')).toBe(false);
-      expect(istZulaessigerAussteller('kein-url')).toBe(false);
     });
 
     it('weist zu kurze Geheimnisse ab', async () => {

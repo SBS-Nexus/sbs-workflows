@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 /**
  * Zustand zwischen dem Start der Anmeldung beim gemeinsamen Konto und der
- * Rückkehr nach AIPfad (E4.2, docs/E4-2-BAUPLAN.md).
+ * Rückkehr in die App (E4.2, docs/E4-2-BAUPLAN.md; Vertrag docs/learning-auth/).
  *
  * Er liegt in einem kurzlebigen httpOnly-Cookie und ist mit HMAC-SHA256
  * signiert. `state` und `nonce` schützen gegen untergeschobene Antworten,
@@ -16,7 +16,7 @@ export interface AnmeldeZustand {
   state: string;
   nonce: string;
   codeVerifier: string;
-  /** Relativer Pfad innerhalb von AIPfad, bereits geprüft. */
+  /** Relativer Pfad innerhalb der App, bereits geprüft. */
   ziel: string | null;
   /** Erstellt in Millisekunden seit 1970. */
   erstellt: number;
@@ -53,7 +53,7 @@ export function nachVerlorenemZustand(parameter: URLSearchParams): 'neu-starten'
 }
 
 /** Trennt diese Signaturen von allen anderen Verwendungen des Schlüssels. */
-const ZWECK = 'aipfad-anmeldung-v1';
+const ZWECK = 'lernpfade-anmeldung-v1';
 
 function signatur(inhalt: string, geheimnis: string): Buffer {
   return createHmac('sha256', geheimnis).update(`${ZWECK}.${inhalt}`).digest();

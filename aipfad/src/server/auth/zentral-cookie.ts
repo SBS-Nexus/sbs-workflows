@@ -1,5 +1,6 @@
 import 'server-only';
 import { isSecureDeployment } from '@/server/site';
+import { ANMELDE_COOKIE } from '@/server/auth/zentral-app';
 import { ZUSTAND_GUELTIG_MS } from '@/server/auth/zentral-zustand';
 
 /**
@@ -10,7 +11,7 @@ import { ZUSTAND_GUELTIG_MS } from '@/server/auth/zentral-zustand';
  * seitenübergreifende Navigation ist.
  */
 export function zustandsCookieName(): string {
-  return isSecureDeployment() ? '__Host-aipfad_anmeldung' : 'aipfad_anmeldung';
+  return isSecureDeployment() ? `__Host-${ANMELDE_COOKIE}` : ANMELDE_COOKIE;
 }
 
 export function zustandsCookieOptionen(): {

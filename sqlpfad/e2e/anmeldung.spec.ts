@@ -18,7 +18,8 @@ const PASSWORT = 'nordwind-treppe-hafen-41';
 
 test('geschützte Seiten sind ohne Anmeldung verschlossen', async ({ page }) => {
   await page.goto('/fortschritt');
-  await expect(page).toHaveURL(/\/anmelden$/);
+  // Seit E4.4 merkt sich die Anmeldung, wohin es danach geht.
+  await expect(page).toHaveURL(/\/anmelden\?ziel=%2Ffortschritt$/);
 });
 
 test('registrieren, Einstieg beantworten, abmelden', async ({ page }) => {
@@ -57,7 +58,8 @@ test('registrieren, Einstieg beantworten, abmelden', async ({ page }) => {
   // Nach dem Abmelden ist der Bereich wieder zu. Das ist der eigentliche
   // Punkt: Die Sitzung wird auf dem Server gelöscht, nicht nur im Browser.
   await page.goto('/fortschritt');
-  await expect(page).toHaveURL(/\/anmelden$/);
+  // Seit E4.4 merkt sich die Anmeldung, wohin es danach geht.
+  await expect(page).toHaveURL(/\/anmelden\?ziel=%2Ffortschritt$/);
 });
 
 test('falsches Passwort nennt keine Einzelheiten', async ({ page }) => {

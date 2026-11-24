@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTPayload } from 'jose';
 import {
+  anmeldezeitAus,
   identitaetAusClaims,
   pruefeAbmeldeToken,
   RUECKKANAL_EREIGNIS,
@@ -58,7 +59,7 @@ describe('Identität aus den Claims des gemeinsamen Kontos (E4.2)', () => {
 
 describe('Rückkanal-Abmeldung: Prüfung des Logout-Tokens', () => {
   const AUSSTELLER = 'https://konto.lernpfade.test';
-  const ZIELGRUPPE = 'aipfad-client';
+  const ZIELGRUPPE = 'app-client';
   const JETZT = new Date('2026-11-23T12:00:00Z');
 
   async function aufbau() {
@@ -148,5 +149,24 @@ describe('Rückkanal-Abmeldung: Prüfung des Logout-Tokens', () => {
       JSON.stringify({ ...gueltig, iat: JETZT.getTime() / 1000 }),
     ).toString('base64url');
     await expect(pruefe(`${kopf}.${inhalt}.`)).rejects.toBeInstanceOf(UngueltigesAbmeldeToken);
+  });
+});
+
+describe('Anmeldezeit aus dem gespeicherten ID-Token', () => {
+  const token = (inhalt: object) =>
+    ['e30', Buffer.from(JSON.stringify(inhalt)).toString('base64url'), 'sig'].join('.');
+
+  it('liest auth_time in Sekunden', () => {
+    expect(anmeldezeitAus(token({ auth_time: 1795464357 }))?.toISOString()).toBe(
+      '2026-11-23T20:05:57.000Z',
+    );
+  });
+
+  it('gibt ohne brauchbare Angabe null', () => {
+    expect(anmeldezeitAus(null)).toBeNull();
+    expect(anmeldezeitAus('kein.token')).toBeNull();
+    expect(anmeldezeitAus(token({}))).toBeNull();
+    expect(anmeldezeitAus(token({ auth_time: '1795464357' }))).toBeNull();
+    expect(anmeldezeitAus('a.%%%.c')).toBeNull();
   });
 });

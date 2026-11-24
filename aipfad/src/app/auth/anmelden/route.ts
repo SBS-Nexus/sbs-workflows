@@ -2,9 +2,10 @@ import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getCurrentUser } from '@/server/auth/session';
 import { starteAnmeldung, zentralerZugang } from '@/server/auth/zentral';
+import { STARTSEITE } from '@/server/auth/zentral-app';
 import { zustandsCookieName, zustandsCookieOptionen } from '@/server/auth/zentral-cookie';
 import { sicheresZiel, versiegleZustand } from '@/server/auth/zentral-zustand';
-import { logger, newRequestId } from '@/server/observability/logger';
+import { neueAnfrageId, protokoll } from '@/server/auth/zentral-protokoll';
 import { absoluteUrl } from '@/server/site';
 
 /**
@@ -24,8 +25,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!zugang) return new NextResponse('Nicht gefunden.', { status: 404, headers: KEIN_CACHE });
 
   const ziel = sicheresZiel(request.nextUrl.searchParams.get('ziel'));
-  if (await getCurrentUser()) {
-    return NextResponse.redirect(absoluteUrl(ziel ?? '/pfad'), {
+  // `?bestaetigen=1`: frische Anmeldung, auch für schon Angemeldete.
+  const frischAnmelden = request.nextUrl.searchParams.get('bestaetigen') === '1';
+  if (!frischAnmelden && (await getCurrentUser())) {
+    return NextResponse.redirect(absoluteUrl(ziel ?? STARTSEITE), {
       status: 303,
       headers: KEIN_CACHE,
     });
@@ -36,6 +39,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ziel,
       registrieren: request.nextUrl.searchParams.get('modus') === 'registrieren',
       zweiterVersuch: request.nextUrl.searchParams.get('erneut') === '1',
+      frischAnmelden,
     });
     (await cookies()).set(
       zustandsCookieName(),
@@ -44,8 +48,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
     return NextResponse.redirect(adresse, { status: 303, headers: KEIN_CACHE });
   } catch (fehler) {
-    logger.error('Anmeldung beim gemeinsamen Konto nicht startbar', {
-      requestId: newRequestId(),
+    protokoll.error('Anmeldung beim gemeinsamen Konto nicht startbar', {
+      requestId: neueAnfrageId(),
       errorType: fehler instanceof Error ? fehler.name : 'unbekannt',
     });
     return NextResponse.redirect(absoluteUrl('/auth/fehler?grund=nicht-erreichbar'), {

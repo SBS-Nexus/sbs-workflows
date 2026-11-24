@@ -15,7 +15,7 @@ import { type AnmeldeZustand, ZWEITER_VERSUCH } from '@/server/auth/zentral-zust
  * Anbindung an das gemeinsame Konto der Lernpfade (konto.lernpfade.net,
  * ZITADEL) über OpenID Connect: Code-Flow mit PKCE und Client-Secret (E4.2,
  * docs/E4-2-BAUPLAN.md). Das gemeinsame Konto bestätigt, wer jemand ist;
- * Sitzung, Rollen und Lernstand bleiben in AIPfad.
+ * Sitzung, Rollen und Lernstand bleiben in der App.
  */
 
 export const RUECKKEHR_PFAD = '/auth/rueckkehr';
@@ -83,7 +83,13 @@ export interface AnmeldeStart {
 /** Baut die Adresse beim gemeinsamen Konto und den dazu passenden Zustand. */
 export async function starteAnmeldung(
   zugang: Zugang,
-  optionen: { ziel: string | null; registrieren: boolean; zweiterVersuch?: boolean },
+  optionen: {
+    ziel: string | null;
+    registrieren: boolean;
+    zweiterVersuch?: boolean;
+    /** Verlangt eine frische Anmeldung beim Konto, etwa vor dem Löschen. */
+    frischAnmelden?: boolean;
+  },
 ): Promise<AnmeldeStart> {
   const config = await konfiguration(zugang);
   const codeVerifier = oidc.randomPKCECodeVerifier();
@@ -106,6 +112,12 @@ export async function starteAnmeldung(
   };
   // ZITADEL zeigt mit `prompt=create` gleich die Registrierung.
   if (optionen.registrieren) parameter.prompt = 'create';
+  // Eine frische Anmeldung, auch wenn beim Konto schon eine Sitzung besteht.
+  // `auth_time` im ID-Token zeigt danach, wann sie war.
+  if (optionen.frischAnmelden) {
+    parameter.prompt = 'login';
+    parameter.max_age = '0';
+  }
 
   return { adresse: oidc.buildAuthorizationUrl(config, parameter), zustand };
 }
@@ -204,4 +216,13 @@ export async function pruefeRueckkanal(zugang: Zugang, token: string): Promise<A
     zielgruppe: zugang.clientId,
     schluessel: schluesselbund.schluessel,
   });
+}
+
+/**
+ * Wo Angemeldete ihr Passwort beim gemeinsamen Konto ändern. Die Seite der
+ * Anmelde-App nutzt die bestehende Sitzung dort; die Adresse braucht deshalb
+ * keine E-Mail-Adresse als Parameter.
+ */
+export function passwortAendernAdresse(zugang: Zugang): URL {
+  return new URL('/ui/v2/login/password/change', zugang.aussteller);
 }

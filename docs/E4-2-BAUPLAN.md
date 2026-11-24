@@ -158,7 +158,7 @@ Gemergt als PR #98 (`80a34aa`).
   - Der Rückkanal lehnt ungültige Token mit 400 ab.
 
 **23.11.2026, Schritt 4:** Strecke gegen einen echten ZITADEL
-(`.github/workflows/aipfad-konto-e2e.yml`, `konto/pruefung/e2e/`,
+(`.github/workflows/aipfad-konto-e2e.yml`, seit E4.4 `konto-e2e.yml`; `konto/pruefung/e2e/`,
 `aipfad/e2e-konto/`).
 
 - Vier Abläufe, lokal zweimal hintereinander grün (Einzelheiten in

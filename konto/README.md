@@ -66,7 +66,7 @@ Das Skript ist wiederholbar: Was schon so eingestellt ist, meldet es als „scho
 Anmelde-App per Docker Compose. `starte.sh` richtet die Instanz mit
 `einrichten.mjs` ein und legt mit `pruefung/testkonten.mjs` Testkonten an;
 Letzteres läuft nur gegen localhost. Die Strecke in der CI ist
-`.github/workflows/aipfad-konto-e2e.yml`, die Anleitung für lokal steht in
+`.github/workflows/konto-e2e.yml`, die Anleitung für lokal steht in
 `aipfad/docs/TESTING.md`.
 
 ## Fristen

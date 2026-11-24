@@ -1,6 +1,10 @@
 import 'server-only';
 import { z } from 'zod';
 import { isAllowedHubOriginSetting } from '@/server/platform/review-source-http';
+import {
+  pruefeZentraleAnmeldung,
+  zentraleAnmeldungFelder,
+} from '@/server/auth/zentral-konfiguration';
 
 /**
  * Zentrale, validierte Konfiguration.
@@ -41,6 +45,8 @@ const envSchema = z.object({
     message:
       'PLATFORM_HUB_ORIGIN muss eine einzelne Origin sein (https://host[:port], ohne Pfad) oder leer bleiben.',
   }),
+  /** Anmeldung über das gemeinsame Konto (E4.4, Vertrag docs/learning-auth/). */
+  ...zentraleAnmeldungFelder,
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -50,7 +56,7 @@ let cached: Env | null = null;
 export function getEnv(): Env {
   if (cached) return cached;
 
-  const parsed = envSchema.safeParse(process.env);
+  const parsed = envSchema.superRefine(pruefeZentraleAnmeldung).safeParse(process.env);
   if (!parsed.success) {
     const details = parsed.error.issues
       .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)

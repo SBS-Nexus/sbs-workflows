@@ -2,7 +2,7 @@ import 'server-only';
 import { jwtVerify, type JWTVerifyGetKey } from 'jose';
 
 /**
- * Was AIPfad aus den Token des gemeinsamen Kontos liest, und wie es die
+ * Was die App aus den Token des gemeinsamen Kontos liest, und wie sie die
  * Rückkanal-Abmeldung prüft (E4.2, docs/E4-2-BAUPLAN.md). Ohne Netz und ohne
  * Datenbank, damit sich jede Regel einzeln testen lässt.
  */
@@ -13,7 +13,7 @@ export interface ZentraleIdentitaet {
   /** Kleingeschrieben. */
   email: string;
   emailBestaetigt: boolean;
-  /** 2 bis 80 Zeichen, wie bei der Registrierung in AIPfad. */
+  /** 2 bis 80 Zeichen, wie bei der Registrierung in den Apps. */
   name: string;
   /** Sitzung beim gemeinsamen Konto, für die Rückkanal-Abmeldung. */
   sid: string | null;
@@ -46,7 +46,7 @@ function nameAus(claims: Record<string, unknown>, email: string): string {
 /**
  * Liest die Identität aus den Claims (ID-Token, bei Bedarf ergänzt um
  * UserInfo). Ohne `sub` oder ohne brauchbare Adresse gibt es keine
- * Identität: Ein Konto ohne Adresse kann AIPfad nicht zuordnen.
+ * Identität: Ein Konto ohne Adresse kann die App nicht zuordnen.
  */
 export function identitaetAusClaims(claims: Record<string, unknown>): ZentraleIdentitaet | null {
   const sub = text(claims.sub);
@@ -68,6 +68,26 @@ export function identitaetAusClaims(claims: Record<string, unknown>): ZentraleId
     sid: sid && sid.length <= 255 ? sid : null,
     zweiFaktoren: amr.includes('mfa'),
   };
+}
+
+/**
+ * Wann sich die Person zuletzt beim Konto angemeldet hat (`auth_time`), aus
+ * dem gespeicherten ID-Token. Es wurde bei der Anmeldung geprüft und liegt
+ * nur auf dem Server; hier wird es deshalb nur gelesen, nicht erneut geprüft.
+ */
+export function anmeldezeitAus(idToken: string | null | undefined): Date | null {
+  const teile = idToken?.split('.') ?? [];
+  if (teile.length !== 3) return null;
+  try {
+    const inhalt = JSON.parse(Buffer.from(teile[1] ?? '', 'base64url').toString('utf8')) as {
+      auth_time?: unknown;
+    };
+    return typeof inhalt.auth_time === 'number' && Number.isFinite(inhalt.auth_time)
+      ? new Date(inhalt.auth_time * 1000)
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 export const RUECKKANAL_EREIGNIS = 'http://schemas.openid.net/event/backchannel-logout';
