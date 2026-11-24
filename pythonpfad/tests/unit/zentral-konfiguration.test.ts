@@ -55,6 +55,11 @@ describe('Konfiguration der Anmeldung über das gemeinsame Konto', () => {
     expect(schema.safeParse({ FEATURE_ZENTRALE_ANMELDUNG: 'vielleicht' }).success).toBe(false);
   });
 
+  it('verlangt für die Client-ID des Hubs die übrigen Werte', () => {
+    expect(fehler({ AUTH_HUB_CLIENT_ID: '400000000000000001' })).toHaveLength(4);
+    expect(fehler({ ...VOLLSTAENDIG, AUTH_HUB_CLIENT_ID: '400000000000000001' })).toEqual([]);
+  });
+
   it('lässt http nur für localhost zu', () => {
     expect(istZulaessigerAussteller('http://localhost:8080')).toBe(true);
     expect(istZulaessigerAussteller('http://127.0.0.1:8080')).toBe(true);

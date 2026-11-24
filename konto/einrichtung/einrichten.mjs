@@ -445,7 +445,11 @@ if (arg.anwendungen) {
     );
     for (const anwendung of ANWENDUNGEN) {
       const basis = basisFuer[anwendung.schluessel] ?? anwendung.basis;
-      const einstellungen = oidcEinstellungen(basis, rueckkanalFuer[anwendung.schluessel] ?? basis);
+      const einstellungen = oidcEinstellungen(
+        basis,
+        rueckkanalFuer[anwendung.schluessel] ?? basis,
+        anwendung,
+      );
       const app = (vorhanden.daten?.result ?? []).find((a) => a.name === anwendung.name);
 
       if (!app) {

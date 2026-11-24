@@ -1,4 +1,4 @@
-import { createPrivateKey, sign } from 'node:crypto';
+import { createHash, createPrivateKey, randomBytes, sign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, type Page } from '@playwright/test';
@@ -69,4 +69,61 @@ export async function kontoApi(methode: string, pfad: string, koerper?: unknown)
   });
   if (!antwort.ok) throw new Error(`${methode} ${pfad}: ${antwort.status} ${await antwort.text()}`);
   return antwort.json();
+}
+
+/** Adresse, unter der der Hub in der Strecke registriert ist (E4.5). */
+export const HUB_BASIS = 'http://127.0.0.1:3210';
+
+/**
+ * Holt für die angemeldete Person ein echtes Zugriffstoken des Hubs: Code-Flow
+ * mit PKCE in derselben Browsersitzung beim Konto (die Anmelde-App schließt
+ * mit der bestehenden Sitzung ohne Rückfrage ab), die
+ * Rückkehr zum (hier nicht laufenden) Hub fängt `page.route` ab, eingelöst
+ * wird der Code mit dem Client-Secret des Hubs.
+ */
+export async function hubZugriffstoken(page: Page): Promise<string> {
+  const { AUTH_CLIENT_ID: id, AUTH_CLIENT_SECRET: geheim } = JSON.parse(
+    readFileSync(path.join(ordner(), 'hub.json'), 'utf8'),
+  ) as { AUTH_CLIENT_ID: string; AUTH_CLIENT_SECRET: string };
+  const verifier = randomBytes(32).toString('base64url');
+  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  const rueckkehr = `${HUB_BASIS}/auth/rueckkehr`;
+
+  let code: string | null = null;
+  await page.route(`${HUB_BASIS}/**`, async (route) => {
+    code = new URL(route.request().url()).searchParams.get('code');
+    await route.fulfill({ status: 200, contentType: 'text/plain', body: 'Hub (Strecke)' });
+  });
+  const start = new URL(`${KONTO}/oauth/v2/authorize`);
+  for (const [k, v] of Object.entries({
+    client_id: id,
+    redirect_uri: rueckkehr,
+    response_type: 'code',
+    scope: 'openid',
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    state: randomBytes(8).toString('hex'),
+  })) {
+    start.searchParams.set(k, v);
+  }
+  await page.goto(start.href);
+  await expect.poll(() => code, { timeout: 20_000 }).not.toBeNull();
+  await page.unroute(`${HUB_BASIS}/**`);
+
+  const antwort = await fetch(`${KONTO}/oauth/v2/token`, {
+    method: 'POST',
+    headers: {
+      authorization: `Basic ${Buffer.from(`${encodeURIComponent(id)}:${encodeURIComponent(geheim)}`).toString('base64')}`,
+      'content-type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: code ?? '',
+      redirect_uri: rueckkehr,
+      code_verifier: verifier,
+    }),
+  });
+  if (!antwort.ok) throw new Error(`Token des Hubs: ${antwort.status} ${await antwort.text()}`);
+  const { access_token: token } = (await antwort.json()) as { access_token: string };
+  return token;
 }

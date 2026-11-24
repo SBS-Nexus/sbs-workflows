@@ -11,6 +11,7 @@
  *  5. Das Schema hat die Felder der Verknüpfung und der Rückkanal-Abmeldung.
  *  6. `openid-client`, `jose` und die Festlegung von `oauth4webapi` stimmen in
  *     allen Apps überein.
+ *  7. Die Plattformquellen nehmen das Zugriffstoken des Hubs an (E4.5).
  *
  * Es wird nichts repariert. Aufruf: `node scripts/check-learning-auth.mjs`.
  * Exit-Code 0 = alles im Vertrag, 1 = Drift (mit Liste der Befunde).
@@ -32,6 +33,7 @@ const SHARED = [
   ['zentral-konto.ts', 'src/server/auth/zentral-konto.ts'],
   ['zentral-cookie.ts', 'src/server/auth/zentral-cookie.ts'],
   ['zentral-hinweise.ts', 'src/server/auth/zentral-hinweise.ts'],
+  ['zentral-zugriff.ts', 'src/server/auth/zentral-zugriff.ts'],
   ['route-anmelden.ts', 'src/app/auth/anmelden/route.ts'],
   ['route-rueckkehr.ts', 'src/app/auth/rueckkehr/route.ts'],
   ['route-abmelden-rueckkanal.ts', 'src/app/auth/abmelden-rueckkanal/route.ts'],
@@ -90,6 +92,14 @@ for (const app of APPS) {
   const seite = text(path.join(root, app, 'src/app/auth/fehler/page.tsx')) ?? '';
   if (!seite.includes('hinweisFuer(')) {
     fail(`${app}: /auth/fehler fehlt oder nutzt die Texte des Vertrags nicht`);
+  }
+
+  // E4.5: Die Plattformquellen nehmen das Zugriffstoken des Hubs an.
+  for (const quelle of ['progress-source', 'review-source']) {
+    const route = text(path.join(root, app, `src/app/api/platform/${quelle}/route.ts`)) ?? '';
+    if (!route.includes('nutzerAusHubToken(request)')) {
+      fail(`${app}: /api/platform/${quelle} prüft kein Zugriffstoken des Hubs (nutzerAusHubToken)`);
+    }
   }
 
   const schema = text(path.join(root, app, 'prisma/schema.prisma')) ?? '';
