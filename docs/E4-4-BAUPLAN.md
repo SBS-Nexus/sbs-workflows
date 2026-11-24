@@ -195,3 +195,78 @@ Offen:
   dann die Einfuhr.
 - Die Hinweis-Mail erst nach Freigabe von Text und Versand.
 - Schritt 5: Schalter `an`.
+
+**24.11.2026, Probelauf auf den echten Daten (E4.3-Tor erfüllt):**
+
+- Werkzeug gemergt als PR #102 (`4996ffe`).
+- Der Probelauf lief als befristeter Railway-Job `konto-uebernahme` im
+  privaten Netz, nur zählend. Danach wurden der Job gelöscht, der
+  System-Nutzer entfernt und der Schlüssel gelöscht.
+
+| Konten                                | AIPfad | PythonPfad | SQLPfad | gesamt |
+| ------------------------------------- | -----: | ---------: | ------: | -----: |
+| gelesen                               |      2 |          1 |       1 |      4 |
+| davon ohne lokales Passwort (zentral) |      2 |          – |       – |      2 |
+| Überschneidungen nach Adresse         |        |            |         |      0 |
+| Personen zum Einführen                |        |            |         |      2 |
+| schon im gemeinsamen Konto            |        |            |         |      0 |
+| **Fehler**                            |        |            |         |  **0** |
+
+Die beiden AIPfad-Konten sind schon über das gemeinsame Konto entstanden und
+brauchen keine Übernahme. Einzuführen sind die beiden Konten aus PythonPfad
+und SQLPfad.
+
+**24.11.2026, Einfuhr nach Freigabe der Inhaberin:**
+
+- Wie der Probelauf als befristeter Job `konto-uebernahme`, Modus `einfuhr`:
+  2 Personen eingeführt, 0 Fehler.
+- Die Adressen sind unbestätigt, und es ging keine Mail hinaus.
+- Ein anschließender Zähllauf fand beide Personen vorhanden, nichts mehr
+  einzuführen, 0 Fehler.
+- Job, System-Nutzer und Schlüssel sind danach entfernt.
+
+Für die beiden Personen ändert sich erst etwas, wenn PythonPfad und SQLPfad
+umschalten. Dann melden sie sich mit dem bisherigen Passwort an, und die
+Anmelde-App verlangt einmal den Code zur Bestätigung der Adresse.
+
+**24.11.2026, Schritt 5 für SQLPfad: Schalter `an`.**
+
+Die Rücknahme wurde vorher geprobt, mit demselben Bau `1d50805` und Neustart
+mit dem vorhandenen Abbild. Jeder Wechsel dauerte rund 35 Sekunden.
+
+| Schritt | Ergebnis (live, im Browser, ohne Fehler)                                                            |
+| ------- | --------------------------------------------------------------------------------------------------- |
+| `an`    | `/anmelden`, `/fortschritt`, `/profil` führen zum Konto, `/registrieren` zu „Konto erstellen“       |
+| `aus`   | eigene Formulare „Anmelden“ und „Konto anlegen“, geschützte Seiten zur eigenen Anmeldung            |
+| `an`    | wie im ersten Schritt; Rückkehr ohne Zustand startet neu, ein zweiter Fehlversuch zeigt den Hinweis |
+
+**Rücknahme:** `FEATURE_ZENTRALE_ANMELDUNG=aus` setzen und den letzten
+Deploy mit dem vorhandenen Abbild neu starten (`deploymentRedeploy`,
+`usePreviousImageTag`). Das dauert rund 35 Sekunden; die eigenen Formulare
+gelten dann wieder. Konten, die erst über das gemeinsame Konto entstanden
+sind, kommen erst nach dem Wiedereinschalten an ihren Lernstand.
+
+**24.11.2026, Schritt 5 für PythonPfad: Schalter `an`.** Geprobt wie bei
+SQLPfad:
+
+| Schritt | Dauer | Ergebnis (live, im Browser, ohne Fehler)                                                                                              |
+| ------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `an`    |  47 s | `/anmelden`, `/fortschritt` und `/einladung/…` führen zum Konto, mit Ziel (`ziel=/einladung/…`), `/registrieren` zu „Konto erstellen“ |
+| `aus`   |  34 s | eigene Formulare „Anmelden“ und „Konto anlegen“                                                                                       |
+| `an`    |  35 s | wie im ersten Schritt; Rückkehr ohne Zustand startet neu, ein zweiter Fehlversuch zeigt den Hinweis                                   |
+
+**Damit melden alle drei Apps über das gemeinsame Konto an.**
+
+Erster Blick auf die Fehlerrate (Protokolle seit 24.11.2026, `bereich:
+zentrale-anmeldung`): kein Eintrag der Stufe `error`. Die 13 Warnungen
+stammen alle aus den eigenen Prüfaufrufen: ein ungültiges Logout-Token je
+App sowie Rückkehren ohne Zustand (neu gestartet bzw. Hinweis). Echte
+Anmeldungen kamen in dieser Zeit noch nicht.
+
+Offen:
+
+- Die Fehlerrate weiter beobachten (Tor E4.4).
+- Die Hinweis-Mail nur nach Freigabe von Text und Versand; bei zwei
+  übernommenen Konten womöglich nicht nötig.
+- E4.5: Hub als Client, danach (nach der Frist) die Passwort-Hashes und der
+  lokale Anmeldecode aus den Apps.

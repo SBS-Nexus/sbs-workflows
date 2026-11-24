@@ -82,6 +82,17 @@ ins gemeinsame Konto. Plan: `docs/E4-4-BAUPLAN.md`, Abschnitt 4.
 - Die Ausgabe enthält nur Zahlen. Vorhandene Adressen werden übersprungen.
 - Geprobt wird mit `konto/pruefung/uebernahme-pruefung.mjs` gegen
   `konto/pruefung/e2e` (`KONTO_E2E_UMFANG=zitadel starte.sh`).
+- Auf Railway läuft es als befristeter Dienst `konto-uebernahme`
+  (`rootDirectory` `/konto`, `dockerfilePath` `uebernahme/Dockerfile`,
+  Neustart `NEVER`). Er bekommt:
+  - `UEBERNAHME_DB_AIPFAD`, `…_PYTHONPFAD`, `…_SQLPFAD` als Referenzen auf
+    `DATABASE_URL` der App-Datenbanken (privates Netz),
+  - `UEBERNAHME_BASIS`, `UEBERNAHME_MODUS`,
+  - `UEBERNAHME_SCHLUESSEL` (der private Schlüssel des befristeten
+    System-Nutzers).
+- Nach dem Lauf werden der Dienst gelöscht, der System-Nutzer entfernt und
+  der Schlüssel gelöscht. Der Bericht steht nur im Protokoll des Dienstes,
+  als Zahlen.
 
 ## Fristen
 
