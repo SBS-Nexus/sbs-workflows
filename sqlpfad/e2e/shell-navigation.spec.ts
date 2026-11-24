@@ -133,7 +133,8 @@ test('Abmelden auf dem Telefon über das Konto-Menü schließt die Sitzung', asy
   await page.getByRole('banner').getByRole('button', { name: 'Abmelden', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   await page.goto('/fortschritt');
-  await expect(page).toHaveURL(/\/anmelden$/);
+  // Seit E4.4 merkt sich die Anmeldung, wohin es danach geht.
+  await expect(page).toHaveURL(/\/anmelden\?ziel=%2Ffortschritt$/);
 });
 
 test('Redaktion für die vorhandene Rolle: im Kopf ab 640 px, darunter im Konto-Menü', async ({
