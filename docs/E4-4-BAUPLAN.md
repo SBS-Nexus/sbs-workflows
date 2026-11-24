@@ -216,5 +216,18 @@ Die beiden AIPfad-Konten sind schon über das gemeinsame Konto entstanden und
 brauchen keine Übernahme. Einzuführen sind die beiden Konten aus PythonPfad
 und SQLPfad.
 
-Die Einfuhr selbst wartet auf die ausdrückliche Freigabe der Inhaberin:
-Sie schreibt in das gemeinsame Konto.
+**24.11.2026, Einfuhr nach Freigabe der Inhaberin:**
+
+- Wie der Probelauf als befristeter Job `konto-uebernahme`, Modus `einfuhr`:
+  2 Personen eingeführt, 0 Fehler.
+- Die Adressen sind unbestätigt, und es ging keine Mail hinaus.
+- Ein anschließender Zähllauf fand beide Personen vorhanden, nichts mehr
+  einzuführen, 0 Fehler.
+- Job, System-Nutzer und Schlüssel sind danach entfernt.
+
+Für die beiden Personen ändert sich erst etwas, wenn PythonPfad und SQLPfad
+umschalten. Dann melden sie sich mit dem bisherigen Passwort an, und die
+Anmelde-App verlangt einmal den Code zur Bestätigung der Adresse.
+
+Offen sind die Hinweis-Mail (erst nach Freigabe von Text und Versand) und
+Schritt 5, der Schalter `an`.
