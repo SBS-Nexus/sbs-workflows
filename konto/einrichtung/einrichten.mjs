@@ -388,6 +388,17 @@ if (loginNutzer) {
   }
 }
 
+// Lebensdauer der Token (E4.5b, docs/E4-5-BAUPLAN.md): Zugriffstoken kurz,
+// weil der Hub sie ohne eigene Datenbank nicht widerrufen kann; er
+// aktualisiert sie. Die Apps nutzen nur das ID-Token (12 Stunden wie bisher).
+// Aktualisierungstoken: 30 Tage ohne Nutzung, höchstens 90 Tage.
+await schritt('Lebensdauer der Token', 'PUT', '/admin/v1/settings/oidc', {
+  accessTokenLifetime: '900s',
+  idTokenLifetime: '43200s',
+  refreshTokenIdleExpiration: '2592000s',
+  refreshTokenExpiration: '7776000s',
+});
+
 // Anwendungen am gemeinsamen Konto (E4.2): Projekt, OIDC-Anwendungen und
 // die Rückkanal-Abmeldung. Neue Zugangsdaten landen je Anwendung in
 // <schluessel>-auth.json (AUTH_CLIENT_ID, AUTH_CLIENT_SECRET).

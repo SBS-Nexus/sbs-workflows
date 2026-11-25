@@ -88,7 +88,22 @@ for APP in aipfad pythonpfad sqlpfad; do
   ' "$DIR" "$APP"
 done
 
-# Zugang des Hubs für die Strecke (E4.5): Client-ID und Secret.
+# Zugang des Hubs für die Strecke (E4.5): Client-ID und Secret, dazu die
+# Umgebung des Hubs selbst (hub.env, E4.5b).
 cp "$DIR/geheim/hub-auth.json" "$DIR/hub.json"
+node -e '
+  const fs = require("node:fs");
+  const crypto = require("node:crypto");
+  const dir = process.argv[1];
+  const { AUTH_CLIENT_ID, AUTH_CLIENT_SECRET } = JSON.parse(fs.readFileSync(`${dir}/geheim/hub-auth.json`));
+  const zeilen = [
+    "AUTH_ISSUER=http://localhost:8080",
+    `AUTH_CLIENT_ID=${AUTH_CLIENT_ID}`,
+    `AUTH_CLIENT_SECRET=${AUTH_CLIENT_SECRET}`,
+    `HUB_SESSION_SECRET=${crypto.randomBytes(36).toString("base64url")}`,
+    "HUB_URL=http://127.0.0.1:3210",
+  ];
+  fs.writeFileSync(`${dir}/hub.env`, zeilen.join("\n") + "\n", { mode: 0o600 });
+' "$DIR"
 
 echo "== Bereit: http://localhost:8080 (ZITADEL), http://localhost:3000/ui/v2/login (Anmeldung)"

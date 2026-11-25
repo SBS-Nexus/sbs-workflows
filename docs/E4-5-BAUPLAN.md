@@ -118,3 +118,24 @@ Browser ── www.lernpfade.net (Hub) ──Anmelden──▶ konto.lernpfade.n
 
 Ohne `AUTH_HUB_CLIENT_ID` ändert sich in den Apps nichts. Gesetzt wird der
 Wert in E4.5b, sobald die Anwendung des Hubs eingerichtet ist.
+
+**24.11.2026, E4.5b gebaut** (Zweig `claude/e4-5b-hub-anmeldung-20261124`):
+
+- Hub: `src/server/konto/` und Routen `/auth/{anmelden,rueckkehr,abmelden,status}`.
+  - `einstellungen.ts`: fünf Werte oder keiner.
+  - `sitzung.ts`: JWE im Cookie; ID-Token im zweiten Cookie, mit eigenem
+    Schlüssel.
+  - `oidc.ts`: Code-Flow, `offline_access`, Aktualisieren, Abmelden.
+  - `cookies.ts` und die Kopie `zentral-zustand.ts`.
+- Kopfzeile: „Anmelden“, oder der Name mit „Abmelden“. Ohne Einrichtung zeigt
+  sie nichts.
+- `einrichten.mjs` setzt die Lebensdauer der Token: Zugriff 15 Minuten,
+  ID-Token 12 Stunden, Aktualisieren 30 Tage im Leerlauf, höchstens 90 Tage.
+- Tests:
+  - Einheiten zu Einstellungen und Sitzung: verschlüsselt und nicht lesbar,
+    falsches Geheimnis, Veränderung, getrennte Zwecke, Cookie-Namen.
+  - Strecke gegen echten ZITADEL: anmelden im Hub, Name im Kopf, Cookie
+    verschlüsselt, abmelden.
+- Live, nach dem Merge: Anwendung „Lernpfade-Hub“ einrichten,
+  `AUTH_HUB_CLIENT_ID` in den Apps setzen, Werte des Hubs bei Railway setzen
+  und die Domain `www.lernpfade.net` anlegen.

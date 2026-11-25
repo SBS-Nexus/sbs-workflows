@@ -68,6 +68,28 @@ Die frühere Startseiten-Hero „Liquid Sculpture" ist mit LO-UI-001 entfernt
 (Code, Bilder, Tests); ihre Dokumentation bleibt als Archiv in
 `docs/LIQUID-HERO.md`.
 
+## Anmeldung über das gemeinsame Konto (E4.5b)
+
+Der Hub meldet über konto.lernpfade.net an, wie PythonPfad, SQLPfad und
+AIPfad. Er hat keine Datenbank. Die Sitzung liegt deshalb verschlüsselt im
+Cookie (JWE, `dir` + `A256GCM`, `__Host-`, `httpOnly`), und der Browser kann
+sie nicht lesen.
+
+- Routen:
+  - `/auth/anmelden` (Start, `?ziel=`) und `/auth/rueckkehr`;
+  - `/auth/abmelden` (POST, weiter zum Abmelden beim Konto);
+  - `/auth/status` für die Kopfzeile, damit die Seiten statisch bleiben.
+- Code-Flow mit PKCE, `state` und `nonce`. Der signierte Anmeldezustand ist
+  eine bytegleiche Kopie aus dem Anmeldevertrag
+  (`src/server/konto/zentral-zustand.ts`, Drift-Check).
+- Das Zugriffstoken ist ein JWT, gilt 15 Minuten und wird über das
+  Aktualisierungstoken erneuert. Ab E4.5c ruft der Hub damit von seinem Server
+  aus die Plattformquellen der Apps ab.
+- Ohne die fünf Werte aus `.env.example` bleibt alles wie bisher.
+- Strecke gegen echten ZITADEL: `playwright.konto.config.ts`
+  (`e2e-konto/hub-anmeldung.spec.ts`), in der CI als Job „Anmeldung im Hub
+  gegen echten ZITADEL“.
+
 ## Wiederholen: Live-Quellen (LP-05B)
 
 `/wiederholen` zeigt fällige Wiederholungen aus PythonPfad, SQLPfad und AIPfad
