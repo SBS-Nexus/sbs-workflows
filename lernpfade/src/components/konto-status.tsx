@@ -8,7 +8,7 @@ type Stand =
 /**
  * Anmeldestand in der Kopfzeile (E4.5b). Fragt `/auth/status` im Browser ab,
  * damit die Seiten statisch bleiben. Ist die Anmeldung im Hub nicht
- * eingerichtet (404), zeigt sie nichts, wie bisher.
+ * eingerichtet (`eingerichtet: false`), zeigt sie nichts, wie bisher.
  */
 export function KontoStatus(): React.ReactElement | null {
   const [stand, setStand] = useState<Stand>({ art: 'laedt' });
@@ -20,8 +20,13 @@ export function KontoStatus(): React.ReactElement | null {
     fetch('/auth/status', { cache: 'no-store', credentials: 'same-origin' })
       .then(async (antwort) => {
         if (!aktiv) return;
-        if (antwort.status === 404) return setStand({ art: 'aus' });
-        const daten = (await antwort.json()) as { angemeldet?: boolean; name?: string };
+        if (!antwort.ok) return setStand({ art: 'aus' });
+        const daten = (await antwort.json()) as {
+          eingerichtet?: boolean;
+          angemeldet?: boolean;
+          name?: string;
+        };
+        if (!daten.eingerichtet) return setStand({ art: 'aus' });
         setStand(
           daten.angemeldet ? { art: 'angemeldet', name: daten.name ?? '' } : { art: 'abgemeldet' },
         );
