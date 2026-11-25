@@ -1611,3 +1611,50 @@ a {
 .org-plan-block + .org-plan-block {
   margin-top: 1.4rem;
 }
+
+/* E6.2 – Statusseite */
+.status-punkt {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: #2f9e5b;
+}
+
+.status-punkt.status-eingeschraenkt {
+  background: #d29a18;
+}
+
+.status-punkt.status-stoerung {
+  background: #c23a4c;
+}
+
+.status-marke {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 750;
+  color: #155b30;
+  background: #eaf6ee;
+  border: 1px solid #8cc5a0;
+}
+
+.status-marke.status-langsam {
+  color: #6b4d00;
+  background: #fbf3dc;
+  border-color: #e6c46b;
+}
+
+.status-marke.status-stoerung {
+  color: #8f1d2e;
+  background: #fbecee;
+  border-color: #e3a1ab;
+}
+
+.status-liste li > span:last-child {
+  font-variant-numeric: tabular-nums;
+  min-width: 5rem;
+  text-align: right;
+}

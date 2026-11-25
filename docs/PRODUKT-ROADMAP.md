@@ -161,6 +161,8 @@ Plan und Etappen: `docs/E5-PLAN.md` (seit 25.11.2026).
 - Rechtsseiten: Impressum, Datenschutz und AVV-Vorlage für Unternehmen.
 - Aufbewahrungslauf von Trockenlauf auf Ernstfall, nach geprüften Läufen.
 
+Plan und Etappen: `docs/E6-PLAN.md` (seit 26.11.2026).
+
 ### E7 · Kaufen und abrechnen
 
 - Preisseite (Einzelperson, Team, Unternehmen), Testzeitraum, Abrechnung über

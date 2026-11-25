@@ -329,3 +329,8 @@ E5.2a):
   - Strecke gegen echten ZITADEL: Lernplan vergeben, Person sieht „0 von 1 ·
     offen“, Admin sieht „Ada Testkonto: offen“.
   - Das ist das Tor der Roadmap als Test.
+
+**26.11.2026, E5.3 live:** #113 gemergt als `438b7a8`, Hub ausgerollt,
+Migration `lernplaene` angewandt. Damit ist das Tor der Roadmap technisch
+erfüllt und in der Strecke geprüft. Offen sind der Rundgang mit einem echten
+Team sowie E5.4 bis E5.6.
