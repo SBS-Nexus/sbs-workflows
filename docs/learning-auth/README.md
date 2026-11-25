@@ -20,6 +20,7 @@ Wie bei Shell, Komponenten und Tokens: kein gemeinsames Paket, sondern
 | `zentral-konto.ts`                       | `src/server/auth/zentral-konto.ts`             |
 | `zentral-cookie.ts`                      | `src/server/auth/zentral-cookie.ts`            |
 | `zentral-hinweise.ts`                    | `src/server/auth/zentral-hinweise.ts`          |
+| `zentral-zugriff.ts`                     | `src/server/auth/zentral-zugriff.ts`           |
 | `route-anmelden.ts`                      | `src/app/auth/anmelden/route.ts`               |
 | `route-rueckkehr.ts`                     | `src/app/auth/rueckkehr/route.ts`              |
 | `route-abmelden-rueckkanal.ts`           | `src/app/auth/abmelden-rueckkanal/route.ts`    |
@@ -79,3 +80,8 @@ Die Sicherheitsbegründung steht in `aipfad/docs/SECURITY.md`, Abschnitt
 - `?bestaetigen=1` verlangt eine frische Anmeldung beim Konto. Wann sie war,
   liest `anmeldezeitAus()` aus dem gespeicherten ID-Token; SQLPfad nutzt das
   vor dem Löschen eines Kontos.
+- Plattformquellen (E4.5, `docs/E4-5-BAUPLAN.md`): Mit
+  `Authorization: Bearer` nehmen `/api/platform/{progress,review}-source` nur
+  ein Zugriffstoken des Hubs an (`zentral-zugriff.ts`, `pruefeHubToken()`).
+  Geprüft werden Signatur, Aussteller, Ablauf, Zielgruppe und `client_id` =
+  `AUTH_HUB_CLIENT_ID`. Ohne diesen Wert ist der Weg aus.

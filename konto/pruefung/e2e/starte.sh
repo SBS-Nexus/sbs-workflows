@@ -49,6 +49,7 @@ node "$WURZEL/konto/einrichtung/einrichten.mjs" \
   --anwendung-basis aipfad=http://127.0.0.1:3101 \
   --anwendung-basis pythonpfad=http://127.0.0.1:3100 \
   --anwendung-basis sqlpfad=http://127.0.0.1:3100 \
+  --anwendung-basis hub=http://127.0.0.1:3210 \
   --rueckkanal-basis aipfad=http://host.docker.internal:3101 \
   --rueckkanal-basis pythonpfad=http://host.docker.internal:3100 \
   --rueckkanal-basis sqlpfad=http://host.docker.internal:3100
@@ -74,7 +75,9 @@ for APP in aipfad pythonpfad sqlpfad; do
     const crypto = require("node:crypto");
     const [dir, app] = process.argv.slice(1);
     const { AUTH_CLIENT_ID, AUTH_CLIENT_SECRET } = JSON.parse(fs.readFileSync(`${dir}/geheim/${app}-auth.json`));
+    const hub = JSON.parse(fs.readFileSync(`${dir}/geheim/hub-auth.json`));
     const zeilen = [
+      `AUTH_HUB_CLIENT_ID=${hub.AUTH_CLIENT_ID}`,
       "FEATURE_ZENTRALE_ANMELDUNG=an",
       "AUTH_ISSUER=http://localhost:8080",
       `AUTH_CLIENT_ID=${AUTH_CLIENT_ID}`,
@@ -84,5 +87,8 @@ for APP in aipfad pythonpfad sqlpfad; do
     fs.writeFileSync(`${dir}/${app}.env`, zeilen.join("\n") + "\n", { mode: 0o600 });
   ' "$DIR" "$APP"
 done
+
+# Zugang des Hubs für die Strecke (E4.5): Client-ID und Secret.
+cp "$DIR/geheim/hub-auth.json" "$DIR/hub.json"
 
 echo "== Bereit: http://localhost:8080 (ZITADEL), http://localhost:3000/ui/v2/login (Anmeldung)"

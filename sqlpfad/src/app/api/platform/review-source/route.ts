@@ -1,4 +1,5 @@
 import { getCurrentUser } from '@/server/auth/session';
+import { nutzerAusHubToken } from '@/server/auth/zentral-zugriff';
 import { getEnv } from '@/server/env';
 import { handleReviewSourceRequest } from '@/server/platform/review-source-http';
 import { readPlatformReviewSource } from '@/server/services/platform-review-source';
@@ -18,7 +19,11 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request): Promise<Response> {
   return handleReviewSourceRequest(request, {
     source: 'sql',
-    resolveUserId: async () => (await getCurrentUser())?.id ?? null,
+    // E4.5: Mit `Authorization: Bearer` gilt nur das Zugriffstoken des Hubs.
+    resolveUserId: async () => {
+      const hub = await nutzerAusHubToken(request);
+      return hub.art === 'token' ? hub.userId : ((await getCurrentUser())?.id ?? null);
+    },
     readBatch: readPlatformReviewSource,
     hubOrigin: () => getEnv().PLATFORM_HUB_ORIGIN,
     // SQLPfad hat keinen strukturierten Logger; protokolliert wird nur der

@@ -22,11 +22,13 @@ export const RUECKKEHR_PFAD = '/auth/rueckkehr';
 export const RUECKKANAL_PFAD = '/auth/abmelden-rueckkanal';
 const SCOPE = 'openid profile email';
 
-interface Zugang {
+export interface Zugang {
   aussteller: string;
   clientId: string;
   clientSecret: string;
   zustandsSchluessel: string;
+  /** Client-ID des Hubs; leer = Zugriffstoken des Hubs werden nicht angenommen. */
+  hubClientId: string;
 }
 
 /** Die Zugangsdaten, oder `null`, solange keine gesetzt sind. */
@@ -39,6 +41,7 @@ export function zentralerZugang(): Zugang | null {
     clientId: env.AUTH_CLIENT_ID,
     clientSecret: env.AUTH_CLIENT_SECRET,
     zustandsSchluessel: env.AUTH_STATE_SECRET,
+    hubClientId: env.AUTH_HUB_CLIENT_ID,
   };
 }
 
@@ -194,8 +197,14 @@ export async function abmeldeAdresse(zugang: Zugang, idToken: string | null): Pr
 
 let schluesselbund: { aussteller: string; schluessel: JWTVerifyGetKey } | null = null;
 
-/** Prüft ein Logout-Token gegen die öffentlichen Schlüssel des Kontos. */
-export async function pruefeRueckkanal(zugang: Zugang, token: string): Promise<AbmeldeAuftrag> {
+/**
+ * Aussteller und öffentliche Schlüssel des Kontos (JWKS), einmal je Prozess
+ * eingerichtet und von `jose` zwischengespeichert. Gebraucht für
+ * Logout-Token (Rückkanal) und Zugriffstoken des Hubs (`zentral-zugriff.ts`).
+ */
+export async function oeffentlicheSchluessel(
+  zugang: Zugang,
+): Promise<{ aussteller: string; schluessel: JWTVerifyGetKey }> {
   const config = await konfiguration(zugang);
   const metadaten = config.serverMetadata();
   if (!metadaten.jwks_uri) throw new Error('Das gemeinsame Konto nennt keine jwks_uri.');
@@ -210,12 +219,13 @@ export async function pruefeRueckkanal(zugang: Zugang, token: string): Promise<A
       }),
     };
   }
+  return schluesselbund;
+}
 
-  return pruefeAbmeldeToken(token, {
-    aussteller: metadaten.issuer,
-    zielgruppe: zugang.clientId,
-    schluessel: schluesselbund.schluessel,
-  });
+/** Prüft ein Logout-Token gegen die öffentlichen Schlüssel des Kontos. */
+export async function pruefeRueckkanal(zugang: Zugang, token: string): Promise<AbmeldeAuftrag> {
+  const { aussteller, schluessel } = await oeffentlicheSchluessel(zugang);
+  return pruefeAbmeldeToken(token, { aussteller, zielgruppe: zugang.clientId, schluessel });
 }
 
 /**

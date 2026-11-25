@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { abmelden, ANMELDE_COOKIE, onboardingAbschliessen, STARTSEITE } from './app';
-import { ANMELDUNG, anmeldenBeimKonto, kontoApi, testkonten } from './konto';
+import { ANMELDUNG, anmeldenBeimKonto, hubZugriffstoken, kontoApi, testkonten } from './konto';
 
 /**
  * Eine App am gemeinsamen Konto gegen einen echten ZITADEL (Vertrag
@@ -86,6 +86,33 @@ test('geht der Anmeldezustand verloren, startet die App die Anmeldung selbst neu
   // Kein Hinweis „zu lange gedauert“: Die App startet neu, das Konto
   // bestätigt ohne Rückfrage, und es geht weiter.
   await expect(page).toHaveURL(STARTSEITE);
+});
+
+test('das Zugriffstoken des Hubs öffnet die Fortschrittsquelle, sonst nichts', async ({
+  page,
+  baseURL,
+}) => {
+  const { bestaetigt } = testkonten();
+
+  await page.goto('/anmelden');
+  await anmeldenBeimKonto(page, bestaetigt);
+  await expect(page).toHaveURL(STARTSEITE);
+
+  // Der Hub ruft von seinem Server aus ab, ohne Cookie der App (E4.5).
+  const token = await hubZugriffstoken(page);
+  const quelle = `${baseURL}/api/platform/progress-source`;
+  const mit = (kopf?: string) =>
+    fetch(quelle, kopf ? { headers: { authorization: kopf } } : undefined);
+
+  const gueltig = await mit(`Bearer ${token}`);
+  expect(gueltig.status).toBe(200);
+  expect((await gueltig.json()) as { schemaVersion: number }).toMatchObject({ schemaVersion: 1 });
+
+  expect((await mit()).status).toBe(401);
+  const [kopf, inhalt, signatur] = token.split('.');
+  const verfaelscht = `${kopf}.${inhalt}.${(signatur ?? '').slice(0, -4)}AAAA`;
+  expect((await mit(`Bearer ${verfaelscht}`)).status).toBe(401);
+  expect((await mit('Basic abc')).status).toBe(401);
 });
 
 test('ohne bestätigte Adresse geht es nicht in die App', async ({ page }) => {

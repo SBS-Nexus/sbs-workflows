@@ -21,6 +21,11 @@ export const zentraleAnmeldungFelder = {
   AUTH_CLIENT_SECRET: z.string().default(''),
   /** Schlüssel für den signierten Zustand zwischen Start und Rückkehr. */
   AUTH_STATE_SECRET: z.string().default(''),
+  /**
+   * Client-ID des Lernpfade-Hubs (E4.5). Gesetzt nehmen die Plattformquellen
+   * dessen Zugriffstoken an; leer bleibt dieser Weg aus.
+   */
+  AUTH_HUB_CLIENT_ID: z.string().trim().default(''),
 };
 
 type ZentraleWerte = {
@@ -29,6 +34,7 @@ type ZentraleWerte = {
   AUTH_CLIENT_ID: string;
   AUTH_CLIENT_SECRET: string;
   AUTH_STATE_SECRET: string;
+  AUTH_HUB_CLIENT_ID: string;
 };
 
 const ZENTRALE_WERTE = [
@@ -58,7 +64,8 @@ export function istZulaessigerAussteller(wert: string): boolean {
 /** Entweder alle vier AUTH_*-Werte oder keiner; mit Schalter `an` alle. */
 export function pruefeZentraleAnmeldung(env: ZentraleWerte, ctx: z.RefinementCtx): void {
   const gesetzt = ZENTRALE_WERTE.filter((name) => env[name].length > 0);
-  const gefordert = env.FEATURE_ZENTRALE_ANMELDUNG === 'an' || gesetzt.length > 0;
+  const gefordert =
+    env.FEATURE_ZENTRALE_ANMELDUNG === 'an' || gesetzt.length > 0 || env.AUTH_HUB_CLIENT_ID !== '';
   if (!gefordert) return;
 
   for (const name of ZENTRALE_WERTE) {

@@ -152,3 +152,50 @@ export async function pruefeAbmeldeToken(
 
   return { sid, sub };
 }
+
+export class UngueltigesZugriffstoken extends Error {
+  constructor(grund: string) {
+    super(`Zugriffstoken abgelehnt: ${grund}`);
+    this.name = 'UngueltigesZugriffstoken';
+  }
+}
+
+/**
+ * Prüft ein Zugriffstoken des Lernpfade-Hubs (E4.5, JWT von ZITADEL) und gibt
+ * `sub` zurück: Signatur, Aussteller, Ablauf, Zielgruppe und `client_id`
+ * müssen die des Hubs sein. Ein Token, das eine App für sich bekommen hat,
+ * öffnet damit nichts.
+ */
+export async function pruefeHubToken(
+  token: string,
+  optionen: {
+    aussteller: string;
+    hubClientId: string;
+    schluessel: JWTVerifyGetKey;
+    jetzt?: Date;
+  },
+): Promise<string> {
+  if (!optionen.hubClientId) throw new UngueltigesZugriffstoken('kein Hub eingerichtet');
+  if (token.length > 8192) throw new UngueltigesZugriffstoken('zu lang');
+
+  let payload: Record<string, unknown>;
+  try {
+    ({ payload } = await jwtVerify(token, optionen.schluessel, {
+      issuer: optionen.aussteller,
+      audience: optionen.hubClientId,
+      algorithms: ['RS256'],
+      requiredClaims: ['sub', 'exp', 'iat'],
+      clockTolerance: 60,
+      ...(optionen.jetzt ? { currentDate: optionen.jetzt } : {}),
+    }));
+  } catch (fehler) {
+    throw new UngueltigesZugriffstoken(fehler instanceof Error ? fehler.name : 'Signatur');
+  }
+
+  if (payload.client_id !== optionen.hubClientId) {
+    throw new UngueltigesZugriffstoken('nicht für den Hub ausgestellt');
+  }
+  const sub = text(payload.sub);
+  if (!sub) throw new UngueltigesZugriffstoken('ohne sub');
+  return sub;
+}
