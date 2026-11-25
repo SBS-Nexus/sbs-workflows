@@ -59,7 +59,8 @@ test('Organisation anlegen, per Link einladen, beitreten, Plätze und Protokoll'
   await nochmal.getByRole('link', { name: 'Mit Lernpfade-Konto anmelden' }).click();
   await anmeldenMitZweitemFaktor(nochmal, admin);
   await nochmal.getByRole('button', { name: `${NAME} beitreten` }).click();
-  await expect(nochmal.getByRole('alert')).toHaveText(/schon so oft genutzt|bereits Mitglied/);
+  // Im Hauptbereich: Auch Nexts Ansage für Seitenwechsel trägt role="alert".
+  await expect(nochmal.getByRole('main').getByRole('alert')).toHaveText(/schon so oft genutzt|bereits Mitglied/);
 
   // Admin: Platz belegt, Mitglied sichtbar, Protokoll vollständig.
   await adminSeite.reload();
