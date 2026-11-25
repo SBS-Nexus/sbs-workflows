@@ -89,6 +89,7 @@ test('Organisation anlegen, per Link einladen, beitreten, Plätze und Protokoll'
   await expect(protokoll).toContainText(`hat die Organisation „${NAME}“ angelegt`);
   await expect(protokoll).toContainText('Einladungslink für bis zu 1 Person als Lernend erstellt (Team „Vertrieb“)');
   await expect(protokoll).toContainText('hat das Team „Vertrieb“ angelegt');
+  await expect(protokoll).toContainText('Ada Testkonto ist als Lernend beigetreten');
   await expect(adminSeite.getByRole('list', { name: 'Teams' })).toContainText('1 Person · 1 namentlich sichtbar');
 
   // Das Team zeigt die Person mit ihrer Einwilligung.
@@ -117,7 +118,6 @@ test('Organisation anlegen, per Link einladen, beitreten, Plätze und Protokoll'
   await expect(adminSeite.getByRole('region', { name: 'Prüfprotokoll' })).toContainText(
     'hat den Stand des Teams „Vertrieb“ als CSV heruntergeladen',
   );
-  await expect(protokoll).toContainText('Ada Testkonto ist als Lernend beigetreten');
 
   // Ohne zweiten Faktor: keine Verwaltung, sondern der Weg zur Einrichtung.
   await lernSeite.goto('/organisation');
