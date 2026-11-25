@@ -149,6 +149,9 @@ jobs:
       # Testwerte, keine echten Geheimnisse (wie in aipfad-ci.yml).
       CRON_SECRET: 'ci-testgeheimnis-kein-echtes-geheimnis'
       RETENTION_MODE: 'dry-run'
+      # Der Hub liest die Adresse auch zur Laufzeit (process.env[name] wird nicht
+      # eingebacken); deshalb für den ganzen Job, nicht nur beim Bauen.
+      NEXT_PUBLIC_AIPFAD_URL: http://127.0.0.1:3101
 
     steps:
       - uses: actions/checkout@v4
@@ -180,8 +183,6 @@ jobs:
 
       - name: Hub – Abhängigkeiten und Produktionsbuild
         working-directory: lernpfade
-        env:
-          NEXT_PUBLIC_AIPFAD_URL: http://127.0.0.1:3101
         run: |
           npm install --no-audit --no-fund
           npm run build
