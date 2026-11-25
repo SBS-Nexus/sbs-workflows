@@ -1,5 +1,6 @@
 import { createHash, createPrivateKey, randomBytes, sign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import path from 'node:path';
 import { expect, type Page } from '@playwright/test';
 
@@ -78,8 +79,8 @@ export const HUB_BASIS = 'http://127.0.0.1:3210';
  * Holt für die angemeldete Person ein echtes Zugriffstoken des Hubs: Code-Flow
  * mit PKCE in derselben Browsersitzung beim Konto (die Anmelde-App schließt
  * mit der bestehenden Sitzung ohne Rückfrage ab), die
- * Rückkehr zum (hier nicht laufenden) Hub fängt `page.route` ab, eingelöst
- * wird der Code mit dem Client-Secret des Hubs.
+ * Rückkehr zum (hier nicht laufenden) Hub nimmt ein kleiner Server auf
+ * 127.0.0.1:3210 an, eingelöst wird der Code mit dem Client-Secret des Hubs.
  */
 export async function hubZugriffstoken(page: Page): Promise<string> {
   const { AUTH_CLIENT_ID: id, AUTH_CLIENT_SECRET: geheim } = JSON.parse(
@@ -89,10 +90,20 @@ export async function hubZugriffstoken(page: Page): Promise<string> {
   const challenge = createHash('sha256').update(verifier).digest('base64url');
   const rueckkehr = `${HUB_BASIS}/auth/rueckkehr`;
 
+  // Ein echter kleiner Server statt `page.route`: Die Rückkehr kommt als
+  // Weiterleitung von ZITADEL, und die fing `page.route` in der CI nicht ab
+  // (ERR_CONNECTION_REFUSED auf dem leeren Port). Hier läuft kein Hub; in der
+  // Strecke der Apps ist der Port frei.
   let code: string | null = null;
-  await page.route(`${HUB_BASIS}/**`, async (route) => {
-    code = new URL(route.request().url()).searchParams.get('code');
-    await route.fulfill({ status: 200, contentType: 'text/plain', body: 'Hub (Strecke)' });
+  const hub = createServer((anfrage, antwort) => {
+    const adresse = new URL(anfrage.url ?? '/', HUB_BASIS);
+    if (adresse.pathname === '/auth/rueckkehr') code = adresse.searchParams.get('code');
+    antwort.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
+    antwort.end('Hub (Strecke)');
+  });
+  await new Promise<void>((bereit, fehler) => {
+    hub.once('error', fehler);
+    hub.listen(Number(new URL(HUB_BASIS).port), new URL(HUB_BASIS).hostname, () => bereit());
   });
   const start = new URL(`${KONTO}/oauth/v2/authorize`);
   for (const [k, v] of Object.entries({
@@ -106,9 +117,12 @@ export async function hubZugriffstoken(page: Page): Promise<string> {
   })) {
     start.searchParams.set(k, v);
   }
-  await page.goto(start.href);
-  await expect.poll(() => code, { timeout: 20_000 }).not.toBeNull();
-  await page.unroute(`${HUB_BASIS}/**`);
+  try {
+    await page.goto(start.href);
+    await expect.poll(() => code, { timeout: 20_000 }).not.toBeNull();
+  } finally {
+    hub.close();
+  }
 
   const antwort = await fetch(`${KONTO}/oauth/v2/token`, {
     method: 'POST',
