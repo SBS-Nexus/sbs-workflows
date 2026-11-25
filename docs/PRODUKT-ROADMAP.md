@@ -152,6 +152,8 @@ Aufbauend auf den Organisationen von PythonPfad, für alle Pfade:
 **Fertig, wenn:** ein Unternehmen ein Team einlädt, einen Lernplan vergibt und
 den Stand ohne Support sieht.
 
+Plan und Etappen: `docs/E5-PLAN.md` (seit 25.11.2026).
+
 ### E6 · Betrieb auf Produktniveau (L7)
 
 - Tägliche Datenbanksicherungen mit geprüfter Wiederherstellung.
