@@ -21,7 +21,9 @@ export type Recht =
   | 'mitglieder.verwalten'
   | 'einladen.lernende'
   | 'einladen.leitung'
-  | 'protokoll.lesen';
+  | 'protokoll.lesen'
+  /** E5.2: Teams anlegen, archivieren, Mitglieder zuordnen. */
+  | 'teams.verwalten';
 
 const RECHTE: Readonly<Record<Rolle, readonly Recht[]>> = {
   ADMIN: [
@@ -31,8 +33,9 @@ const RECHTE: Readonly<Record<Rolle, readonly Recht[]>> = {
     'einladen.lernende',
     'einladen.leitung',
     'protokoll.lesen',
+    'teams.verwalten',
   ],
-  TEACHER: ['mitglieder.sehen', 'einladen.lernende'],
+  TEACHER: ['mitglieder.sehen', 'einladen.lernende', 'teams.verwalten'],
   LEARNER: [],
 };
 

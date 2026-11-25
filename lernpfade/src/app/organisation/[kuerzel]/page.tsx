@@ -1,17 +1,20 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { SiteHeader } from '@/components/site-header';
 import {
   EinladenFormular,
+  FreigabeSchalter,
   MitgliedVerwalten,
+  TeamAnlegenFormular,
   UmbenennenFormular,
   VerlassenKnopf,
   WiderrufenKnopf,
 } from '@/components/organisation/formulare';
 import { AnmeldenHinweis, ZweiterFaktorHinweis } from '@/components/organisation/hinweise';
+import { Rahmen } from '@/components/organisation/rahmen';
 import { ProgressBar } from '@/components/ui/primitives';
 import { brauchtZweitenFaktor, darf, darfEinladenAls, ROLLEN, ROLLEN_NAME } from '@/domain/organisation/regeln';
-import { aktualisiereAnzeigename, kontext, protokoll, uebersicht } from '@/server/organisation/dienst';
+import { aktualisiereAnzeigename, kontext, protokoll, uebersicht, type OrgKontext } from '@/server/organisation/dienst';
+import { eigeneTeams, teamsVon } from '@/server/organisation/teams';
 import { anmeldeAdresse, orgZugang, zweiterFaktorAdresse } from '@/server/organisation/zugang';
 
 /**
@@ -63,6 +66,8 @@ export default async function OrganisationSeite({
     );
   }
 
+  const meineTeams = await eigeneTeams(db, k, person);
+
   if (!leitung) {
     return (
       <Rahmen titel={k.name} rolle={ROLLEN_NAME[k.rolle]}>
@@ -70,19 +75,24 @@ export default async function OrganisationSeite({
           <h2 id="org-lernend">Du lernst hier mit</h2>
           <p className="org-text">
             Deine Organisation sieht von dir ohne deine Einwilligung keine Einzelwerte – nur Summen über Teams ab
-            drei Personen. Dein Lernstand bleibt in deinen Pfaden und bei dir, auch wenn du austrittst. Teams und
-            Lernpläne folgen hier in Kürze.
+            drei Personen. Dein Lernstand bleibt in deinen Pfaden und bei dir, auch wenn du austrittst.
           </p>
+        </section>
+        <EigeneTeams kuerzel={k.kuerzel} teams={meineTeams} />
+        <section className="los-section" aria-labelledby="org-austreten">
+          <h2 id="org-austreten">Mitgliedschaft</h2>
           <VerlassenKnopf kuerzel={k.kuerzel} name={k.name} />
         </section>
       </Rahmen>
     );
   }
 
-  const [u, eintraege] = await Promise.all([
+  const [u, eintraege, teams] = await Promise.all([
     uebersicht(db, k, person),
     darf(k.rolle, 'protokoll.lesen') ? protokoll(db, k, person) : Promise.resolve(null),
+    teamsVon(db, k, person),
   ]);
+  const offeneTeams = teams.filter((t) => !t.archiviert).map((t) => ({ id: t.id, name: t.name }));
   const verwaltet = darf(k.rolle, 'mitglieder.verwalten');
   const einladbar = ROLLEN.filter((r) => darfEinladenAls(k.rolle, r)).map((r) => ({ wert: r, name: ROLLEN_NAME[r] }));
 
@@ -104,7 +114,7 @@ export default async function OrganisationSeite({
 
       <section className="los-section" aria-labelledby="org-einladen">
         <h2 id="org-einladen">Einladen</h2>
-        <EinladenFormular kuerzel={k.kuerzel} rollen={einladbar} freiePlaetze={u.plaetze.frei} />
+        <EinladenFormular kuerzel={k.kuerzel} rollen={einladbar} freiePlaetze={u.plaetze.frei} teams={offeneTeams} />
         {u.einladungen.length > 0 ? (
           <>
             <h3 className="org-unterkopf">Offene Einladungen</h3>
@@ -114,6 +124,7 @@ export default async function OrganisationSeite({
                   <span>
                     <strong>{ROLLEN_NAME[e.rolle]}</strong>
                     {e.email ? ` · für ${e.email}` : ` · ${e.nutzungen} von ${e.maxNutzungen} genutzt`}
+                    {e.team ? ` · Team ${e.team}` : ''}
                   </span>
                   <span className="org-gedaempft">gilt bis {datum.format(e.gueltigBis)}</span>
                   {darfEinladenAls(k.rolle, e.rolle) ? <WiderrufenKnopf kuerzel={k.kuerzel} einladung={e.id} /> : null}
@@ -122,6 +133,32 @@ export default async function OrganisationSeite({
             </ul>
           </>
         ) : null}
+      </section>
+
+      <section className="los-section" aria-labelledby="org-teams">
+        <h2 id="org-teams">Teams</h2>
+        <p className="org-text">
+          Teams bündeln Personen, etwa eine Abteilung oder einen Kurs. Den Stand eines Teams gibt es nur als Summe ab
+          drei Personen; namentlich nur von denen, die es selbst erlauben.
+        </p>
+        {teams.length > 0 ? (
+          <ul className="org-tabelle" aria-label="Teams">
+            {teams.map((t) => (
+              <li key={t.id}>
+                <span>
+                  <a href={`/organisation/${k.kuerzel}/teams/${t.kuerzel}`}>
+                    <strong>{t.name}</strong>
+                  </a>
+                  {t.archiviert ? ' · archiviert' : ''}
+                </span>
+                <span className="org-gedaempft">
+                  {t.mitglieder} {t.mitglieder === 1 ? 'Person' : 'Personen'} · {t.freigaben} namentlich sichtbar
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <TeamAnlegenFormular kuerzel={k.kuerzel} />
       </section>
 
       <section className="los-section" aria-labelledby="org-mitglieder">
@@ -166,6 +203,8 @@ export default async function OrganisationSeite({
         </section>
       ) : null}
 
+      {meineTeams.length > 0 ? <EigeneTeams kuerzel={k.kuerzel} teams={meineTeams} /> : null}
+
       <section className="los-section" aria-labelledby="org-austreten">
         <h2 id="org-austreten">Mitgliedschaft</h2>
         <VerlassenKnopf kuerzel={k.kuerzel} name={k.name} />
@@ -174,30 +213,44 @@ export default async function OrganisationSeite({
   );
 }
 
-function Rahmen({
-  titel,
-  rolle,
-  children,
+/** Eigene Teams mit der Einwilligung, die nur die Person selbst ändert. */
+function EigeneTeams({
+  kuerzel,
+  teams,
 }: {
-  titel: string;
-  rolle?: string;
-  children: React.ReactNode;
+  kuerzel: OrgKontext['kuerzel'];
+  teams: Awaited<ReturnType<typeof eigeneTeams>>;
 }): React.ReactElement {
   return (
-    <>
-      <SiteHeader />
-      <main id="hauptinhalt" className="los-app los-flow org-page">
-        <header className="los-head">
-          <div className="los-head-copy">
-            <p className="eyebrow">
-              <a href="/organisation">Organisationen</a>
-              {rolle ? ` · du bist ${rolle}` : null}
-            </p>
-            <h1>{titel}</h1>
-          </div>
-        </header>
-        {children}
-      </main>
-    </>
+    <section className="los-section" aria-labelledby="org-eigene-teams">
+      <h2 id="org-eigene-teams">Deine Teams</h2>
+      {teams.length === 0 ? (
+        <p className="org-leer">Du bist noch in keinem Team.</p>
+      ) : (
+        <>
+          <p className="org-text">
+            Du entscheidest je Team, ob Admins und Lehrkräfte deinen Stand namentlich sehen: abgeschlossene Lektionen,
+            fällige Wiederholungen und den Tag deiner letzten Aktivität – nie Versuche, Zeiten oder Code. Ohne deine
+            Einwilligung zählst du nur in Summen ab drei Personen. Du kannst sie jederzeit zurücknehmen.
+          </p>
+          <ul className="org-tabelle" aria-label="Deine Teams">
+            {teams.map((t) => (
+              <li key={t.teamMitgliedId}>
+                <span>
+                  <strong>{t.team}</strong>
+                  {t.archiviert ? ' · archiviert' : ''}
+                </span>
+                <span className="org-gedaempft">
+                  {t.freigabe
+                    ? `namentlich sichtbar${t.seit ? ` seit ${datum.format(t.seit)}` : ''}`
+                    : 'nur in Summen'}
+                </span>
+                <FreigabeSchalter kuerzel={kuerzel} teamMitglied={t.teamMitgliedId} team={t.team} freigabe={t.freigabe} />
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
   );
 }

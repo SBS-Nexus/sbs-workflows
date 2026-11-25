@@ -14,6 +14,13 @@ import {
   verlasse,
   widerrufe,
 } from '@/server/organisation/dienst';
+import {
+  archiviereTeam,
+  entferneAusTeam,
+  fuegeHinzu,
+  legeTeamAn,
+  setzeFreigabe,
+} from '@/server/organisation/teams';
 import { anmeldeAdresse, orgZugang } from '@/server/organisation/zugang';
 import { EINLOESUNG_TEXT } from '@/domain/organisation/regeln';
 
@@ -66,6 +73,7 @@ export async function ladeEinAktion(kuerzel: string, _vorher: Antwort, daten: Fo
       rolle: daten.get('rolle'),
       email: daten.get('email') ?? undefined,
       maxNutzungen: daten.get('maxNutzungen') ?? 1,
+      team: daten.get('team') ?? undefined,
     });
     if (!ergebnis.ok) return { meldung: ergebnis.meldung };
     refresh();
@@ -140,3 +148,72 @@ export async function loeseEinAktion(token: string, _vorher: Antwort): Promise<A
   }
   redirect(`/organisation/${ergebnis.kuerzel}`);
 }
+
+// ---------------------------------------------------------------------------
+// E5.2 — Teams und Einwilligung
+// ---------------------------------------------------------------------------
+
+export async function legeTeamAnAktion(kuerzel: string, _vorher: Antwort, daten: FormData): Promise<Antwort> {
+  let ziel: string;
+  try {
+    const { db, person, k } = await mitKontext(kuerzel);
+    const ergebnis = await legeTeamAn(db, k, person, daten.get('name'));
+    if (!ergebnis.ok) return { meldung: ergebnis.meldung };
+    ziel = `/organisation/${kuerzel}/teams/${ergebnis.kuerzel}`;
+  } catch (fehler) {
+    return alsAntwort(fehler);
+  }
+  redirect(ziel);
+}
+
+export async function fuegeHinzuAktion(kuerzel: string, _vorher: Antwort, daten: FormData): Promise<Antwort> {
+  try {
+    const { db, person, k } = await mitKontext(kuerzel);
+    const ergebnis = await fuegeHinzu(db, k, person, String(daten.get('team') ?? ''), String(daten.get('mitglied') ?? ''));
+    if (!ergebnis.ok) return { meldung: ergebnis.meldung };
+    refresh();
+    return { erfolg: 'Ins Team aufgenommen.' };
+  } catch (fehler) {
+    return alsAntwort(fehler);
+  }
+}
+
+export async function entferneAusTeamAktion(kuerzel: string, _vorher: Antwort, daten: FormData): Promise<Antwort> {
+  try {
+    const { db, person, k } = await mitKontext(kuerzel);
+    const ergebnis = await entferneAusTeam(db, k, person, String(daten.get('teamMitglied') ?? ''));
+    if (!ergebnis.ok) return { meldung: ergebnis.meldung };
+    refresh();
+    return { erfolg: 'Aus dem Team genommen.' };
+  } catch (fehler) {
+    return alsAntwort(fehler);
+  }
+}
+
+export async function archiviereTeamAktion(kuerzel: string, _vorher: Antwort, daten: FormData): Promise<Antwort> {
+  try {
+    const { db, person, k } = await mitKontext(kuerzel);
+    const archivieren = daten.get('archivieren') === '1';
+    const ergebnis = await archiviereTeam(db, k, person, String(daten.get('team') ?? ''), archivieren);
+    if (!ergebnis.ok) return { meldung: ergebnis.meldung };
+    refresh();
+    return { erfolg: archivieren ? 'Team archiviert.' : 'Team wieder geöffnet.' };
+  } catch (fehler) {
+    return alsAntwort(fehler);
+  }
+}
+
+/** Die Person entscheidet selbst; wirkt sofort. */
+export async function setzeFreigabeAktion(kuerzel: string, _vorher: Antwort, daten: FormData): Promise<Antwort> {
+  const { db, person } = await angemeldet(`/organisation/${kuerzel}`);
+  const freigabe = daten.get('freigabe') === '1';
+  const ergebnis = await setzeFreigabe(db, person, String(daten.get('teamMitglied') ?? ''), freigabe);
+  if (!ergebnis.ok) return { meldung: ergebnis.meldung };
+  refresh();
+  return {
+    erfolg: freigabe
+      ? 'Dein Stand ist in diesem Team jetzt namentlich sichtbar.'
+      : 'Dein Stand erscheint in diesem Team jetzt nur noch in Summen.',
+  };
+}
+

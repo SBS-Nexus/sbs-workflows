@@ -89,7 +89,12 @@ test('Einladung: nur der Hash liegt in der Datenbank; Vorschau und Beitritt', as
   assert.equal(gespeichert.tokenHash, hashToken(token));
   assert.notEqual(gespeichert.tokenHash, token);
 
-  assert.deepEqual(await einladungVorschau(db, token), { organisation: 'Muster GmbH', rolle: 'LEARNER', gebunden: false });
+  assert.deepEqual(await einladungVorschau(db, token), {
+    organisation: 'Muster GmbH',
+    rolle: 'LEARNER',
+    gebunden: false,
+    team: null,
+  });
   assert.equal(await einladungVorschau(db, 'falsch'), null);
 
   assert.deepEqual(await loeseEin(db, person(2), token), { ok: true, kuerzel: k.kuerzel });

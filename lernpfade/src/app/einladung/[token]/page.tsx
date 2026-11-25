@@ -41,8 +41,13 @@ export default async function EinladungSeite({
               <>
                 <h1>{vorschau.organisation}</h1>
                 <p>
-                  Du bist eingeladen, als <strong>{ROLLEN_NAME[vorschau.rolle]}</strong> beizutreten. Dein Lernstand
-                  bleibt bei dir; deine Organisation sieht Einzelwerte nur mit deiner Einwilligung.
+                  Du bist eingeladen, als <strong>{ROLLEN_NAME[vorschau.rolle]}</strong> beizutreten
+                  {vorschau.team ? (
+                    <>
+                      , direkt ins Team <strong>{vorschau.team}</strong>
+                    </>
+                  ) : null}
+                  . Dein Lernstand bleibt bei dir; deine Organisation sieht Einzelwerte nur mit deiner Einwilligung.
                 </p>
               </>
             ) : (

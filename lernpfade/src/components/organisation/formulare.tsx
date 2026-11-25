@@ -3,7 +3,12 @@
 import { useActionState, useId, useState } from 'react';
 import {
   aendereRolleAktion,
+  archiviereTeamAktion,
   benenneUmAktion,
+  entferneAusTeamAktion,
+  fuegeHinzuAktion,
+  legeTeamAnAktion,
+  setzeFreigabeAktion,
   entferneAktion,
   ladeEinAktion,
   legeAnAktion,
@@ -72,11 +77,14 @@ export function EinladenFormular({
   kuerzel,
   rollen,
   freiePlaetze,
+  teams = [],
 }: {
   kuerzel: string;
   /** Rollen, mit denen diese Person einladen darf. */
   rollen: ReadonlyArray<{ wert: string; name: string }>;
   freiePlaetze: number;
+  /** Offene Teams; wer einlöst, kommt direkt hinein. */
+  teams?: ReadonlyArray<{ id: string; name: string }>;
 }): React.ReactElement {
   const [antwort, aktion, laeuft] = useActionState(ladeEinAktion.bind(null, kuerzel), LEER);
   const [kopiert, setKopiert] = useState(false);
@@ -98,6 +106,19 @@ export function EinladenFormular({
           <label htmlFor={`${id}-email`}>E-Mail-Adresse (optional)</label>
           <input id={`${id}-email`} name="email" type="email" autoComplete="off" aria-describedby={`${id}-email-hinweis`} />
         </div>
+        {teams.length > 0 ? (
+          <div className="vocab-field">
+            <label htmlFor={`${id}-team`}>Direkt ins Team (optional)</label>
+            <select id={`${id}-team`} name="team" defaultValue="">
+              <option value="">Kein Team</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         <div className="vocab-field">
           <label htmlFor={`${id}-anzahl`}>Für wie viele Personen?</label>
           <input
@@ -254,3 +275,132 @@ export function BeitretenKnopf({ token, organisation }: { token: string; organis
     </form>
   );
 }
+
+// ---------------------------------------------------------------------------
+// E5.2 — Teams und Einwilligung
+// ---------------------------------------------------------------------------
+
+export function TeamAnlegenFormular({ kuerzel }: { kuerzel: string }): React.ReactElement {
+  const [antwort, aktion, laeuft] = useActionState(legeTeamAnAktion.bind(null, kuerzel), LEER);
+  const id = useId();
+  return (
+    <form action={aktion} className="vocab-form vocab-form-inline org-form">
+      <div className="vocab-field">
+        <label htmlFor={`${id}-name`}>Name des Teams</label>
+        <input id={`${id}-name`} name="name" required minLength={2} maxLength={80} />
+      </div>
+      <Button type="submit" disabled={laeuft}>
+        {laeuft ? 'Wird angelegt …' : 'Team anlegen'}
+      </Button>
+      <Rueckmeldung antwort={antwort} />
+    </form>
+  );
+}
+
+export function TeamAufnehmenFormular({
+  kuerzel,
+  team,
+  kandidaten,
+}: {
+  kuerzel: string;
+  team: string;
+  kandidaten: ReadonlyArray<{ mitgliedId: string; name: string; rolle: string }>;
+}): React.ReactElement {
+  const [antwort, aktion, laeuft] = useActionState(fuegeHinzuAktion.bind(null, kuerzel), LEER);
+  const id = useId();
+  return (
+    <form action={aktion} className="vocab-form vocab-form-inline org-form">
+      <input type="hidden" name="team" value={team} />
+      <div className="vocab-field">
+        <label htmlFor={`${id}-mitglied`}>Mitglied der Organisation</label>
+        <select id={`${id}-mitglied`} name="mitglied" required defaultValue="">
+          <option value="" disabled>
+            Person wählen
+          </option>
+          {kandidaten.map((k) => (
+            <option key={k.mitgliedId} value={k.mitgliedId}>
+              {k.name} · {k.rolle}
+            </option>
+          ))}
+        </select>
+      </div>
+      <Button type="submit" disabled={laeuft}>
+        {laeuft ? 'Wird aufgenommen …' : 'Ins Team aufnehmen'}
+      </Button>
+      <Rueckmeldung antwort={antwort} />
+    </form>
+  );
+}
+
+export function AusTeamNehmenKnopf({
+  kuerzel,
+  teamMitglied,
+  name,
+}: {
+  kuerzel: string;
+  teamMitglied: string;
+  name: string;
+}): React.ReactElement {
+  const [antwort, aktion, laeuft] = useActionState(entferneAusTeamAktion.bind(null, kuerzel), LEER);
+  return (
+    <form action={aktion} className="org-inline">
+      <input type="hidden" name="teamMitglied" value={teamMitglied} />
+      <Button type="submit" variant="secondary" size="sm" disabled={laeuft} aria-label={`${name} aus dem Team nehmen`}>
+        {laeuft ? 'Wird entfernt …' : 'Aus dem Team nehmen'}
+      </Button>
+      <Rueckmeldung antwort={antwort} />
+    </form>
+  );
+}
+
+export function TeamArchivierenKnopf({
+  kuerzel,
+  team,
+  archiviert,
+}: {
+  kuerzel: string;
+  team: string;
+  archiviert: boolean;
+}): React.ReactElement {
+  const [antwort, aktion, laeuft] = useActionState(archiviereTeamAktion.bind(null, kuerzel), LEER);
+  return (
+    <form action={aktion} className="org-inline">
+      <input type="hidden" name="team" value={team} />
+      <input type="hidden" name="archivieren" value={archiviert ? '0' : '1'} />
+      <Button type="submit" variant="secondary" disabled={laeuft}>
+        {laeuft ? 'Einen Moment …' : archiviert ? 'Team wieder öffnen' : 'Team archivieren'}
+      </Button>
+      <Rueckmeldung antwort={antwort} />
+    </form>
+  );
+}
+
+/** Einwilligung der Person selbst: ein Knopf, der sagt, was danach gilt. */
+export function FreigabeSchalter({
+  kuerzel,
+  teamMitglied,
+  team,
+  freigabe,
+}: {
+  kuerzel: string;
+  teamMitglied: string;
+  team: string;
+  freigabe: boolean;
+}): React.ReactElement {
+  const [antwort, aktion, laeuft] = useActionState(setzeFreigabeAktion.bind(null, kuerzel), LEER);
+  return (
+    <form action={aktion} className="org-inline">
+      <input type="hidden" name="teamMitglied" value={teamMitglied} />
+      <input type="hidden" name="freigabe" value={freigabe ? '0' : '1'} />
+      <Button type="submit" variant={freigabe ? 'secondary' : 'primary'} size="sm" disabled={laeuft}>
+        {laeuft
+          ? 'Wird gespeichert …'
+          : freigabe
+            ? `In „${team}“ nur noch in Summen zeigen`
+            : `In „${team}“ namentlich zeigen`}
+      </Button>
+      <Rueckmeldung antwort={antwort} />
+    </form>
+  );
+}
+

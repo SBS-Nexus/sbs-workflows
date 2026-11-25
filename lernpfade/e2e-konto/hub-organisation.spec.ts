@@ -32,18 +32,29 @@ test('Organisation anlegen, per Link einladen, beitreten, Plätze und Protokoll'
   await expect(adminSeite.getByRole('heading', { level: 1 })).toHaveText(NAME);
   await expect(adminSeite.getByRole('progressbar', { name: '0 von 10 Plätzen für Lernende belegt' })).toBeVisible();
 
-  // Einladungslink für eine lernende Person; der Link erscheint genau jetzt.
+  // E5.2: Team anlegen; die Seite des Teams öffnet sich.
+  await adminSeite.getByLabel('Name des Teams').fill('Vertrieb');
+  await adminSeite.getByRole('button', { name: 'Team anlegen' }).click();
+  await expect(adminSeite).toHaveURL(/\/teams\/vertrieb$/);
+  await expect(adminSeite.getByRole('heading', { level: 1 })).toHaveText('Vertrieb');
+  const orgAdresse = new URL(adminSeite.url()).pathname.replace(/\/teams\/vertrieb$/, '');
+  await adminSeite.goto(orgAdresse);
+
+  // Einladungslink für eine lernende Person, direkt ins Team; der Link erscheint genau jetzt.
+  await adminSeite.getByLabel('Direkt ins Team (optional)').selectOption({ label: 'Vertrieb' });
   await adminSeite.getByLabel('Für wie viele Personen?').fill('1');
   await adminSeite.getByRole('button', { name: 'Einladungslink erstellen' }).click();
   const linkFeld = adminSeite.getByLabel('Einladungslink');
   await expect(linkFeld).toHaveValue(/\/einladung\/[A-Za-z0-9_-]{40,}$/);
   const link = await linkFeld.inputValue();
   await expect(adminSeite.getByRole('list', { name: 'Offene Einladungen' })).toContainText('0 von 1 genutzt');
+  await expect(adminSeite.getByRole('list', { name: 'Offene Einladungen' })).toContainText('Team Vertrieb');
 
   // Lernende Person: Link öffnen, anmelden, beitreten.
   const lernSeite = await (await browser.newContext()).newPage();
   await lernSeite.goto(new URL(link).pathname);
   await expect(lernSeite.getByRole('heading', { level: 1 })).toHaveText(NAME);
+  await expect(lernSeite.getByRole('main')).toContainText('direkt ins Team Vertrieb');
   await lernSeite.getByRole('link', { name: 'Mit Lernpfade-Konto anmelden' }).click();
   await anmeldenBeimKonto(lernSeite, lernend);
   await expect(lernSeite).toHaveURL(new URL(link).pathname);
@@ -52,6 +63,14 @@ test('Organisation anlegen, per Link einladen, beitreten, Plätze und Protokoll'
   await expect(lernSeite.getByRole('heading', { name: 'Du lernst hier mit' })).toBeVisible();
   // Lernende sehen keine Mitgliederliste und kein Protokoll.
   await expect(lernSeite.getByRole('list', { name: 'Mitglieder' })).toHaveCount(0);
+
+  // E5.2: im Team, standardmäßig nur in Summen; die Person erlaubt es selbst.
+  const eigeneTeams = lernSeite.getByRole('list', { name: 'Deine Teams' });
+  await expect(eigeneTeams).toContainText('Vertrieb');
+  await expect(eigeneTeams).toContainText('nur in Summen');
+  await eigeneTeams.getByRole('button', { name: 'In „Vertrieb“ namentlich zeigen' }).click();
+  await expect(lernSeite.getByRole('main').getByRole('status')).toHaveText(/jetzt namentlich sichtbar/);
+  await expect(eigeneTeams).toContainText('namentlich sichtbar seit');
 
   // Der Link ist aufgebraucht.
   const nochmal = await (await browser.newContext()).newPage();
@@ -68,7 +87,15 @@ test('Organisation anlegen, per Link einladen, beitreten, Plätze und Protokoll'
   await expect(adminSeite.getByRole('list', { name: 'Mitglieder' })).toContainText('Ada Testkonto');
   const protokoll = adminSeite.getByRole('region', { name: 'Prüfprotokoll' });
   await expect(protokoll).toContainText(`hat die Organisation „${NAME}“ angelegt`);
-  await expect(protokoll).toContainText('Einladungslink für bis zu 1 Person als Lernend erstellt');
+  await expect(protokoll).toContainText('Einladungslink für bis zu 1 Person als Lernend erstellt (Team „Vertrieb“)');
+  await expect(protokoll).toContainText('hat das Team „Vertrieb“ angelegt');
+  await expect(adminSeite.getByRole('list', { name: 'Teams' })).toContainText('1 Person · 1 namentlich sichtbar');
+
+  // Das Team zeigt die Person mit ihrer Einwilligung.
+  await adminSeite.getByRole('list', { name: 'Teams' }).getByRole('link', { name: 'Vertrieb' }).click();
+  const personen = adminSeite.getByRole('list', { name: 'Personen im Team' });
+  await expect(personen).toContainText('Ada Testkonto');
+  await expect(personen).toContainText('namentlich sichtbar');
   await expect(protokoll).toContainText('Ada Testkonto ist als Lernend beigetreten');
 
   // Ohne zweiten Faktor: keine Verwaltung, sondern der Weg zur Einrichtung.
