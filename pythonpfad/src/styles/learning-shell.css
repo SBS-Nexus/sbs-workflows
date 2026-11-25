@@ -464,3 +464,44 @@
   top: -0.25rem;
   right: -0.5rem;
 }
+
+/* --- Rechtliche Verweise unter jedem Inhalt (E6.1) ----------------------- */
+
+.lp-shell-legal {
+  border-top: 1px solid var(--lp-shell-border);
+  background: var(--lp-shell-surface);
+  color: var(--lp-shell-text-muted);
+  font-size: 0.875rem;
+}
+
+.lp-shell-legal-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 1.25rem;
+  row-gap: var(--lp-shell-space-1);
+  max-width: 80rem;
+  margin-inline: auto;
+  padding: var(--lp-shell-space-3) 1rem;
+}
+
+.lp-shell-legal-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--lp-shell-target);
+  color: var(--lp-shell-text);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.lp-shell-legal-link:focus-visible {
+  outline: var(--lp-shell-focus-width) solid var(--lp-shell-focus);
+  outline-offset: var(--lp-shell-focus-offset);
+  border-radius: var(--lp-shell-radius-small);
+}
+
+@media (min-width: 640px) {
+  .lp-shell-legal-inner {
+    padding-inline: 1.5rem;
+  }
+}

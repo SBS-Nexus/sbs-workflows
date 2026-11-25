@@ -425,7 +425,9 @@ export default async function LandingPage({
         </section>
       </main>
 
-      <footer className="border-t border-[var(--border)] py-10">
+      {/* Markenhinweis der Startseite. Der Fuß der Seite mit Impressum und Datenschutz
+          kommt aus der Shell (LearningLegalFooter im Root-Layout). */}
+      <section aria-label="Über die App" className="border-t border-[var(--border)] py-10">
         <div className="mx-auto max-w-6xl px-4 text-sm text-[var(--text-muted)] sm:px-6">
           <p className="flex items-center gap-2 font-semibold text-[var(--text)]">
             <Icon name="schritte" size={18} className="text-[var(--accent)]" />
@@ -443,7 +445,7 @@ export default async function LandingPage({
             .
           </p>
         </div>
-      </footer>
+      </section>
     </div>
   );
 }

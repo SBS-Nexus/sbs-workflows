@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
+import { RechtsFuss } from '@/components/rechtliches/rechts-fuss';
 
 /*
  * Schrift (Roadmap E3): IBM Plex wie in PythonPfad, SQLPfad und AIPfad –
@@ -68,6 +69,7 @@ export default function RootLayout({
           Direkt zum Hauptinhalt
         </a>
         {children}
+        <RechtsFuss />
       </body>
     </html>
   );

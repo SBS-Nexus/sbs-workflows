@@ -1658,3 +1658,81 @@ a {
   min-width: 5rem;
   text-align: right;
 }
+
+/* E6.1 – Rechtsseiten und Fuß mit Pflichtangaben */
+.recht-stand {
+  color: var(--los-text-muted);
+  font-size: 0.9rem;
+}
+
+.recht-inhalt ol {
+  display: grid;
+  gap: 0.3rem;
+  max-width: 68ch;
+  margin: 0;
+  padding-left: 1.4rem;
+}
+
+.recht-text {
+  max-width: 72ch;
+  line-height: 1.7;
+}
+
+.recht-text h2 {
+  margin-top: 2.2rem;
+  scroll-margin-top: 1.5rem;
+  font-size: 1.25rem;
+}
+
+.recht-text address {
+  font-style: normal;
+  margin: 0.6rem 0;
+}
+
+.recht-text ul {
+  padding-left: 1.3rem;
+}
+
+.recht-text li + li {
+  margin-top: 0.3rem;
+}
+
+.recht-tabelle-rahmen {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.recht-tabelle {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.recht-tabelle th,
+.recht-tabelle td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--los-line-paper);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.recht-fuss {
+  border-top: 1px solid var(--los-line-paper);
+  padding: 1.1rem var(--los-gutter, 1.25rem);
+  background: var(--los-surface);
+  font-size: 0.88rem;
+}
+
+.recht-fuss nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.2rem;
+  max-width: var(--los-content, 1200px);
+  margin: 0 auto;
+  color: var(--los-text-muted);
+}
+
+.recht-fuss a {
+  color: var(--los-text);
+}
