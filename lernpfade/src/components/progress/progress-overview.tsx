@@ -158,10 +158,13 @@ function SourceCard({
   config,
   state,
   viaHub = false,
+  kontoAnmelden = false,
 }: {
   config: ProgressSourceConfig;
   state: SourceState;
   viaHub?: boolean;
+  /** Mit dem gemeinsamen Konto, aber (noch) nicht im Hub angemeldet. */
+  kontoAnmelden?: boolean;
 }): React.ReactElement {
   const titleId = `progress-${config.source}`;
   const openUrl = config.baseUrl ?? config.appUrl;
@@ -186,10 +189,16 @@ function SourceCard({
         ) : null}
 
         {state.status === 'not_configured' ? (
-          <FeedbackCallout message={sourceFeedback('not_configured')}>
-            Nicht mit dem Hub verbunden. Dein Fortschritt in {config.appName} ist dort weiterhin
-            vollständig sichtbar.
-          </FeedbackCallout>
+          kontoAnmelden ? (
+            <FeedbackCallout message={sourceFeedback('unauthenticated')}>
+              Mit deinem Lernpfade-Konto erscheint hier dein Stand aus {config.appName}.
+            </FeedbackCallout>
+          ) : (
+            <FeedbackCallout message={sourceFeedback('not_configured')}>
+              Nicht mit dem Hub verbunden. Dein Fortschritt in {config.appName} ist dort weiterhin
+              vollständig sichtbar.
+            </FeedbackCallout>
+          )
         ) : null}
 
         {state.status === 'unauthenticated' ? (
@@ -359,13 +368,18 @@ function readableStore(outcome: LoadOutcome | null) {
 export function ProgressOverview({
   sources,
   viaHub = false,
+  kontoAnmelden = null,
 }: {
   sources: readonly ProgressSourceConfig[];
   /** E4.5c: Angemeldet im Hub, kommen alle Quellen in einem Abruf über den Hub-Server. */
   viaHub?: boolean;
+  /** Anmeldeadresse des Hubs, wenn das gemeinsame Konto eingerichtet ist; sonst `null`. */
+  kontoAnmelden?: string | null;
 }): React.ReactElement {
   const enabled = sources.filter((config) => config.baseUrl).map((config) => config.source);
   const [states, setStates] = useState<Record<ProgressSource, SourceState>>(() => initialSourceStates(enabled));
+  // Der Hub kennt die Sitzung nicht mehr (beim Konto abgemeldet): neu anmelden statt „nicht verbunden“.
+  const [abgelaufen, setAbgelaufen] = useState(false);
   const [vocabOutcome, setVocabOutcome] = useState<LoadOutcome | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [timeZone, setTimeZone] = useState<string | undefined>(undefined);
@@ -389,13 +403,14 @@ export function ProgressOverview({
           return [source, ticket];
         }),
       );
-      void fetchProgressViaHub(angefragt, (url, init) => fetch(url, init)).then((outcomes) => {
+      void fetchProgressViaHub(angefragt, (url, init) => fetch(url, init)).then(({ abgemeldet, outcomes }) => {
         if (!mountedRef.current) return;
+        setAbgelaufen(abgemeldet);
         setStates((current) => {
           const naechste = { ...current };
           for (const outcome of outcomes) {
             if (sourceTicketsRef.current[outcome.source] !== tickets[outcome.source]) continue;
-            naechste[outcome.source] = resolveSourceOutcome(outcome);
+            naechste[outcome.source] = abgemeldet ? { status: 'not_configured' } : resolveSourceOutcome(outcome);
           }
           return naechste;
         });
@@ -481,9 +496,22 @@ export function ProgressOverview({
       <BacklogSummary total={total} configs={sources} />
       <section className="los-section progress-paths" aria-labelledby="progress-paths-title">
         <h2 id="progress-paths-title">Deine Pfade</h2>
+        {abgelaufen && kontoAnmelden ? (
+          <FeedbackCallout message={{ tone: 'info', title: 'Anmeldung abgelaufen', live: true }}>
+            Deine Anmeldung bei Lernpfade ist abgelaufen.{' '}
+            {/* Absichtlich <a>: Das Ziel leitet zum gemeinsamen Konto weiter. */}
+            <a href={kontoAnmelden}>Erneut anmelden</a>
+          </FeedbackCallout>
+        ) : null}
         <div className="progress-grid">
           {sources.map((config) => (
-            <SourceCard viaHub={viaHub} key={config.source} config={config} state={states[config.source]} />
+            <SourceCard
+              viaHub={viaHub}
+              kontoAnmelden={Boolean(kontoAnmelden) && (!viaHub || abgelaufen)}
+              key={config.source}
+              config={config}
+              state={states[config.source]}
+            />
           ))}
           <VocabularyCard state={vocabulary} />
         </div>

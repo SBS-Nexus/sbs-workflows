@@ -107,6 +107,11 @@ noch Nutzerkennung.
 - Ohne Freischaltung bleibt es beim klar markierten Demo-Deck
   (**DEMO · Beispiel**), dessen Bewertungen nur lokal im Browser bleiben.
 
+Mit dem gemeinsamen Konto (E4.5c) gilt derselbe Weg wie bei `/fortschritt`
+(unten): Der Browser fragt einmal `/api/hub/wiederholen`, der Hub-Server holt
+jede Quelle mit seinem Zugriffstoken (`limit` wie bisher `perSource`).
+Geprüft und sortiert wird im Browser wie bisher.
+
 Architektur und Begründung: `docs/LEARNING-PLATFORM.md`, Abschnitt 10.
 
 ```bash
@@ -152,6 +157,17 @@ Antwort je Quelle durch.
 - Kennt eine App die Person noch nicht, zeigt der Hub den Hinweis „… kennt
   dein Lernpfade-Konto noch nicht“ und den Weg dorthin. Ein Klick meldet
   dort ohne Passwort an und verbindet das Konto.
+- Ist das Konto eingerichtet, ersetzt dieser Weg den Browserabruf (LP-05B,
+  LP-07) ganz. Nicht angemeldet bieten `/fortschritt` und `/wiederholen` die
+  Anmeldung an, statt aus dem Browser „nicht angemeldet“ einzusammeln.
+- Lehnt das Konto das Aktualisieren ab (abgemeldet), endet die Sitzung im
+  Hub, und die Seite bietet „Erneut anmelden“. Ist das Konto nur nicht
+  erreichbar, bleibt die Sitzung; die Quellen gelten dann als nicht
+  erreichbar.
+- Gemeinsamer Ablauf beider Sammelrouten: `src/server/konto/hub-quellen.ts`,
+  Abruf der Quellen: `src/server/konto/quellen.ts`. Je Abruf eine
+  Protokollzeile „Quellen über den Hub“ mit Route, Dauer und Status je
+  Quelle, ohne Kennung der Person.
 
 ## VokabelPfad (LP-06, lokaler MVP)
 
