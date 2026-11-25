@@ -124,7 +124,32 @@ jobs:
   hub:
     name: Anmeldung im Hub gegen echten ZITADEL
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
+
+    # AIPfad läuft mit, damit /fortschritt im Hub echte Daten zeigen kann (Tor E4.5).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aipfad
+          POSTGRES_PASSWORD: aipfad
+          POSTGRES_DB: aipfad
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://aipfad:aipfad@localhost:5432/aipfad?schema=public
+      APP_URL: http://127.0.0.1:3101
+      DEPLOYMENT_ID: ${{ github.sha }}
+      SEED_DEMO_USERS: 'false'
+      # Testwerte, keine echten Geheimnisse (wie in aipfad-ci.yml).
+      CRON_SECRET: 'ci-testgeheimnis-kein-echtes-geheimnis'
+      RETENTION_MODE: 'dry-run'
+
     steps:
       - uses: actions/checkout@v4
 
@@ -141,8 +166,22 @@ jobs:
       - name: Test-ZITADEL starten und einrichten
         run: konto/pruefung/e2e/starte.sh
 
+      - name: AIPfad bauen und starten (Schalter an, nimmt Hub-Token an)
+        working-directory: aipfad
+        run: |
+          npm ci
+          npm run db:deploy
+          npm run db:seed
+          npm run build
+          set -a; . "$KONTO_E2E_DIR/aipfad.env"; set +a
+          nohup npm run start -- --port 3101 > "$RUNNER_TEMP/aipfad.log" 2>&1 &
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:3101/api/health >/dev/null && break; sleep 2; done
+          curl -fsS http://127.0.0.1:3101/api/health >/dev/null
+
       - name: Hub – Abhängigkeiten und Produktionsbuild
         working-directory: lernpfade
+        env:
+          NEXT_PUBLIC_AIPFAD_URL: http://127.0.0.1:3101
         run: |
           npm install --no-audit --no-fund
           npm run build
@@ -151,13 +190,15 @@ jobs:
         working-directory: lernpfade
         run: npx playwright install --with-deps chromium
 
-      - name: Anmelden im Hub, Name im Kopf, Abmelden
+      - name: Anmelden im Hub, Fortschritt mit echten Daten, Abmelden
         working-directory: lernpfade
         run: npx playwright test -c playwright.konto.config.ts
 
       - name: Protokolle der Testumgebung
         if: failure()
-        run: docker compose -f konto/pruefung/e2e/compose.yaml logs --no-color --tail 300
+        run: |
+          docker compose -f konto/pruefung/e2e/compose.yaml logs --no-color --tail 300
+          tail -n 200 "$RUNNER_TEMP/aipfad.log" || true
 
       - name: Testbericht sichern
         if: always()
@@ -170,7 +211,6 @@ jobs:
       - name: Aufräumen
         if: always()
         run: docker compose -f konto/pruefung/e2e/compose.yaml down -v
-
   uebernahme:
     name: Kontoübernahme gegen echten ZITADEL
     runs-on: ubuntu-latest

@@ -137,6 +137,22 @@ VokabelPfad wird lokal aus IndexedDB gelesen.
   Route `src/app/fortschritt/`. Vertrag und Semantik:
   `docs/LEARNING-PLATFORM.md`, Abschnitt 12.
 
+### Mit dem gemeinsamen Konto (E4.5c)
+
+Ist man im Hub angemeldet, holt der Hub-Server den Fortschritt selbst. Der
+Browser fragt einmal `/api/hub/fortschritt` (gleiche Herkunft). Der Server
+ruft jede App mit konfigurierter Adresse mit seinem Zugriffstoken ab
+(`Authorization: Bearer`, von den Apps geprüft) und reicht Status und
+Antwort je Quelle durch.
+
+- Ein einziger Abruf, weil das Aktualisieren des Zugriffstokens nur einmal
+  gleichzeitig laufen darf.
+- Die Freischaltung `PROGRESS_FEDERATION_SOURCES` und dieselbe Website sind
+  dafür nicht nötig.
+- Kennt eine App die Person noch nicht, zeigt der Hub den Hinweis „… kennt
+  dein Lernpfade-Konto noch nicht“ und den Weg dorthin. Ein Klick meldet
+  dort ohne Passwort an und verbindet das Konto.
+
 ## VokabelPfad (LP-06, lokaler MVP)
 
 `/vokabeln`: eigene Decks Englisch ↔ Deutsch, Karten mit Satzkontext und Tags,
