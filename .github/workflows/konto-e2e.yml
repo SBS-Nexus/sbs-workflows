@@ -152,6 +152,10 @@ jobs:
       # Der Hub liest die Adresse auch zur Laufzeit (process.env[name] wird nicht
       # eingebacken); deshalb für den ganzen Job, nicht nur beim Bauen.
       NEXT_PUBLIC_AIPFAD_URL: http://127.0.0.1:3101
+      # E5.1: eigene Datenbank des Hubs im selben Postgres-Dienst. Eigener Name,
+      # weil DATABASE_URL hier AIPfad gehört; playwright.konto.config.ts reicht
+      # sie dem Hub als DATABASE_URL weiter.
+      HUB_DATABASE_URL: postgresql://aipfad:aipfad@localhost:5432/plattform
 
     steps:
       - uses: actions/checkout@v4
@@ -181,17 +185,19 @@ jobs:
           for i in $(seq 1 60); do curl -fsS http://127.0.0.1:3101/api/health >/dev/null && break; sleep 2; done
           curl -fsS http://127.0.0.1:3101/api/health >/dev/null
 
-      - name: Hub – Abhängigkeiten und Produktionsbuild
+      - name: Hub – Abhängigkeiten, Datenbank und Produktionsbuild
         working-directory: lernpfade
         run: |
           npm install --no-audit --no-fund
+          PGPASSWORD=aipfad psql -h localhost -U aipfad -d aipfad -c 'CREATE DATABASE plattform'
+          DATABASE_URL="$HUB_DATABASE_URL" npx prisma migrate deploy
           npm run build
 
       - name: Browser
         working-directory: lernpfade
         run: npx playwright install --with-deps chromium
 
-      - name: Anmelden im Hub, Fortschritt mit echten Daten, Abmelden
+      - name: Anmelden im Hub, Fortschritt mit echten Daten, Organisationen, Abmelden
         working-directory: lernpfade
         run: npx playwright test -c playwright.konto.config.ts
 

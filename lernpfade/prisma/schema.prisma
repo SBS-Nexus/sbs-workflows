@@ -1,0 +1,124 @@
+// Lernpfade-Plattform – Datenmodell (E5, docs/E5-PLAN.md)
+//
+// Leitgedanken:
+//  * Die Plattform weiß, wer in welcher Organisation was darf. Was jemand
+//    gelernt hat, bleibt in den Apps; hier steht kein Lernstand.
+//  * Personen sind über `sub` des gemeinsamen Kontos (konto.lernpfade.net)
+//    bekannt. Es gibt keine eigene Personentabelle und keine Passwörter.
+//  * Jeder Fremdschlüssel hat eine explizite Löschregel: Organisation löschen
+//    löscht alles darunter, nie etwas bei den Personen.
+//  * Das Prüfprotokoll hält Verwaltungshandlungen fest, nie Lernverhalten.
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  runtime                = "nodejs"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  // Mit Endung: Der Hub prüft seine Server-Module mit `node --test` ohne
+  // Bündler; Next und TypeScript nehmen `.ts`-Importe ebenso.
+  importFileExtension    = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Rolle in einer Organisation. Bewusst getrennt von jeder Rolle in den Apps.
+enum OrgRole {
+  /// Verwaltet die Organisation: Rollen, Plätze, Prüfprotokoll.
+  ADMIN
+  /// Lädt Lernende ein, führt Teams und Lernpläne (ab E5.2/E5.3).
+  TEACHER
+  /// Lernt. Nur diese Rolle belegt einen Platz.
+  LEARNER
+}
+
+enum OrgStatus {
+  /// Selbst angelegt, kostenlos, begrenzte Plätze (bis E7).
+  TRIAL
+  ACTIVE
+  /// Gesperrt: lesbar für Admins, keine Einladungen, kein Beitritt.
+  SUSPENDED
+}
+
+model Organization {
+  id           String    @id @default(cuid())
+  slug         String    @unique
+  name         String
+  /// Plätze für Lernende. Admins und Lehrkräfte belegen keinen Platz.
+  seats        Int       @default(10)
+  status       OrgStatus @default(TRIAL)
+  createdBySub String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  memberships  Membership[]
+  invitations  Invitation[]
+  auditEntries AuditEntry[]
+
+  @@map("organizations")
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  organizationId String
+  /// `sub` des gemeinsamen Kontos.
+  sub            String
+  /// Anzeigename aus dem Konto, beim Beitritt und bei jedem Besuch aktualisiert.
+  displayName    String
+  role           OrgRole  @default(LEARNER)
+  joinedAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, sub])
+  @@index([sub])
+  @@index([organizationId, role])
+  @@map("memberships")
+}
+
+/// Einladung per Link. Gespeichert wird nur der SHA-256-Hash des Tokens; ein
+/// Datenbankleck gibt keine einlösbaren Einladungen preis.
+model Invitation {
+  id             String    @id @default(cuid())
+  organizationId String
+  role           OrgRole   @default(LEARNER)
+  tokenHash      String    @unique
+  /// Optional an eine bestätigte Adresse gebunden; dann genau einmal einlösbar.
+  email          String?
+  /// Wie oft der Link einlösbar ist. Gebundene Einladungen: 1.
+  maxUses        Int       @default(1)
+  uses           Int       @default(0)
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  createdBySub   String
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([expiresAt])
+  @@map("invitations")
+}
+
+/// Wer wann was verwaltet hat. Ausdrücklich kein Beobachtungswerkzeug.
+model AuditEntry {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorSub       String
+  /// Name zum Zeitpunkt der Handlung, damit das Protokoll lesbar bleibt.
+  actorName      String
+  /// Maschinenlesbar, etwa `organization.created` oder `invitation.accepted`.
+  action         String
+  targetType     String
+  targetId       String?
+  /// Ein ganzer Satz für die Anzeige.
+  summary        String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@map("audit_entries")
+}

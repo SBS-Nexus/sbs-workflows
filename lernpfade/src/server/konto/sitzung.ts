@@ -7,7 +7,9 @@ import { EncryptJWT, jwtDecrypt } from 'jose';
  * `dir` + `A256GCM`). Der Browser trägt es, kann es aber weder lesen noch
  * verändern. Darin liegen nur, was der Hub-Server braucht: `sub`, der
  * Anzeigename, das kurzlebige Zugriffstoken, das Aktualisierungstoken und
- * dessen Ablauf.
+ * dessen Ablauf. Seit E5.1 dazu die Adresse mit ihrem Bestätigungsstand (für
+ * an eine Adresse gebundene Einladungen) und ob mit zweitem Faktor angemeldet
+ * wurde (Pflicht für Verwaltungsseiten der Organisationen).
  *
  * Das ID-Token für das Abmelden liegt in einem zweiten Cookie, damit keines
  * an die Größengrenze der Browser (4 KB) stößt.
@@ -19,6 +21,12 @@ export interface HubSitzung {
   aktualisierung: string | null;
   /** Ablauf des Zugriffstokens in Millisekunden seit 1970. */
   gueltigBis: number;
+  /** E-Mail-Adresse aus dem Konto; `null`, wenn keine übermittelt wurde. */
+  email: string | null;
+  /** Hat das Konto die Adresse bestätigt (`email_verified`)? */
+  emailBestaetigt: boolean;
+  /** Wurde mit zwei Faktoren angemeldet (`amr` enthält `mfa`)? */
+  zweiFaktoren: boolean;
 }
 
 /** Höchstdauer der Sitzung im Hub; das Konto kann sie früher beenden. */
@@ -79,6 +87,10 @@ export async function oeffneSitzung(
     zugriffstoken,
     aktualisierung: text(p.aktualisierung),
     gueltigBis: p.gueltigBis,
+    // Ältere Sitzungen (vor E5.1) kennen diese Felder nicht: dann nichts behaupten.
+    email: text(p.email),
+    emailBestaetigt: p.emailBestaetigt === true,
+    zweiFaktoren: p.zweiFaktoren === true,
   };
 }
 

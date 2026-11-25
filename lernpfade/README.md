@@ -90,6 +90,44 @@ sie nicht lesen.
   (`e2e-konto/hub-anmeldung.spec.ts`), in der CI als Job „Anmeldung im Hub
   gegen echten ZITADEL“.
 
+## Organisationen (E5.1)
+
+Eine Organisation für alle Lernpfade (`docs/E5-PLAN.md`). Der Hub bekommt
+dafür eine eigene Postgres-Datenbank (`DATABASE_URL`, Prisma 7.10.1). Ohne sie
+gibt es die Seiten nicht, und alles bleibt wie bisher.
+
+- **Seiten:**
+  - `/organisation`: eigene Mitgliedschaften und eine neue Organisation
+    anlegen.
+  - `/organisation/[kuerzel]`: Plätze, Einladen, Mitglieder, Name und
+    Prüfprotokoll.
+  - `/einladung/[token]`: Beitritt.
+- **Rollen:** Admin, Lehrkraft, Lernend. Nur Lernende belegen einen Platz;
+  die Testphase hat 10. Admin und Lehrkraft brauchen den zweiten Faktor
+  (`amr` enthält `mfa`). Fehlt er, führt die Seite zur Einrichtung beim Konto
+  und zur frischen Anmeldung (`/auth/anmelden?bestaetigen=1`).
+- **Einladungen:**
+  - Gespeichert wird nur der SHA-256-Hash des Tokens.
+  - Gültig 14 Tage; ein offener Link für bis zu 500 Personen oder, an eine
+    bestätigte Adresse gebunden, genau einmal.
+  - Beitritte sperren die Organisation in der Transaktion, damit Plätze nie
+    überbucht werden.
+- **Rechte** prüft der Dienst (`src/server/organisation/dienst.ts`), nicht die
+  Seite. Die Regeln stehen rein in `src/domain/organisation/regeln.ts`.
+- **Prüfprotokoll:** wer wann was verwaltet hat, nie Lernverhalten.
+- **Tests:**
+  - Einheiten (`npm run test`);
+  - Integration gegen Postgres (`TEST_DATABASE_URL=… npm run test:integration`
+    nach `npm run db:deploy`), auch mit gleichzeitigen Beitritten;
+  - Strecke gegen echten ZITADEL (`e2e-konto/hub-organisation.spec.ts`) mit
+    einem Testkonto mit Authenticator-App.
+- `prisma` (CLI) steht unter `dependencies`, nicht `devDependencies`: Railway
+  baut den Hub mit `NODE_ENV=production` und installiert dann nur die
+  Abhängigkeiten zur Laufzeit. `prisma generate` (postinstall) und die
+  Migration vor dem Start (`npm run db:deploy`) brauchen die CLI.
+- `effect` ist per `overrides` auf 3.22.4 gesetzt. Prisma pinnt 3.20.0, das
+  vom Advisory GHSA-7589-6fvf-x4pw betroffen ist.
+
 ## Wiederholen: Live-Quellen (LP-05B)
 
 `/wiederholen` zeigt fällige Wiederholungen aus PythonPfad, SQLPfad und AIPfad

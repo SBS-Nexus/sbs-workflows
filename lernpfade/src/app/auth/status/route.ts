@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sitzungLesen } from '@/server/konto/cookies';
 import { hubKonto } from '@/server/konto/einstellungen';
+import { datenbank } from '@/server/organisation/datenbank';
 
 /**
  * Anmeldestand für die Kopfzeile (E4.5b). Die Seiten des Hubs bleiben
@@ -18,7 +19,8 @@ export async function GET(): Promise<NextResponse> {
   const sitzung = await sitzungLesen(konto);
   return NextResponse.json(
     sitzung
-      ? { eingerichtet: true, angemeldet: true, name: sitzung.name }
+      ? // `organisationen` (E5.1): Die Kopfzeile verlinkt den Bereich nur, wenn es ihn gibt.
+        { eingerichtet: true, angemeldet: true, name: sitzung.name, organisationen: datenbank() !== null }
       : { eingerichtet: true, angemeldet: false },
     { headers: kopf },
   );
