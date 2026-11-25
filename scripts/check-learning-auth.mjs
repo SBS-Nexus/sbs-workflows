@@ -70,6 +70,18 @@ for (const [canonical, target] of SHARED) {
   }
 }
 
+// E4.5b: Der Hub nutzt den signierten Anmeldezustand des Vertrags.
+{
+  const soll = read(path.join(canonicalDir, 'zentral-zustand.ts'));
+  const ist = read(path.join(root, 'lernpfade/src/server/konto/zentral-zustand.ts'));
+  if (ist === null) fail('lernpfade: Kopie fehlt: lernpfade/src/server/konto/zentral-zustand.ts');
+  else if (soll && !ist.equals(soll)) fail('lernpfade: zentral-zustand.ts weicht vom Vertrag ab');
+  const hilfe = read(path.join(root, 'lernpfade/e2e-konto/konto.ts'));
+  const hilfeSoll = read(path.join(canonicalDir, 'e2e-konto.ts'));
+  if (hilfe === null) fail('lernpfade: Kopie fehlt: lernpfade/e2e-konto/konto.ts');
+  else if (hilfeSoll && !hilfe.equals(hilfeSoll)) fail('lernpfade: e2e-konto/konto.ts weicht vom Vertrag ab');
+}
+
 const versionen = {};
 for (const app of APPS) {
   const adapter = text(path.join(root, app, 'src/server/auth/zentral-app.ts'));

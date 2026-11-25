@@ -1,3 +1,5 @@
+import { KontoStatus } from './konto-status';
+
 export type SiteSection = 'start' | 'vokabeln' | 'wiederholen' | 'fortschritt';
 
 /** Bildmarke des Learning OS: drei Signalstriche, rein dekorativ. */
@@ -45,6 +47,7 @@ export function SiteHeader({
         <a href="/fortschritt" aria-current={here('fortschritt')}>
           Fortschritt
         </a>
+        <KontoStatus />
       </nav>
     </header>
   );

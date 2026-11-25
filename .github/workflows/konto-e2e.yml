@@ -14,6 +14,7 @@ on:
       - 'sqlpfad/**'
       - 'konto/**'
       - 'docs/learning-auth/**'
+      - 'lernpfade/**'
       - '.github/workflows/konto-e2e.yml'
   pull_request:
     paths:
@@ -22,6 +23,7 @@ on:
       - 'sqlpfad/**'
       - 'konto/**'
       - 'docs/learning-auth/**'
+      - 'lernpfade/**'
       - '.github/workflows/konto-e2e.yml'
 
 permissions:
@@ -113,6 +115,56 @@ jobs:
         with:
           name: konto-e2e-${{ matrix.app }}
           path: ${{ matrix.app }}/playwright-report/
+          retention-days: 14
+
+      - name: Aufräumen
+        if: always()
+        run: docker compose -f konto/pruefung/e2e/compose.yaml down -v
+
+  hub:
+    name: Anmeldung im Hub gegen echten ZITADEL
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Arbeitsordner für Testgeheimnisse
+        run: echo "KONTO_E2E_DIR=$RUNNER_TEMP/konto-e2e" >> "$GITHUB_ENV"
+
+      - name: Anmelde-App bauen (konto/login)
+        run: docker build -t lernpfade/konto-login:e2e konto/login
+
+      - name: Test-ZITADEL starten und einrichten
+        run: konto/pruefung/e2e/starte.sh
+
+      - name: Hub – Abhängigkeiten und Produktionsbuild
+        working-directory: lernpfade
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Browser
+        working-directory: lernpfade
+        run: npx playwright install --with-deps chromium
+
+      - name: Anmelden im Hub, Name im Kopf, Abmelden
+        working-directory: lernpfade
+        run: npx playwright test -c playwright.konto.config.ts
+
+      - name: Protokolle der Testumgebung
+        if: failure()
+        run: docker compose -f konto/pruefung/e2e/compose.yaml logs --no-color --tail 300
+
+      - name: Testbericht sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: konto-e2e-hub
+          path: lernpfade/playwright-report/
           retention-days: 14
 
       - name: Aufräumen

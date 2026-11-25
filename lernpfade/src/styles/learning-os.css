@@ -115,6 +115,11 @@
   font-size: 12px; font-weight: 700; transition: border-color .2s, background .2s;
 }
 .los-nav-cta:hover { border-color: var(--los-lime); background: #243023; }
+/* Anmeldestand in der Kopfzeile (E4.5b): Name und Abmelden, als Knopf im Stil der CTA. */
+.los-konto { display: inline-flex; align-items: center; gap: 0.9rem; }
+.los-konto form { display: contents; }
+.los-konto button.los-nav-cta { background: transparent; color: inherit; font-family: inherit; cursor: pointer; min-height: 44px; }
+.los-konto-name { max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #f6f8f2; font-size: 12px; font-weight: 650; }
 
 /* =========================================================================
  * 3. Startseite: Hero, Laufband, Idee, Pfade, Lernmoment, Vokabeln, Fuß
