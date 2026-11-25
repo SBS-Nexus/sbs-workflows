@@ -221,3 +221,29 @@ Bauen und testen geht ohne sie; in CI und lokal läuft Postgres im Container.
 - **Doppelte Organisationsbereiche:** Bis E5.6 gibt es die
   PythonPfad-Organisationen weiter. Neue Firmen landen nur noch auf der
   Plattform.
+
+## 11. Stand
+
+**25.11.2026, E5.1 gebaut** (Zweig `claude/e5-1-organisationen-20261125`):
+
+- **Hub-Datenbank:** Prisma 7.10.1 mit eigener Migration (Organisation,
+  Mitgliedschaft, Einladung, Prüfprotokoll). Prüfungen in der Datenbank:
+  Plätze ≥ 0 und Nutzungen ≤ Höchstzahl.
+- **Sitzung:** Der Hub kennt Adresse, Bestätigungsstand und zweiten Faktor
+  (Scope `email`, `amr`). Mit `?bestaetigen=1` meldet sich die Person frisch
+  an.
+- **Regeln und Dienst:**
+  - Rechte, Plätze und Einlösen (Reihenfolge Einladung → Person → Plätze);
+  - immer mindestens ein Admin;
+  - Sperre auf der Organisation bei Beitritt und Rollenwechsel.
+- **Seiten:** `/organisation`, `/organisation/[kuerzel]`,
+  `/einladung/[token]`; in der Kopfzeile der Link „Organisation“.
+- **Tests:**
+  - 7 Einheiten und 9 Integrationstests gegen Postgres; dabei treten 8
+    Personen gleichzeitig bei 2 freien Plätzen bei, und genau 2 kommen
+    hinein.
+  - Strecke gegen echten ZITADEL: anlegen mit zweitem Faktor, einladen,
+    beitreten, aufgebrauchter Link, Protokoll, ohne zweiten Faktor keine
+    Verwaltung.
+- **Offen für live:** Die Hub-Datenbank bei Railway (etwa 0,50 USD im Monat)
+  braucht deine Freigabe.

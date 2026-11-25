@@ -3,7 +3,10 @@
 import { useEffect, useState } from 'react';
 
 type Stand =
-  { art: 'laedt' } | { art: 'aus' } | { art: 'abgemeldet' } | { art: 'angemeldet'; name: string };
+  | { art: 'laedt' }
+  | { art: 'aus' }
+  | { art: 'abgemeldet' }
+  | { art: 'angemeldet'; name: string; organisationen: boolean };
 
 /**
  * Anmeldestand in der Kopfzeile (E4.5b). Fragt `/auth/status` im Browser ab,
@@ -25,10 +28,13 @@ export function KontoStatus(): React.ReactElement | null {
           eingerichtet?: boolean;
           angemeldet?: boolean;
           name?: string;
+          organisationen?: boolean;
         };
         if (!daten.eingerichtet) return setStand({ art: 'aus' });
         setStand(
-          daten.angemeldet ? { art: 'angemeldet', name: daten.name ?? '' } : { art: 'abgemeldet' },
+          daten.angemeldet
+            ? { art: 'angemeldet', name: daten.name ?? '', organisationen: daten.organisationen === true }
+            : { art: 'abgemeldet' },
         );
       })
       .catch(() => aktiv && setStand({ art: 'aus' }));
@@ -52,6 +58,11 @@ export function KontoStatus(): React.ReactElement | null {
 
   return (
     <div className="los-konto">
+      {stand.organisationen ? (
+        <a href="/organisation" aria-current={hier.startsWith('/organisation') ? 'page' : undefined}>
+          Organisation
+        </a>
+      ) : null}
       <span className="los-konto-name" title="Angemeldet mit deinem Lernpfade-Konto">
         {stand.name}
       </span>

@@ -4,3 +4,7 @@ next-env.d.ts
 *.tsbuildinfo
 test-results/
 playwright-report/
+
+# Prisma-Client (E5.1), entsteht bei npm install
+src/generated/
+.env

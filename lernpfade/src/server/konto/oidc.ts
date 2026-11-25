@@ -12,7 +12,8 @@ import { ZWEITER_VERSUCH, type AnmeldeZustand } from './zentral-zustand.ts';
  */
 
 export const RUECKKEHR_PFAD = '/auth/rueckkehr';
-const SCOPE = 'openid profile offline_access';
+// `email` seit E5.1: Einladungen können an eine bestätigte Adresse gebunden sein.
+const SCOPE = 'openid profile email offline_access';
 
 let entdeckt: { schluessel: string; konfiguration: Promise<oidc.Configuration> } | null = null;
 
@@ -38,7 +39,12 @@ function konfiguration(konto: HubKonto): Promise<oidc.Configuration> {
 
 export async function starteAnmeldung(
   konto: HubKonto,
-  optionen: { ziel: string | null; zweiterVersuch?: boolean },
+  optionen: {
+    ziel: string | null;
+    zweiterVersuch?: boolean;
+    /** Neu anmelden, auch mit gültiger Sitzung beim Konto (etwa nach Einrichten des zweiten Faktors). */
+    frisch?: boolean;
+  },
 ): Promise<{ adresse: URL; zustand: AnmeldeZustand }> {
   const config = await konfiguration(konto);
   const codeVerifier = oidc.randomPKCECodeVerifier();
@@ -57,6 +63,7 @@ export async function starteAnmeldung(
     state: zustand.state,
     nonce: zustand.nonce,
     ui_locales: 'de',
+    ...(optionen.frisch ? { prompt: 'login', max_age: '0' } : {}),
   });
   return { adresse, zustand };
 }
@@ -79,16 +86,29 @@ function anzeigename(claims: Record<string, unknown>): string {
   return 'Angemeldet';
 }
 
+type Merkmale = Pick<HubSitzung, 'sub' | 'name' | 'email' | 'emailBestaetigt' | 'zweiFaktoren'>;
+
+/** Was der Hub aus dem ID-Token übernimmt. `amr` wie im Anmeldevertrag der Apps. */
+export function merkmaleAus(claims: Record<string, unknown> & { sub: string }): Merkmale {
+  const amr = Array.isArray(claims.amr) ? claims.amr : [];
+  const email = typeof claims.email === 'string' ? claims.email.trim().toLowerCase() : '';
+  return {
+    sub: claims.sub,
+    name: anzeigename(claims),
+    email: email.includes('@') ? email : null,
+    emailBestaetigt: claims.email_verified === true,
+    zweiFaktoren: amr.includes('mfa'),
+  };
+}
+
 function sitzungAus(
   tokens: oidc.TokenEndpointResponse & oidc.TokenEndpointResponseHelpers,
-  sub: string,
-  name: string,
+  merkmale: Merkmale,
   bisherigeAktualisierung: string | null,
 ): HubSitzung {
   const sekunden = tokens.expiresIn() ?? 300;
   return {
-    sub,
-    name,
+    ...merkmale,
     zugriffstoken: tokens.access_token,
     // ZITADEL gibt beim Aktualisieren ein neues Aktualisierungstoken aus.
     aktualisierung: tokens.refresh_token ?? bisherigeAktualisierung,
@@ -119,7 +139,7 @@ export async function schliesseAnmeldungAb(
   const claims = tokens.claims();
   if (!claims?.sub || !tokens.id_token) return null;
   return {
-    sitzung: sitzungAus(tokens, claims.sub, anzeigename(claims), null),
+    sitzung: sitzungAus(tokens, merkmaleAus(claims), null),
     idToken: tokens.id_token,
   };
 }
@@ -139,7 +159,18 @@ export async function aktualisiere(
   const config = await konfiguration(konto);
   try {
     const tokens = await oidc.refreshTokenGrant(config, sitzung.aktualisierung);
-    return sitzungAus(tokens, sitzung.sub, sitzung.name, sitzung.aktualisierung);
+    // Merkmale bleiben die der Anmeldung: Der zweite Faktor gilt für diese Anmeldung.
+    return sitzungAus(
+      tokens,
+      {
+        sub: sitzung.sub,
+        name: sitzung.name,
+        email: sitzung.email,
+        emailBestaetigt: sitzung.emailBestaetigt,
+        zweiFaktoren: sitzung.zweiFaktoren,
+      },
+      sitzung.aktualisierung,
+    );
   } catch (fehler) {
     if (fehler instanceof oidc.ResponseBodyError && fehler.error === 'invalid_grant') return null;
     throw fehler;

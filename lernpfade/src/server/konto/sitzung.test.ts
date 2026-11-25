@@ -16,6 +16,9 @@ const SITZUNG: HubSitzung = {
   zugriffstoken: 'eyJ.zugriff.token',
   aktualisierung: 'aktualisierung-123',
   gueltigBis: Date.UTC(2026, 10, 24, 12, 15),
+  email: 'ada@example.org',
+  emailBestaetigt: true,
+  zweiFaktoren: true,
 };
 
 test('versiegelt und öffnet die Sitzung; der Inhalt ist im Cookie nicht lesbar', async () => {
@@ -52,4 +55,15 @@ test('Sitzung und ID-Token sind getrennt verschlüsselt (anderer Zweck, anderer 
 test('Cookie-Namen tragen unter https das __Host-Präfix', () => {
   assert.equal(cookieNamen(true).sitzung, '__Host-lernpfade_sitzung');
   assert.equal(cookieNamen(false).anmeldung, 'lernpfade_anmeldung');
+});
+
+test('eine Sitzung von vor E5.1 öffnet sich ohne Adresse und ohne zweiten Faktor', async () => {
+  const { email: _e, emailBestaetigt: _b, zweiFaktoren: _z, ...alt } = SITZUNG;
+  const wert = await versiegleSitzung(alt as HubSitzung, GEHEIMNIS);
+  assert.deepEqual(await oeffneSitzung(wert, GEHEIMNIS), {
+    ...alt,
+    email: null,
+    emailBestaetigt: false,
+    zweiFaktoren: false,
+  });
 });

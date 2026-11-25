@@ -33,6 +33,9 @@ export default defineConfig({
   projects: [{ name: 'desktop-chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command: `npm run start -- --port ${PORT}`,
+    // E5.1: Die Datenbank des Hubs heißt in der CI HUB_DATABASE_URL, weil
+    // DATABASE_URL dort AIPfad gehört. Ohne sie sind Organisationen aus.
+    env: { ...(process.env as Record<string, string>), DATABASE_URL: process.env.HUB_DATABASE_URL ?? '' },
     url: BASE_URL,
     reuseExistingServer: false,
     timeout: 120_000,

@@ -1353,3 +1353,143 @@ a {
   justify-content: center;
   padding: clamp(48px, 8vw, 112px) var(--los-gutter) clamp(64px, 9vw, 128px);
 }
+
+/* =========================================================================
+ * E5.1 – Organisationen
+ * ========================================================================= */
+
+.org-page .los-head-copy .eyebrow a {
+  color: inherit;
+}
+
+.org-text,
+.org-leer {
+  max-width: 68ch;
+  color: var(--los-text-muted);
+  line-height: 1.6;
+}
+
+.org-form {
+  max-width: 860px;
+}
+
+.org-form select,
+.org-verwalten select {
+  min-height: 2.9rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #9ea99f;
+  border-radius: 3px;
+  background: white;
+  color: var(--los-text);
+  font: inherit;
+}
+
+.org-erfolg {
+  margin: 0;
+  color: #1d6b3a;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.org-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.8rem 0 0;
+}
+
+.org-link {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--los-line-paper);
+  border-left: 3px solid var(--los-line-paper-strong);
+  background: var(--los-surface);
+}
+
+.org-link label {
+  font-size: 0.86rem;
+  font-weight: 760;
+}
+
+.org-link-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.org-link-zeile input {
+  flex: 1 1 18rem;
+  min-width: 0;
+  min-height: 2.9rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #9ea99f;
+  border-radius: 3px;
+  background: white;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.org-liste,
+.org-tabelle,
+.org-protokoll {
+  display: grid;
+  gap: 0;
+  max-width: 860px;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--los-line-paper);
+}
+
+.org-liste li,
+.org-tabelle li,
+.org-protokoll li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--los-line-paper);
+}
+
+.org-liste a {
+  font-weight: 750;
+}
+
+.org-rolle,
+.org-gedaempft {
+  color: var(--los-text-muted);
+  font-size: 0.9rem;
+}
+
+.org-tabelle li > span:first-child {
+  flex: 1 1 14rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.org-unterkopf {
+  margin: 1.8rem 0 0;
+  font-size: 1rem;
+}
+
+.org-inline,
+.org-verwalten {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.org-protokoll time {
+  flex: 0 0 11rem;
+  color: var(--los-text-muted);
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.org-protokoll span {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
