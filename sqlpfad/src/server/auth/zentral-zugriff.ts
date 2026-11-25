@@ -1,7 +1,11 @@
 import 'server-only';
 import { prisma } from '@/server/db/prisma';
 import { oeffentlicheSchluessel, zentralerZugang } from '@/server/auth/zentral';
-import { pruefeHubToken, UngueltigesZugriffstoken } from '@/server/auth/zentral-identitaet';
+import {
+  pruefeDiensttoken,
+  pruefeHubToken,
+  UngueltigesZugriffstoken,
+} from '@/server/auth/zentral-identitaet';
 import { neueAnfrageId, protokoll } from '@/server/auth/zentral-protokoll';
 
 /**
@@ -57,5 +61,38 @@ export async function nutzerAusHubToken(request: Request): Promise<HubZugriff> {
             : 'unbekannt',
     });
     return { art: 'token', userId: null };
+  }
+}
+
+/**
+ * E5.2: Ist die Anfrage von der Plattform selbst (Diensttoken)? Nur dann gibt
+ * die Team-Quelle etwas heraus. Ohne `AUTH_PLATTFORM_SUB` immer `false`.
+ */
+export async function istPlattformDienst(request: Request): Promise<boolean> {
+  const token = BEARER.exec(request.headers.get('authorization') ?? '')?.[1];
+  const zugang = zentralerZugang();
+  const requestId = neueAnfrageId();
+  if (!token || !zugang?.plattformSub) {
+    protokoll.warn('Diensttoken der Plattform abgelehnt', {
+      requestId,
+      grund: token ? 'keine Plattform eingerichtet' : 'Kopf fehlt oder unbrauchbar',
+    });
+    return false;
+  }
+  try {
+    const { aussteller, schluessel } = await oeffentlicheSchluessel(zugang);
+    await pruefeDiensttoken(token, { aussteller, plattformSub: zugang.plattformSub, schluessel });
+    return true;
+  } catch (fehler) {
+    protokoll.warn('Diensttoken der Plattform abgelehnt', {
+      requestId,
+      grund:
+        fehler instanceof UngueltigesZugriffstoken
+          ? fehler.message
+          : fehler instanceof Error
+            ? fehler.name
+            : 'unbekannt',
+    });
+    return false;
   }
 }

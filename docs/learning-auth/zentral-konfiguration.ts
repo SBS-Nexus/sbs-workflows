@@ -26,6 +26,11 @@ export const zentraleAnmeldungFelder = {
    * dessen Zugriffstoken an; leer bleibt dieser Weg aus.
    */
   AUTH_HUB_CLIENT_ID: z.string().trim().default(''),
+  /**
+   * `sub` des Maschinenkontos der Plattform (E5.2). Gesetzt nimmt die
+   * Team-Quelle dessen Diensttoken an; leer bleibt dieser Weg aus.
+   */
+  AUTH_PLATTFORM_SUB: z.string().trim().default(''),
 };
 
 type ZentraleWerte = {
@@ -35,6 +40,7 @@ type ZentraleWerte = {
   AUTH_CLIENT_SECRET: string;
   AUTH_STATE_SECRET: string;
   AUTH_HUB_CLIENT_ID: string;
+  AUTH_PLATTFORM_SUB: string;
 };
 
 const ZENTRALE_WERTE = [
@@ -65,7 +71,10 @@ export function istZulaessigerAussteller(wert: string): boolean {
 export function pruefeZentraleAnmeldung(env: ZentraleWerte, ctx: z.RefinementCtx): void {
   const gesetzt = ZENTRALE_WERTE.filter((name) => env[name].length > 0);
   const gefordert =
-    env.FEATURE_ZENTRALE_ANMELDUNG === 'an' || gesetzt.length > 0 || env.AUTH_HUB_CLIENT_ID !== '';
+    env.FEATURE_ZENTRALE_ANMELDUNG === 'an' ||
+    gesetzt.length > 0 ||
+    env.AUTH_HUB_CLIENT_ID !== '' ||
+    env.AUTH_PLATTFORM_SUB !== '';
   if (!gefordert) return;
 
   for (const name of ZENTRALE_WERTE) {

@@ -98,6 +98,27 @@ test('Organisation anlegen, per Link einladen, beitreten, Plätze und Protokoll'
   await expect(personen).toContainText('Ada Testkonto');
   await expect(personen).toContainText('namentlich sichtbar');
 
+  // E5.2b: Stand des Teams aus AIPfad über die Team-Quelle (Diensttoken der Plattform).
+  // AIPfad kennt die Person aus der Fortschritts-Strecke; eine Person allein ergibt keine Summen.
+  const stand = adminSeite.getByRole('region', { name: 'Stand des Teams' });
+  const ai = stand.getByRole('article', { name: 'AIPfad' });
+  await expect(ai).toContainText('1 von 1 Personen lernen in AIPfad');
+  await expect(ai).toContainText('Summen erscheinen ab drei Personen');
+  await expect(stand.getByRole('article', { name: 'PythonPfad' })).toContainText('Noch nicht mit der Plattform verbunden');
+  await expect(stand.getByRole('list', { name: 'Stand namentlich' })).toContainText(/AIPfad: \d+ von \d+ Lektionen/);
+
+  // CSV: dieselben Werte, Excel-freundlich; der Export steht im Protokoll.
+  const csvLink = await stand.getByRole('link', { name: 'Als CSV herunterladen' }).getAttribute('href');
+  const csv = await adminSeite.request.get(new URL(csvLink!, adminSeite.url()).toString());
+  expect(csv.status()).toBe(200);
+  expect(csv.headers()['content-type']).toContain('text/csv');
+  expect(await csv.text()).toMatch(/^\uFEFFArt;Person;Pfad;/);
+  expect(await csv.text()).toContain('Person;Ada Testkonto;AIPfad;');
+  await adminSeite.goto(orgAdresse);
+  await expect(adminSeite.getByRole('region', { name: 'Prüfprotokoll' })).toContainText(
+    'hat den Stand des Teams „Vertrieb“ als CSV heruntergeladen',
+  );
+
   // Ohne zweiten Faktor: keine Verwaltung, sondern der Weg zur Einrichtung.
   await lernSeite.goto('/organisation');
   await expect(lernSeite.getByRole('link', { name: 'Zweiten Faktor einrichten' })).toBeVisible();

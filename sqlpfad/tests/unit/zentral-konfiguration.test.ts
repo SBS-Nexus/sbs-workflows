@@ -58,6 +58,9 @@ describe('Konfiguration der Anmeldung über das gemeinsame Konto', () => {
   it('verlangt für die Client-ID des Hubs die übrigen Werte', () => {
     expect(fehler({ AUTH_HUB_CLIENT_ID: '400000000000000001' })).toHaveLength(4);
     expect(fehler({ ...VOLLSTAENDIG, AUTH_HUB_CLIENT_ID: '400000000000000001' })).toEqual([]);
+    // E5.2: auch das Maschinenkonto der Plattform verlangt die übrigen Werte.
+    expect(fehler({ AUTH_PLATTFORM_SUB: '401200000000000001' })).toHaveLength(4);
+    expect(fehler({ ...VOLLSTAENDIG, AUTH_PLATTFORM_SUB: '401200000000000001' })).toEqual([]);
   });
 
   it('lässt http nur für localhost zu', () => {

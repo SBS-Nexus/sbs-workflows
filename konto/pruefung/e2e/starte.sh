@@ -76,8 +76,10 @@ for APP in aipfad pythonpfad sqlpfad; do
     const [dir, app] = process.argv.slice(1);
     const { AUTH_CLIENT_ID, AUTH_CLIENT_SECRET } = JSON.parse(fs.readFileSync(`${dir}/geheim/${app}-auth.json`));
     const hub = JSON.parse(fs.readFileSync(`${dir}/geheim/hub-auth.json`));
+    const plattform = JSON.parse(fs.readFileSync(`${dir}/geheim/plattform-auth.json`));
     const zeilen = [
       `AUTH_HUB_CLIENT_ID=${hub.AUTH_CLIENT_ID}`,
+      `AUTH_PLATTFORM_SUB=${plattform.AUTH_PLATTFORM_SUB}`,
       "FEATURE_ZENTRALE_ANMELDUNG=an",
       "AUTH_ISSUER=http://localhost:8080",
       `AUTH_CLIENT_ID=${AUTH_CLIENT_ID}`,
@@ -96,7 +98,10 @@ node -e '
   const crypto = require("node:crypto");
   const dir = process.argv[1];
   const { AUTH_CLIENT_ID, AUTH_CLIENT_SECRET } = JSON.parse(fs.readFileSync(`${dir}/geheim/hub-auth.json`));
+  const plattform = JSON.parse(fs.readFileSync(`${dir}/geheim/plattform-auth.json`));
   const zeilen = [
+    `PLATTFORM_CLIENT_ID=${plattform.PLATTFORM_CLIENT_ID}`,
+    `PLATTFORM_CLIENT_SECRET=${plattform.PLATTFORM_CLIENT_SECRET}`,
     "AUTH_ISSUER=http://localhost:8080",
     `AUTH_CLIENT_ID=${AUTH_CLIENT_ID}`,
     `AUTH_CLIENT_SECRET=${AUTH_CLIENT_SECRET}`,

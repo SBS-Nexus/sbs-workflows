@@ -1499,3 +1499,61 @@ a {
   flex: 1 1 20rem;
   min-width: 0;
 }
+
+/* E5.2 – Stand des Teams */
+.org-pfade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.9rem;
+  max-width: 1100px;
+  margin-top: 1rem;
+}
+
+.org-pfad {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--los-line-paper);
+  background: var(--los-surface);
+}
+
+.org-pfad h3 {
+  margin: 0 0 0.3rem;
+  font-size: 1.05rem;
+}
+
+.org-kennzahlen {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.8rem 0 0;
+}
+
+.org-kennzahlen div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--los-line-paper);
+  padding-bottom: 0.35rem;
+}
+
+.org-kennzahlen dt {
+  color: var(--los-text-muted);
+}
+
+.org-kennzahlen dd {
+  margin: 0;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.org-person {
+  flex-direction: column;
+  align-items: flex-start !important;
+}
+
+.org-person-pfade {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.92rem;
+}

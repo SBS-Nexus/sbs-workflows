@@ -199,3 +199,39 @@ export async function pruefeHubToken(
   if (!sub) throw new UngueltigesZugriffstoken('ohne sub');
   return sub;
 }
+
+/**
+ * E5.2: Diensttoken der Plattform für die Team-Quelle. Ausgestellt vom
+ * gemeinsamen Konto an das Maschinenkonto der Plattform (Client Credentials,
+ * JWT). Geprüft werden Signatur, Aussteller, Ablauf und `sub` = das
+ * eingerichtete Maschinenkonto. Ein Token einer Person oder einer App trägt
+ * eine andere `sub` und öffnet die Team-Quelle nie.
+ */
+export async function pruefeDiensttoken(
+  token: string,
+  optionen: {
+    aussteller: string;
+    plattformSub: string;
+    schluessel: JWTVerifyGetKey;
+    jetzt?: Date;
+  },
+): Promise<void> {
+  if (!optionen.plattformSub) throw new UngueltigesZugriffstoken('keine Plattform eingerichtet');
+  if (token.length > 8192) throw new UngueltigesZugriffstoken('zu lang');
+
+  let payload: Record<string, unknown>;
+  try {
+    ({ payload } = await jwtVerify(token, optionen.schluessel, {
+      issuer: optionen.aussteller,
+      algorithms: ['RS256'],
+      requiredClaims: ['sub', 'exp', 'iat'],
+      clockTolerance: 60,
+      ...(optionen.jetzt ? { currentDate: optionen.jetzt } : {}),
+    }));
+  } catch (fehler) {
+    throw new UngueltigesZugriffstoken(fehler instanceof Error ? fehler.name : 'Signatur');
+  }
+  if (text(payload.sub) !== optionen.plattformSub) {
+    throw new UngueltigesZugriffstoken('nicht das Maschinenkonto der Plattform');
+  }
+}

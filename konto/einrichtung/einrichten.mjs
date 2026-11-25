@@ -15,7 +15,8 @@
 //     --mail-endpunkt https://<konto-mail>.up.railway.app/ --ausgabe /pfad/geheim \
 //     [--login-token-erneuern] [--mail-neu] [--ueber https://<konto-proxy>.up.railway.app]
 //     [--anwendungen [--anwendung-basis aipfad=http://127.0.0.1:3101]
-//      [--rueckkanal-basis aipfad=http://host.docker.internal:3101] [--secret-erneuern aipfad]]
+//      [--rueckkanal-basis aipfad=http://host.docker.internal:3101] [--secret-erneuern aipfad]
+//      [--plattform-secret-erneuern]]
 //
 // --ueber schickt die Anfragen an eine andere Adresse desselben Proxys (etwa
 // solange das DNS für konto.lernpfade.net noch fehlt). Das Token bleibt auf
@@ -43,6 +44,7 @@ const { values: arg } = parseArgs({
     'anwendung-basis': { type: 'string', multiple: true, default: [] },
     'rueckkanal-basis': { type: 'string', multiple: true, default: [] },
     'secret-erneuern': { type: 'string', multiple: true, default: [] },
+    'plattform-secret-erneuern': { type: 'boolean', default: false },
   },
 });
 for (const pflicht of ['basis', 'schluessel', 'ausgabe']) {
@@ -507,6 +509,59 @@ if (arg.anwendungen) {
         );
       }
     }
+  }
+}
+
+// E5.2: Maschinenkonto der Plattform für die Team-Quelle der Apps. Holt sich
+// per Client Credentials ein JWT; die Apps prüfen dessen sub
+// (AUTH_PLATTFORM_SUB). Ein neues Secret nur beim Anlegen oder mit
+// --plattform-secret-erneuern; dann schreibt es plattform-auth.json.
+if (arg.anwendungen) {
+  const NAME = 'lernpfade-plattform';
+  const gesucht = await schritt(
+    'Maschinenkonto der Plattform suchen',
+    'POST',
+    '/management/v1/users/_search',
+    { queries: [{ userNameQuery: { userName: NAME, method: 'TEXT_QUERY_METHOD_EQUALS' } }] },
+    { orgId },
+  );
+  let nutzerId = gesucht.daten?.result?.[0]?.id;
+  let neu = false;
+  if (!nutzerId) {
+    const angelegt = await schritt(
+      'Maschinenkonto der Plattform anlegen',
+      'POST',
+      '/management/v1/users/machine',
+      {
+        userName: NAME,
+        name: 'Lernpfade-Plattform',
+        description: 'Liest die Team-Quellen der Apps (E5.2). Keine Rollen, keine Anmeldung.',
+        accessTokenType: 'ACCESS_TOKEN_TYPE_JWT',
+      },
+      { orgId },
+    );
+    nutzerId = angelegt.daten?.userId;
+    neu = Boolean(nutzerId);
+  }
+  if (nutzerId && (neu || arg['plattform-secret-erneuern'])) {
+    const secret = await schritt(
+      'Secret des Maschinenkontos erzeugen',
+      'PUT',
+      `/management/v1/users/${nutzerId}/secret`,
+      {},
+      { orgId },
+    );
+    if (secret.ok && secret.daten?.clientSecret) {
+      schreibeGeheim('plattform-auth.json', {
+        PLATTFORM_CLIENT_ID: secret.daten.clientId,
+        PLATTFORM_CLIENT_SECRET: secret.daten.clientSecret,
+        AUTH_PLATTFORM_SUB: nutzerId,
+      });
+    }
+  } else if (nutzerId) {
+    console.log(
+      `OK     Secret des Maschinenkontos unverändert (--plattform-secret-erneuern erzeugt ein neues); sub ${nutzerId}`,
+    );
   }
 }
 
