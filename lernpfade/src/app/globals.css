@@ -340,6 +340,20 @@ a {
   border-left-color: #1872a5;
 }
 
+/* E4.5c: Anmeldung mit dem gemeinsamen Konto im Live-Bereich. */
+.live-konto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem 1.2rem;
+}
+
+.live-konto p {
+  margin: 0;
+  max-width: 46ch;
+}
+
 .live-card {
   max-width: 860px;
   padding: clamp(18px, 3vw, 28px);

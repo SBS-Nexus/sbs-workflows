@@ -9,6 +9,23 @@ import { anmeldenBeimKonto, testkonten } from './konto';
  */
 const AIPFAD = 'http://127.0.0.1:3101';
 
+// Der zweite Teil (/wiederholen) setzt voraus, dass AIPfad die Person im ersten kennengelernt hat.
+test.describe.configure({ mode: 'serial' });
+
+test('ohne Anmeldung bietet /wiederholen das Konto an und fragt keine App aus dem Browser', async ({
+  page,
+}) => {
+  const appAnfragen: string[] = [];
+  page.on('request', (anfrage) => {
+    if (anfrage.url().startsWith(AIPFAD)) appAnfragen.push(anfrage.url());
+  });
+  await page.goto('/wiederholen');
+  const live = page.getByRole('region', { name: 'Fällig in deinen Lernpfaden' });
+  await expect(live.getByRole('link', { name: 'Mit Lernpfade-Konto anmelden' })).toBeVisible();
+  await expect(live.getByText('Live-Quellen sind noch nicht verbunden')).toHaveCount(0);
+  expect(appAnfragen).toEqual([]);
+});
+
 test('nach einmaligem Verbinden zeigt /fortschritt die echten Werte aus AIPfad', async ({
   page,
 }) => {
@@ -36,5 +53,32 @@ test('nach einmaligem Verbinden zeigt /fortschritt die echten Werte aus AIPfad',
 
 test('ohne Sitzung im Hub liefert die Sammelroute nichts', async ({ request }) => {
   const antwort = await request.get('/api/hub/fortschritt');
+  expect(antwort.status()).toBe(401);
+});
+
+test('/wiederholen zeigt nach der Anmeldung, was in AIPfad fällig ist, über den Hub-Server', async ({
+  page,
+}) => {
+  const { bestaetigt } = testkonten();
+  const appAnfragen: string[] = [];
+  page.on('request', (anfrage) => {
+    if (anfrage.url().startsWith(AIPFAD)) appAnfragen.push(anfrage.url());
+  });
+
+  await page.goto('/wiederholen');
+  const live = page.getByRole('region', { name: 'Fällig in deinen Lernpfaden' });
+  await live.getByRole('link', { name: 'Mit Lernpfade-Konto anmelden' }).click();
+  await anmeldenBeimKonto(page, bestaetigt);
+  await expect(page).toHaveURL('/wiederholen');
+
+  // AIPfad kennt die Person seit dem ersten Teil: Die Quelle antwortet, für ein neues Konto ist nichts fällig.
+  await expect(live.getByText('nichts fällig')).toBeVisible();
+  await expect(live.getByText('kennt dein Lernpfade-Konto noch nicht')).toHaveCount(0);
+  // Der Browser fragt nur den Hub; AIPfad hört nur vom Hub-Server.
+  expect(appAnfragen).toEqual([]);
+});
+
+test('ohne Sitzung im Hub liefert auch die Sammelroute für /wiederholen nichts', async ({ request }) => {
+  const antwort = await request.get('/api/hub/wiederholen');
   expect(antwort.status()).toBe(401);
 });

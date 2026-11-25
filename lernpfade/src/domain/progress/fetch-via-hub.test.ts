@@ -25,34 +25,40 @@ test('fragt einmal den eigenen Hub, gleiche Herkunft, und verteilt je Quelle', a
   assert.equal(aufrufe[0]?.url, HUB_PROGRESS_PATH);
   assert.equal(aufrufe[0]?.init.credentials, 'same-origin');
   assert.equal(aufrufe[0]?.init.mode, 'same-origin');
-  assert.deepEqual(ergebnisse, [
-    { source: 'python', status: 'ok', body: { schemaVersion: 1, source: 'python' } },
-    { source: 'sql', status: 'unauthenticated' },
-    { source: 'ai', status: 'unavailable' },
-  ]);
+  assert.deepEqual(ergebnisse, {
+    abgemeldet: false,
+    outcomes: [
+      { source: 'python', status: 'ok', body: { schemaVersion: 1, source: 'python' } },
+      { source: 'sql', status: 'unauthenticated' },
+      { source: 'ai', status: 'unavailable' },
+    ],
+  });
 });
 
-test('Hub ohne Sitzung: alle Quellen „nicht angemeldet“, nie „0 Fortschritt“', async () => {
+test('Hub ohne Sitzung: abgemeldet, alle Quellen „nicht angemeldet“, nie „0 Fortschritt“', async () => {
   const ergebnisse = await fetchProgressViaHub(['python', 'ai'], async () =>
     antwort(401, { error: 'x' }),
   );
-  assert.deepEqual(ergebnisse, [
-    { source: 'python', status: 'unauthenticated' },
-    { source: 'ai', status: 'unauthenticated' },
-  ]);
+  assert.deepEqual(ergebnisse, {
+    abgemeldet: true,
+    outcomes: [
+      { source: 'python', status: 'unauthenticated' },
+      { source: 'ai', status: 'unauthenticated' },
+    ],
+  });
 });
 
 test('Fehler, fehlende Einträge und Netzprobleme gelten als nicht verfügbar', async () => {
-  assert.deepEqual(await fetchProgressViaHub(['sql'], async () => antwort(500)), [
-    { source: 'sql', status: 'unavailable' },
-  ]);
-  assert.deepEqual(await fetchProgressViaHub(['sql'], async () => antwort(200, { quellen: {} })), [
-    { source: 'sql', status: 'unavailable' },
-  ]);
+  const nichtErreichbar = { abgemeldet: false, outcomes: [{ source: 'sql', status: 'unavailable' }] };
+  assert.deepEqual(await fetchProgressViaHub(['sql'], async () => antwort(500)), nichtErreichbar);
+  assert.deepEqual(
+    await fetchProgressViaHub(['sql'], async () => antwort(200, { quellen: {} })),
+    nichtErreichbar,
+  );
   assert.deepEqual(
     await fetchProgressViaHub(['sql'], async () => {
       throw new Error('Netz');
     }),
-    [{ source: 'sql', status: 'unavailable' }],
+    nichtErreichbar,
   );
 });

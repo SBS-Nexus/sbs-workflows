@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { sitzungSchreiben, zustandEntnehmen } from '@/server/konto/cookies';
 import { hubKonto } from '@/server/konto/einstellungen';
 import { AnmeldungAbgebrochen, RUECKKEHR_PFAD, schliesseAnmeldungAb } from '@/server/konto/oidc';
+import { protokoll as schreibeProtokoll, type Stufe } from '@/server/konto/protokoll';
 import { nachVerlorenemZustand, oeffneZustand } from '@/server/konto/zentral-zustand';
 
 /**
@@ -13,17 +14,8 @@ export const dynamic = 'force-dynamic';
 
 const KEIN_CACHE = { 'Cache-Control': 'no-store' };
 
-function protokoll(stufe: 'info' | 'warn' | 'error', meldung: string, felder = {}): void {
-  const zeile = JSON.stringify({
-    level: stufe,
-    message: meldung,
-    bereich: 'hub-anmeldung',
-    ...felder,
-  });
-  if (stufe === 'error') console.error(zeile);
-  else if (stufe === 'warn') console.warn(zeile);
-  else console.info(zeile);
-}
+const protokoll = (stufe: Stufe, meldung: string, felder: Record<string, unknown> = {}): void =>
+  schreibeProtokoll('hub-anmeldung', stufe, meldung, felder);
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const konto = hubKonto();

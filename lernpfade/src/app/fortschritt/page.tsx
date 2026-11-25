@@ -27,10 +27,11 @@ export const metadata: Metadata = {
 
 /**
  * `viaHub` (E4.5c): Angemeldet im Hub, fragt der Hub-Server jede App mit
- * konfigurierter Adresse ab; die Freischaltung für den Browserabruf (LP-07)
- * spielt dann keine Rolle.
+ * konfigurierter Adresse ab. Ist das gemeinsame Konto eingerichtet, ersetzt
+ * dieser Weg den Browserabruf (LP-07) ganz: Über getrennte Domains sähe der
+ * Browser ohnehin nur „nicht angemeldet“.
  */
-function progressSources(viaHub: boolean): ProgressSourceConfig[] {
+function progressSources(viaHub: boolean, browserAbruf: boolean): ProgressSourceConfig[] {
   const enabled = new Set(parseProgressSources(process.env.PROGRESS_FEDERATION_SOURCES));
   const config = (source: 'python' | 'sql' | 'ai', label: string, appName: string, note?: string): ProgressSourceConfig => {
     const appUrl = normalizeSourceBaseUrl(REVIEW_SOURCE_APP_URLS[source]);
@@ -38,7 +39,7 @@ function progressSources(viaHub: boolean): ProgressSourceConfig[] {
       source,
       label,
       appName,
-      baseUrl: viaHub || enabled.has(source) ? appUrl : null,
+      baseUrl: viaHub || (browserAbruf && enabled.has(source)) ? appUrl : null,
       appUrl,
       ...(note ? { note } : {}),
     };
@@ -49,6 +50,8 @@ function progressSources(viaHub: boolean): ProgressSourceConfig[] {
     config('ai', 'AI', 'AIPfad', 'Enthält derzeit auch Git & GitHub.'),
   ];
 }
+
+const ANMELDEN = '/auth/anmelden?ziel=%2Ffortschritt';
 
 export default async function ProgressPage(): Promise<React.ReactElement> {
   // E4.5c: Mit dem gemeinsamen Konto liest der Hub den Stand selbst.
@@ -81,7 +84,7 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
               {konto && !angemeldet ? (
                 <p>
                   {/* Absichtlich <a>: Das Ziel leitet zum gemeinsamen Konto weiter. */}
-                  <a className="los-nav-cta" href="/auth/anmelden?ziel=%2Ffortschritt">
+                  <a className="los-nav-cta" href={ANMELDEN}>
                     Mit Lernpfade-Konto anmelden
                   </a>
                 </p>
@@ -106,7 +109,11 @@ export default async function ProgressPage(): Promise<React.ReactElement> {
             </div>
           </div>
         </header>
-        <ProgressOverview sources={progressSources(angemeldet)} viaHub={angemeldet} />
+        <ProgressOverview
+          sources={progressSources(angemeldet, konto === null)}
+          viaHub={angemeldet}
+          kontoAnmelden={konto ? ANMELDEN : null}
+        />
       </main>
     </>
   );

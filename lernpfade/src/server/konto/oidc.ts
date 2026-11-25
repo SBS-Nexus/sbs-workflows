@@ -124,7 +124,13 @@ export async function schliesseAnmeldungAb(
   };
 }
 
-/** Holt ein neues Zugriffstoken; `null`, wenn das Konto die Sitzung beendet hat. */
+/**
+ * Holt ein neues Zugriffstoken. `null` nur, wenn das Konto die Sitzung
+ * ausdrücklich beendet hat (`invalid_grant`: abgemeldet, abgelaufen,
+ * widerrufen). Ein technischer Fehler (Konto nicht erreichbar, falsche
+ * Einrichtung) wirft: Dann bleibt die Sitzung im Hub bestehen, und der
+ * nächste Abruf versucht es erneut.
+ */
 export async function aktualisiere(
   konto: HubKonto,
   sitzung: HubSitzung,
@@ -134,8 +140,9 @@ export async function aktualisiere(
   try {
     const tokens = await oidc.refreshTokenGrant(config, sitzung.aktualisierung);
     return sitzungAus(tokens, sitzung.sub, sitzung.name, sitzung.aktualisierung);
-  } catch {
-    return null;
+  } catch (fehler) {
+    if (fehler instanceof oidc.ResponseBodyError && fehler.error === 'invalid_grant') return null;
+    throw fehler;
   }
 }
 

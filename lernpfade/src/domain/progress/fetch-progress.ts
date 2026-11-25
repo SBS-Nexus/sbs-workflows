@@ -1,3 +1,4 @@
+import { fetchSourcesViaHub, type HubAbruf } from '../hub/fetch-via-hub.ts';
 import { normalizeSourceBaseUrl } from '../review/fetch-source.ts';
 import { PROGRESS_SOURCES, type ProgressSource } from './contract.ts';
 
@@ -95,51 +96,16 @@ export function parseProgressSources(value: string | undefined | null): Progress
 }
 
 /**
- * E4.5c: Abruf über den Hub-Server. Mit dem gemeinsamen Konto fragt der
- * Browser nicht mehr jede App selbst, sondern einmal den eigenen Hub
- * (`/api/hub/fortschritt`, gleiche Herkunft). Der Hub-Server ruft die Quellen
- * mit seinem Zugriffstoken ab und reicht Status und Antwort je Quelle
- * unverändert durch; geprüft wird danach wie bisher gegen den Vertrag.
- *
- * Ein einziger Abruf, weil das Aktualisieren des Zugriffstokens nur einmal
- * gleichzeitig laufen darf (ZITADEL gibt dabei ein neues Aktualisierungstoken
- * aus).
+ * E4.5c: Abruf über den Hub-Server (`../hub/fetch-via-hub.ts`). Der Browser
+ * fragt einmal `/api/hub/fortschritt`; der Hub-Server holt jede Quelle mit
+ * seinem Zugriffstoken.
  */
 export const HUB_PROGRESS_PATH = '/api/hub/fortschritt';
 
-export async function fetchProgressViaHub(
+export function fetchProgressViaHub(
   sources: readonly ProgressSource[],
   fetchImpl: FetchLike,
   timeoutMs: number = PROGRESS_SOURCE_TIMEOUT_MS * 2,
-): Promise<ProgressFetchOutcome[]> {
-  const alle = (status: 'unauthenticated' | 'unavailable'): ProgressFetchOutcome[] =>
-    sources.map((source) => ({ source, status }));
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetchImpl(HUB_PROGRESS_PATH, {
-      method: 'GET',
-      credentials: 'same-origin',
-      mode: 'same-origin',
-      cache: 'no-store',
-      redirect: 'error',
-      headers: { Accept: 'application/json' },
-      signal: controller.signal,
-    });
-    if (response.status === 401) return alle('unauthenticated');
-    if (response.status !== 200) return alle('unavailable');
-    const daten = (await response.json()) as { quellen?: Record<string, { status?: unknown; body?: unknown }> };
-    return sources.map((source) => {
-      const eintrag = daten.quellen?.[source];
-      if (eintrag?.status === 200 && eintrag.body !== undefined) {
-        return { source, status: 'ok', body: eintrag.body };
-      }
-      if (eintrag?.status === 401) return { source, status: 'unauthenticated' };
-      return { source, status: 'unavailable' };
-    });
-  } catch {
-    return alle('unavailable');
-  } finally {
-    clearTimeout(timer);
-  }
+): Promise<HubAbruf<ProgressSource>> {
+  return fetchSourcesViaHub(HUB_PROGRESS_PATH, sources, fetchImpl, timeoutMs);
 }

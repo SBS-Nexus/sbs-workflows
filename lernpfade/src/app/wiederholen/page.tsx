@@ -6,16 +6,27 @@ import { OrbitMark } from '@/components/learning-os/orbit';
 import { normalizeSourceBaseUrl, parseEnabledSources } from '@/domain/review/fetch-source';
 import { REVIEW_SOURCE_APP_URLS } from '@/lib/catalog';
 import { ButtonLink } from '@/components/ui/primitives';
+import { sitzungLesen } from '@/server/konto/cookies';
+import { hubKonto } from '@/server/konto/einstellungen';
 
 /**
- * Welche Apps als Live-Quelle angefragt werden: nur ausdrücklich
- * freigeschaltete (`NEXT_PUBLIC_REVIEW_FEDERATION_SOURCES=python,sql,ai`) mit
- * konfigurierter Adresse. Ohne Freischaltung bleibt es beim Demo-Deck.
+ * Welche Apps als Live-Quelle angefragt werden.
+ *
+ * - Angemeldet im Hub (E4.5c, `viaHub`): jede App mit konfigurierter Adresse,
+ *   abgefragt vom Hub-Server.
+ * - Ohne gemeinsames Konto: nur ausdrücklich freigeschaltete
+ *   (`NEXT_PUBLIC_REVIEW_FEDERATION_SOURCES=python,sql,ai`), abgefragt aus dem
+ *   Browser (LP-05B).
+ * - Konto eingerichtet, aber nicht angemeldet: keine; die Seite bietet die
+ *   Anmeldung an. Über getrennte Domains sähe der Browser nur „nicht
+ *   angemeldet“.
  */
-function liveSources(): LiveSourceConfig[] {
+function liveSources(viaHub: boolean, browserAbruf: boolean): LiveSourceConfig[] {
   const enabled = new Set(parseEnabledSources(process.env.NEXT_PUBLIC_REVIEW_FEDERATION_SOURCES));
   const base = (source: 'python' | 'sql' | 'ai'): string | null =>
-    enabled.has(source) ? normalizeSourceBaseUrl(REVIEW_SOURCE_APP_URLS[source]) : null;
+    viaHub || (browserAbruf && enabled.has(source))
+      ? normalizeSourceBaseUrl(REVIEW_SOURCE_APP_URLS[source])
+      : null;
 
   return [
     { source: 'python', label: 'Python', appName: 'PythonPfad', baseUrl: base('python') },
@@ -23,6 +34,10 @@ function liveSources(): LiveSourceConfig[] {
     { source: 'ai', label: 'AI', appName: 'AIPfad', baseUrl: base('ai') },
   ];
 }
+
+export const dynamic = 'force-dynamic';
+
+const ANMELDEN = '/auth/anmelden?ziel=%2Fwiederholen';
 
 export const metadata: Metadata = {
   title: 'Wiederholen',
@@ -35,7 +50,10 @@ export const metadata: Metadata = {
  * gelesen aus den angemeldeten Apps), LOKAL (VokabelPfad in diesem Browser),
  * DEMO (Beispielkarten, lokaler Demo-Stand).
  */
-export default function ReviewPage(): React.ReactElement {
+export default async function ReviewPage(): Promise<React.ReactElement> {
+  // E4.5c: Mit dem gemeinsamen Konto liest der Hub die fälligen Wiederholungen selbst.
+  const konto = hubKonto();
+  const angemeldet = konto ? (await sitzungLesen(konto)) !== null : false;
   return (
     <>
       <SiteHeader current="wiederholen" />
@@ -61,7 +79,11 @@ export default function ReviewPage(): React.ReactElement {
                     <span className="los-lane-dot" data-lane="live" aria-hidden="true" />
                     LIVE
                   </dt>
-                  <dd>Aus PythonPfad, SQLPfad und AIPfad – mit deiner Anmeldung dort, nur gelesen.</dd>
+                  <dd>
+                    {konto
+                      ? 'Aus PythonPfad, SQLPfad und AIPfad – mit deinem Lernpfade-Konto, nur gelesen.'
+                      : 'Aus PythonPfad, SQLPfad und AIPfad – mit deiner Anmeldung dort, nur gelesen.'}
+                  </dd>
                 </div>
                 <div>
                   <dt>
@@ -82,7 +104,11 @@ export default function ReviewPage(): React.ReactElement {
           </div>
         </header>
 
-        <LiveReview sources={liveSources()} />
+        <LiveReview
+          sources={liveSources(angemeldet, konto === null)}
+          viaHub={angemeldet}
+          kontoAnmelden={konto ? ANMELDEN : null}
+        />
 
         <section className="los-section vocab-pointer" aria-labelledby="vocab-pointer-title">
           <div>

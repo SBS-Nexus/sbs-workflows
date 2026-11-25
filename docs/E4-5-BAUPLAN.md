@@ -154,3 +154,16 @@ E4.5b):
   AIPfad mit. Erst kennt AIPfad die Person nicht; ein Klick verbindet ohne
   Passwort; danach zeigt `/fortschritt` die Werte aus AIPfad.
 - Offen in E4.5c: `/wiederholen` auf denselben Weg.
+
+**25.11.2026, E4.5c abgeschlossen** (Zweig `claude/e4-5c-wiederholen-20261125`):
+
+- `/wiederholen` holt die Quellen über den Hub-Server
+  (`/api/hub/wiederholen`), wie `/fortschritt`. Beide Sammelrouten teilen
+  sich `src/server/konto/hub-quellen.ts`.
+- Mit eingerichtetem Konto entfällt der Browserabruf. Nicht angemeldet
+  bieten beide Seiten die Anmeldung an.
+- Aktualisieren: Nur `invalid_grant` beendet die Sitzung im Hub; ist das
+  Konto nicht erreichbar, bleibt sie bestehen.
+- Beobachtbarkeit: Je Abruf eine Protokollzeile mit Status je Quelle.
+- Strecke: `/wiederholen` ohne Anmeldung fragt keine App; nach der Anmeldung
+  zeigt sie AIPfad über den Hub-Server; die Sammelroute ohne Sitzung gibt 401.

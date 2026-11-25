@@ -1,3 +1,4 @@
+import { fetchSourcesViaHub, type HubAbruf } from '../hub/fetch-via-hub.ts';
 import type { FederatedSource, SourceFetchOutcome } from './federation';
 
 const KNOWN_SOURCES: readonly FederatedSource[] = ['python', 'sql', 'ai'];
@@ -11,6 +12,11 @@ const KNOWN_SOURCES: readonly FederatedSource[] = ['python', 'sql', 'ai'];
  * es nie und soll es nie sehen. Nur der Browser kann die Anfrage mit der
  * eigenen Sitzung der Quelle stellen — und die Quelle leitet die Person
  * daraus serverseitig ab. Eine `userId` schickt der Hub nie mit.
+ *
+ * Mit dem gemeinsamen Konto (E4.5c) ersetzt der Abruf über den Hub-Server
+ * diesen Weg: Der Hub hat dann eine eigene Sitzung und ein Zugriffstoken, das
+ * die Apps prüfen (`fetchReviewViaHub` unten). Der Browserabruf bleibt für
+ * Umgebungen ohne gemeinsames Konto.
  *
  * Diese Datei ist reine Logik mit eingespeistem `fetch`, damit sie ohne
  * Browser prüfbar bleibt.
@@ -112,4 +118,19 @@ export function parseEnabledSources(value: string | undefined | null): Federated
   if (!value) return [];
   const wanted = new Set(value.split(',').map((part) => part.trim().toLowerCase()));
   return KNOWN_SOURCES.filter((source) => wanted.has(source));
+}
+
+/**
+ * E4.5c: Abruf über den Hub-Server (`../hub/fetch-via-hub.ts`). Angemeldet im
+ * Hub fragt der Browser einmal `/api/hub/wiederholen`; der Hub-Server holt
+ * jede Quelle mit seinem Zugriffstoken und `limit` = `perSource`.
+ */
+export const HUB_REVIEW_PATH = '/api/hub/wiederholen';
+
+export function fetchReviewViaHub(
+  sources: readonly FederatedSource[],
+  fetchImpl: FetchLike,
+  timeoutMs: number = REVIEW_SOURCE_TIMEOUT_MS * 2,
+): Promise<HubAbruf<FederatedSource>> {
+  return fetchSourcesViaHub(HUB_REVIEW_PATH, sources, fetchImpl, timeoutMs);
 }
