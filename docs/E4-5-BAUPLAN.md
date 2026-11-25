@@ -155,6 +155,37 @@ E4.5b):
   Passwort; danach zeigt `/fortschritt` die Werte aus AIPfad.
 - Offen in E4.5c: `/wiederholen` auf denselben Weg.
 
+**25.11.2026, E4.5a–c live** (gemergt: #104 `eb2faf9`, #105 `87bcd7b`, #106
+`20615f4`):
+
+- Konto: Anwendung „Lernpfade-Hub“ im Projekt „Lernpfade“ mit Client-ID
+  `401157173893236994` (`einrichten.mjs --anwendungen` mit befristetem
+  System-Nutzer, danach entfernt). Die Lebensdauer der Token ist gesetzt.
+  Die drei App-Anwendungen und ihre Secrets blieben unverändert.
+- Railway, alle auf `20615f4`:
+  - AIPfad, PythonPfad und SQLPfad mit `AUTH_HUB_CLIENT_ID`.
+  - `lernpfade-hub` mit `AUTH_ISSUER`, `AUTH_CLIENT_ID`,
+    `AUTH_CLIENT_SECRET`, `HUB_SESSION_SECRET` und
+    `HUB_URL=https://www.lernpfade.net`.
+- Domain:
+  - `www.lernpfade.net` als eigene Domain des Hubs bei Railway. Bei Strato
+    stehen CNAME `www` und TXT `_railway-verify.www`.
+  - Der Apex `lernpfade.net` leitet bei Strato mit 301 auf
+    `https://www.lernpfade.net/` weiter, mit dem enthaltenen Zertifikat
+    „STRATO SSL Basic“.
+  - Mail-Einträge (SPF, DKIM, DMARC) und `konto` blieben unverändert.
+- Geprüft von außen:
+  - Die Plattformquellen aller drei Apps antworten ohne Token und mit
+    falschem Token mit 401.
+  - Der Hub meldet `eingerichtet: true`.
+  - Anmelden führt mit der Client-ID des Hubs und der Rückkehr
+    `https://www.lernpfade.net/auth/rueckkehr` zur Anmeldeseite des Kontos.
+- Offen:
+  - Rundgang mit echtem Konto: im Hub anmelden, `/fortschritt` zeigt die
+    eigenen Werte, abmelden.
+  - `/wiederholen` über den Hub-Server (Rest von E4.5c).
+  - E4.5d frühestens 24.02.2027.
+
 **25.11.2026, E4.5c abgeschlossen** (Zweig `claude/e4-5c-wiederholen-20261125`):
 
 - `/wiederholen` holt die Quellen über den Hub-Server
