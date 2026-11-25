@@ -270,3 +270,29 @@ Bauen und testen geht ohne sie; in CI und lokal läuft Postgres im Container.
   - Team-Quelle in den Apps mit Diensttoken;
   - Stand des Teams über alle Pfade;
   - CSV.
+
+**26.11.2026, E5.2b gebaut** (Zweig `claude/e5-2b-teamstand-20261126`, auf
+E5.2a):
+
+- **Anmeldevertrag:** `AUTH_PLATTFORM_SUB`, `pruefeDiensttoken()` und
+  `istPlattformDienst()`. Ein Personentoken öffnet die Team-Quelle nie.
+- **Team-Quelle in allen drei Apps**
+  (`src/server/platform/team-source-http.ts`, bytegleich, Drift-Check):
+  - Nur POST mit Diensttoken.
+  - Summen ab drei bekannten Personen, Einzelwerte nur für Benannte.
+  - Nur der Tag der letzten Aktivität.
+- **Hub:**
+  - Diensttoken per Client Credentials (`lernpfade-plattform`, angelegt von
+    `einrichten.mjs --anwendungen`).
+  - Strenge Prüfung der Antworten; Stand je Pfad und namentlich auf der
+    Teamseite.
+  - CSV mit Eintrag im Prüfprotokoll.
+- **Tests:**
+  - 16 Einheiten in jeder App.
+  - Hub: 16 Einheiten zu Vertrag und CSV, 3 zum Abruf.
+  - Strecke: Teamstand aus AIPfad und CSV gegen echten ZITADEL.
+- **Live:**
+  - `einrichten.mjs --anwendungen` mit befristetem System-Nutzer (legt das
+    Maschinenkonto an);
+  - `AUTH_PLATTFORM_SUB` in den Apps und `PLATTFORM_*` im Hub setzen;
+  - alle vier ausrollen.

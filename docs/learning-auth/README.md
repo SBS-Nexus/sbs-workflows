@@ -85,3 +85,9 @@ Die Sicherheitsbegründung steht in `aipfad/docs/SECURITY.md`, Abschnitt
   ein Zugriffstoken des Hubs an (`zentral-zugriff.ts`, `pruefeHubToken()`).
   Geprüft werden Signatur, Aussteller, Ablauf, Zielgruppe und `client_id` =
   `AUTH_HUB_CLIENT_ID`. Ohne diesen Wert ist der Weg aus.
+- Team-Quelle (E5.2, `docs/E5-PLAN.md`): `istPlattformDienst()` in
+  `zentral-zugriff.ts` nimmt nur das Diensttoken des Maschinenkontos der
+  Plattform an (`pruefeDiensttoken()`: Signatur, Aussteller, Ablauf, `sub` =
+  `AUTH_PLATTFORM_SUB`). Ohne diesen Wert ist der Weg aus. Die Team-Quelle
+  selbst ist ein Plattformadapter (`src/server/platform/team-source-http.ts`,
+  `scripts/check-platform-sources.mjs`).

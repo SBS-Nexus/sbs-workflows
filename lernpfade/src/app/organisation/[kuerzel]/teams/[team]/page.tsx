@@ -6,6 +6,8 @@ import { Rahmen } from '@/components/organisation/rahmen';
 import { darf, ROLLEN_NAME } from '@/domain/organisation/regeln';
 import { aktualisiereAnzeigename, kontext } from '@/server/organisation/dienst';
 import { team } from '@/server/organisation/teams';
+import { ladeTeamStand, teamstandEingerichtet } from '@/server/organisation/teamstand-zugang';
+import { TeamstandAnzeige } from '@/components/organisation/teamstand';
 import { anmeldeAdresse, orgZugang, zweiterFaktorAdresse } from '@/server/organisation/zugang';
 
 /**
@@ -50,6 +52,7 @@ export default async function TeamSeite({
 
   const t = await team(db, k, person, teamKuerzel);
   if (!t) notFound();
+  const stand = teamstandEingerichtet() && t.mitglieder > 0 ? await ladeTeamStand(db, k, person, t.id) : null;
 
   return (
     <Rahmen titel={t.name} rolle={ROLLEN_NAME[k.rolle]} zurueck={zurueck}>
@@ -89,9 +92,18 @@ export default async function TeamSeite({
       <section className="los-section" aria-labelledby="team-stand">
         <h2 id="team-stand">Stand des Teams</h2>
         <p className="org-text">
-          Hier erscheint bald der Stand über alle Lernpfade: abgeschlossene Lektionen und fällige Wiederholungen, als
-          Summe ab drei Personen und namentlich für alle, die es erlauben.
+          Je Pfad als Summe ab drei Personen; namentlich nur, wer es selbst erlaubt. Gelesen aus den Pfaden, nichts
+          wird hier gespeichert oder verändert.
         </p>
+        {stand ? (
+          <TeamstandAnzeige stand={stand} csvAdresse={`/organisation/${k.kuerzel}/teams/${t.kuerzel}/export`} />
+        ) : (
+          <p className="org-leer">
+            {t.mitglieder === 0
+              ? 'Sobald Personen im Team sind, erscheint hier ihr Stand.'
+              : 'Die Verbindung zu den Lernpfaden ist noch nicht eingerichtet.'}
+          </p>
+        )}
       </section>
 
       <section className="los-section" aria-labelledby="team-verwaltung">

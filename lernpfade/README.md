@@ -117,6 +117,14 @@ gibt es die Seiten nicht, und alles bleibt wie bisher.
   - Einladungen optional direkt in ein Team.
   - Die Einwilligung „Stand namentlich zeigen“ gilt je Team und ändert nur
     die Person selbst (`src/server/organisation/teams.ts`).
+- **Stand des Teams (E5.2):** Die Teamseite fragt jede App per
+  `POST /api/platform/team-source` mit dem Diensttoken der Plattform
+  (`PLATTFORM_CLIENT_ID`/`_SECRET`, Client Credentials).
+  - Die Apps rechnen Summen ab drei Personen und geben Einzelwerte nur für
+    Personen mit Einwilligung heraus.
+  - Der Hub prüft das streng (`src/domain/team/contract.ts`).
+  - CSV unter `…/teams/[team]/export` (Semikolon, BOM, Schutz vor Formeln);
+    jeder Export steht im Prüfprotokoll.
 - **Rechte** prüft der Dienst (`src/server/organisation/dienst.ts`), nicht die
   Seite. Die Regeln stehen rein in `src/domain/organisation/regeln.ts`.
 - **Prüfprotokoll:** wer wann was verwaltet hat, nie Lernverhalten.

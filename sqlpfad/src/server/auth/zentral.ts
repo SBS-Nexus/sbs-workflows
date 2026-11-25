@@ -29,6 +29,8 @@ export interface Zugang {
   zustandsSchluessel: string;
   /** Client-ID des Hubs; leer = Zugriffstoken des Hubs werden nicht angenommen. */
   hubClientId: string;
+  /** `sub` des Maschinenkontos der Plattform; leer = keine Diensttoken (E5.2). */
+  plattformSub: string;
 }
 
 /** Die Zugangsdaten, oder `null`, solange keine gesetzt sind. */
@@ -42,6 +44,7 @@ export function zentralerZugang(): Zugang | null {
     clientSecret: env.AUTH_CLIENT_SECRET,
     zustandsSchluessel: env.AUTH_STATE_SECRET,
     hubClientId: env.AUTH_HUB_CLIENT_ID,
+    plattformSub: env.AUTH_PLATTFORM_SUB,
   };
 }
 

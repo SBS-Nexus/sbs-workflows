@@ -3,6 +3,7 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTPayload
 import {
   anmeldezeitAus,
   identitaetAusClaims,
+  pruefeDiensttoken,
   pruefeHubToken,
   UngueltigesZugriffstoken,
   pruefeAbmeldeToken,
@@ -237,6 +238,57 @@ describe('Zugriffstoken des Hubs für die Plattformquellen (E4.5)', () => {
 
   it('nimmt nichts an, solange kein Hub eingerichtet ist', async () => {
     const { token, gueltig, pruefe } = await aufbau();
+    await expect(pruefe(await token(gueltig), '')).rejects.toBeInstanceOf(UngueltigesZugriffstoken);
+  });
+});
+
+describe('Diensttoken der Plattform für die Team-Quelle (E5.2)', () => {
+  const AUSSTELLER = 'https://konto.lernpfade.test';
+  const PLATTFORM = '401200000000000001';
+  const JETZT = new Date('2026-11-26T12:00:00Z');
+
+  async function aufbau() {
+    const { publicKey, privateKey } = await generateKeyPair('RS256');
+    const jwk = { ...(await exportJWK(publicKey)), kid: 'k1', alg: 'RS256', use: 'sig' };
+    const schluessel = createLocalJWKSet({ keys: [jwk] });
+    const fremd = await generateKeyPair('RS256');
+    const gueltig: JWTPayload = { iss: AUSSTELLER, aud: ['projekt-lernpfade'], sub: PLATTFORM };
+    async function token(inhalt: JWTPayload, optionen: { privat?: CryptoKey; ablauf?: Date } = {}) {
+      return new SignJWT(inhalt)
+        .setProtectedHeader({ alg: 'RS256', kid: 'k1', typ: 'JWT' })
+        .setIssuedAt(JETZT)
+        .setExpirationTime(optionen.ablauf ?? new Date(JETZT.getTime() + 15 * 60 * 1000))
+        .sign(optionen.privat ?? privateKey);
+    }
+    const pruefe = (wert: string, plattformSub = PLATTFORM) =>
+      pruefeDiensttoken(wert, { aussteller: AUSSTELLER, plattformSub, schluessel, jetzt: JETZT });
+    return { token, gueltig, pruefe, fremd };
+  }
+
+  it('nimmt das Token des Maschinenkontos an', async () => {
+    const { token, gueltig, pruefe } = await aufbau();
+    await expect(pruefe(await token(gueltig))).resolves.toBeUndefined();
+  });
+
+  it.each([
+    ['Token einer Person (andere sub)', { sub: '312345678901234567' }],
+    ['Token des Hubs für eine Person', { sub: '312345678901234567', client_id: 'hub-client' }],
+    ['fremder Aussteller', { iss: 'https://anders.example' }],
+    ['ohne sub', { sub: undefined }],
+  ])('lehnt ab: %s', async (_fall, aenderung) => {
+    const { token, gueltig, pruefe } = await aufbau();
+    const inhalt = { ...gueltig, ...aenderung } as JWTPayload;
+    for (const [k, v] of Object.entries(inhalt)) if (v === undefined) delete inhalt[k];
+    await expect(pruefe(await token(inhalt))).rejects.toBeInstanceOf(UngueltigesZugriffstoken);
+  });
+
+  it('lehnt abgelaufene und fremd signierte Token ab und nimmt ohne Einrichtung nichts an', async () => {
+    const { token, gueltig, pruefe, fremd } = await aufbau();
+    const abgelaufen = await token(gueltig, { ablauf: new Date(JETZT.getTime() - 5 * 60 * 1000) });
+    await expect(pruefe(abgelaufen)).rejects.toBeInstanceOf(UngueltigesZugriffstoken);
+    await expect(pruefe(await token(gueltig, { privat: fremd.privateKey }))).rejects.toBeInstanceOf(
+      UngueltigesZugriffstoken,
+    );
     await expect(pruefe(await token(gueltig), '')).rejects.toBeInstanceOf(UngueltigesZugriffstoken);
   });
 });
