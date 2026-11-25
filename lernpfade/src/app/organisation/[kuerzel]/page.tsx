@@ -15,6 +15,10 @@ import { ProgressBar } from '@/components/ui/primitives';
 import { brauchtZweitenFaktor, darf, darfEinladenAls, ROLLEN, ROLLEN_NAME } from '@/domain/organisation/regeln';
 import { aktualisiereAnzeigename, kontext, protokoll, uebersicht, type OrgKontext } from '@/server/organisation/dienst';
 import { eigeneTeams, teamsVon } from '@/server/organisation/teams';
+import { eigeneLernplaene } from '@/server/organisation/lernplan';
+import { EigenerLernplan } from '@/components/organisation/eigener-lernplan';
+import { normalizeSourceBaseUrl } from '@/domain/review/fetch-source';
+import { REVIEW_SOURCE_APP_URLS } from '@/lib/catalog';
 import { anmeldeAdresse, orgZugang, zweiterFaktorAdresse } from '@/server/organisation/zugang';
 
 /**
@@ -66,7 +70,19 @@ export default async function OrganisationSeite({
     );
   }
 
-  const meineTeams = await eigeneTeams(db, k, person);
+  const [meineTeams, meinePlaene] = await Promise.all([eigeneTeams(db, k, person), eigeneLernplaene(db, k, person)]);
+  const lernplan =
+    meinePlaene.length > 0 ? (
+      <EigenerLernplan
+        plaene={meinePlaene}
+        anmelden={anmeldeAdresse(hier)}
+        appAdressen={{
+          python: normalizeSourceBaseUrl(REVIEW_SOURCE_APP_URLS.python),
+          sql: normalizeSourceBaseUrl(REVIEW_SOURCE_APP_URLS.sql),
+          ai: normalizeSourceBaseUrl(REVIEW_SOURCE_APP_URLS.ai),
+        }}
+      />
+    ) : null;
 
   if (!leitung) {
     return (
@@ -78,6 +94,7 @@ export default async function OrganisationSeite({
             drei Personen. Dein Lernstand bleibt in deinen Pfaden und bei dir, auch wenn du austrittst.
           </p>
         </section>
+        {lernplan}
         <EigeneTeams kuerzel={k.kuerzel} teams={meineTeams} />
         <section className="los-section" aria-labelledby="org-austreten">
           <h2 id="org-austreten">Mitgliedschaft</h2>
@@ -203,6 +220,7 @@ export default async function OrganisationSeite({
         </section>
       ) : null}
 
+      {lernplan}
       {meineTeams.length > 0 ? <EigeneTeams kuerzel={k.kuerzel} teams={meineTeams} /> : null}
 
       <section className="los-section" aria-labelledby="org-austreten">

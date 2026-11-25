@@ -125,6 +125,12 @@ gibt es die Seiten nicht, und alles bleibt wie bisher.
   - Der Hub prüft das streng (`src/domain/team/contract.ts`).
   - CSV unter `…/teams/[team]/export` (Semikolon, BOM, Schutz vor Formeln);
     jeder Export steht im Prüfprotokoll.
+- **Lernpläne (E5.3):** ein Plan je Team (Pfad, Ziel in Lektionen oder alle,
+  Fälligkeit).
+  - Die Teamseite zeigt die Erfüllung (Ø ab drei, namentlich mit
+    Einwilligung).
+  - Lernende sehen „Dein Lernplan“ mit dem eigenen Stand, gerechnet im
+    Browser aus `/api/hub/fortschritt`.
 - **Rechte** prüft der Dienst (`src/server/organisation/dienst.ts`), nicht die
   Seite. Die Regeln stehen rein in `src/domain/organisation/regeln.ts`.
 - **Prüfprotokoll:** wer wann was verwaltet hat, nie Lernverhalten.

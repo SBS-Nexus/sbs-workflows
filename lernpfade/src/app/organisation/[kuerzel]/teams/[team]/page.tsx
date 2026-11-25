@@ -8,6 +8,9 @@ import { aktualisiereAnzeigename, kontext } from '@/server/organisation/dienst';
 import { team } from '@/server/organisation/teams';
 import { ladeTeamStand, teamstandEingerichtet } from '@/server/organisation/teamstand-zugang';
 import { TeamstandAnzeige } from '@/components/organisation/teamstand';
+import { LernplanTeam } from '@/components/organisation/lernplan-team';
+import { heuteTag } from '@/domain/lernplan/regeln';
+import { planDesTeams } from '@/server/organisation/lernplan';
 import { anmeldeAdresse, orgZugang, zweiterFaktorAdresse } from '@/server/organisation/zugang';
 
 /**
@@ -52,7 +55,10 @@ export default async function TeamSeite({
 
   const t = await team(db, k, person, teamKuerzel);
   if (!t) notFound();
-  const stand = teamstandEingerichtet() && t.mitglieder > 0 ? await ladeTeamStand(db, k, person, t.id) : null;
+  const [stand, plan] = await Promise.all([
+    teamstandEingerichtet() && t.mitglieder > 0 ? ladeTeamStand(db, k, person, t.id) : Promise.resolve(null),
+    planDesTeams(db, k, person, t.id),
+  ]);
 
   return (
     <Rahmen titel={t.name} rolle={ROLLEN_NAME[k.rolle]} zurueck={zurueck}>
@@ -87,6 +93,18 @@ export default async function TeamSeite({
             kandidaten={t.kandidaten.map((c) => ({ ...c, rolle: ROLLEN_NAME[c.rolle] }))}
           />
         ) : null}
+      </section>
+
+      <section className="los-section" aria-labelledby="team-lernplan">
+        <h2 id="team-lernplan">Lernplan</h2>
+        <LernplanTeam
+          kuerzel={k.kuerzel}
+          teamId={t.id}
+          plan={plan}
+          stand={stand}
+          heute={heuteTag(new Date())}
+          archiviert={t.archiviert}
+        />
       </section>
 
       <section className="los-section" aria-labelledby="team-stand">

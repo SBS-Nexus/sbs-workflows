@@ -119,6 +119,35 @@ test('Organisation anlegen, per Link einladen, beitreten, Plätze und Protokoll'
     'hat den Stand des Teams „Vertrieb“ als CSV heruntergeladen',
   );
 
+  // E5.3 (Tor der Roadmap): Lernplan vergeben; die Person sieht ihn mit ihrem eigenen Stand.
+  const faellig = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  await adminSeite.getByRole('list', { name: 'Teams' }).getByRole('link', { name: 'Vertrieb' }).click();
+  const lernplan = adminSeite.getByRole('region', { name: 'Lernplan', exact: true });
+  await lernplan.getByLabel('Name des Lernplans').fill('Einstieg');
+  await lernplan.getByRole('button', { name: 'Lernplan anlegen' }).click();
+  await expect(lernplan.getByRole('heading', { name: 'Einstieg' })).toBeVisible();
+  await lernplan.getByLabel('Pfad', { exact: true }).selectOption('ai');
+  await lernplan.getByLabel('Ziel: abgeschlossene Lektionen').fill('1');
+  await lernplan.getByLabel('Fällig bis (optional)').fill(faellig);
+  await lernplan.getByRole('button', { name: 'Eintrag hinzufügen' }).click();
+  const eintraege = lernplan.getByRole('list', { name: 'Einträge des Lernplans' });
+  await expect(eintraege).toContainText('1. AIPfad');
+  await expect(eintraege).toContainText('1 Lektion');
+  // AIPfad kennt die Person, sie hat noch keine Lektion abgeschlossen: offen.
+  await expect(lernplan.getByRole('list', { name: 'Namentlich: AIPfad' })).toContainText('Ada Testkonto: offen');
+
+  await lernSeite.goto(orgAdresse);
+  const meinPlan = lernSeite.getByRole('region', { name: 'Dein Lernplan' });
+  await expect(meinPlan.getByRole('list', { name: 'Lernplan Einstieg' })).toContainText('AIPfad');
+  await expect(meinPlan).toContainText('0 von 1');
+  await expect(meinPlan).toContainText('offen');
+  await expect(meinPlan.getByRole('link', { name: 'In AIPfad weiterlernen' })).toBeVisible();
+
+  await adminSeite.goto(orgAdresse);
+  await expect(adminSeite.getByRole('region', { name: 'Prüfprotokoll' })).toContainText(
+    'hat dem Lernplan „Einstieg“ AIPfad (1 Lektion',
+  );
+
   // Ohne zweiten Faktor: keine Verwaltung, sondern der Weg zur Einrichtung.
   await lernSeite.goto('/organisation');
   await expect(lernSeite.getByRole('link', { name: 'Zweiten Faktor einrichten' })).toBeVisible();

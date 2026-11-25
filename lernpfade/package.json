@@ -12,7 +12,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "verify": "npm run typecheck && npm run test && npm run build",
-    "test": "node --experimental-strip-types --test src/domain/review/*.test.ts src/domain/vocabulary/*.test.ts src/domain/progress/*.test.ts src/domain/hub/*.test.ts src/domain/organisation/*.test.ts src/domain/team/*.test.ts src/components/feedback/*.test.ts src/lib/*.test.ts && node --conditions=react-server --experimental-strip-types --test src/server/konto/*.test.ts src/server/organisation/teamstand.test.ts",
+    "test": "node --experimental-strip-types --test src/domain/review/*.test.ts src/domain/vocabulary/*.test.ts src/domain/progress/*.test.ts src/domain/hub/*.test.ts src/domain/organisation/*.test.ts src/domain/team/*.test.ts src/domain/lernplan/*.test.ts src/components/feedback/*.test.ts src/lib/*.test.ts && node --conditions=react-server --experimental-strip-types --test src/server/konto/*.test.ts src/server/organisation/teamstand.test.ts",
     "test:e2e": "playwright test",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

@@ -1557,3 +1557,57 @@ a {
   list-style: none;
   font-size: 0.92rem;
 }
+
+/* E5.3 – Lernpläne */
+.org-plan li {
+  align-items: flex-start;
+}
+
+.org-erfuellung {
+  flex: 1 1 100%;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.org-status {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 750;
+  background: var(--los-surface);
+  border: 1px solid var(--los-line-paper-strong);
+}
+
+.org-status-erreicht {
+  color: #155b30;
+  border-color: #8cc5a0;
+  background: #eaf6ee;
+}
+
+.org-status-ueberfaellig {
+  color: #8f1d2e;
+  border-color: #e3a1ab;
+  background: #fbecee;
+}
+
+.org-status-offen {
+  color: #1b4f73;
+  border-color: #9cc3dd;
+  background: #ecf4fa;
+}
+
+.org-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+}
+
+.org-weiter {
+  font-weight: 750;
+}
+
+.org-plan-block + .org-plan-block {
+  margin-top: 1.4rem;
+}
