@@ -121,6 +121,10 @@ gibt es die Seiten nicht, und alles bleibt wie bisher.
     nach `npm run db:deploy`), auch mit gleichzeitigen Beitritten;
   - Strecke gegen echten ZITADEL (`e2e-konto/hub-organisation.spec.ts`) mit
     einem Testkonto mit Authenticator-App.
+- `prisma` (CLI) steht unter `dependencies`, nicht `devDependencies`: Railway
+  baut den Hub mit `NODE_ENV=production` und installiert dann nur die
+  Abhängigkeiten zur Laufzeit. `prisma generate` (postinstall) und die
+  Migration vor dem Start (`npm run db:deploy`) brauchen die CLI.
 - `effect` ist per `overrides` auf 3.22.4 gesetzt. Prisma pinnt 3.20.0, das
   vom Advisory GHSA-7589-6fvf-x4pw betroffen ist.
 
