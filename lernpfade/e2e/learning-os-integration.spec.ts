@@ -410,7 +410,7 @@ test.describe('ohne JavaScript', () => {
     await expect(page.getByRole('heading', { level: 1, name: ROUTES[0].h1 })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Entdecke deinen Pfad' })).toHaveAttribute('href', '#lernpfade');
     await expect(page.getByRole('link', { name: 'SQLPfad öffnen' })).toHaveAttribute('href', MOCK_SOURCE_ORIGINS.sql);
-    await expect(page.getByRole('navigation', { name: 'Fußnavigation' }).getByRole('link')).toHaveText(['Vokabeln', 'Wiederholen', 'Fortschritt']);
+    await expect(page.getByRole('navigation', { name: 'Fußnavigation' }).getByRole('link')).toHaveText(['Vokabeln', 'Wiederholen', 'Fortschritt', 'Status']);
 
     await page.goto('/vokabeln');
     await expect(page.getByRole('navigation', { name: 'Seitennavigation' }).getByRole('link', { name: 'Vokabeln' })).toHaveAttribute('aria-current', 'page');

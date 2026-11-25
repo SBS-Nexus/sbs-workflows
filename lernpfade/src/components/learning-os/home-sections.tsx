@@ -250,7 +250,7 @@ export function LosFooter({ homeHref }: { homeHref: string }): React.ReactElemen
       <div className="los-footer-bottom">
         <a className="los-footer-wordmark" href={homeHref}>lernpfade.</a>
         <span>Eine Idee von SBS Nexus Learning</span>
-        <nav aria-label="Fußnavigation"><a href="/vokabeln">Vokabeln</a><a href="/wiederholen">Wiederholen</a><a href="/fortschritt">Fortschritt</a></nav>
+        <nav aria-label="Fußnavigation"><a href="/vokabeln">Vokabeln</a><a href="/wiederholen">Wiederholen</a><a href="/fortschritt">Fortschritt</a><a href="/status">Status</a></nav>
         <a href="#hauptinhalt">Zurück nach oben <span aria-hidden="true">↑</span></a>
       </div>
     </footer>
