@@ -83,7 +83,7 @@ export function EinladenFormular({
   const id = useId();
   return (
     <form action={aktion} className="vocab-form org-form" onSubmit={() => setKopiert(false)}>
-      <div className="vocab-form-inline">
+      <div className="vocab-form-inline org-felder">
         <div className="vocab-field">
           <label htmlFor={`${id}-rolle`}>Rolle</label>
           <select id={`${id}-rolle`} name="rolle" defaultValue={rollen[rollen.length - 1]?.wert}>

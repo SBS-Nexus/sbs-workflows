@@ -1373,6 +1373,12 @@ a {
   max-width: 860px;
 }
 
+/* Felder des Einladens nebeneinander, solange Platz ist; sonst untereinander. */
+.org-felder {
+  display: grid;
+  gap: 0.9rem;
+}
+
 .org-form select,
 .org-verwalten select {
   min-height: 2.9rem;

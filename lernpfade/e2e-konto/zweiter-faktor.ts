@@ -53,6 +53,24 @@ export function totp(geheimnis: string, zeit = Date.now()): string {
   return String(zahl % 1_000_000).padStart(6, '0');
 }
 
+/**
+ * Zuletzt genutztes 30-Sekunden-Fenster je Schlüssel. ZITADEL nimmt einen Code
+ * nur einmal an (Schutz vor Wiederholung); eine zweite Anmeldung im selben
+ * Fenster wartet deshalb wie eine echte Authenticator-App auf den nächsten Code.
+ */
+const zuletztGenutzt = new Map<string, number>();
+
+async function frischerCode(page: Page, geheimnis: string): Promise<string> {
+  const fenster = Math.floor(Date.now() / 30_000);
+  const letztes = zuletztGenutzt.get(geheimnis);
+  if (letztes !== undefined && fenster <= letztes) {
+    await page.waitForTimeout((letztes + 1) * 30_000 - Date.now() + 500);
+  }
+  const jetzt = Date.now();
+  zuletztGenutzt.set(geheimnis, Math.floor(jetzt / 30_000));
+  return totp(geheimnis, jetzt);
+}
+
 /** Adresse, Passwort und Code aus der Authenticator-App. */
 export async function anmeldenMitZweitemFaktor(page: Page, konto: KontoMitZweitemFaktor): Promise<void> {
   await anmeldenBeimKonto(page, konto);
@@ -62,6 +80,6 @@ export async function anmeldenMitZweitemFaktor(page: Page, konto: KontoMitZweite
     await page.getByRole('button', { name: /Authenticator-App/ }).click();
     await expect(titel).toHaveText('Code eingeben');
   }
-  await page.getByLabel('Code', { exact: true }).fill(totp(konto.totpGeheimnis));
+  await page.getByLabel('Code', { exact: true }).fill(await frischerCode(page, konto.totpGeheimnis));
   await page.getByRole('button', { name: 'Bestätigen' }).click();
 }
