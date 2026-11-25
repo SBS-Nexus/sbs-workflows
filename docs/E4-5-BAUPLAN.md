@@ -139,3 +139,18 @@ Wert in E4.5b, sobald die Anwendung des Hubs eingerichtet ist.
 - Live, nach dem Merge: Anwendung „Lernpfade-Hub“ einrichten,
   `AUTH_HUB_CLIENT_ID` in den Apps setzen, Werte des Hubs bei Railway setzen
   und die Domain `www.lernpfade.net` anlegen.
+
+**25.11.2026, E4.5c gebaut** (Zweig `claude/e4-5c-hub-daten-20261125`, auf
+E4.5b):
+
+- `/api/hub/fortschritt`: Der Hub-Server aktualisiert das Zugriffstoken bei
+  Bedarf einmal und fragt alle Apps mit Adresse parallel mit Bearer ab.
+  Status und Antwort je Quelle reicht er durch.
+- `fetchProgressViaHub()` (Domäne, mit Tests) und `viaHub` in
+  `ProgressOverview`: Angemeldet holt die Seite alles in einem Abruf über den
+  Hub. Abgemeldet bietet sie „Mit Lernpfade-Konto anmelden“ an. Ohne
+  Einrichtung bleibt alles wie bisher.
+- Tor als Test: Der CI-Job „Anmeldung im Hub gegen echten ZITADEL“ startet
+  AIPfad mit. Erst kennt AIPfad die Person nicht; ein Klick verbindet ohne
+  Passwort; danach zeigt `/fortschritt` die Werte aus AIPfad.
+- Offen in E4.5c: `/wiederholen` auf denselben Weg.

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProgressSource, SourceProgress } from '@/domain/progress/contract';
 import { lastActiveOf } from '@/domain/progress/display';
-import { fetchProgressSource } from '@/domain/progress/fetch-progress';
+import { fetchProgressSource, fetchProgressViaHub } from '@/domain/progress/fetch-progress';
 import {
   backlogTotal,
   initialSourceStates,
@@ -154,7 +154,15 @@ function projectMetric(progress: SourceProgress, appName: string): React.ReactEl
   }
 }
 
-function SourceCard({ config, state }: { config: ProgressSourceConfig; state: SourceState }): React.ReactElement {
+function SourceCard({
+  config,
+  state,
+  viaHub = false,
+}: {
+  config: ProgressSourceConfig;
+  state: SourceState;
+  viaHub?: boolean;
+}): React.ReactElement {
   const titleId = `progress-${config.source}`;
   const openUrl = config.baseUrl ?? config.appUrl;
 
@@ -186,8 +194,17 @@ function SourceCard({ config, state }: { config: ProgressSourceConfig; state: So
 
         {state.status === 'unauthenticated' ? (
           <FeedbackCallout message={sourceFeedback('unauthenticated')}>
-            In {config.appName} bist du nicht angemeldet. Ohne Anmeldung zeigt der Hub hier nichts — das
-            heißt nicht, dass du dort keinen Fortschritt hast.
+            {viaHub ? (
+              <>
+                {config.appName} kennt dein Lernpfade-Konto noch nicht. Melde dich dort einmal an, dann
+                erscheint dein Stand hier.
+              </>
+            ) : (
+              <>
+                In {config.appName} bist du nicht angemeldet. Ohne Anmeldung zeigt der Hub hier nichts — das
+                heißt nicht, dass du dort keinen Fortschritt hast.
+              </>
+            )}
           </FeedbackCallout>
         ) : null}
 
@@ -339,7 +356,14 @@ function readableStore(outcome: LoadOutcome | null) {
   return outcome && (outcome.status === 'ok' || outcome.status === 'empty') ? outcome.store : null;
 }
 
-export function ProgressOverview({ sources }: { sources: readonly ProgressSourceConfig[] }): React.ReactElement {
+export function ProgressOverview({
+  sources,
+  viaHub = false,
+}: {
+  sources: readonly ProgressSourceConfig[];
+  /** E4.5c: Angemeldet im Hub, kommen alle Quellen in einem Abruf über den Hub-Server. */
+  viaHub?: boolean;
+}): React.ReactElement {
   const enabled = sources.filter((config) => config.baseUrl).map((config) => config.source);
   const [states, setStates] = useState<Record<ProgressSource, SourceState>>(() => initialSourceStates(enabled));
   const [vocabOutcome, setVocabOutcome] = useState<LoadOutcome | null>(null);
@@ -356,6 +380,28 @@ export function ProgressOverview({ sources }: { sources: readonly ProgressSource
 
   const loadSources = useCallback(() => {
     sourcesLoadedAtRef.current = Date.now();
+    if (viaHub) {
+      const angefragt = sourcesRef.current.filter((config) => config.baseUrl).map((config) => config.source);
+      const tickets = Object.fromEntries(
+        angefragt.map((source) => {
+          const ticket = (sourceTicketsRef.current[source] ?? 0) + 1;
+          sourceTicketsRef.current[source] = ticket;
+          return [source, ticket];
+        }),
+      );
+      void fetchProgressViaHub(angefragt, (url, init) => fetch(url, init)).then((outcomes) => {
+        if (!mountedRef.current) return;
+        setStates((current) => {
+          const naechste = { ...current };
+          for (const outcome of outcomes) {
+            if (sourceTicketsRef.current[outcome.source] !== tickets[outcome.source]) continue;
+            naechste[outcome.source] = resolveSourceOutcome(outcome);
+          }
+          return naechste;
+        });
+      });
+      return;
+    }
     // Jede Quelle für sich: Wer zuerst antwortet, erscheint zuerst; niemand wartet auf andere.
     for (const config of sourcesRef.current) {
       if (!config.baseUrl) continue;
@@ -369,7 +415,7 @@ export function ProgressOverview({ sources }: { sources: readonly ProgressSource
         },
       );
     }
-  }, []);
+  }, [viaHub]);
 
   // Lokale Vokabeln: nur lesen, mit der vorhandenen, geprüften Statistik.
   const loadVocabulary = useCallback(() => {
@@ -437,7 +483,7 @@ export function ProgressOverview({ sources }: { sources: readonly ProgressSource
         <h2 id="progress-paths-title">Deine Pfade</h2>
         <div className="progress-grid">
           {sources.map((config) => (
-            <SourceCard key={config.source} config={config} state={states[config.source]} />
+            <SourceCard viaHub={viaHub} key={config.source} config={config} state={states[config.source]} />
           ))}
           <VocabularyCard state={vocabulary} />
         </div>
