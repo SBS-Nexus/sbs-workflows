@@ -245,5 +245,28 @@ Bauen und testen geht ohne sie; in CI und lokal läuft Postgres im Container.
   - Strecke gegen echten ZITADEL: anlegen mit zweitem Faktor, einladen,
     beitreten, aufgebrauchter Link, Protokoll, ohne zweiten Faktor keine
     Verwaltung.
-- **Offen für live:** Die Hub-Datenbank bei Railway (etwa 0,50 USD im Monat)
-  braucht deine Freigabe.
+- **Live seit 25.11.2026:**
+  - Freigabe der Hub-Datenbank am 25.11.2026; `lernpfade-db` auf Railway
+    (Postgres 18, nur privat).
+  - #110 gemergt als `6f68851`.
+  - Der Hub läuft mit `npm run db:deploy` vor dem Start.
+
+**26.11.2026, E5.2a gebaut** (Zweig `claude/e5-2a-teams-20261125`):
+
+- **Teams:** Admin und Lehrkraft legen Teams an, nehmen Mitglieder der
+  Organisation auf, nehmen sie heraus und archivieren Teams.
+- **Einladung direkt in ein Team:** Archiviert führt sie nur noch in die
+  Organisation.
+- **Einwilligung je Team-Mitgliedschaft:**
+  - Standardmäßig aus; nur die Person selbst ändert sie, mit Zeitpunkt.
+  - Sie steht nicht im Prüfprotokoll.
+  - Lernende sehen unter „Deine Teams“, was namentlich sichtbar wäre.
+- **Tests:**
+  - Integration: Organisationsgrenzen, Archiv, Einladung ins Team,
+    Einwilligung nur durch die Person, Austritt verlässt alle Teams.
+  - Strecke: Team anlegen, ins Team einladen, Einwilligung geben, Admin
+    sieht „namentlich sichtbar“.
+- **Als Nächstes (E5.2b):**
+  - Team-Quelle in den Apps mit Diensttoken;
+  - Stand des Teams über alle Pfade;
+  - CSV.

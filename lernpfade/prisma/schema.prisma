@@ -56,6 +56,7 @@ model Organization {
   memberships  Membership[]
   invitations  Invitation[]
   auditEntries AuditEntry[]
+  teams        Team[]
 
   @@map("organizations")
 }
@@ -70,7 +71,8 @@ model Membership {
   role           OrgRole  @default(LEARNER)
   joinedAt       DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  teams        TeamMembership[]
 
   @@unique([organizationId, sub])
   @@index([sub])
@@ -94,8 +96,11 @@ model Invitation {
   revokedAt      DateTime?
   createdBySub   String
   createdAt      DateTime  @default(now())
+  /// E5.2: Wer einlöst, kommt direkt in dieses Team. Archiviert oder gelöscht: nur in die Organisation.
+  teamId         String?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team         Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
   @@index([expiresAt])
@@ -121,4 +126,45 @@ model AuditEntry {
 
   @@index([organizationId, createdAt])
   @@map("audit_entries")
+}
+
+/// E5.2: Team innerhalb einer Organisation (in PythonPfad „Kohorte“). Eine
+/// Person kann in mehreren Teams sein. Summen gibt es nur über Teams, nie über
+/// frei gewählte Personengruppen (docs/E5-PLAN.md, Abschnitt 10).
+model Team {
+  id             String    @id @default(cuid())
+  organizationId String
+  slug           String
+  name           String
+  /// Archivierte Teams bleiben lesbar, nehmen aber niemanden mehr auf.
+  archivedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      TeamMembership[]
+  invitations  Invitation[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@map("teams")
+}
+
+/// Zugehörigkeit zu einem Team, mit der Einwilligung der Person.
+model TeamMembership {
+  id               String    @id @default(cuid())
+  teamId           String
+  membershipId     String
+  /// Stand namentlich zeigen? Standardmäßig aus, jederzeit widerrufbar. Ohne
+  /// Einwilligung fließt die Person nur in Summen ab drei Personen ein.
+  shareProgress    Boolean   @default(false)
+  /// Wann die Einwilligung zuletzt geändert wurde, damit nachvollziehbar bleibt, ab wann sie galt.
+  consentChangedAt DateTime?
+  addedAt          DateTime  @default(now())
+
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, membershipId])
+  @@index([membershipId])
+  @@map("team_memberships")
 }

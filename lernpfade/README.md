@@ -112,6 +112,11 @@ gibt es die Seiten nicht, und alles bleibt wie bisher.
     bestätigte Adresse gebunden, genau einmal.
   - Beitritte sperren die Organisation in der Transaktion, damit Plätze nie
     überbucht werden.
+- **Teams (E5.2):** `/organisation/[kuerzel]/teams/[team]` für Admin und
+  Lehrkraft.
+  - Einladungen optional direkt in ein Team.
+  - Die Einwilligung „Stand namentlich zeigen“ gilt je Team und ändert nur
+    die Person selbst (`src/server/organisation/teams.ts`).
 - **Rechte** prüft der Dienst (`src/server/organisation/dienst.ts`), nicht die
   Seite. Die Regeln stehen rein in `src/domain/organisation/regeln.ts`.
 - **Prüfprotokoll:** wer wann was verwaltet hat, nie Lernverhalten.

@@ -40,6 +40,8 @@ test('Rechte je Rolle wie in docs/E5-PLAN.md, Abschnitt 6', () => {
   assert.equal(darf('TEACHER', 'mitglieder.sehen'), true);
   assert.equal(darf('TEACHER', 'mitglieder.verwalten'), false);
   assert.equal(darf('LEARNER', 'mitglieder.sehen'), false);
+  assert.equal(darf('TEACHER', 'teams.verwalten'), true);
+  assert.equal(darf('LEARNER', 'teams.verwalten'), false);
   assert.equal(darfEinladenAls('TEACHER', 'LEARNER'), true);
   assert.equal(darfEinladenAls('TEACHER', 'TEACHER'), false);
   assert.equal(darfEinladenAls('TEACHER', 'ADMIN'), false);

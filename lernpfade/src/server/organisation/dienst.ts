@@ -30,8 +30,8 @@ import {
  * Organisation, damit gleichzeitige Beitritte die Plätze nicht überbuchen.
  */
 
-type Db = PrismaClient;
-type Tx = Parameters<Parameters<Db['$transaction']>[0]>[0];
+export type Db = PrismaClient;
+export type Tx = Parameters<Parameters<Db['$transaction']>[0]>[0];
 
 export type FehlerCode = 'nicht-gefunden' | 'verboten' | 'zweiter-faktor' | 'ungueltig' | 'letzter-admin' | 'voll';
 
@@ -60,7 +60,7 @@ function neuerToken(): string {
   return randomBytes(32).toString('base64url');
 }
 
-async function protokolliere(
+export async function protokolliere(
   db: Tx | Db,
   eintrag: {
     organisationId: string;
@@ -85,7 +85,7 @@ async function protokolliere(
 }
 
 /** Sperrt die Organisation bis zum Ende der Transaktion (Plätze, letzter Admin). */
-async function sperre(tx: Tx, organisationId: string): Promise<void> {
+export async function sperre(tx: Tx, organisationId: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM organizations WHERE id = ${organisationId} FOR UPDATE`;
 }
 
@@ -190,6 +190,7 @@ export type Uebersicht = {
     nutzungen: number;
     maxNutzungen: number;
     gueltigBis: Date;
+    team: string | null;
   }>;
 };
 
@@ -203,7 +204,15 @@ export async function uebersicht(db: Db, k: OrgKontext, person: Person, jetzt = 
     }),
     db.invitation.findMany({
       where: { organizationId: k.organisationId, revokedAt: null, expiresAt: { gt: jetzt } },
-      select: { id: true, role: true, email: true, uses: true, maxUses: true, expiresAt: true },
+      select: {
+        id: true,
+        role: true,
+        email: true,
+        uses: true,
+        maxUses: true,
+        expiresAt: true,
+        team: { select: { name: true } },
+      },
       orderBy: { createdAt: 'desc' },
     }),
   ]);
@@ -222,6 +231,7 @@ export async function uebersicht(db: Db, k: OrgKontext, person: Person, jetzt = 
         nutzungen: e.uses,
         maxNutzungen: e.maxUses,
         gueltigBis: e.expiresAt,
+        team: e.team?.name ?? null,
       })),
   };
 }
@@ -237,7 +247,7 @@ export async function ladeEin(
   db: Db,
   k: OrgKontext,
   person: Person,
-  eingabe: { rolle: unknown; email?: unknown; maxNutzungen?: unknown },
+  eingabe: { rolle: unknown; email?: unknown; maxNutzungen?: unknown; team?: unknown },
   jetzt = new Date(),
 ): Promise<Ergebnis<{ token: string }>> {
   const rolle = ROLLEN.find((r) => r === eingabe.rolle);
@@ -256,6 +266,16 @@ export async function ladeEin(
   }
   const maxNutzungen = email ? 1 : gewuenscht;
 
+  // E5.2: optional direkt in ein offenes Team dieser Organisation.
+  let team: { id: string; name: string } | null = null;
+  if (typeof eingabe.team === 'string' && eingabe.team) {
+    team = await db.team.findFirst({
+      where: { id: eingabe.team, organizationId: k.organisationId, archivedAt: null },
+      select: { id: true, name: true },
+    });
+    if (!team) return { ok: false, meldung: 'Dieses Team gibt es nicht oder es ist archiviert.' };
+  }
+
   const token = neuerToken();
   const einladung = await db.invitation.create({
     data: {
@@ -266,6 +286,7 @@ export async function ladeEin(
       maxUses: maxNutzungen,
       expiresAt: new Date(jetzt.getTime() + EINLADUNG_GUELTIG_TAGE * 24 * 60 * 60 * 1000),
       createdBySub: person.sub,
+      teamId: team?.id ?? null,
     },
   });
   await protokolliere(db, {
@@ -274,9 +295,11 @@ export async function ladeEin(
     aktion: 'invitation.created',
     zielTyp: 'invitation',
     zielId: einladung.id,
-    satz: email
-      ? `${person.name} hat ${email} als ${ROLLEN_NAME[rolle]} eingeladen.`
-      : `${person.name} hat einen Einladungslink für bis zu ${maxNutzungen} ${maxNutzungen === 1 ? 'Person' : 'Personen'} als ${ROLLEN_NAME[rolle]} erstellt.`,
+    satz:
+      (email
+        ? `${person.name} hat ${email} als ${ROLLEN_NAME[rolle]} eingeladen`
+        : `${person.name} hat einen Einladungslink für bis zu ${maxNutzungen} ${maxNutzungen === 1 ? 'Person' : 'Personen'} als ${ROLLEN_NAME[rolle]} erstellt`) +
+      (team ? ` (Team „${team.name}“).` : '.'),
   });
   return { ok: true, token };
 }
@@ -303,13 +326,24 @@ export async function widerrufe(db: Db, k: OrgKontext, person: Person, einladung
 export async function einladungVorschau(
   db: Db,
   token: string,
-): Promise<{ organisation: string; rolle: Rolle; gebunden: boolean } | null> {
+): Promise<{ organisation: string; rolle: Rolle; gebunden: boolean; team: string | null } | null> {
   if (!token || token.length > 200) return null;
   const e = await db.invitation.findUnique({
     where: { tokenHash: hashToken(token) },
-    select: { role: true, email: true, organization: { select: { name: true } } },
+    select: {
+      role: true,
+      email: true,
+      organization: { select: { name: true } },
+      team: { select: { name: true, archivedAt: true } },
+    },
   });
-  return e ? { organisation: e.organization.name, rolle: e.role, gebunden: e.email !== null } : null;
+  if (!e) return null;
+  return {
+    organisation: e.organization.name,
+    rolle: e.role,
+    gebunden: e.email !== null,
+    team: e.team && !e.team.archivedAt ? e.team.name : null,
+  };
 }
 
 export type Einloesung = { ok: true; kuerzel: string } | { ok: false; grund: 'ungueltig' | Exclude<EinloesungsUrteil, { ok: true }>['grund'] };
@@ -333,6 +367,7 @@ export async function loeseEin(db: Db, person: Person, token: string, jetzt = ne
         expiresAt: true,
         revokedAt: true,
         organization: { select: { id: true, slug: true, name: true, seats: true, status: true } },
+        team: { select: { id: true, organizationId: true, archivedAt: true } },
       },
     });
     const [schonMitglied, belegt] = await Promise.all([
@@ -359,9 +394,13 @@ export async function loeseEin(db: Db, person: Person, token: string, jetzt = ne
     );
     if (!urteil.ok) return urteil;
 
-    await tx.membership.create({
+    const neu = await tx.membership.create({
       data: { organizationId: e.organization.id, sub: person.sub, displayName: person.name, role: e.role },
     });
+    // E5.2: direkt ins Team der Einladung, solange es offen ist und zur Organisation gehört.
+    if (e.team && !e.team.archivedAt && e.team.organizationId === e.organization.id) {
+      await tx.teamMembership.create({ data: { teamId: e.team.id, membershipId: neu.id } });
+    }
     await tx.invitation.update({ where: { id: e.id }, data: { uses: { increment: 1 } } });
     await protokolliere(tx, {
       organisationId: e.organization.id,
