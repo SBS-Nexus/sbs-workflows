@@ -296,3 +296,36 @@ E5.2a):
     Maschinenkonto an);
   - `AUTH_PLATTFORM_SUB` in den Apps und `PLATTFORM_*` im Hub setzen;
   - alle vier ausrollen.
+
+**26.11.2026, E5.2 live:**
+
+- #111 gemergt als `ec3f7cc`, #112 als `2c4f95b`.
+- Maschinenkonto `lernpfade-plattform` in Produktion angelegt.
+- `AUTH_PLATTFORM_SUB` in den drei Apps, `PLATTFORM_*` im Hub; alle vier auf
+  `2c4f95b`.
+- Geprüft: Die Team-Quelle antwortet ohne oder mit falschem Token mit 401.
+
+**26.11.2026, E5.3 gebaut** (Zweig `claude/e5-3-lernplaene-20261126`):
+
+- **Migration `lernplaene`:** ein Plan je Team mit Einträgen (Pfad, Ziel in
+  Lektionen oder alle, Fälligkeit als Tag). Prüfungen in der Datenbank für
+  Pfad, Ziel und Position.
+- **Regeln** (`src/domain/lernplan/regeln.ts`):
+  - Status je Person „erreicht“, „offen“, „überfällig“ oder „noch nicht
+    begonnen“.
+  - Überfällig erst am Tag nach der Fälligkeit, deutsche Zeit.
+  - Erreicht bleibt erreicht.
+- **Teamseite:**
+  - Plan anlegen; Einträge hinzufügen, verschieben, entfernen; Plan löschen.
+  - Erfüllung je Eintrag: Team-Ø ab drei Personen, namentlich mit
+    Einwilligung.
+  - Alle Änderungen stehen im Prüfprotokoll.
+- **„Dein Lernplan“ für Lernende:**
+  - Der eigene Stand kommt über den Hub-Server; gerechnet wird im Browser.
+  - Die Organisation sieht davon nichts.
+  - Mit Link zum Weiterlernen im Pfad.
+- **Tests:**
+  - 5 Einheiten zu den Regeln, 5 Integrationstests (19 gesamt).
+  - Strecke gegen echten ZITADEL: Lernplan vergeben, Person sieht „0 von 1 ·
+    offen“, Admin sieht „Ada Testkonto: offen“.
+  - Das ist das Tor der Roadmap als Test.

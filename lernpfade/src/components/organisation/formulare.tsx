@@ -6,6 +6,11 @@ import {
   archiviereTeamAktion,
   benenneUmAktion,
   entferneAusTeamAktion,
+  entferneEintragAktion,
+  fuegeEintragHinzuAktion,
+  legePlanAnAktion,
+  loeschePlanAktion,
+  verschiebeEintragAktion,
   fuegeHinzuAktion,
   legeTeamAnAktion,
   setzeFreigabeAktion,
@@ -398,6 +403,133 @@ export function FreigabeSchalter({
           : freigabe
             ? `In „${team}“ nur noch in Summen zeigen`
             : `In „${team}“ namentlich zeigen`}
+      </Button>
+      <Rueckmeldung antwort={antwort} />
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// E5.3 — Lernpläne
+// ---------------------------------------------------------------------------
+
+export function PlanAnlegenFormular({ kuerzel, team }: { kuerzel: string; team: string }): React.ReactElement {
+  const [antwort, aktion, laeuft] = useActionState(legePlanAnAktion.bind(null, kuerzel), LEER);
+  const id = useId();
+  return (
+    <form action={aktion} className="vocab-form vocab-form-inline org-form">
+      <input type="hidden" name="team" value={team} />
+      <div className="vocab-field">
+        <label htmlFor={`${id}-name`}>Name des Lernplans</label>
+        <input id={`${id}-name`} name="name" required minLength={2} maxLength={80} placeholder="etwa: Einstieg Q1" />
+      </div>
+      <Button type="submit" disabled={laeuft}>
+        {laeuft ? 'Wird angelegt …' : 'Lernplan anlegen'}
+      </Button>
+      <Rueckmeldung antwort={antwort} />
+    </form>
+  );
+}
+
+export function EintragFormular({ kuerzel, plan }: { kuerzel: string; plan: string }): React.ReactElement {
+  const [antwort, aktion, laeuft] = useActionState(fuegeEintragHinzuAktion.bind(null, kuerzel), LEER);
+  const [alle, setAlle] = useState(false);
+  const id = useId();
+  return (
+    <form action={aktion} className="vocab-form org-form">
+      <input type="hidden" name="plan" value={plan} />
+      <div className="vocab-form-inline org-felder">
+        <div className="vocab-field">
+          <label htmlFor={`${id}-pfad`}>Pfad</label>
+          <select id={`${id}-pfad`} name="pfad" defaultValue="python">
+            <option value="python">PythonPfad</option>
+            <option value="sql">SQLPfad</option>
+            <option value="ai">AIPfad</option>
+          </select>
+        </div>
+        <div className="vocab-field">
+          <label htmlFor={`${id}-ziel`}>Ziel: abgeschlossene Lektionen</label>
+          <input
+            id={`${id}-ziel`}
+            name="ziel"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={1000}
+            defaultValue={5}
+            disabled={alle}
+            required={!alle}
+          />
+        </div>
+        <div className="vocab-field">
+          <label htmlFor={`${id}-faellig`}>Fällig bis (optional)</label>
+          <input id={`${id}-faellig`} name="faellig" type="date" />
+        </div>
+      </div>
+      <label className="org-check">
+        <input type="checkbox" name="alle" checked={alle} onChange={(e) => setAlle(e.currentTarget.checked)} /> Ziel: alle
+        Lektionen des Pfads
+      </label>
+      <div>
+        <Button type="submit" disabled={laeuft}>
+          {laeuft ? 'Wird hinzugefügt …' : 'Eintrag hinzufügen'}
+        </Button>
+      </div>
+      <Rueckmeldung antwort={antwort} />
+    </form>
+  );
+}
+
+export function EintragSteuerung({
+  kuerzel,
+  eintrag,
+  erster,
+  letzter,
+  beschreibung,
+}: {
+  kuerzel: string;
+  eintrag: string;
+  erster: boolean;
+  letzter: boolean;
+  beschreibung: string;
+}): React.ReactElement {
+  const [verschiebeAntwort, verschiebe, verschiebtLaeuft] = useActionState(verschiebeEintragAktion.bind(null, kuerzel), LEER);
+  const [entferneAntwort, entferne, entferntLaeuft] = useActionState(entferneEintragAktion.bind(null, kuerzel), LEER);
+  return (
+    <div className="org-verwalten">
+      <form action={verschiebe} className="org-inline">
+        <input type="hidden" name="eintrag" value={eintrag} />
+        <Button type="submit" name="richtung" value="hoch" variant="secondary" size="sm" disabled={erster || verschiebtLaeuft} aria-label={`${beschreibung} nach oben`}>
+          ↑
+        </Button>
+        <Button type="submit" name="richtung" value="runter" variant="secondary" size="sm" disabled={letzter || verschiebtLaeuft} aria-label={`${beschreibung} nach unten`}>
+          ↓
+        </Button>
+      </form>
+      <form action={entferne} className="org-inline">
+        <input type="hidden" name="eintrag" value={eintrag} />
+        <Button type="submit" variant="secondary" size="sm" disabled={entferntLaeuft} aria-label={`${beschreibung} entfernen`}>
+          {entferntLaeuft ? 'Wird entfernt …' : 'Entfernen'}
+        </Button>
+      </form>
+      <Rueckmeldung antwort={verschiebeAntwort.meldung ? verschiebeAntwort : entferneAntwort} />
+    </div>
+  );
+}
+
+export function PlanLoeschenKnopf({ kuerzel, plan, name }: { kuerzel: string; plan: string; name: string }): React.ReactElement {
+  const [antwort, aktion, laeuft] = useActionState(loeschePlanAktion.bind(null, kuerzel), LEER);
+  return (
+    <form
+      action={aktion}
+      className="org-inline"
+      onSubmit={(e) => {
+        if (!window.confirm(`Lernplan „${name}“ löschen? Der Lernstand der Personen bleibt unberührt.`)) e.preventDefault();
+      }}
+    >
+      <input type="hidden" name="plan" value={plan} />
+      <Button type="submit" variant="secondary" disabled={laeuft}>
+        {laeuft ? 'Wird gelöscht …' : 'Lernplan löschen'}
       </Button>
       <Rueckmeldung antwort={antwort} />
     </form>

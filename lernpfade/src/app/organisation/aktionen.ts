@@ -21,6 +21,7 @@ import {
   legeTeamAn,
   setzeFreigabe,
 } from '@/server/organisation/teams';
+import { entferneEintrag, fuegeEintragHinzu, legePlanAn, loeschePlan, verschiebeEintrag } from '@/server/organisation/lernplan';
 import { anmeldeAdresse, orgZugang } from '@/server/organisation/zugang';
 import { EINLOESUNG_TEXT } from '@/domain/organisation/regeln';
 
@@ -215,5 +216,60 @@ export async function setzeFreigabeAktion(kuerzel: string, _vorher: Antwort, dat
       ? 'Dein Stand ist in diesem Team jetzt namentlich sichtbar.'
       : 'Dein Stand erscheint in diesem Team jetzt nur noch in Summen.',
   };
+}
+
+// ---------------------------------------------------------------------------
+// E5.3 — Lernpläne
+// ---------------------------------------------------------------------------
+
+async function planAktion(
+  kuerzel: string,
+  erfolg: string,
+  tun: (z: Awaited<ReturnType<typeof mitKontext>>) => Promise<{ ok: true } | { ok: false; meldung: string }>,
+): Promise<Antwort> {
+  try {
+    const zugang = await mitKontext(kuerzel);
+    const ergebnis = await tun(zugang);
+    if (!ergebnis.ok) return { meldung: ergebnis.meldung };
+    refresh();
+    return { erfolg };
+  } catch (fehler) {
+    return alsAntwort(fehler);
+  }
+}
+
+export async function legePlanAnAktion(kuerzel: string, _vorher: Antwort, daten: FormData): Promise<Antwort> {
+  return planAktion(kuerzel, 'Lernplan angelegt.', ({ db, k, person }) =>
+    legePlanAn(db, k, person, String(daten.get('team') ?? ''), daten.get('name')),
+  );
+}
+
+export async function fuegeEintragHinzuAktion(kuerzel: string, _vorher: Antwort, daten: FormData): Promise<Antwort> {
+  return planAktion(kuerzel, 'Eintrag hinzugefügt.', ({ db, k, person }) =>
+    fuegeEintragHinzu(db, k, person, String(daten.get('plan') ?? ''), {
+      pfad: daten.get('pfad'),
+      ziel: daten.get('ziel'),
+      alle: daten.get('alle'),
+      faellig: daten.get('faellig'),
+    }),
+  );
+}
+
+export async function entferneEintragAktion(kuerzel: string, _vorher: Antwort, daten: FormData): Promise<Antwort> {
+  return planAktion(kuerzel, 'Eintrag entfernt.', ({ db, k, person }) =>
+    entferneEintrag(db, k, person, String(daten.get('eintrag') ?? '')),
+  );
+}
+
+export async function verschiebeEintragAktion(kuerzel: string, _vorher: Antwort, daten: FormData): Promise<Antwort> {
+  return planAktion(kuerzel, 'Reihenfolge geändert.', ({ db, k, person }) =>
+    verschiebeEintrag(db, k, person, String(daten.get('eintrag') ?? ''), daten.get('richtung') === 'hoch' ? 'hoch' : 'runter'),
+  );
+}
+
+export async function loeschePlanAktion(kuerzel: string, _vorher: Antwort, daten: FormData): Promise<Antwort> {
+  return planAktion(kuerzel, 'Lernplan gelöscht.', ({ db, k, person }) =>
+    loeschePlan(db, k, person, String(daten.get('plan') ?? '')),
+  );
 }
 

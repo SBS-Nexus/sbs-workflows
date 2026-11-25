@@ -143,6 +143,7 @@ model Team {
   organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   members      TeamMembership[]
   invitations  Invitation[]
+  plan         LearningPlan?
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -167,4 +168,38 @@ model TeamMembership {
   @@unique([teamId, membershipId])
   @@index([membershipId])
   @@map("team_memberships")
+}
+
+/// E5.3: Lernplan eines Teams (einer je Team). Gibt Pfade, Reihenfolge, Ziel
+/// und Fälligkeit vor; ob ein Ziel erreicht ist, rechnet der Hub aus dem Stand
+/// der Pfade. Hier steht nie ein Lernstand.
+model LearningPlan {
+  id        String   @id @default(cuid())
+  teamId    String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team  Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  items LearningPlanItem[]
+
+  @@map("learning_plans")
+}
+
+/// Ein Eintrag im Lernplan: Pfad, Ziel in Lektionen (leer = alle) und Fälligkeit (Tag).
+model LearningPlanItem {
+  id            String    @id @default(cuid())
+  planId        String
+  position      Int
+  /// `python`, `sql` oder `ai` (Prüfung in der Datenbank).
+  path          String
+  /// Abgeschlossene Lektionen als Ziel; `null` heißt: alle Lektionen des Pfads.
+  targetLessons Int?
+  /// Fälligkeit als Kalendertag ohne Uhrzeit.
+  dueDate       DateTime? @db.Date
+
+  plan LearningPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, position])
+  @@map("learning_plan_items")
 }
