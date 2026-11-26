@@ -161,7 +161,9 @@ Plan und Etappen: `docs/E5-PLAN.md` (seit 25.11.2026).
 - Rechtsseiten: Impressum, Datenschutz und AVV-Vorlage für Unternehmen.
 - Aufbewahrungslauf von Trockenlauf auf Ernstfall, nach geprüften Läufen.
 
-Plan und Etappen: `docs/E6-PLAN.md` (seit 26.11.2026).
+Plan und Etappen: `docs/E6-PLAN.md` (seit 26.11.2026). Live seit
+26.11.2026: Rechtsseiten (E6.1), Statusseite und externer Alarm über Better
+Stack (E6.2).
 
 ### E7 · Kaufen und abrechnen
 
