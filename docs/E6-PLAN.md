@@ -87,6 +87,36 @@ Getroffen nach dem Maßstab „Board eines Enterprise-SaaS“:
 
 ## 6. Stand
 
+**26.11.2026, E6.1 und E6.2 live:**
+
+- E6.1 (#115): Impressum, Datenschutzhinweise und AVV-Vorlage auf
+  `www.lernpfade.net`, Verweise im Fuß des Hubs und aller drei Apps.
+- E6.2 (#114): Statusseite live. Seit 26.11.2026 außerdem ein **externer
+  Alarm über Better Stack** (kostenlose Stufe, Team `t642688`):
+
+  | Monitor             | Adresse                                                        | Schlägt an bei                                |
+  | ------------------- | -------------------------------------------------------------- | --------------------------------------------- |
+  | Lernpfade Plattform | `https://www.lernpfade.net/api/status`                         | Hub nicht erreichbar oder 503 (Konto gestört) |
+  | Lernpfade-Konto     | `https://konto.lernpfade.net/.well-known/openid-configuration` | Konto-API nicht erreichbar                    |
+  | AIPfad              | `https://www.aipfad.de/api/ready`                              | App oder ihre Datenbank nicht bereit          |
+  | PythonPfad          | `https://www.pythonpfad.de/api/ready`                          | App oder ihre Datenbank nicht bereit          |
+  | SQLPfad             | `https://www.sqlpfad.de/api/ready`                             | App, Datenbank oder Inhalte nicht bereit      |
+  - Prüfung alle 3 Minuten (Grenze der kostenlosen Stufe) aus Europa,
+    Nordamerika, Asien und Australien.
+  - Bestätigungszeit 1 Minute, damit ein kurzer Neustart keinen Alarm
+    auslöst. Erholung nach 3 Minuten.
+  - Alarm per E-Mail an das Konto bei Better Stack; keine Anrufe oder SMS
+    (bräuchten eine Telefonnummer und den Bezahltarif).
+  - Ein Testalarm ging am 26.11.2026 raus. Die Zustellung bestätigt das
+    Postfach.
+  - Nicht in der kostenlosen Stufe: Warnung vor ablaufenden Zertifikaten.
+    Railway erneuert sie selbst; ein Ausfall fiele über die Monitore auf.
+  - Die Anfragen von Better Stack enthalten keine personenbezogenen Daten.
+    Deshalb ist Better Stack kein Unterauftragsverarbeiter im Sinne der
+    AVV.
+
+- Offen: E6.3, E6.4 und E6.5 nach Abschnitt 2.
+
 **26.11.2026, E6.2 gebaut** (Zweig `claude/e6-betrieb-20261126`):
 
 - `/status` und `/api/status` im Hub.
