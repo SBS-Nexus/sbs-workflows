@@ -107,8 +107,9 @@ Getroffen nach dem Maßstab „Board eines Enterprise-SaaS“:
     auslöst. Erholung nach 3 Minuten.
   - Alarm per E-Mail an das Konto bei Better Stack; keine Anrufe oder SMS
     (bräuchten eine Telefonnummer und den Bezahltarif).
-  - Ein Testalarm ging am 26.11.2026 raus. Die Zustellung bestätigt das
-    Postfach.
+  - Testalarm am 26.11.2026 um 13:05 ausgelöst und im Postfach
+    angekommen („New test incident started“). Damit ist das Tor von E6.2
+    erfüllt.
   - Nicht in der kostenlosen Stufe: Warnung vor ablaufenden Zertifikaten.
     Railway erneuert sie selbst; ein Ausfall fiele über die Monitore auf.
   - Die Anfragen von Better Stack enthalten keine personenbezogenen Daten.
