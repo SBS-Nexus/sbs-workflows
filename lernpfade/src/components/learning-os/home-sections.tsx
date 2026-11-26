@@ -245,7 +245,8 @@ export function LosVocab(): React.ReactElement {
 
 export function LosFooter({ homeHref }: { homeHref: string }): React.ReactElement {
   return (
-    <footer className="los-footer">
+    // Markenabschluss der Startseite; der Fuß mit Impressum und Datenschutz kommt aus dem Layout (RechtsFuss).
+    <section className="los-footer" aria-label="Über Lernpfade">
       <div className="los-footer-top"><span className="los-footer-star" aria-hidden="true">✳</span><p>Deine Neugier verdient<br /><em>mehr als einen Kurs.</em></p></div>
       <div className="los-footer-bottom">
         <a className="los-footer-wordmark" href={homeHref}>lernpfade.</a>
@@ -253,6 +254,6 @@ export function LosFooter({ homeHref }: { homeHref: string }): React.ReactElemen
         <nav aria-label="Fußnavigation"><a href="/vokabeln">Vokabeln</a><a href="/wiederholen">Wiederholen</a><a href="/fortschritt">Fortschritt</a><a href="/status">Status</a></nav>
         <a href="#hauptinhalt">Zurück nach oben <span aria-hidden="true">↑</span></a>
       </div>
-    </footer>
+    </section>
   );
 }

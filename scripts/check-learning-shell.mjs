@@ -44,6 +44,14 @@ const SHARED = [
       aipfad: 'src/components/app/shell-menu.tsx',
     },
   },
+  {
+    // E6.1: Impressum, Datenschutz und Status unter jedem Inhalt.
+    canonical: 'learning-legal-footer.tsx',
+    target: {
+      default: 'src/components/navigation/learning-legal-footer.tsx',
+      aipfad: 'src/components/app/learning-legal-footer.tsx',
+    },
+  },
 ];
 
 const APPS = [

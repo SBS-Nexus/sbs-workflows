@@ -347,11 +347,13 @@ export default function LandingPage(): React.ReactElement {
         </section>
       </main>
 
-      <footer className="border-t border-[var(--border)] py-10">
+      {/* Markenhinweis der Startseite. Der Fuß der Seite mit Impressum und Datenschutz
+          kommt aus der Shell (LearningLegalFooter im Root-Layout). */}
+      <section aria-label="Über die App" className="border-t border-[var(--border)] py-10">
         <div className="mx-auto max-w-6xl px-4 text-sm text-[var(--text-muted)] sm:px-6">
           {BRAND.name} – {BRAND.claim}
         </div>
-      </footer>
+      </section>
     </div>
   );
 }
