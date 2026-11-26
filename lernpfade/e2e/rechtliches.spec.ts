@@ -39,7 +39,7 @@ test('Datenschutzhinweise beschreiben die echten Verarbeitungen', async ({ page 
   await page.goto('/datenschutz');
   const main = page.getByRole('main');
   await expect(main.getByRole('heading', { level: 2 })).toHaveCount(12);
-  for (const angabe of ['Railway', 'Scaleway', 'STRATO', 'Keine KI-Dienste Dritter', 'aipfad_session', 'lernpfade-vokabeln', 'poststelle@lfdi.bwl.de', 'Ein Datenschutzbeauftragter ist derzeit nicht bestellt']) {
+  for (const angabe of ['Railway', 'Scaleway', 'STRATO', 'Sentry', 'Ihr Browser stellt keine Verbindung zu Sentry her', 'Keine KI-Dienste Dritter', 'aipfad_session', 'lernpfade-vokabeln', 'poststelle@lfdi.bwl.de', 'Ein Datenschutzbeauftragter ist derzeit nicht bestellt']) {
     await expect(main).toContainText(angabe);
   }
   // Das Inhaltsverzeichnis springt zu den Abschnitten.
@@ -56,6 +56,7 @@ test('AVV-Vorlage nennt Gegenstand, Maßnahmen und Unterauftragsverarbeiter', as
   await expect(main).toContainText('Art. 28 DSGVO');
   await expect(main.getByRole('heading', { name: '5. Unterauftragsverarbeiter' })).toBeVisible();
   await expect(main).toContainText('Railway Corporation');
+  await expect(main).toContainText('Functional Software, Inc. (Sentry)');
   await expectNoSeriousA11yViolations(page, 'AVV');
   await page.setViewportSize({ width: 375, height: 800 });
   expect(await horizontalOverflow(page)).toBe(0);

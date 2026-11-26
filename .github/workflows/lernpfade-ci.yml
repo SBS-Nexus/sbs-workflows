@@ -52,6 +52,14 @@ on:
       - 'scripts/check-platform-sources.mjs'
       - '*/src/server/platform/**'
       - '*/src/app/api/platform/**'
+      # E6.3: Fehlerbericht und seine Kopien in Hub und Fach-Apps.
+      - 'docs/learning-fehlerbericht/**'
+      - 'scripts/check-learning-fehlerbericht.mjs'
+      - '*/src/server/fehlerbericht/**'
+      - '*/src/app/api/fehlerbericht/**'
+      - '*/src/lib/fehlerbericht-browser.ts'
+      - '*/src/instrumentation.ts'
+      - '*/src/instrumentation-client.ts'
   push:
     branches:
       - main
@@ -105,6 +113,14 @@ on:
       - 'scripts/check-platform-sources.mjs'
       - '*/src/server/platform/**'
       - '*/src/app/api/platform/**'
+      # E6.3: Fehlerbericht und seine Kopien in Hub und Fach-Apps.
+      - 'docs/learning-fehlerbericht/**'
+      - 'scripts/check-learning-fehlerbericht.mjs'
+      - '*/src/server/fehlerbericht/**'
+      - '*/src/app/api/fehlerbericht/**'
+      - '*/src/lib/fehlerbericht-browser.ts'
+      - '*/src/instrumentation.ts'
+      - '*/src/instrumentation-client.ts'
 
 permissions:
   contents: read
@@ -166,6 +182,27 @@ jobs:
 
       - name: Komponentenvertrag prüfen
         run: node scripts/check-learning-components.mjs
+
+  # E6.3: Fehlerbericht – bytegleiche Kopien in Hub und Fach-Apps, Anbindung
+  # von Instrumentierung und Fehlergrenzen, kein Sentry-SDK; dazu die Tests des
+  # Kerns (Bereinigung, EU-Ziel, Drossel, Empfang). Nur Node-Bordmittel.
+  fehlerbericht:
+    name: Fehlerbericht (Drift-Check und Tests)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Fehlerbericht prüfen
+        run: node scripts/check-learning-fehlerbericht.mjs
+
+      - name: Kern testen
+        run: node --experimental-strip-types --test docs/learning-fehlerbericht/*.test.ts
 
   anmeldevertrag:
     name: Anmeldevertrag (Drift-Check)

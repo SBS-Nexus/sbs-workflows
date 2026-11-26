@@ -90,6 +90,10 @@ export default function AvvSeite(): React.ReactElement {
           Inhalte.
         </li>
         <li>Getrennte Datenbanken je Pfad und für die Plattform.</li>
+        <li>
+          Fehlerberichte nur bereinigt: ohne E-Mail-Adressen, Kennungen, IP-Adressen, Cookies und Inhalte; der Browser
+          meldet an den eigenen Server, nicht an den Dienstleister.
+        </li>
         <li>Statusüberwachung der Dienste; tägliche Datensicherungen beim Hosting-Anbieter ab dem 17. Dezember 2026.</li>
       </ul>
 
@@ -101,6 +105,11 @@ export default function AvvSeite(): React.ReactElement {
         </li>
         <li>Scaleway SAS, Paris, Frankreich: Versand der E-Mails des Lernpfade-Kontos (Bestätigungen, Passwort).</li>
         <li>STRATO GmbH, Berlin: Domains und DNS.</li>
+        <li>
+          Functional Software, Inc. (Sentry), San Francisco, USA: bereinigte Fehlerberichte, Speicherung in der EU
+          (Frankfurt). Drittlandübermittlungen auf Grundlage des EU-U.S. Data Privacy Framework und der
+          Standardvertragsklauseln.
+        </li>
       </ul>
       <p>
         Über beabsichtigte Änderungen informiert der Auftragsverarbeiter vorab; die Verantwortliche kann aus wichtigem
