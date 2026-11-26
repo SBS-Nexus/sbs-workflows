@@ -12,3 +12,6 @@ export async function register(): Promise<void> {
   const { getEnv } = await import('@/server/env');
   getEnv();
 }
+
+/** E6.3: Serverfehler gehen an den Fehlerbericht (docs/learning-fehlerbericht/). */
+export { onRequestError } from '@/server/fehlerbericht/anfragefehler';

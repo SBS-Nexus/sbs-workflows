@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { meldeBrowserfehler } from '@/lib/fehlerbericht-browser';
 import { Button, ErrorState } from '@/components/ui/primitives';
 
 /**
@@ -19,6 +20,8 @@ export default function GlobalError({
   useEffect(() => {
     // Die Meldung landet im Server-Log, nicht im Browser der Nutzenden.
     console.error('Unerwarteter Fehler:', error.digest ?? error.name);
+    // E6.3: an den Fehlerbericht; mit digest hat ihn der Server schon gemeldet.
+    meldeBrowserfehler(error);
   }, [error]);
 
   return (

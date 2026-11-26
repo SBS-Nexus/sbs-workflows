@@ -84,8 +84,48 @@ Getroffen nach dem Maßstab „Board eines Enterprise-SaaS“:
    Sicherungen samt Wiederherstellung sind verlässlicher als ein eigener
    Dump-Job. Bis zum 17.12. bleibt das Risiko bewusst offen (wenige Konten,
    Testphase).
+5. **Fehlerberichte: Sentry in der EU, aber ohne Sentry-SDK (E6.3):**
+   - **Warum kein SDK:** Das SDK sammelt in Version 11 ohne eigene
+     Einstellungen alles, auch Kopfzeilen, Inhalte und IP-Adressen. Im
+     Browser spräche es Sentry direkt an.
+   - **Eigener Kern** (`docs/learning-fehlerbericht/`): eine Liste dessen,
+     was hinausgehen darf, statt einer Sperrliste. Er bereinigt vor dem
+     Versand.
+   - **Browserfehler** gehen über die eigene Route, damit Sentry keine
+     IP-Adressen der Nutzenden sieht.
+   - **Nur EU:** Ziele außerhalb von `*.ingest.de.sentry.io` lehnt der Kern
+     ab.
+   - **Kein Bündler-Eingriff, keine Abhängigkeit**, keine Leistungs- oder
+     Sitzungsdaten.
+   - **Preis:** keine Quelltextkarten; Browserstapel bleiben minifiziert.
+     Meldung, Routenmuster und `digest` reichen zum Finden. Quelltextkarten
+     kommen erst, wenn ein Fall es braucht (dann mit Upload-Token durch dich).
+   - **Vertrag:** Der Auftragsverarbeitungsvertrag (DPA) von Sentry gilt
+     nicht automatisch. Er wird in der Organisation angenommen (Settings →
+     Legal & Compliance). Ohne ihn verbieten die Sentry-Bedingungen
+     personenbezogene Daten.
 
 ## 6. Stand
+
+**26.11.2026, E6.3 gebaut** (Zweig `claude/e6-3-fehlerberichte-20261126`):
+
+- **Kern und Kopien:** Kern, Serveranschluss (`onRequestError`), Route
+  `POST /api/fehlerbericht` und Browserteil (`instrumentation-client.ts`,
+  Fehlergrenzen) liegen bytegleich in Hub, PythonPfad, SQLPfad und AIPfad.
+  `scripts/check-learning-fehlerbericht.mjs` erzwingt das und lässt kein
+  `@sentry/*` zu.
+- **Tests:**
+  - 17 Einheiten zum Kern: Bereinigung, Stapel, EU-Ziel, Drossel, Senden,
+    Empfang.
+  - 2 Browsertests: Ein Browserfehler geht ohne Cookies an die eigene Route;
+    fremde Herkunft wird abgewiesen.
+- **Rechtstexte:** Datenschutzhinweise (Abschnitte 3 und 9) und AVV
+  (Maßnahmen, Unterauftragsverarbeiter) nennen Sentry. Live erst nach
+  Freigabe.
+- **Offen:**
+  - Konto bei Sentry (EU) und das DPA, beides durch dich.
+  - Vier Projekte in Sentry, `SENTRY_DSN` je Dienst bei Railway.
+  - Ein absichtlicher Testfehler mit Benachrichtigung (Tor).
 
 **26.11.2026, E6.1 und E6.2 live:**
 

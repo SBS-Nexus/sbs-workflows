@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { meldeBrowserfehler } from '@/lib/fehlerbericht-browser';
 import { Button, ButtonLink, ErrorState } from '@/components/ui/primitives';
 
 /**
@@ -17,6 +18,8 @@ export default function HubError({
 }): React.ReactElement {
   useEffect(() => {
     console.error('Unerwarteter Fehler:', error.digest ?? error.name);
+    // E6.3: an den Fehlerbericht; mit digest hat ihn der Server schon gemeldet.
+    meldeBrowserfehler(error);
   }, [error]);
 
   return (

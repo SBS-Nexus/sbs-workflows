@@ -97,6 +97,19 @@ export default function DatenschutzSeite(): React.ReactElement {
         die funktionsfähige, sichere Bereitstellung und der Schutz des Angebots.
       </p>
       <p>
+        Tritt in einer Anwendung ein technischer Fehler auf, senden unsere Server einen Fehlerbericht an Sentry der
+        Functional Software, Inc., 45 Fremont Street, San Francisco, USA. Sentry speichert die Berichte in der EU
+        (Frankfurt). Ein Bericht enthält die Art des Fehlers, eine bereinigte Fehlermeldung, die betroffene Stelle im
+        Programmcode, das Muster der aufgerufenen Seite ohne Kennungen, die Programmversion und den Zeitpunkt. Vor dem
+        Versand entfernen wir E-Mail-Adressen, Kennungen, IP-Adressen, Zugangsdaten und zitierte Eingaben; Cookies,
+        Anfrageinhalte, Lerninhalte und Antworten gehören nie dazu. Fehler in Ihrem Browser meldet die Seite an unseren
+        eigenen Server, nicht an Sentry: Ihr Browser stellt keine Verbindung zu Sentry her. Sentry verarbeitet die
+        Berichte als Auftragsverarbeiter auf Grundlage seiner Vereinbarung zur Auftragsverarbeitung und bewahrt sie je
+        nach Tarif 30 bis 90 Tage auf. Konto- und Verwaltungsdaten von Sentry liegen in den USA; dafür sieht die
+        Vereinbarung das EU-U.S. Data Privacy Framework und die Standardvertragsklauseln vor. Grundlage ist Art. 6 Abs.
+        1 Buchst. f DSGVO; unser berechtigtes Interesse ist, Fehler schnell zu erkennen und zu beheben.
+      </p>
+      <p>
         Die Domains lernpfade.net, pythonpfad.de, sqlpfad.de und aipfad.de und ihre DNS-Einträge verwaltet die STRATO
         GmbH, Otto-Ostrowski-Straße 7, 10249 Berlin. Rufen Sie eine Adresse ohne „www“ auf, leitet STRATO Sie weiter und
         verarbeitet dafür die technisch nötigen Verbindungsdaten.
@@ -229,6 +242,10 @@ export default function DatenschutzSeite(): React.ReactElement {
         <li>Railway Corporation, USA: Hosting aller Anwendungen und Datenbanken (siehe Abschnitt 3).</li>
         <li>Scaleway SAS, Frankreich: Versand der E-Mails des Lernpfade-Kontos.</li>
         <li>STRATO GmbH, Deutschland: Domains, DNS und Weiterleitungen.</li>
+        <li>
+          Functional Software, Inc. (Sentry), USA, Speicherung in der EU: bereinigte Fehlerberichte der Anwendungen (siehe
+          Abschnitt 3).
+        </li>
         <li>
           Admins und Lehrkräfte Ihrer Organisation, im Umfang von Abschnitt 7, wenn Sie Mitglied einer Organisation sind.
         </li>
