@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { requireUser } from '@/server/auth/session';
-import { EmptyState } from '@/components/ui/primitives';
+import { ButtonLink, EmptyState } from '@/components/ui/primitives';
 import { AufgabenKarte } from '@/components/aufgabe/aufgaben-karte';
 import { waehleUebung } from '@/domain/aufgabe/auswahl';
 import { ladeAufgabenVorrat } from '@/server/aufgaben-auswahl';
@@ -41,6 +41,7 @@ export default async function UebenSeite(): Promise<React.ReactElement> {
         <EmptyState
           title="Noch keine Aufgaben verfügbar"
           description="Aufgaben entstehen aus den Lektionen. Sobald Inhalte eingespielt sind, steht hier etwas zu tun."
+          action={<ButtonLink href="/lernen">Zum Lernpfad</ButtonLink>}
         />
       ) : (
         <>

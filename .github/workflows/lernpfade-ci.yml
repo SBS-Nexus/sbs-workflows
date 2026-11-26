@@ -5,6 +5,17 @@ on:
     paths:
       - 'lernpfade/**'
       - '.github/workflows/lernpfade-ci.yml'
+      # E4.4: Anmeldevertrag und seine Kopien in den drei Fach-Apps.
+      - 'docs/learning-auth/**'
+      - 'scripts/check-learning-auth.mjs'
+      - '*/src/server/auth/zentral*.ts'
+      - '*/src/app/auth/**'
+      - '*/tests/unit/zentral-*.test.ts'
+      - '*/tests/integration/zentrale-anmeldung.test.ts'
+      - '*/e2e-konto/**'
+      - '*/src/server/env.ts'
+      - '*/prisma/schema.prisma'
+      - '*/package.json'
       # LP-03A: Shell-Vertrag und seine Kopien in den drei Fach-Apps.
       - 'docs/learning-shell/**'
       - 'scripts/check-learning-shell.mjs'
@@ -32,6 +43,11 @@ on:
       - '*/src/app/layout.tsx'
       - '*/src/app/error.tsx'
       - '*/src/app/not-found.tsx'
+      # E3: Token-Vertrag (Learning OS) und seine Kopien in Hub und Fach-Apps.
+      - 'docs/learning-tokens/**'
+      - 'scripts/check-learning-tokens.mjs'
+      - '*/src/styles/learning-tokens.css'
+      - '*/src/app/schriften/**'
       # LP-05B/LP-07: schreibgeschützte Plattformquellen der drei Fach-Apps.
       - 'scripts/check-platform-sources.mjs'
       - '*/src/server/platform/**'
@@ -42,6 +58,17 @@ on:
     paths:
       - 'lernpfade/**'
       - '.github/workflows/lernpfade-ci.yml'
+      # E4.4: Anmeldevertrag und seine Kopien in den drei Fach-Apps.
+      - 'docs/learning-auth/**'
+      - 'scripts/check-learning-auth.mjs'
+      - '*/src/server/auth/zentral*.ts'
+      - '*/src/app/auth/**'
+      - '*/tests/unit/zentral-*.test.ts'
+      - '*/tests/integration/zentrale-anmeldung.test.ts'
+      - '*/e2e-konto/**'
+      - '*/src/server/env.ts'
+      - '*/prisma/schema.prisma'
+      - '*/package.json'
       # LP-03A: Shell-Vertrag und seine Kopien in den drei Fach-Apps.
       - 'docs/learning-shell/**'
       - 'scripts/check-learning-shell.mjs'
@@ -69,6 +96,11 @@ on:
       - '*/src/app/layout.tsx'
       - '*/src/app/error.tsx'
       - '*/src/app/not-found.tsx'
+      # E3: Token-Vertrag (Learning OS) und seine Kopien in Hub und Fach-Apps.
+      - 'docs/learning-tokens/**'
+      - 'scripts/check-learning-tokens.mjs'
+      - '*/src/styles/learning-tokens.css'
+      - '*/src/app/schriften/**'
       # LP-05B/LP-07: schreibgeschützte Plattformquellen der drei Fach-Apps.
       - 'scripts/check-platform-sources.mjs'
       - '*/src/server/platform/**'
@@ -135,6 +167,40 @@ jobs:
       - name: Komponentenvertrag prüfen
         run: node scripts/check-learning-components.mjs
 
+  anmeldevertrag:
+    name: Anmeldevertrag (Drift-Check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Anmeldevertrag prüfen
+        run: node scripts/check-learning-auth.mjs
+  # E3: Gleiches Prinzip für den Token-Vertrag des Learning OS (Grundskala,
+  # Signalfarben, Dachleiste, Modulfarben) im Hub und in den drei Fach-Apps —
+  # Kopie bytegleich und eingebunden, keine zweite Quelle für dieselben
+  # Werte, Verträge und Apps verweisen darauf. Nur Node-Bordmittel, repariert
+  # nichts.
+  learning-tokens:
+    name: Token-Vertrag (Drift-Check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Token-Vertrag prüfen
+        run: node scripts/check-learning-tokens.mjs
+
   # LP-05B/LP-07: Die Adapter der Plattformquellen sind in den drei Fach-Apps
   # bytegleich, ihre Schema-Versionen und Quellnamen sind die, die der Hub
   # annimmt, und jede App meldet sich unter ihrem eigenen Namen. Nur
@@ -161,6 +227,22 @@ jobs:
       run:
         working-directory: lernpfade
 
+    # E5.1: Organisationen gegen echtes Postgres (nur für die Integrationstests;
+    # Build und Browser-Tests laufen weiter ohne Datenbank, Organisationen aus).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: plattform
+          POSTGRES_PASSWORD: plattform
+          POSTGRES_DB: plattform
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v4
@@ -183,6 +265,14 @@ jobs:
 
       - name: Unit-Tests
         run: npm run test
+
+      - name: Integrationstests (Organisationen gegen Postgres)
+        env:
+          DATABASE_URL: postgresql://plattform:plattform@localhost:5432/plattform
+          TEST_DATABASE_URL: postgresql://plattform:plattform@localhost:5432/plattform
+        run: |
+          npx prisma migrate deploy
+          npm run test:integration
 
       - name: Produktionsbuild
         run: npm run build

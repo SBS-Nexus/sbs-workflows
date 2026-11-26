@@ -20,8 +20,11 @@ describe('Auth (Integration mit echter Datenbank)', () => {
     expect(user.passwordHash).not.toBe('ein-sicheres-testpasswort-123');
 
     const reloaded = await prisma.user.findUniqueOrThrow({ where: { email } });
-    expect(await verifyPassword('ein-sicheres-testpasswort-123', reloaded.passwordHash)).toBe(true);
-    expect(await verifyPassword('falsches-passwort', reloaded.passwordHash)).toBe(false);
+    // Seit E4.2 optional (Konten aus dem gemeinsamen Konto haben keins).
+    const gespeichert = reloaded.passwordHash ?? '';
+    expect(gespeichert).not.toBe('');
+    expect(await verifyPassword('ein-sicheres-testpasswort-123', gespeichert)).toBe(true);
+    expect(await verifyPassword('falsches-passwort', gespeichert)).toBe(false);
   });
 
   it('verhindert doppelte E-Mail-Adressen (eindeutiger Index)', async () => {

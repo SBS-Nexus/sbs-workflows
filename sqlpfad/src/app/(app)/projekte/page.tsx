@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { requireUser } from '@/server/auth/session';
 import { prisma } from '@/server/db/prisma';
-import { Badge, Card, EmptyState } from '@/components/ui/primitives';
+import { Badge, ButtonLink, Card, EmptyState } from '@/components/ui/primitives';
 import { Icon } from '@/components/ui/icon';
 import { moduleTheme, themeStyle } from '@/domain/design/module-theme';
 
@@ -42,6 +42,7 @@ export default async function ProjekteSeite(): Promise<React.ReactElement> {
         <EmptyState
           title="Noch keine Projekte eingespielt"
           description="Projekte gehören zu den Modulen. Sobald Inhalte eingespielt sind, steht hier etwas zu tun."
+          action={<ButtonLink href="/lernen">Zum Lernpfad</ButtonLink>}
         />
       </div>
     );

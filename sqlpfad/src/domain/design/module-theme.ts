@@ -11,6 +11,13 @@
  * Farbschema unterscheiden. Hier stehen nur die Namen der Variablen und die
  * Zuordnung. So gibt es genau eine Stelle für die Werte und genau eine für die
  * Zuordnung.
+ *
+ * Seit Roadmap E3 sind es gedeckte Töne aus der Farbwelt des Learning OS –
+ * Pflaume, Petrol, Ocker, Taubenblau, dazu Beere für Projekte und Moos fürs
+ * Wiederholen – und in allen Fachanwendungen dieselben: Modul 1 hat in
+ * PythonPfad und SQLPfad dieselbe Farbe. Vorher standen hier Violett, Orange
+ * und Magenta in voller Sättigung; zusammen auf einer Seite wirkte das wie ein
+ * Farbkasten und nicht wie eine Orientierungshilfe.
  */
 
 export interface ModuleTheme {
@@ -21,71 +28,64 @@ export interface ModuleTheme {
   /** Kurzbezeichnung, falls die Farbe benannt werden muss. */
   label: string;
   /**
-   * Verlauf für große Kopfbereiche, von dunkel nach kräftig.
+   * Farbe des Lichtkegels im großen Kopfbereich.
    *
-   * Hier stehen ausnahmsweise feste Farbwerte statt Variablen. Der Grund: Ein
-   * solcher Kopfbereich trägt weiße Schrift und ist in beiden Farbschemata
-   * dunkel. Die Modulfarben werden im dunklen Schema aber aufgehellt – ein
-   * Verlauf aus Variablen würde dort zu Pastell, und Weiß darauf wäre nicht
-   * mehr lesbar.
+   * Hier steht ausnahmsweise ein fester Farbwert statt einer Variable. Der
+   * Grund: Ein solcher Kopfbereich trägt weiße Schrift und ist in beiden
+   * Farbschemata dunkel. Die Modulfarben werden im dunklen Schema aber
+   * aufgehellt – ein Kegel aus der Variable würde dort zu Pastell, und Weiß
+   * darauf wäre nicht mehr lesbar. Der Wert ist deshalb immer die volle Farbe
+   * des hellen Schemas; weiße Schrift erreicht darauf mindestens 5,8 : 1.
    */
-  heroFrom: string;
-  heroTo: string;
+  heroAccent: string;
 }
 
 const THEMES: readonly ModuleTheme[] = [
   {
     color: 'var(--color-modul-0)',
     soft: 'var(--color-modul-0-soft)',
-    label: 'Violett',
-    heroFrom: '#3b0764',
-    heroTo: '#7c3aed',
+    label: 'Pflaume',
+    heroAccent: '#5e4378',
   },
   {
     color: 'var(--color-modul-1)',
     soft: 'var(--color-modul-1-soft)',
     label: 'Petrol',
-    heroFrom: '#134e4a',
-    heroTo: '#0d9488',
+    heroAccent: '#1d6964',
   },
   {
     color: 'var(--color-modul-2)',
     soft: 'var(--color-modul-2-soft)',
-    label: 'Orange',
-    heroFrom: '#7c2d12',
-    heroTo: '#ea580c',
+    label: 'Ocker',
+    heroAccent: '#95551d',
   },
   {
     color: 'var(--color-modul-3)',
     soft: 'var(--color-modul-3-soft)',
-    label: 'Blau',
-    heroFrom: '#172554',
-    heroTo: '#2563eb',
+    label: 'Taubenblau',
+    heroAccent: '#34568a',
   },
 ];
 
 export const PROJECT_THEME: ModuleTheme = {
   color: 'var(--color-projekt)',
   soft: 'var(--color-projekt-soft)',
-  label: 'Magenta',
-  heroFrom: '#500724',
-  heroTo: '#db2777',
+  label: 'Beere',
+  heroAccent: '#843856',
 };
 
 export const REVIEW_THEME: ModuleTheme = {
   color: 'var(--color-wiederholen)',
   soft: 'var(--color-wiederholen-soft)',
-  label: 'Blattgrün',
-  heroFrom: '#1a2e05',
-  heroTo: '#4d7c0f',
+  label: 'Moos',
+  heroAccent: '#4f6e2e',
 };
 
 /**
  * Fertiger Verlauf für einen Kopfbereich.
  *
- * Zwei Farbwolken über einer Grundschräge – dieselbe Machart wie auf der
- * Startseite, nur im Ton des jeweiligen Bereichs. Der Verlauf allein wäre
- * flach; die beiden Wolken geben ihm Tiefe.
+ * Dieselbe Machart wie auf der Startseite: die Tinte des Learning OS als
+ * Grund und ein einziger Lichtkegel im Ton des jeweiligen Bereichs.
  */
 export function heroGradient(theme: ModuleTheme): string {
   /*
@@ -97,15 +97,17 @@ export function heroGradient(theme: ModuleTheme): string {
    * Oberfläche sieht, und sie hat einen Grund: Sie entsteht, wenn man Farbe
    * hinzufügt, bis es „lebendig" aussieht, statt eine auszuwählen.
    *
-   * Jetzt bleibt es bei der Leitfarbe des Bereichs, aufgezogen von dunkel nach
-   * kräftig, mit einem einzigen aufhellenden Lichtkegel oben links – dort, wo
-   * die Überschrift steht. Das gibt Tiefe, ohne eine zweite Farbe einzuführen.
-   * Die Bereiche unterscheiden sich dadurch deutlicher voneinander, nicht
-   * weniger: Vorher trug jeder Kopfbereich dieselbe Mischung.
+   * Danach war es die Leitfarbe des Bereichs, aufgezogen von dunkel nach
+   * kräftig, mit einem aufhellenden Kegel aus halb Weiß genau dort, wo die
+   * weiße Überschrift steht. Jetzt (Roadmap E3) steht jeder Kopfbereich auf
+   * der Tinte des Learning OS, wie die Startseite und der Hub, und die
+   * Bereichsfarbe kommt nur noch als Lichtkegel dazu. Der Kegel ist nirgends
+   * heller als die volle Bereichsfarbe, darum bleibt weiße Schrift überall
+   * darauf lesbar.
    */
   return [
-    `radial-gradient(at 12% 8%, color-mix(in oklab, ${theme.heroTo} 55%, white) 0px, transparent 62%)`,
-    `linear-gradient(160deg, ${theme.heroFrom} 0%, ${theme.heroTo} 100%)`,
+    `radial-gradient(at 12% 8%, color-mix(in oklab, ${theme.heroAccent} 70%, transparent) 0px, transparent 60%)`,
+    'linear-gradient(165deg, #0b0e0e 0%, #121b17 55%, #151b19 100%)',
   ].join(', ');
 }
 

@@ -1,0 +1,205 @@
+// Lernpfade-Plattform – Datenmodell (E5, docs/E5-PLAN.md)
+//
+// Leitgedanken:
+//  * Die Plattform weiß, wer in welcher Organisation was darf. Was jemand
+//    gelernt hat, bleibt in den Apps; hier steht kein Lernstand.
+//  * Personen sind über `sub` des gemeinsamen Kontos (konto.lernpfade.net)
+//    bekannt. Es gibt keine eigene Personentabelle und keine Passwörter.
+//  * Jeder Fremdschlüssel hat eine explizite Löschregel: Organisation löschen
+//    löscht alles darunter, nie etwas bei den Personen.
+//  * Das Prüfprotokoll hält Verwaltungshandlungen fest, nie Lernverhalten.
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  runtime                = "nodejs"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  // Mit Endung: Der Hub prüft seine Server-Module mit `node --test` ohne
+  // Bündler; Next und TypeScript nehmen `.ts`-Importe ebenso.
+  importFileExtension    = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Rolle in einer Organisation. Bewusst getrennt von jeder Rolle in den Apps.
+enum OrgRole {
+  /// Verwaltet die Organisation: Rollen, Plätze, Prüfprotokoll.
+  ADMIN
+  /// Lädt Lernende ein, führt Teams und Lernpläne (ab E5.2/E5.3).
+  TEACHER
+  /// Lernt. Nur diese Rolle belegt einen Platz.
+  LEARNER
+}
+
+enum OrgStatus {
+  /// Selbst angelegt, kostenlos, begrenzte Plätze (bis E7).
+  TRIAL
+  ACTIVE
+  /// Gesperrt: lesbar für Admins, keine Einladungen, kein Beitritt.
+  SUSPENDED
+}
+
+model Organization {
+  id           String    @id @default(cuid())
+  slug         String    @unique
+  name         String
+  /// Plätze für Lernende. Admins und Lehrkräfte belegen keinen Platz.
+  seats        Int       @default(10)
+  status       OrgStatus @default(TRIAL)
+  createdBySub String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  memberships  Membership[]
+  invitations  Invitation[]
+  auditEntries AuditEntry[]
+  teams        Team[]
+
+  @@map("organizations")
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  organizationId String
+  /// `sub` des gemeinsamen Kontos.
+  sub            String
+  /// Anzeigename aus dem Konto, beim Beitritt und bei jedem Besuch aktualisiert.
+  displayName    String
+  role           OrgRole  @default(LEARNER)
+  joinedAt       DateTime @default(now())
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  teams        TeamMembership[]
+
+  @@unique([organizationId, sub])
+  @@index([sub])
+  @@index([organizationId, role])
+  @@map("memberships")
+}
+
+/// Einladung per Link. Gespeichert wird nur der SHA-256-Hash des Tokens; ein
+/// Datenbankleck gibt keine einlösbaren Einladungen preis.
+model Invitation {
+  id             String    @id @default(cuid())
+  organizationId String
+  role           OrgRole   @default(LEARNER)
+  tokenHash      String    @unique
+  /// Optional an eine bestätigte Adresse gebunden; dann genau einmal einlösbar.
+  email          String?
+  /// Wie oft der Link einlösbar ist. Gebundene Einladungen: 1.
+  maxUses        Int       @default(1)
+  uses           Int       @default(0)
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  createdBySub   String
+  createdAt      DateTime  @default(now())
+  /// E5.2: Wer einlöst, kommt direkt in dieses Team. Archiviert oder gelöscht: nur in die Organisation.
+  teamId         String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team         Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([expiresAt])
+  @@map("invitations")
+}
+
+/// Wer wann was verwaltet hat. Ausdrücklich kein Beobachtungswerkzeug.
+model AuditEntry {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorSub       String
+  /// Name zum Zeitpunkt der Handlung, damit das Protokoll lesbar bleibt.
+  actorName      String
+  /// Maschinenlesbar, etwa `organization.created` oder `invitation.accepted`.
+  action         String
+  targetType     String
+  targetId       String?
+  /// Ein ganzer Satz für die Anzeige.
+  summary        String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@map("audit_entries")
+}
+
+/// E5.2: Team innerhalb einer Organisation (in PythonPfad „Kohorte“). Eine
+/// Person kann in mehreren Teams sein. Summen gibt es nur über Teams, nie über
+/// frei gewählte Personengruppen (docs/E5-PLAN.md, Abschnitt 10).
+model Team {
+  id             String    @id @default(cuid())
+  organizationId String
+  slug           String
+  name           String
+  /// Archivierte Teams bleiben lesbar, nehmen aber niemanden mehr auf.
+  archivedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      TeamMembership[]
+  invitations  Invitation[]
+  plan         LearningPlan?
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@map("teams")
+}
+
+/// Zugehörigkeit zu einem Team, mit der Einwilligung der Person.
+model TeamMembership {
+  id               String    @id @default(cuid())
+  teamId           String
+  membershipId     String
+  /// Stand namentlich zeigen? Standardmäßig aus, jederzeit widerrufbar. Ohne
+  /// Einwilligung fließt die Person nur in Summen ab drei Personen ein.
+  shareProgress    Boolean   @default(false)
+  /// Wann die Einwilligung zuletzt geändert wurde, damit nachvollziehbar bleibt, ab wann sie galt.
+  consentChangedAt DateTime?
+  addedAt          DateTime  @default(now())
+
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, membershipId])
+  @@index([membershipId])
+  @@map("team_memberships")
+}
+
+/// E5.3: Lernplan eines Teams (einer je Team). Gibt Pfade, Reihenfolge, Ziel
+/// und Fälligkeit vor; ob ein Ziel erreicht ist, rechnet der Hub aus dem Stand
+/// der Pfade. Hier steht nie ein Lernstand.
+model LearningPlan {
+  id        String   @id @default(cuid())
+  teamId    String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team  Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  items LearningPlanItem[]
+
+  @@map("learning_plans")
+}
+
+/// Ein Eintrag im Lernplan: Pfad, Ziel in Lektionen (leer = alle) und Fälligkeit (Tag).
+model LearningPlanItem {
+  id            String    @id @default(cuid())
+  planId        String
+  position      Int
+  /// `python`, `sql` oder `ai` (Prüfung in der Datenbank).
+  path          String
+  /// Abgeschlossene Lektionen als Ziel; `null` heißt: alle Lektionen des Pfads.
+  targetLessons Int?
+  /// Fälligkeit als Kalendertag ohne Uhrzeit.
+  dueDate       DateTime? @db.Date
+
+  plan LearningPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, position])
+  @@map("learning_plan_items")
+}

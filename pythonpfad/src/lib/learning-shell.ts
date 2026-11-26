@@ -125,6 +125,19 @@ export type HubLinks = {
  * Abfrageteil und Fragment sind in einer Basisadresse nicht zulässig.
  */
 export function hubLinks(raw: string | null | undefined): HubLinks | null {
+  const base = baseUrl(raw);
+  return base
+    ? { home: base, review: `${base}/wiederholen`, progress: `${base}/fortschritt` }
+    : null;
+}
+
+/**
+ * Eine konfigurierte Basisadresse, bereinigt – oder `null`.
+ *
+ * Nur http(s), ohne Zugangsdaten, Abfrageteil und Fragment; abschließende
+ * Schrägstriche werden entfernt. Gilt für den Hub wie für die Fach-Apps.
+ */
+function baseUrl(raw: string | null | undefined): string | null {
   const value = raw?.trim();
   if (!value) return null;
   let url: URL;
@@ -135,6 +148,33 @@ export function hubLinks(raw: string | null | undefined): HubLinks | null {
   }
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
   if (url.username || url.password || url.search || url.hash) return null;
-  const base = `${url.origin}${url.pathname.replace(/\/+$/, '')}`;
-  return { home: base, review: `${base}/wiederholen`, progress: `${base}/fortschritt` };
+  return `${url.origin}${url.pathname.replace(/\/+$/, '')}`;
+}
+
+export type ShellPathLink = {
+  readonly app: ShellApp;
+  readonly name: string;
+  readonly href: string;
+};
+
+/**
+ * Die anderen Fach-Apps für die Dachleiste (Roadmap E1: „Jede App verlinkt
+ * zurück zum Hub und zu den anderen Pfaden").
+ *
+ * In Vertragsreihenfolge (Python, SQL, AI), ohne die eigene App und nur mit
+ * brauchbarer Adresse aus `NEXT_PUBLIC_PYTHONPFAD_URL`, `NEXT_PUBLIC_SQLPFAD_URL`
+ * und `NEXT_PUBLIC_AIPFAD_URL` – dieselben Namen wie im Hub. Ohne Adresse kein
+ * Eintrag: keine erfundene Adresse, kein toter Link.
+ */
+export function otherPaths(
+  app: ShellApp,
+  urls: Readonly<Record<ShellApp, string | null | undefined>>,
+): readonly ShellPathLink[] {
+  const result: ShellPathLink[] = [];
+  for (const other of ['python', 'sql', 'ai'] as const) {
+    if (other === app) continue;
+    const href = baseUrl(urls[other]);
+    if (href) result.push({ app: other, name: SHELL_APP_NAME[other], href });
+  }
+  return result;
 }

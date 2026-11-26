@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Badge, EmptyState } from '@/components/ui/primitives';
+import { Badge, ButtonLink, EmptyState } from '@/components/ui/primitives';
 import { normalizeForSearch, type ReferenceEntry } from '@/lib/reference-index';
 
 export function ReferenceSearch({ entries }: { entries: ReferenceEntry[] }): React.ReactElement {
@@ -39,7 +39,12 @@ export function ReferenceSearch({ entries }: { entries: ReferenceEntry[] }): Rea
           <EmptyState
             kind="filtered"
             title="Nichts gefunden"
-            description="Versuch es mit einem kürzeren oder anderen Suchbegriff."
+            description="Versuch es mit einem kürzeren oder anderen Suchbegriff – oder sieh im Glossar nach, dort stehen alle Begriffe alphabetisch."
+            action={
+              <ButtonLink href="/glossar" variant="secondary">
+                Zum Glossar
+              </ButtonLink>
+            }
           />
         </div>
       ) : (

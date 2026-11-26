@@ -1,4 +1,5 @@
 import { getCurrentUser } from '@/server/auth/session';
+import { nutzerAusHubToken } from '@/server/auth/zentral-zugriff';
 import { getEnv } from '@/server/env';
 import { logger } from '@/server/observability/logger';
 import { handleProgressSourceRequest } from '@/server/platform/progress-source-http';
@@ -19,7 +20,11 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request): Promise<Response> {
   return handleProgressSourceRequest(request, {
     source: 'python',
-    resolveUserId: async () => (await getCurrentUser())?.id ?? null,
+    // E4.5: Mit `Authorization: Bearer` gilt nur das Zugriffstoken des Hubs.
+    resolveUserId: async () => {
+      const hub = await nutzerAusHubToken(request);
+      return hub.art === 'token' ? hub.userId : ((await getCurrentUser())?.id ?? null);
+    },
     readProgress: readPlatformProgressSource,
     hubOrigin: () => getEnv().PLATFORM_HUB_ORIGIN,
     onError: (event, error) =>

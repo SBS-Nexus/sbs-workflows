@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/server/auth/session';
 import { BRAND } from '@/lib/brand';
 import { siteUrl } from '@/server/site';
 import { LearningPlatformBar } from '@/components/app/learning-platform-bar';
+import { LearningLegalFooter } from '@/components/app/learning-legal-footer';
 
 /*
  * Schriften. IBM Plex wird selbst ausgeliefert statt über ein Schriftennetz:
@@ -105,6 +106,7 @@ export default async function RootLayout({
         </a>
         <LearningPlatformBar app="ai" />
         {children}
+        <LearningLegalFooter app="ai" />
       </body>
     </html>
   );

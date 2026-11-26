@@ -26,13 +26,18 @@ Die Dachleiste verwendet in allen Apps dieselben semantischen CSS-Tokens:
 Aktuelle Werte:
 
 ```text
-background     #111827
-foreground     #ffffff
-muted          #d1d5db
-subtle         #9ca3af
-hover          #c7d2fe
-border         #374151
+background     #0b0e0e   Learning-OS-Tinte
+foreground     #f1f1e9   Papierschrift
+muted          #d4dbd3
+subtle         #a2aba5
+hover          #d0fa83   Limette
+border         #26302b
 ```
+
+Seit dem 19.11.2026 (Roadmap E3) in der Farbfamilie des Learning OS. Vorher
+Grau `#111827` mit Indigo `#c7d2fe` beim Zeigen. Die Werte stehen im
+gemeinsamen Token-Vertrag `docs/learning-tokens/learning-tokens.css`; keine App
+notiert sie selbst.
 
 Diese Werte dürfen nicht pro Fachpfad überschrieben werden. Die Fachfarbe
 beginnt unterhalb der Plattformleiste.
@@ -65,6 +70,35 @@ Strukturell gleich, fachlich akzentuiert:
 - Wiederholen
 - Fortschritt
 - Profil
+
+**Modul- und Bereichsfarben (Roadmap E3, 19.11.2026).** PythonPfad und SQLPfad
+verwenden dieselbe gedeckte Palette aus der Farbwelt des Learning OS; Modul 1
+hat in jedem Kurs dieselbe Farbe. Die Werte stehen je App in
+`docs/learning-tokens/learning-tokens.css` (`--los-modul-*`, in jeder App als
+bytegleiche Kopie), `src/app/globals.css` verweist darauf, die Zuordnung steht
+in `src/domain/design/module-theme.ts`
+(bytegleich in beiden Apps), die Prüfung in `tests/unit/farbkontrast.test.ts`.
+
+| Rolle       | Name       | hell voll / weich     | dunkel voll / weich   |
+| ----------- | ---------- | --------------------- | --------------------- |
+| Modul 1     | Pflaume    | `#5e4378` / `#ece5f1` | `#bda8d4` / `#2a2134` |
+| Modul 2     | Petrol     | `#1d6964` / `#dbece8` | `#9fd4cb` / `#132f2c` |
+| Modul 3     | Ocker      | `#95551d` / `#f6ebde` | `#ecc6a2` / `#33241a` |
+| Modul 4     | Taubenblau | `#34568a` / `#e0e7f1` | `#a3b9de` / `#1b2537` |
+| Projekte    | Beere      | `#843856` / `#f2e0e7` | `#e4abc0` / `#331c26` |
+| Wiederholen | Moos       | `#4f6e2e` / `#e5edda` | `#bfd99d` / `#1f2b17` |
+
+Regeln:
+
+- Modulfarben stehen nur für Module und App-Bereiche. Ablaufschritte,
+  Kennzahlen ohne Modulbezug und Schmuck nutzen den Fachakzent.
+- Kopfbereiche stehen auf der Tinte des Learning OS. Die Bereichsfarbe kommt
+  nur als ein Lichtkegel dazu, nie als Fläche unter weißer Schrift.
+- Weiße Schrift auf der vollen hellen Farbe, die Farbe als Schrift auf Papier,
+  Karte und eigener weicher Fläche: jeweils mindestens 4,5 : 1. Im dunklen
+  Schema gilt dasselbe für die aufgehellte Farbe auf Tinte und dunkler Karte.
+- Die vier Modulfarben sind auch in der Helligkeit gestaffelt. Farbe allein
+  trägt trotzdem nie: Modulnummer und Name stehen immer dabei.
 
 ### Ebene C — Fachwerkzeug
 
@@ -251,6 +285,19 @@ Monospace ist Fachtypografie für:
 AIPfad darf in Fachinhalten technisch bleiben; die globale Navigation folgt
 demselben Produktstil wie die übrigen Pfade.
 
+**Schrift (Roadmap E3, 19.11.2026).** Hub und alle Fach-Apps setzen **IBM Plex
+Sans** für Oberfläche und Fließtext und **IBM Plex Mono** für Quelltext,
+selbst ausgeliefert (`font-src 'self'`, kein Schriftennetz). Die Dateien
+liegen kanonisch in `docs/learning-tokens/schriften/` und bytegleich unter
+`src/app/schriften/` jeder App; geladen werden sie mit `next/font/local` als
+`--font-plex-sans` und `--font-plex-mono` am `<html>`. Die Stapel
+`--los-sans`, `--los-mono` und `--los-serif` stehen im Token-Vertrag; Apps
+und Hub verweisen nur darauf. Die Serife trägt ausschließlich die
+Akzentzeile und kommt aus dem System (Iowan Old Style, Palatino, Georgia).
+Vorher zeigte der Hub Helvetica oder Arial – sein Stapel begann mit „Inter",
+geladen wurde Inter nie. Lizenz: SIL Open Font License 1.1, Copyright IBM
+Corp. (`lernpfade/THIRD_PARTY_NOTICES.md`).
+
 ## 7. Motion
 
 Gemeinsame Regel:
@@ -296,7 +343,7 @@ Ein echtes `packages/learning-ui` wird erst eingeführt, wenn:
 4. kein Fachpfad unnötig sein Bundle vergrößert.
 
 Bis dahin gilt: gemeinsame Semantik, kleine bewusst synchronisierte
-Plattformkomponenten, automatisierte Regressionen. Umgesetzt in drei
+Plattformkomponenten, automatisierte Regressionen. Umgesetzt in vier
 Verträgen mit je kanonischen Dateien, bytegleichen Kopien und eigenem
 Drift-Check in der CI:
 
@@ -305,6 +352,7 @@ Drift-Check in der CI:
 | Shell und Navigation (LP-03A)    | `docs/learning-shell/`     | `node scripts/check-learning-shell.mjs`    |
 | Badges und Callouts (LP-03B)     | `docs/learning-feedback/`  | `node scripts/check-learning-feedback.mjs` |
 | Button, Card, ProgressBar, Empty-/ErrorState (LP-03C) | `docs/learning-components/` | `node scripts/check-learning-components.mjs` |
+| Learning-OS-Tokens: Grundskala, Signalfarben, Dachleiste, Modulfarben (E3) | `docs/learning-tokens/` | `node scripts/check-learning-tokens.mjs` |
 
 ## 10. Review-Regel für neue UI
 

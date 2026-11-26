@@ -12,14 +12,26 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "verify": "npm run typecheck && npm run test && npm run build",
-    "test": "node --experimental-strip-types --test src/domain/review/*.test.ts src/domain/vocabulary/*.test.ts src/domain/progress/*.test.ts src/components/feedback/*.test.ts src/components/ui/*.test.ts",
-    "test:e2e": "playwright test"
+    "test": "node --experimental-strip-types --test src/domain/review/*.test.ts src/domain/vocabulary/*.test.ts src/domain/progress/*.test.ts src/domain/hub/*.test.ts src/domain/organisation/*.test.ts src/domain/team/*.test.ts src/domain/lernplan/*.test.ts src/components/feedback/*.test.ts src/lib/*.test.ts && node --conditions=react-server --experimental-strip-types --test src/server/konto/*.test.ts src/server/organisation/teamstand.test.ts src/server/status/pruefung.test.ts",
+    "test:e2e": "playwright test",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "postinstall": "prisma generate",
+    "test:integration": "node --conditions=react-server --experimental-strip-types --test --test-concurrency=1 src/server/organisation/*.integration.test.ts"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "jose": "6.2.16",
     "lucide-react": "1.50.0",
     "next": "16.4.6",
+    "openid-client": "6.8.9",
+    "pg": "8.22.0",
+    "prisma": "7.10.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
@@ -30,6 +42,8 @@
     "typescript": "6.0.3"
   },
   "overrides": {
-    "playwright-core": "1.62.1"
+    "playwright-core": "1.62.1",
+    "oauth4webapi": "3.8.8",
+    "effect": "3.22.4"
   }
 }

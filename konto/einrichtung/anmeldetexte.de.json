@@ -1,0 +1,492 @@
+{
+  "common": {
+    "back": "Zurück",
+    "title": "Anmelden bei Lernpfade"
+  },
+  "accounts": {
+    "title": "Konto wählen",
+    "description": "Mit welchem Konto möchtest du weitermachen?",
+    "addAnother": "Anderes Konto verwenden",
+    "noResults": "Keine Konten gefunden",
+    "verified": "bestätigt",
+    "expired": "abgelaufen"
+  },
+  "logout": {
+    "title": "Abmelden",
+    "description": "Wähle das Konto, das du abmelden möchtest.",
+    "noResults": "Keine Konten gefunden",
+    "clear": "Abmelden",
+    "verifiedAt": "Zuletzt aktiv: {time}",
+    "success": {
+      "title": "Abgemeldet",
+      "description": "Du bist jetzt abgemeldet. Bis bald!"
+    }
+  },
+  "loginname": {
+    "title": "Willkommen zurück",
+    "description": "Melde dich mit deiner E-Mail-Adresse an – ein Konto für alle Lernpfade.",
+    "register": "Noch kein Konto? Jetzt registrieren",
+    "submit": "Weiter",
+    "labels": {
+      "loginname": "E-Mail-Adresse",
+      "username": "E-Mail-Adresse",
+      "usernameOrPhoneNumber": "E-Mail-Adresse",
+      "usernameOrEmail": "E-Mail-Adresse"
+    },
+    "required": {
+      "loginName": "Bitte gib deine E-Mail-Adresse ein."
+    },
+    "errors": {
+      "internalError": "Da ist bei uns etwas schiefgelaufen. Bitte versuch es gleich noch einmal.",
+      "couldNotGetLoginSettings": "Die Anmeldung ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal.",
+      "couldNotSearchUsers": "Wir konnten dein Konto gerade nicht prüfen. Bitte versuch es gleich noch einmal.",
+      "couldNotGetDomain": "Die Anmeldung ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal.",
+      "couldNotGetHost": "Die Anmeldung ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal.",
+      "couldNotStartIDPFlow": "Die Anmeldung über diesen Anbieter konnte nicht starten.",
+      "moreThanOneUserFound": "Zu dieser Angabe gibt es mehrere Konten. Bitte melde dich mit deiner vollständigen E-Mail-Adresse an.",
+      "userNotFound": "Zu dieser E-Mail-Adresse haben wir kein Konto gefunden.",
+      "couldNotCreateSession": "Wir konnten dich gerade nicht anmelden. Bitte versuch es gleich noch einmal.",
+      "initialUserNotSupported": "Dieses Konto muss zuerst eingerichtet werden. Schau in deine E-Mails.",
+      "localAuthenticationNotAllowed": "Die Anmeldung mit Passwort ist für dieses Konto nicht freigeschaltet.",
+      "passkeysNotAllowed": "Passkeys sind für dieses Konto nicht freigeschaltet.",
+      "couldNotFindIdentityProvider": "Dieser Anmeldeanbieter ist nicht verfügbar.",
+      "userNotActive": "Dieses Konto ist deaktiviert. Schreib uns, wenn du Hilfe brauchst."
+    }
+  },
+  "zitadel": {
+    "errors": {
+      "errorOccured": "Da ist etwas schiefgelaufen.",
+      "multipleUsersFound": "Zu dieser Angabe gibt es mehrere Konten.",
+      "userNotFound": "Zu dieser E-Mail-Adresse haben wir kein Konto gefunden."
+    }
+  },
+  "password": {
+    "verify": {
+      "title": "Dein Passwort",
+      "description": "Gib dein Passwort ein, um weiterzumachen.",
+      "resetPassword": "Passwort vergessen?",
+      "submit": "Anmelden",
+      "labels": {
+        "password": "Passwort"
+      },
+      "required": {
+        "password": "Bitte gib dein Passwort ein."
+      },
+      "errors": {
+        "couldNotVerifyPassword": "Das Passwort stimmt nicht.",
+        "couldNotResetPassword": "Wir konnten gerade keine Mail zum Zurücksetzen schicken. Bitte versuch es gleich noch einmal."
+      },
+      "info": {
+        "passwordResetSent": "Wir haben dir eine Mail geschickt. Damit legst du ein neues Passwort fest."
+      }
+    },
+    "set": {
+      "title": "Neues Passwort festlegen",
+      "description": "Gib den Code aus unserer Mail ein und wähle ein neues Passwort.",
+      "codeSent": "Wir haben dir einen neuen Code geschickt.",
+      "noCodeReceived": "Keinen Code bekommen?",
+      "resend": "Neu senden",
+      "submit": "Passwort speichern",
+      "labels": {
+        "code": "Code aus der Mail",
+        "newPassword": "Neues Passwort",
+        "confirmPassword": "Neues Passwort wiederholen"
+      },
+      "required": {
+        "code": "Bitte gib den Code aus der Mail ein.",
+        "newPassword": "Bitte wähle ein Passwort.",
+        "confirmPassword": "Bitte wiederhole dein Passwort."
+      },
+      "errors": {
+        "couldNotSetPassword": "Das Passwort konnte nicht gespeichert werden. Prüf den Code und versuch es noch einmal.",
+        "couldNotResetPassword": "Wir konnten gerade keine Mail zum Zurücksetzen schicken. Bitte versuch es gleich noch einmal.",
+        "couldNotVerifyPassword": "Das Passwort konnte nicht geprüft werden."
+      }
+    },
+    "change": {
+      "title": "Passwort ändern",
+      "description": "Wähle ein neues Passwort für dein Konto.",
+      "submit": "Passwort speichern",
+      "labels": {
+        "currentPassword": "Aktuelles Passwort",
+        "newPassword": "Neues Passwort",
+        "confirmPassword": "Neues Passwort wiederholen"
+      },
+      "required": {
+        "currentPassword": "Bitte gib dein aktuelles Passwort ein.",
+        "newPassword": "Bitte wähle ein neues Passwort.",
+        "confirmPassword": "Bitte wiederhole dein neues Passwort."
+      },
+      "errors": {
+        "currentPasswordInvalid": "Das aktuelle Passwort stimmt nicht.",
+        "couldNotChangePassword": "Das Passwort konnte nicht geändert werden.",
+        "couldNotVerifyPassword": "Das Passwort konnte nicht geprüft werden.",
+        "unknownError": "Da ist etwas schiefgelaufen. Bitte versuch es noch einmal."
+      }
+    },
+    "complexity": {
+      "length": "Mindestens {minLength} Zeichen – lange Sätze sind sicherer als Sonderzeichen.",
+      "hasSymbol": "Enthält ein Sonderzeichen.",
+      "hasNumber": "Enthält eine Ziffer.",
+      "hasUppercase": "Enthält einen Großbuchstaben.",
+      "hasLowercase": "Enthält einen Kleinbuchstaben.",
+      "equals": "Beide Passwörter stimmen überein.",
+      "matches": "Stimmt überein",
+      "doesNotMatch": "Stimmt nicht überein"
+    },
+    "errors": {
+      "noHostFound": "Die Anmeldung ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal.",
+      "couldNotSendResetLink": "Wir konnten gerade keine Mail zum Zurücksetzen schicken. Bitte versuch es gleich noch einmal.",
+      "couldNotCreateSessionForUser": "Wir konnten dich gerade nicht anmelden. Bitte versuch es gleich noch einmal.",
+      "couldNotVerifyPassword": "Das Passwort stimmt nicht.",
+      "failedToAuthenticate": "Das Passwort stimmt nicht. Versuch {failedAttempts} von {maxPasswordAttempts}.{lockoutMessage}",
+      "failedToAuthenticateNoLimit": "Das Passwort stimmt nicht.",
+      "accountLockedContactAdmin": " Dein Konto ist jetzt gesperrt. Schreib uns, dann entsperren wir es.",
+      "userNotFound": "Zu dieser E-Mail-Adresse haben wir kein Konto gefunden.",
+      "initialUserNotSupported": "Dieses Konto muss zuerst eingerichtet werden. Schau in deine E-Mails.",
+      "userInitialStateNotSupported": "Dieses Konto muss zuerst eingerichtet werden. Schau in deine E-Mails.",
+      "codeOrVerificationRequired": "Bitte gib den Code aus der Mail ein.",
+      "verificationRequired": "Bitte bestätige zuerst deine E-Mail-Adresse.",
+      "couldNotLoadSession": "Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.",
+      "couldNotLoadAuthMethods": "Deine Anmeldemethoden konnten nicht geladen werden.",
+      "failedPrecondition": "Das hat nicht geklappt. Bitte melde dich erneut an.",
+      "sessionNotValid": "Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.",
+      "passwordVerificationMissing": "Bitte gib zuerst dein Passwort ein.",
+      "passwordVerificationTooOld": "Zur Sicherheit: Bitte gib dein Passwort noch einmal ein.",
+      "passwordResetNotAllowed": "Das Zurücksetzen des Passworts ist für dieses Konto nicht freigeschaltet.",
+      "localAuthenticationNotAllowed": "Die Anmeldung mit Passwort ist für dieses Konto nicht freigeschaltet."
+    }
+  },
+  "idp": {
+    "title": "Mit einem Anbieter anmelden",
+    "description": "Wähle, womit du dich anmelden möchtest.",
+    "orSignInWith": "oder weiter mit",
+    "signInWithApple": "Weiter mit Apple",
+    "signInWithGoogle": "Weiter mit Google",
+    "signInWithAzureAD": "Weiter mit Microsoft",
+    "signInWithGithub": "Weiter mit GitHub",
+    "signInWithGitlab": "Weiter mit GitLab",
+    "signInWithZitadel": "Weiter mit Single Sign-on",
+    "loginError": {
+      "title": "Anmeldung fehlgeschlagen",
+      "description": "Bei der Anmeldung ist etwas schiefgelaufen."
+    },
+    "linkingError": {
+      "title": "Verknüpfen fehlgeschlagen",
+      "description": "Dein Konto konnte nicht verknüpft werden."
+    },
+    "completeRegister": {
+      "title": "Registrierung abschließen",
+      "description": "Nur noch ein Schritt, dann ist dein Konto fertig."
+    },
+    "accountNotFound": {
+      "title": "Kein Konto gefunden",
+      "description": "Mit dieser Anmeldung ist noch kein Lernpfade-Konto verknüpft.",
+      "info": "Melde dich mit deinem bestehenden Konto an oder registriere dich neu.",
+      "backToLogin": "Zurück zur Anmeldung"
+    },
+    "registrationFailed": {
+      "title": "Registrierung nicht möglich",
+      "description": "Die Registrierung konnte nicht abgeschlossen werden.",
+      "info": "Bitte versuch es später noch einmal oder schreib uns.",
+      "backToLogin": "Zurück zur Anmeldung"
+    },
+    "processing": {
+      "message": "Einen Moment, wir melden dich an …",
+      "noRedirect": "Die Anmeldung hat nicht geantwortet. Bitte versuch es noch einmal.",
+      "unexpectedError": "Da ist etwas schiefgelaufen. Bitte versuch es noch einmal."
+    },
+    "errors": {
+      "missingParameters": "Der Anmeldelink ist unvollständig.",
+      "missingIdpInfo": "Der Anmeldeanbieter hat zu wenig Daten geschickt.",
+      "idpNotFound": "Dieser Anmeldeanbieter ist nicht verfügbar.",
+      "linkingNotAllowed": "Mit diesem Anbieter kannst du dein Konto nicht verknüpfen.",
+      "linkingFailed": "Dein Konto konnte nicht verknüpft werden.",
+      "autoLinkingFailed": "Dein Konto konnte nicht automatisch verknüpft werden.",
+      "userCreationFailed": "Dein Konto konnte nicht angelegt werden.",
+      "orgResolutionFailed": "Die Registrierung ist gerade nicht möglich.",
+      "sessionCreationFailed": "Wir konnten dich gerade nicht anmelden. Bitte versuch es noch einmal.",
+      "unknownError": "Da ist etwas schiefgelaufen. Bitte versuch es noch einmal."
+    }
+  },
+  "ldap": {
+    "title": "Anmeldung mit Firmenkonto",
+    "description": "Gib die Zugangsdaten deines Firmenkontos ein.",
+    "submit": "Anmelden",
+    "labels": {
+      "username": "Benutzername",
+      "password": "Passwort"
+    },
+    "required": {
+      "username": "Bitte gib deinen Benutzernamen ein.",
+      "password": "Bitte gib dein Passwort ein."
+    }
+  },
+  "mfa": {
+    "verify": {
+      "title": "Bestätige, dass du es bist",
+      "description": "Wähle deinen zweiten Faktor.",
+      "noResults": "Für dein Konto ist noch kein zweiter Faktor eingerichtet."
+    },
+    "set": {
+      "title": "Zweiten Faktor einrichten",
+      "description": "Ein zweiter Faktor schützt dein Konto, auch wenn jemand dein Passwort kennt.",
+      "skip": "Später"
+    }
+  },
+  "otp": {
+    "verify": {
+      "title": "Code eingeben",
+      "totpDescription": "Gib den sechsstelligen Code aus deiner Authenticator-App ein.",
+      "smsDescription": "Gib den Code aus der SMS ein.",
+      "emailDescription": "Gib den Code aus der Mail ein.",
+      "noCodeReceived": "Keinen Code bekommen?",
+      "resendCode": "Code neu senden",
+      "resendCodeIn": "Code neu senden ({seconds} s)",
+      "submit": "Bestätigen",
+      "labels": {
+        "code": "Code"
+      },
+      "required": {
+        "code": "Bitte gib den Code ein."
+      }
+    },
+    "set": {
+      "title": "Authenticator-App einrichten",
+      "totpDescription": "Scanne den QR-Code mit deiner Authenticator-App, etwa Google Authenticator, 1Password oder Bitwarden.",
+      "smsDescription": "Gib deine Telefonnummer ein. Wir schicken dir einen Code per SMS.",
+      "emailDescription": "Gib deine E-Mail-Adresse ein. Wir schicken dir einen Code per Mail.",
+      "totpRegisterDescription": "Scanne den QR-Code oder gib den Schlüssel von Hand in deiner App ein. Bestätige danach mit dem Code aus der App.",
+      "emailAddDescription": "Bei jeder Anmeldung schicken wir dir zusätzlich einen Code an deine bestätigte E-Mail-Adresse.",
+      "smsAddDescription": "Bei jeder Anmeldung schicken wir dir zusätzlich einen Code an deine bestätigte Telefonnummer.",
+      "add": "Hinzufügen",
+      "emailAdded": "Code per Mail ist eingerichtet.",
+      "smsAdded": "Code per SMS ist eingerichtet.",
+      "submit": "Bestätigen",
+      "labels": {
+        "code": "Code aus der App"
+      },
+      "required": {
+        "code": "Bitte gib den Code aus der App ein."
+      }
+    },
+    "errors": {
+      "couldNotRequestChallenge": "Wir konnten gerade keinen Code anfordern. Bitte versuch es noch einmal.",
+      "couldNotVerifyCode": "Der Code stimmt nicht oder ist abgelaufen.",
+      "couldNotGetSession": "Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.",
+      "invalidMethod": "Dieser zweite Faktor wird nicht unterstützt.",
+      "couldNotAddEmail": "Code per Mail konnte nicht eingerichtet werden.",
+      "couldNotAddSms": "Code per SMS konnte nicht eingerichtet werden.",
+      "emailNotVerified": "Bitte bestätige zuerst deine E-Mail-Adresse.",
+      "phoneNotVerified": "Bitte bestätige zuerst deine Telefonnummer."
+    }
+  },
+  "passkey": {
+    "verify": {
+      "title": "Mit Passkey anmelden",
+      "description": "Dein Gerät fragt gleich nach Fingerabdruck, Gesicht oder Geräte-PIN.",
+      "usePassword": "Lieber mit Passwort",
+      "submit": "Weiter",
+      "errors": {
+        "couldNotRequestChallenge": "Die Anmeldung mit Passkey konnte nicht starten.",
+        "couldNotVerifyPasskey": "Der Passkey konnte nicht geprüft werden.",
+        "noResponseReceived": "Dein Gerät hat nicht geantwortet. Bitte versuch es noch einmal.",
+        "noRedirectProvided": "Der Passkey ist geprüft, aber es ging nicht weiter. Bitte lade die Seite neu.",
+        "couldNotRetrievePasskey": "Der Passkey konnte nicht geladen werden.",
+        "verificationCancelled": "Du hast die Anmeldung mit Passkey abgebrochen.",
+        "verificationFailed": "Die Anmeldung mit Passkey hat nicht geklappt.",
+        "couldNotFindSession": "Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.",
+        "couldNotUpdateSession": "Deine Anmeldung konnte nicht fortgesetzt werden.",
+        "userNotFound": "Zu dieser E-Mail-Adresse haben wir kein Konto gefunden.",
+        "couldNotDetermineRedirect": "Der Passkey ist geprüft, aber es ging nicht weiter. Bitte lade die Seite neu."
+      }
+    },
+    "set": {
+      "title": "Passkey einrichten",
+      "description": "Melde dich künftig ohne Passwort an – mit Fingerabdruck, Gesicht oder Geräte-PIN.",
+      "info": {
+        "description": "Ein Passkey wird sicher auf deinem Gerät gespeichert. Er lässt sich nicht erraten und nicht abfischen.",
+        "link": "Mehr über Passkeys"
+      },
+      "skip": "Später",
+      "submit": "Passkey einrichten"
+    }
+  },
+  "u2f": {
+    "verify": {
+      "title": "Sicherheitsschlüssel",
+      "description": "Bestätige die Anmeldung mit deinem Sicherheitsschlüssel oder Gerät."
+    },
+    "set": {
+      "title": "Sicherheitsschlüssel einrichten",
+      "description": "Richte einen Sicherheitsschlüssel oder dein Gerät als zweiten Faktor ein.",
+      "submit": "Einrichten"
+    }
+  },
+  "register": {
+    "methods": {
+      "passkey": "Passkey",
+      "password": "Passwort"
+    },
+    "disabled": {
+      "title": "Registrierung geschlossen",
+      "description": "Neue Konten können gerade nicht angelegt werden."
+    },
+    "missingdata": {
+      "title": "Angaben unvollständig",
+      "description": "Da fehlt noch etwas. Bitte prüf deine Eingaben."
+    },
+    "title": "Konto erstellen",
+    "description": "Ein Konto für Python, SQL und KI – dein Fortschritt bleibt in jedem Pfad erhalten.",
+    "noMethodAvailableWarning": "Die Registrierung ist gerade nicht möglich. Bitte versuch es später noch einmal.",
+    "selectMethod": "Wie möchtest du dich künftig anmelden?",
+    "agreeTo": "Mit der Registrierung stimmst du zu:",
+    "termsOfService": "Nutzungsbedingungen",
+    "privacyPolicy": "Datenschutzerklärung",
+    "submit": "Weiter",
+    "password": {
+      "title": "Passwort festlegen",
+      "description": "Wähle ein Passwort für dein Konto.",
+      "submit": "Konto erstellen",
+      "labels": {
+        "password": "Passwort",
+        "confirmPassword": "Passwort wiederholen"
+      },
+      "required": {
+        "password": "Bitte wähle ein Passwort.",
+        "confirmPassword": "Bitte wiederhole dein Passwort."
+      }
+    },
+    "labels": {
+      "firstname": "Vorname",
+      "lastname": "Nachname",
+      "email": "E-Mail-Adresse"
+    },
+    "required": {
+      "firstname": "Bitte gib deinen Vornamen ein.",
+      "lastname": "Bitte gib deinen Nachnamen ein.",
+      "email": "Bitte gib deine E-Mail-Adresse ein."
+    },
+    "errors": {
+      "couldNotCreateUser": "Dein Konto konnte nicht angelegt werden. Gibt es zu dieser E-Mail-Adresse schon ein Konto?",
+      "couldNotCreateSession": "Dein Konto ist angelegt, aber die Anmeldung hat nicht geklappt. Bitte melde dich an.",
+      "userNotFound": "Zu dieser E-Mail-Adresse haben wir kein Konto gefunden.",
+      "couldNotLinkIDP": "Dein Konto konnte nicht mit dem Anbieter verknüpft werden.",
+      "couldNotRegisterUser": "Dein Konto konnte nicht angelegt werden.",
+      "sessionMismatch": "Du hast die Registrierung in einem anderen Browser begonnen. Bitte melde dich dort erneut an."
+    }
+  },
+  "invite": {
+    "title": "Jemanden einladen",
+    "description": "Gib die E-Mail-Adresse der Person ein, die du einladen möchtest.",
+    "info": "Die Person bekommt eine Mail mit einem Link, über den sie ihr Konto einrichtet.",
+    "notAllowed": "Du darfst keine Personen einladen.",
+    "submit": "Einladen",
+    "success": {
+      "title": "Einladung verschickt",
+      "description": "Die Einladung ist unterwegs.",
+      "verified": "Die Person ist eingeladen; ihre E-Mail-Adresse ist schon bestätigt.",
+      "notVerifiedYet": "Die Person ist eingeladen und bekommt eine Mail mit den nächsten Schritten.",
+      "submit": "Weitere Person einladen"
+    }
+  },
+  "signedin": {
+    "title": "Hallo {user}!",
+    "description": "Du bist angemeldet.",
+    "continue": "Weiter",
+    "error": {
+      "title": "Das hat nicht geklappt",
+      "description": "Da ist etwas schiefgelaufen."
+    }
+  },
+  "verify": {
+    "userIdMissing": "Der Link ist unvollständig. Bitte öffne ihn direkt aus der Mail.",
+    "successTitle": "E-Mail-Adresse bestätigt",
+    "successDescription": "Danke! Dein Konto ist jetzt vollständig.",
+    "successContinue": "Weiter",
+    "setupAuthenticator": "Anmeldemethode einrichten",
+    "verify": {
+      "title": "E-Mail-Adresse bestätigen",
+      "description": "Gib den Code aus der Mail ein, die wir dir gerade geschickt haben.",
+      "noCodeReceived": "Keinen Code bekommen? Schau auch im Spam-Ordner nach.",
+      "resendCode": "Code neu senden",
+      "codeSent": "Wir haben dir einen neuen Code geschickt.",
+      "submit": "Bestätigen",
+      "labels": {
+        "code": "Code aus der Mail"
+      },
+      "required": {
+        "code": "Bitte gib den Code aus der Mail ein."
+      }
+    },
+    "errors": {
+      "couldNotResendEmail": "Die Mail konnte nicht erneut verschickt werden.",
+      "couldNotVerifyUser": "Der Code stimmt nicht oder ist abgelaufen.",
+      "couldNotVerifyInvite": "Die Einladung ist ungültig oder abgelaufen.",
+      "couldNotVerifyEmail": "Der Code stimmt nicht oder ist abgelaufen.",
+      "couldNotVerify": "Die Bestätigung hat nicht geklappt.",
+      "couldNotLoadUser": "Dein Konto konnte nicht geladen werden.",
+      "couldNotLoadAuthenticators": "Deine Anmeldemethoden konnten nicht geladen werden.",
+      "couldNotCreateSession": "Wir konnten dich gerade nicht anmelden. Bitte versuch es noch einmal.",
+      "noHostFound": "Die Anmeldung ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal.",
+      "userAlreadyVerified": "Deine E-Mail-Adresse ist schon bestätigt.",
+      "couldNotResendInvite": "Die Einladung konnte nicht erneut verschickt werden.",
+      "inviteSendFailed": "Die Einladung konnte nicht verschickt werden.",
+      "emailSendFailed": "Die Bestätigungsmail konnte nicht verschickt werden.",
+      "contextMissing": "Da ist etwas schiefgelaufen. Bitte versuch es noch einmal."
+    }
+  },
+  "authenticator": {
+    "title": "So meldest du dich an",
+    "description": "Wähle, wie du dich künftig anmelden möchtest.",
+    "noMethodsAvailable": "Gerade ist keine Anmeldemethode verfügbar.",
+    "allSetup": "Deine Anmeldung ist schon eingerichtet.",
+    "linkWithIDP": "oder mit einem Anbieter verknüpfen",
+    "methods": {
+      "totp": "Authenticator-App",
+      "u2f": "Sicherheitsschlüssel",
+      "otpEmail": "Code per Mail",
+      "otpSms": "Code per SMS",
+      "passkey": "Passkey",
+      "password": "Passwort"
+    }
+  },
+  "device": {
+    "usercode": {
+      "title": "Gerät verbinden",
+      "description": "Gib den Code ein, der auf deinem Gerät angezeigt wird.",
+      "submit": "Weiter",
+      "labels": {
+        "code": "Code"
+      },
+      "required": {
+        "code": "Bitte gib den Code ein."
+      }
+    },
+    "request": {
+      "title": "{appName} möchte sich verbinden",
+      "disclaimer": "{appName} erhält Zugriff auf:",
+      "description": "Mit „Zulassen“ erlaubst du {appName}, diese Angaben aus deinem Lernpfade-Konto zu verwenden. Du kannst den Zugriff jederzeit widerrufen.",
+      "submit": "Zulassen",
+      "deny": "Ablehnen"
+    },
+    "scope": {
+      "openid": "Deine Identität bestätigen",
+      "email": "Deine E-Mail-Adresse",
+      "profile": "Deinen Namen und dein Profil",
+      "offline_access": "Zugriff, auch wenn du gerade nicht angemeldet bist"
+    }
+  },
+  "error": {
+    "noUserCode": "Es wurde kein Code angegeben.",
+    "noDeviceRequest": "Diese Geräteanfrage gibt es nicht mehr. Bitte starte sie auf dem Gerät neu.",
+    "unknownContext": "Wir wissen noch nicht, wer du bist. Bitte gib zuerst deine E-Mail-Adresse ein.",
+    "sessionExpired": "Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.",
+    "failedLoading": "Die Seite konnte nicht geladen werden. Bitte versuch es noch einmal.",
+    "tryagain": "Noch einmal versuchen",
+    "couldNotContinueSession": "Deine Anmeldung konnte nicht fortgesetzt werden. Bitte melde dich erneut an.",
+    "couldNotClearSession": "Die Abmeldung hat nicht geklappt. Bitte versuch es noch einmal.",
+    "secondFactorRequired": "Bestätige zuerst deinen zweiten Faktor, um eine neue Anmeldemethode einzurichten.",
+    "authenticatorNotAllowed": "Diese Anmeldemethode ist für dein Konto nicht freigeschaltet."
+  }
+}

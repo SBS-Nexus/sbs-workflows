@@ -3,6 +3,21 @@ import { ContextGraph } from '@/components/context-graph';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { TokenizerStrip } from '@/components/marketing/tokenizer-strip';
 import { concepts } from '@/content/concepts';
+import type { Metadata } from 'next';
+
+/**
+ * Kanonische Adresse, wie in PythonPfad und SQLPfad.
+ *
+ * Die Startseite ist über mehrere Wege erreichbar – mit und ohne `www`, mit
+ * und ohne Anhängsel in der Adresse. Ohne diesen Verweis behandeln
+ * Suchmaschinen jede Variante als eigene Seite. Er gehört auf die Seite und
+ * nicht ins Layout, sonst würde jede Unterseite behaupten, sie sei die
+ * Startseite. Gefunden hat die Lücke `sqlpfad/scripts/pruefe-auslieferung.mts`
+ * beim ersten Ausrollen auf Railway.
+ */
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+};
 
 const MODULES = [
   {
@@ -54,35 +69,41 @@ const heroGraphConcepts = concepts.filter((c) => HERO_GRAPH_SLUGS.has(c.slug));
 export default function LandingPage(): React.ReactElement {
   return (
     <>
-      <SiteHeader />
+      <SiteHeader aufDunkel />
       <main id="hauptinhalt">
         {/* --------------------------------------------------------------- */}
         {/* Hero: These + funktionierender Tokenizer, keine Illustration.    */}
+        {/* Auf der Tinte des Learning OS, wie bei SQLPfad und PythonPfad;   */}
+        {/* die Kopfzeile darüber hat dieselbe Fläche.                       */}
         {/* --------------------------------------------------------------- */}
-        <section className="mx-auto max-w-6xl px-4 pb-16 pt-14 sm:px-6 sm:pt-20">
-          <p className="mb-4 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-signal-600 dark:text-signal-300">
-            Interaktive AI-Kompetenz · Deutsch
-          </p>
-          <h1 className="max-w-3xl font-mono text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl">
-            Wie AI wirklich funktioniert — nicht, wie sie beworben wird.
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg text-[var(--fg-muted)]">
-            AIPfad zeigt dir Tokens, Kontextfenster und Prompts als das, was sie sind:
-            nachvollziehbare Mechanik. Kein Kurs mit dreißig Folien pro Bildschirm — ein Werkzeug,
-            das du bedienst.
-          </p>
+        <section className="gradient-hero los-dunkel">
+          <div className="mx-auto max-w-6xl px-4 pb-16 pt-14 sm:px-6 sm:pb-20 sm:pt-20">
+            <p className="mb-4 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-signal-300">
+              Interaktive AI-Kompetenz · Deutsch
+            </p>
+            <h1 className="max-w-3xl font-mono text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl">
+              Wie AI wirklich funktioniert —
+              <br />
+              <span className="los-akzentzeile">nicht, wie sie beworben wird.</span>
+            </h1>
+            <p className="mt-5 max-w-2xl text-lg text-[var(--fg-muted)]">
+              AIPfad zeigt dir Tokens, Kontextfenster und Prompts als das, was sie sind:
+              nachvollziehbare Mechanik. Kein Kurs mit dreißig Folien pro Bildschirm — ein Werkzeug,
+              das du bedienst.
+            </p>
 
-          <div className="mt-8 max-w-2xl">
-            <TokenizerStrip />
-          </div>
+            <div className="mt-8 max-w-2xl">
+              <TokenizerStrip />
+            </div>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <ButtonLink href="/registrieren" size="lg">
-              Kostenlos starten
-            </ButtonLink>
-            <ButtonLink href="/lernen" variant="secondary" size="lg">
-              Bibliothek durchsuchen
-            </ButtonLink>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <ButtonLink href="/registrieren" variant="onDark" size="lg">
+                Kostenlos starten
+              </ButtonLink>
+              <ButtonLink href="/lernen" variant="onDarkGhost" size="lg">
+                Bibliothek durchsuchen
+              </ButtonLink>
+            </div>
           </div>
         </section>
 

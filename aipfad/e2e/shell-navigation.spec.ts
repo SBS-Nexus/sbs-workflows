@@ -6,6 +6,7 @@ import {
   erwarteBrauchbarenFokus,
   erwarteKeineSchwerenAxeBefunde,
   erwarteMenueImBild,
+  erwarteAnderePfade,
   erwartePlattformleiste,
   erwarteSichtbarenFokus,
   erwarteWirklichSichtbar,
@@ -74,6 +75,7 @@ test('Vertrag auf jeder Breite: gleiche Bereiche, „Mehr" und Abmelden erreichb
         'page',
       );
       await erwartePlattformleiste(page);
+      await erwarteAnderePfade(page, 'ai');
 
       const knopf = mehr(page);
       await expect(knopf).toHaveCount(1);
@@ -125,7 +127,21 @@ test('„Mehr"-Ziel öffnen: Wissenslandkarte auf Desktop und Telefon', async ({
  * (sm 640, xl 1280) schließt es, der Fokus bleibt brauchbar; innerhalb eines
  * Breakpoints bleibt es offen und wird neu ausgerichtet. Vorher blieb es nach
  * 1280 → 640 und 700 → 640 rechtsbündig offen und ragte links aus dem Bild.
+ *
+ * Der Browser löst `resize` erst im nächsten Rendering-Schritt aus, nicht
+ * schon, wenn `setViewportSize` zurückkehrt. Gemessen wird deshalb erst nach
+ * diesem Schritt (`nachDemNaechstenBild`); vorher zeigte die Messung noch die
+ * Ausrichtung der alten Breite (CI-Lauf 44753717160, linke Kante −103 px).
  */
+async function nachDemNaechstenBild(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((fertig) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => fertig()));
+      }),
+  );
+}
+
 test('Offenes „Mehr" bei Breitenwechsel: zu über Breakpoints, sonst im Bild', async ({ page }) => {
   await anmelden(page);
 
@@ -169,6 +185,7 @@ test('Offenes „Mehr" bei Breitenwechsel: zu über Breakpoints, sonst im Bild',
   await test.step('700 → 640 px (kein Breakpoint): bleibt offen, ganz im Bild', async () => {
     await oeffneMitFokusImMenue(700);
     await page.setViewportSize({ width: 640, height: 860 });
+    await nachDemNaechstenBild(page);
     await expect(mehr(page)).toHaveAttribute('aria-expanded', 'true');
     await erwarteMenueImBild(page, '700 → 640 px');
     for (const name of MEHR) {
@@ -272,7 +289,8 @@ test('Dunkles Systemschema, Bewegung und Fokusfarbe der Shell; axe ohne schwere 
     const ruhig = nav.getByRole('link', { name: 'Lernen' });
     const aktiv = nav.getByRole('link', { name: 'Überblick' });
     const flaeche = await stil(kopf, 'background-color');
-    expect(flaeche).toBe(schema === 'dark' ? 'rgb(21, 26, 36)' : 'rgb(255, 255, 255)');
+    // Learning-OS-Tinte und -Papier aus dem Token-Vertrag (--los-ton-900, --los-surface).
+    expect(flaeche).toBe(schema === 'dark' ? 'rgb(21, 27, 25)' : 'rgb(251, 251, 246)');
     expect(
       kontrast(await stil(ruhig, 'color'), flaeche),
       `${schema}: ruhiger Eintrag`,

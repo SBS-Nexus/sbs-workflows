@@ -1,6 +1,10 @@
 import 'server-only';
 import { z } from 'zod';
 import { isAllowedHubOriginSetting } from '@/server/platform/review-source-http';
+import {
+  pruefeZentraleAnmeldung,
+  zentraleAnmeldungFelder,
+} from '@/server/auth/zentral-konfiguration';
 
 /**
  * Zentrale, validierte Konfiguration. Fehlt eine notwendige Variable oder ist
@@ -41,7 +45,8 @@ const envSchema = z.object({
    * wirkungslos — beides still. E02 hat dafür die Richtung vorgegeben: Was
    * der Betrieb braucht, wird beim Start geprüft, nicht beim ersten Aufruf.
    *
-   * Mindestens 16 Zeichen, passend zur heutigen Vercel-Empfehlung.
+   * Mindestens 16 Zeichen. Die Grenze stammt aus der Vercel-Empfehlung und
+   * gilt für den Railway-Cron unverändert.
    */
   CRON_SECRET: z
     .string({ error: 'CRON_SECRET fehlt. Vorlage: .env.example' })
@@ -68,7 +73,11 @@ const envSchema = z.object({
     message:
       'PLATFORM_HUB_ORIGIN muss eine einzelne Origin sein (https://host[:port], ohne Pfad) oder leer bleiben.',
   }),
+  /** Anmeldung über das gemeinsame Konto (E4.2, Vertrag docs/learning-auth/). */
+  ...zentraleAnmeldungFelder,
 });
+
+const geprueftesSchema = envSchema.superRefine(pruefeZentraleAnmeldung);
 
 export type Env = z.infer<typeof envSchema>;
 
@@ -77,7 +86,7 @@ let cached: Env | null = null;
 export function getEnv(): Env {
   if (cached) return cached;
 
-  const parsed = envSchema.safeParse(process.env);
+  const parsed = geprueftesSchema.safeParse(process.env);
   if (!parsed.success) {
     const details = parsed.error.issues
       .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)

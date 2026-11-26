@@ -1,0 +1,53 @@
+// Anwendungen, die sich über das gemeinsame Konto anmelden (E4.2 ff.,
+// docs/E4-2-BAUPLAN.md, Abschnitt 4). Eingerichtet von einrichten.mjs mit
+// --anwendungen; die Pfade entsprechen den Routen aus dem Vertrag docs/learning-auth/.
+
+export const PROJEKT = 'Lernpfade';
+
+export const ANWENDUNGEN = [
+  { schluessel: 'aipfad', name: 'AIPfad', basis: 'https://www.aipfad.de' },
+  { schluessel: 'pythonpfad', name: 'PythonPfad', basis: 'https://www.pythonpfad.de' },
+  { schluessel: 'sqlpfad', name: 'SQLPfad', basis: 'https://www.sqlpfad.de' },
+  // E4.5 (docs/E4-5-BAUPLAN.md): Der Hub ruft die Plattformquellen der Apps mit
+  // seinem Zugriffstoken ab. Deshalb JWT (die Apps prüfen es selbst) und
+  // Aktualisieren; ohne eigene Sitzungsdatenbank kein Rückkanal.
+  {
+    schluessel: 'hub',
+    name: 'Lernpfade-Hub',
+    basis: 'https://www.lernpfade.net',
+    zugriffstoken: 'jwt',
+    aktualisieren: true,
+    rueckkanal: false,
+  },
+];
+
+/**
+ * OIDC-Einstellungen einer Web-Anwendung: Code-Flow, Client-Secret per Basic,
+ * Adresse und Name im ID-Token, Rückkanal-Abmeldung. Eine Adresse über http
+ * (nur die CI-Strecke auf localhost) braucht in ZITADEL den Entwicklungsmodus.
+ * `rueckkanal` weicht nur in der CI-Strecke ab: Dort erreicht ZITADEL die App
+ * aus dem Container über host.docker.internal statt über 127.0.0.1.
+ */
+export function oidcEinstellungen(basis, rueckkanal = basis, anwendung = {}) {
+  return {
+    redirectUris: [`${basis}/auth/rueckkehr`],
+    postLogoutRedirectUris: [`${basis}/`],
+    responseTypes: ['OIDC_RESPONSE_TYPE_CODE'],
+    grantTypes: [
+      'OIDC_GRANT_TYPE_AUTHORIZATION_CODE',
+      ...(anwendung.aktualisieren ? ['OIDC_GRANT_TYPE_REFRESH_TOKEN'] : []),
+    ],
+    appType: 'OIDC_APP_TYPE_WEB',
+    authMethodType: 'OIDC_AUTH_METHOD_TYPE_BASIC',
+    version: 'OIDC_VERSION_1_0',
+    devMode: basis.startsWith('http://'),
+    accessTokenType:
+      anwendung.zugriffstoken === 'jwt' ? 'OIDC_TOKEN_TYPE_JWT' : 'OIDC_TOKEN_TYPE_BEARER',
+    accessTokenRoleAssertion: false,
+    idTokenRoleAssertion: false,
+    idTokenUserinfoAssertion: true,
+    clockSkew: '0s',
+    backChannelLogoutUri:
+      anwendung.rueckkanal === false ? '' : `${rueckkanal}/auth/abmelden-rueckkanal`,
+  };
+}

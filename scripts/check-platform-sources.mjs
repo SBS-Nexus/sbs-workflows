@@ -53,6 +53,17 @@ const QUELLEN = [
     hub: 'lernpfade/src/domain/progress/contract.ts',
     hubNamen: 'PROGRESS_SOURCES',
   },
+  {
+    // E5.2: Team-Quelle (nur mit Diensttoken der Plattform).
+    art: 'team',
+    adapter: 'src/server/platform/team-source-http.ts',
+    route: 'src/app/api/platform/team-source/route.ts',
+    handler: 'handleTeamSourceRequest',
+    version: 'TEAM_SOURCE_SCHEMA_VERSION',
+    namenstyp: 'PlatformTeamSourceName',
+    hub: 'lernpfade/src/domain/team/contract.ts',
+    hubNamen: 'TEAM_SOURCES',
+  },
 ];
 
 const befunde = [];
@@ -148,6 +159,6 @@ if (befunde.length > 0) {
 }
 
 console.log(
-  'Plattformquellen: Adapter für Wiederholung und Fortschritt bytegleich in 3 Apps, ' +
+  'Plattformquellen: Adapter für Wiederholung, Fortschritt und Team bytegleich in 3 Apps, ' +
     'Schema-Versionen und Quellnamen wie im Hub, Routen unter dem eigenen Namen angebunden.',
 );

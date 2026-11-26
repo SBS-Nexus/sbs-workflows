@@ -2,7 +2,8 @@
 
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { requireUser, destroyAllSessions } from '@/server/auth/session';
+import { destroyAllSessions, requireUser, zentralFrischBestaetigt } from '@/server/auth/session';
+import { zentraleAnmeldungAktiv } from '@/server/auth/zentral';
 import { prisma } from '@/server/db/prisma';
 import { checkPasswordStrength, hashPassword, verifyPassword } from '@/server/auth/password';
 
@@ -15,6 +16,10 @@ import { checkPasswordStrength, hashPassword, verifyPassword } from '@/server/au
  * löschen, was sie in Wochen erarbeitet hat. Die erneute Eingabe ist die
  * einzige Stelle, an der die Anwendung wissen kann, ob wirklich die Person
  * davorsitzt, der das Konto gehört.
+ *
+ * Mit dem gemeinsamen Konto (E4.4) gilt derselbe Gedanke dort: Das Passwort
+ * wird im Lernpfade-Konto geändert, und vor dem Löschen steht eine frische
+ * Anmeldung beim Konto, höchstens zehn Minuten alt.
  */
 
 export interface KontoState {
@@ -54,6 +59,11 @@ export async function aenderePasswort(
     select: { passwordHash: true, email: true },
   });
 
+  // Verwaltet das gemeinsame Konto das Passwort, gibt es hier keins zu ändern.
+  if (konto.passwordHash === null || zentraleAnmeldungAktiv()) {
+    return { ok: false, meldung: 'Dein Passwort änderst du in deinem Lernpfade-Konto.' };
+  }
+
   if (!(await verifyPassword(geprueft.data.aktuell, konto.passwordHash))) {
     // Bewusst dieselbe knappe Auskunft wie beim Anmelden: Sie nennt nicht,
     // woran es lag, und lädt damit nicht zum Ausprobieren ein.
@@ -89,7 +99,8 @@ export async function aenderePasswort(
 // --- Konto löschen ---------------------------------------------------------
 
 const loeschSchema = z.object({
-  passwort: z.string().min(1).max(200),
+  // Entfällt, wenn das gemeinsame Konto die Bestätigung übernimmt.
+  passwort: z.string().max(200).optional(),
   bestaetigung: z.string().min(1).max(50),
 });
 
@@ -109,7 +120,7 @@ export async function loescheKonto(_vorher: KontoState, formData: FormData): Pro
   const user = await requireUser();
 
   const geprueft = loeschSchema.safeParse({
-    passwort: formData.get('passwort'),
+    passwort: formData.get('passwort') ?? undefined,
     bestaetigung: formData.get('bestaetigung'),
   });
   if (!geprueft.success) {
@@ -128,7 +139,15 @@ export async function loescheKonto(_vorher: KontoState, formData: FormData): Pro
     select: { passwordHash: true },
   });
 
-  if (!(await verifyPassword(geprueft.data.passwort, konto.passwordHash))) {
+  if (konto.passwordHash === null || zentraleAnmeldungAktiv()) {
+    if (!(await zentralFrischBestaetigt())) {
+      return {
+        ok: false,
+        meldung:
+          'Bitte bestätige zuerst mit deinem Lernpfade-Konto. Danach hast du zehn Minuten Zeit.',
+      };
+    }
+  } else if (!(await verifyPassword(geprueft.data.passwort ?? '', konto.passwordHash))) {
     return { ok: false, meldung: 'Das Passwort stimmt nicht. Es wurde nichts gelöscht.' };
   }
 

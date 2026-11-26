@@ -8,6 +8,9 @@ import { prisma } from '@/server/db/prisma';
 import { Prisma } from '@/generated/prisma/client';
 import { checkPasswordStrength, hashPassword, verifyPassword } from '@/server/auth/password';
 import { createSession, destroySession, pruneExpiredSessions } from '@/server/auth/session';
+import { abmeldeAdresse, zentraleAnmeldungAktiv, zentralerZugang } from '@/server/auth/zentral';
+import { logger } from '@/server/observability/logger';
+import { clientIpAus } from '@/server/security/client-ip';
 import { enforceRateLimit, RATE_LIMITS, RateLimitError } from '@/server/security/rate-limit';
 
 /**
@@ -34,38 +37,15 @@ const loginSchema = z.object({
 });
 
 /**
- * Die IP, auf die alle Ratengrenzen dieser Datei aufsetzen.
- *
- * `x-forwarded-for` ist ein vom Client gesetzter Kopfzeilenwert: Der linke
- * Eintrag der Kette stammt von der anfragenden Seite selbst. Wer ihn bei
- * jedem Versuch anders setzt, landet in einem jeweils frischen Zähler und
- * hebelt damit sämtliche Anmelde- und Registrierungsgrenzen aus — also
- * genau den Schutz gegen Credential Stuffing und Massen-Enumeration
- * (Sicherheitsprüfung zu PR #29).
- *
- * Deshalb zuerst `x-vercel-forwarded-for`: Diesen Wert setzt die Plattform
- * selbst und überschreibt eine mitgeschickte Angabe. Er ist auf der
- * dokumentierten Zielplattform (docs/DEPLOYMENT.md) nicht fälschbar.
- * Ohne Plattform-Kopfzeile — eigener Betrieb hinter nginx/Traefik — wird der
- * RECHTE Eintrag der Kette genommen: Den hat der letzte, eigene Proxy
- * angehängt, während alles weiter links vom Client stammen kann. Fehlt jede
- * Angabe, teilen sich alle Anfragen einen gemeinsamen Zähler; das begrenzt
- * eher zu streng als zu großzügig und ist hier die richtige Richtung.
+ * Die IP, auf die alle Ratengrenzen dieser Datei aufsetzen. Welche Kopfzeile
+ * zählt und warum, steht in `server/security/client-ip.ts`. Anlass für die
+ * Regel war die Sicherheitsprüfung zu PR #29: Ein vom Client gesetzter Eintrag
+ * in `x-forwarded-for` hebelte sämtliche Anmelde- und Registrierungsgrenzen
+ * aus. Seit dem Umzug auf Railway zählt `x-real-ip` statt
+ * `x-vercel-forwarded-for`.
  */
 async function clientIp(): Promise<string> {
-  const headerList = await headers();
-
-  const platformIp = headerList.get('x-vercel-forwarded-for')?.trim();
-  if (platformIp) return platformIp;
-
-  const chain =
-    headerList
-      .get('x-forwarded-for')
-      ?.split(',')
-      .map((part) => part.trim())
-      .filter(Boolean) ?? [];
-
-  return chain.at(-1) ?? 'unbekannt';
+  return clientIpAus(await headers());
 }
 
 async function requestKey(prefix: string, identifier: string): Promise<string> {
@@ -104,7 +84,19 @@ async function enforcePerAccountLimit(
   await enforceRateLimit(`${prefix}-konto:${email.toLowerCase()}`, config);
 }
 
+/**
+ * Läuft die Anmeldung über das gemeinsame Konto (E4.2), nehmen die eigenen
+ * Formulare nichts mehr an. Die Seiten leiten dann ohnehin weiter; diese
+ * Prüfung hält auch direkte Aufrufe der Server Actions ab.
+ */
+const ZENTRAL_HINWEIS: FormState = {
+  ok: false,
+  error: 'Die Anmeldung läuft jetzt über dein Lernpfade-Konto. Lade die Seite bitte neu.',
+};
+
 export async function registerAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  if (zentraleAnmeldungAktiv()) return ZENTRAL_HINWEIS;
+
   const parsed = registerSchema.safeParse({
     name: formData.get('name'),
     email: formData.get('email'),
@@ -178,6 +170,8 @@ export async function registerAction(_previous: FormState, formData: FormData): 
 }
 
 export async function loginAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  if (zentraleAnmeldungAktiv()) return ZENTRAL_HINWEIS;
+
   const parsed = loginSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
@@ -222,7 +216,25 @@ export async function loginAction(_previous: FormState, formData: FormData): Pro
   redirect(user.onboardingCompleted ? '/pfad' : '/onboarding');
 }
 
+/**
+ * Beendet die Sitzung in AIPfad. War sie über das gemeinsame Konto
+ * entstanden, geht es dort weiter, damit die Abmeldung auch dort gilt; das
+ * Konto leitet danach zur Startseite zurück. Ist es nicht erreichbar, bleibt
+ * die Person in AIPfad trotzdem abgemeldet.
+ */
 export async function logoutAction(): Promise<void> {
-  await destroySession();
-  redirect('/');
+  const beendet = await destroySession();
+  const zugang = beendet.zentral ? zentralerZugang() : null;
+
+  let ziel = '/';
+  if (zugang) {
+    try {
+      ziel = (await abmeldeAdresse(zugang, beendet.idToken)).href;
+    } catch (fehler) {
+      logger.warn('Abmeldung beim gemeinsamen Konto nicht möglich', {
+        errorType: fehler instanceof Error ? fehler.name : 'unbekannt',
+      });
+    }
+  }
+  redirect(ziel);
 }

@@ -3,6 +3,7 @@
 import { useActionState, useState } from 'react';
 import { loescheKonto, type KontoState } from '@/server/actions/konto-actions';
 import { Button, Callout, inputClass } from '@/components/ui/primitives';
+import { buttonAttributes } from '@/lib/learning-components';
 import { Icon } from '@/components/ui/icon';
 
 /**
@@ -21,9 +22,18 @@ import { Icon } from '@/components/ui/icon';
  * „gelöscht" liest, soll sich darauf verlassen können. Genau deshalb kostet es
  * das Passwort und ein getipptes Wort – nicht als Schikane, sondern damit ein
  * Fehlgriff nicht reicht.
+ *
+ * Mit dem gemeinsamen Konto (E4.4) tritt an die Stelle des Passworts eine
+ * frische Anmeldung beim Lernpfade-Konto, höchstens zehn Minuten alt
+ * (`zentral.bestaetigt`). Das getippte Wort bleibt.
  */
-export function KontoLoeschen(): React.ReactElement {
+export function KontoLoeschen({
+  zentral,
+}: {
+  zentral: { bestaetigt: boolean } | null;
+}): React.ReactElement {
   const [offen, setOffen] = useState(false);
+  const bestaetigenKnopf = buttonAttributes('danger-secondary');
   const [zustand, aktion, laeuft] = useActionState<KontoState, FormData>(loescheKonto, {
     ok: false,
   });
@@ -53,23 +63,40 @@ export function KontoLoeschen(): React.ReactElement {
         </p>
       </div>
 
-      {offen ? (
+      {zentral && !zentral.bestaetigt ? (
+        <div className="space-y-3 border-t border-[var(--border)] pt-4">
+          <p className="text-sm text-[var(--text-muted)]">
+            Zum Schutz vor einem Fehlgriff an einem fremden oder unbeaufsichtigten Gerät meldest du
+            dich vorher einmal neu bei deinem Lernpfade-Konto an. Danach hast du zehn Minuten Zeit.
+          </p>
+          {/* Absichtlich <a>: Das Ziel leitet zu einem anderen Host weiter. */}
+          <a
+            href="/auth/anmelden?bestaetigen=1&ziel=%2Fprofil%23loeschen"
+            className={bestaetigenKnopf.className}
+            data-lp-variant={bestaetigenKnopf['data-lp-variant']}
+            data-lp-size={bestaetigenKnopf['data-lp-size']}
+          >
+            Mit Lernpfade-Konto bestätigen
+          </a>
+        </div>
+      ) : offen ? (
         <form action={aktion} className="space-y-4 border-t border-[var(--border)] pt-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="loesch-passwort" className="block text-sm font-semibold">
-                Dein Passwort
-              </label>
-              <input
-                id="loesch-passwort"
-                name="passwort"
-                type="password"
-                autoComplete="current-password"
-                required
-                className={`${inputClass} mt-1.5`}
-              />
-            </div>
-
+            {zentral ? null : (
+              <div>
+                <label htmlFor="loesch-passwort" className="block text-sm font-semibold">
+                  Dein Passwort
+                </label>
+                <input
+                  id="loesch-passwort"
+                  name="passwort"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  className={`${inputClass} mt-1.5`}
+                />
+              </div>
+            )}
             <div>
               <label htmlFor="bestaetigung" className="block text-sm font-semibold">
                 Tippe zur Bestätigung: löschen

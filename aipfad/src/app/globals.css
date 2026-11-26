@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '../styles/learning-tokens.css';
 @import '../styles/learning-shell.css';
 @import '../styles/learning-feedback.css';
 @import '../styles/learning-components.css';
@@ -7,11 +8,11 @@
  * AIPfad – Gestaltungsgrundlage
  *
  * Leitgedanken (siehe DESIGN.md für die vollständige Begründung):
- *  - Technisch, präzise, erwachsen statt verspielt. PythonPfad und SQLPfad
- *    sind "lebendig und zugewandt" mit indigo-getönten Grautönen und
- *    Modulfarben je Kurs; AIPfad braucht eine eigene, ruhigere Stimme in
- *    derselben Produktfamilie – näher an einem technischen Datenblatt als an
- *    einem Lernspiel.
+ *  - Technisch, präzise, erwachsen statt verspielt. Alle drei Fachanwendungen
+ *    stehen seit Roadmap E3 auf dem Learning OS des Hubs (Papier, Tinte, Moos,
+ *    Minze und Limette als Signal). AIPfad behält darin eine eigene, ruhigere
+ *    Stimme – näher an einem technischen Datenblatt als an einem Lernspiel –
+ *    über die Schreibmaschinenschrift und Bernstein als Handlungsfarbe.
  *  - Die Auszeichnungsschrift ist bewusst die Schreibmaschinenschrift
  *    (IBM Plex Mono), nicht die Grundschrift. Der Lerninhalt selbst ist
  *    monospace-nativ (Tokens, Terminalbefehle, Nachrichtenrollen, JSON) – die
@@ -26,26 +27,30 @@
  */
 
 @theme {
-  --font-sans:
-    var(--font-plex-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  /* Stapel aus dem Token-Vertrag (learning-tokens.css), wie im Hub. */
+  --font-sans: var(--los-sans);
+  --font-mono: var(--los-mono);
 
   /*
-   * Grundskala: warmes Papier bis Tinte. Bewusst kein Indigoanteil (das ist
-   * die Handschrift von PythonPfad/SQLPfad) – ein leicht warmes, entsättigtes
-   * Grau, wie bedrucktes Papier statt Bildschirmweiß.
+   * Grundskala: Papier bis Tinte des Learning OS, dieselben Werte wie im Hub,
+   * in SQLPfad und in PythonPfad. Sie stehen im gemeinsamen Vertrag
+   * src/styles/learning-tokens.css (kanonisch docs/learning-tokens/, Roadmap
+   * E3), hier nur die Verweise darauf. Vorher stand hier ein warmes, bräunliches Grau – AIPfad sah
+   * damit aus wie ein Nachbarprodukt statt wie ein Teil derselben Plattform.
+   * Die eigene Stimme tragen jetzt Schrift und Bernstein, nicht der
+   * Untergrund.
    */
-  --color-ink-50: #f6f4ef;
-  --color-ink-100: #ede9e0;
-  --color-ink-200: #ddd7c9;
-  --color-ink-300: #c2baa5;
-  --color-ink-400: #9c9078;
-  --color-ink-500: #726657;
-  --color-ink-600: #574e42;
-  --color-ink-700: #423b33;
-  --color-ink-800: #2c2721;
-  --color-ink-900: #1d1a15;
-  --color-ink-950: #131110;
+  --color-ink-50: var(--los-ton-50);
+  --color-ink-100: var(--los-ton-100);
+  --color-ink-200: var(--los-ton-200);
+  --color-ink-300: var(--los-ton-300);
+  --color-ink-400: var(--los-ton-400);
+  --color-ink-500: var(--los-ton-500);
+  --color-ink-600: var(--los-ton-600);
+  --color-ink-700: var(--los-ton-700);
+  --color-ink-800: var(--los-ton-800);
+  --color-ink-900: var(--los-ton-900);
+  --color-ink-950: var(--los-ton-950);
 
   /* Signal: Bernstein/Ocker – einzige Markenfarbe für Handlungen. */
   --color-signal-100: #fdecd2;
@@ -92,6 +97,39 @@
 }
 
 /*
+ * Kopfbereich der Startseite und Seitenfläche der Anmeldung: die Tinte des
+ * Learning OS mit einem einzigen Lichtkegel in Bernstein. Bei SQLPfad steht an
+ * derselben Stelle Petrol, bei PythonPfad Blau – die eine Stelle, an der sich
+ * die Fachanwendungen vor dem ersten gelesenen Wort unterscheiden. Der Kegel
+ * trägt nie Fließtext; die Schrift darauf prüft der Barrierefreiheitstest.
+ */
+@utility gradient-hero {
+  background-image:
+    radial-gradient(
+      at 12% 0%,
+      color-mix(in oklab, var(--color-signal-500) 42%, transparent) 0px,
+      transparent 55%
+    ),
+    linear-gradient(165deg, var(--los-ink) 0%, var(--los-ink-2) 55%, var(--los-charcoal) 100%);
+}
+
+/*
+ * Akzentzeile der großen Überschriften, wie im Learning OS des Hubs: Serifen-
+ * Kursive in Minze bis Limette. Neben der Schreibmaschinenschrift ist sie
+ * bewusst ein Bruch – die eine Zeile, die nicht nach Datenblatt klingt.
+ */
+@utility los-akzentzeile {
+  font-family: var(--los-serif);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  background-image: linear-gradient(100deg, var(--los-mint) 0%, var(--los-lime) 100%);
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/*
  * Alles Folgende steht bewusst in `@layer base`/`@layer components` statt
  * unlayered im Stylesheet: `@import "tailwindcss"` registriert die Layer-
  * Reihenfolge `theme, base, components, utilities`, und nach der
@@ -104,15 +142,9 @@
  */
 @layer base {
   :root {
-    --lp-platform-bg: #111827;
-    --lp-platform-fg: #ffffff;
-    --lp-platform-muted: #d1d5db;
-    --lp-platform-subtle: #9ca3af;
-    --lp-platform-hover: #c7d2fe;
-    --lp-platform-border: #374151;
     color-scheme: light;
     --bg: var(--color-ink-50);
-    --bg-raised: #ffffff;
+    --bg-raised: var(--los-surface);
     --fg: var(--color-ink-900);
     --fg-muted: var(--color-ink-600);
     --border: var(--color-ink-200);
@@ -184,6 +216,24 @@
 }
 
 @layer components {
+  /*
+   * Dunkle Fläche in beiden Farbschemata. Die Bausteine darin lesen ihre
+   * Farben aus denselben Variablen wie überall; hier bekommen sie die Werte
+   * des dunklen Schemas, damit Tokenizer, Bildunterschrift und Ränder auf der
+   * Tinte lesbar bleiben, auch wenn die Seite selbst hell ist.
+   */
+  .los-dunkel {
+    color-scheme: dark;
+    --bg: var(--los-ink);
+    --bg-raised: var(--los-charcoal);
+    --fg: var(--los-cream);
+    --fg-muted: #c9d1ca;
+    --border: var(--los-ton-700);
+    --border-strong: var(--los-ton-600);
+    --focus-ring: var(--color-wire-300);
+    color: var(--fg);
+  }
+
   /* Skip-Link: unsichtbar bis zum Fokus, dann prominent. */
   .skip-link {
     position: absolute;

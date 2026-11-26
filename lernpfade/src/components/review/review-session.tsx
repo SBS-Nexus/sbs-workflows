@@ -78,10 +78,11 @@ export function ReviewSession(): React.ReactElement {
   }
 
   return (
-    <section className="review-shell demo-review" aria-labelledby="review-title">
+    <section className="los-section demo-review" aria-labelledby="review-title">
       <div className="review-toolbar">
         <div>
-          <p className="eyebrow">
+          <p className="los-lane-label">
+            <span className="los-lane-dot" data-lane="demo" aria-hidden="true" />
             <span className="demo-badge">DEMO · Beispiel</span>
           </p>
           <h2 id="review-title">Beispiel-Deck</h2>

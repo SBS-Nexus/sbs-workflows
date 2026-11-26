@@ -4,6 +4,7 @@ import './globals.css';
 import { BRAND } from '@/lib/brand';
 import { siteUrl } from '@/server/site';
 import { LearningPlatformBar } from '@/components/navigation/learning-platform-bar';
+import { LearningLegalFooter } from '@/components/navigation/learning-legal-footer';
 
 /*
  * Schriften.
@@ -134,6 +135,7 @@ export default function RootLayout({
         </a>
         <LearningPlatformBar app="sql" />
         {children}
+        <LearningLegalFooter app="sql" />
       </body>
     </html>
   );

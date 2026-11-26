@@ -11,6 +11,9 @@
  * Umdefinition vorhandener App-Tokens (`--surface`, `--text`, `--bg`, `--fg`,
  * `--color-ink-*`, Modulfarben, Editor-Tokens).
  *
+ * Neutrale Töne und die Dachleistenfarben (`--lp-platform-*`) kommen seit
+ * Roadmap E3 aus dem gemeinsamen Vertrag `learning-tokens.css`.
+ *
  * Bewusst NICHT in einem Cascade-Layer: PythonPfad und SQLPfad setzen
  * `:focus-visible` ungeschichtet, und eine ungeschichtete Regel schlägt jede
  * geschichtete. Nur so gilt der gemeinsame Fokus auch dort. Weil jede Regel an
@@ -24,11 +27,11 @@
 /* --- Tokens: neutral, in allen Apps gleich ------------------------------ */
 
 .lp-shell {
-  --lp-shell-surface: #ffffff;
-  --lp-shell-surface-hover: #eef1f6;
-  --lp-shell-text: #111827;
-  --lp-shell-text-muted: #4b5563;
-  --lp-shell-border: #dfe3eb;
+  --lp-shell-surface: var(--los-surface);
+  --lp-shell-surface-hover: var(--los-ton-50);
+  --lp-shell-text: var(--los-text);
+  --lp-shell-text-muted: var(--los-text-muted);
+  --lp-shell-border: var(--los-ton-200);
   --lp-shell-focus: #1d4ed8;
   --lp-shell-on-accent: #ffffff;
 
@@ -40,7 +43,7 @@
   --lp-shell-space-2: 0.5rem;
   --lp-shell-space-3: 0.75rem;
   --lp-shell-target: 2.75rem;
-  --lp-shell-menu-shadow: 0 16px 36px -16px rgb(15 23 42 / 0.35), 0 2px 6px rgb(15 23 42 / 0.1);
+  --lp-shell-menu-shadow: 0 16px 36px -16px rgb(11 14 14 / 0.35), 0 2px 6px rgb(11 14 14 / 0.1);
   --lp-shell-duration-fast: 120ms;
   --lp-shell-duration-base: 200ms;
   --lp-shell-ease: cubic-bezier(0.2, 0, 0, 1);
@@ -71,11 +74,11 @@
 /* Dunkel: ausdrücklich gewählt oder vom System, solange nicht hell gewählt. */
 :root[data-theme='dark'] .lp-shell,
 :root.dark .lp-shell {
-  --lp-shell-surface: #151a24;
-  --lp-shell-surface-hover: #232a37;
-  --lp-shell-text: #f3f4f6;
-  --lp-shell-text-muted: #c4cad5;
-  --lp-shell-border: #2e3646;
+  --lp-shell-surface: var(--los-ton-900);
+  --lp-shell-surface-hover: var(--los-ton-800);
+  --lp-shell-text: var(--los-cream);
+  --lp-shell-text-muted: var(--los-ton-200);
+  --lp-shell-border: var(--los-ton-700);
   --lp-shell-focus: #93c5fd;
   --lp-shell-on-accent: #0b1220;
 }
@@ -100,11 +103,11 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .lp-shell {
-    --lp-shell-surface: #151a24;
-    --lp-shell-surface-hover: #232a37;
-    --lp-shell-text: #f3f4f6;
-    --lp-shell-text-muted: #c4cad5;
-    --lp-shell-border: #2e3646;
+    --lp-shell-surface: var(--los-ton-900);
+    --lp-shell-surface-hover: var(--los-ton-800);
+    --lp-shell-text: var(--los-cream);
+    --lp-shell-text-muted: var(--los-ton-200);
+    --lp-shell-border: var(--los-ton-700);
     --lp-shell-focus: #93c5fd;
     --lp-shell-on-accent: #0b1220;
   }
@@ -227,6 +230,17 @@
 
 .lp-shell-bar-link:hover {
   color: var(--lp-platform-hover);
+}
+
+/*
+ * Andere Lernpfade (Roadmap E1): neben dem eigenen Namen, durch einen Strich
+ * abgesetzt. Kein `display` hier – ein- und ausgeblendet wird über die
+ * Tailwind-Klassen der Leiste, siehe oben.
+ */
+.lp-shell-bar-paths {
+  margin-inline-start: var(--lp-shell-space-1);
+  padding-inline-start: var(--lp-shell-space-1);
+  border-inline-start: 1px solid var(--lp-platform-border);
 }
 
 @media (min-width: 640px) {
@@ -449,4 +463,45 @@
   position: absolute;
   top: -0.25rem;
   right: -0.5rem;
+}
+
+/* --- Rechtliche Verweise unter jedem Inhalt (E6.1) ----------------------- */
+
+.lp-shell-legal {
+  border-top: 1px solid var(--lp-shell-border);
+  background: var(--lp-shell-surface);
+  color: var(--lp-shell-text-muted);
+  font-size: 0.875rem;
+}
+
+.lp-shell-legal-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 1.25rem;
+  row-gap: var(--lp-shell-space-1);
+  max-width: 80rem;
+  margin-inline: auto;
+  padding: var(--lp-shell-space-3) 1rem;
+}
+
+.lp-shell-legal-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--lp-shell-target);
+  color: var(--lp-shell-text);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.lp-shell-legal-link:focus-visible {
+  outline: var(--lp-shell-focus-width) solid var(--lp-shell-focus);
+  outline-offset: var(--lp-shell-focus-offset);
+  border-radius: var(--lp-shell-radius-small);
+}
+
+@media (min-width: 640px) {
+  .lp-shell-legal-inner {
+    padding-inline: 1.5rem;
+  }
 }

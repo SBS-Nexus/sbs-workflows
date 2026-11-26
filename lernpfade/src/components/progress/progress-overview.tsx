@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProgressSource, SourceProgress } from '@/domain/progress/contract';
 import { lastActiveOf } from '@/domain/progress/display';
-import { fetchProgressSource } from '@/domain/progress/fetch-progress';
+import { fetchProgressSource, fetchProgressViaHub } from '@/domain/progress/fetch-progress';
 import {
   backlogTotal,
   initialSourceStates,
@@ -81,7 +81,7 @@ function BacklogSummary({
   configs: readonly ProgressSourceConfig[];
 }): React.ReactElement {
   return (
-    <section className="progress-summary" aria-labelledby="progress-summary-title" aria-live="polite">
+    <section className="los-section progress-summary" aria-labelledby="progress-summary-title" aria-live="polite">
       <h2 id="progress-summary-title">Fällig insgesamt</h2>
       {total.status === 'pending' ? <p className="progress-muted">Wird zusammengezählt …</p> : null}
       {total.status === 'complete' ? (
@@ -154,59 +154,89 @@ function projectMetric(progress: SourceProgress, appName: string): React.ReactEl
   }
 }
 
-function SourceCard({ config, state }: { config: ProgressSourceConfig; state: SourceState }): React.ReactElement {
+function SourceCard({
+  config,
+  state,
+  viaHub = false,
+  kontoAnmelden = false,
+}: {
+  config: ProgressSourceConfig;
+  state: SourceState;
+  viaHub?: boolean;
+  /** Mit dem gemeinsamen Konto, aber (noch) nicht im Hub angemeldet. */
+  kontoAnmelden?: boolean;
+}): React.ReactElement {
   const titleId = `progress-${config.source}`;
   const openUrl = config.baseUrl ?? config.appUrl;
 
   return (
     <article className="progress-card" aria-labelledby={titleId}>
-      <div className="progress-card-head">
-        <h3 id={titleId}>{config.appName}</h3>
-        {state.status === 'ok' ? (
-          <span className={`review-domain domain-${config.source}`}>LIVE · {config.label}</span>
-        ) : null}
+      <div className="progress-card-side">
+        <div className="progress-card-head">
+          <h3 id={titleId}>{config.appName}</h3>
+          {state.status === 'ok' ? (
+            <span className={`review-domain domain-${config.source}`}>LIVE · {config.label}</span>
+          ) : null}
+        </div>
+        {config.note ? <p className="progress-muted">{config.note}</p> : null}
       </div>
-      {config.note ? <p className="progress-muted">{config.note}</p> : null}
 
-      {state.status === 'loading' ? (
-        <FeedbackCallout message={sourceFeedback('loading')}>
-          Fortschritt aus {config.appName} wird geladen …
-        </FeedbackCallout>
-      ) : null}
-
-      {state.status === 'not_configured' ? (
-        <FeedbackCallout message={sourceFeedback('not_configured')}>
-          Nicht mit dem Hub verbunden. Dein Fortschritt in {config.appName} ist dort weiterhin
-          vollständig sichtbar.
-        </FeedbackCallout>
-      ) : null}
-
-      {state.status === 'unauthenticated' ? (
-        <FeedbackCallout message={sourceFeedback('unauthenticated')}>
-          In {config.appName} bist du nicht angemeldet. Ohne Anmeldung zeigt der Hub hier nichts — das
-          heißt nicht, dass du dort keinen Fortschritt hast.
-        </FeedbackCallout>
-      ) : null}
-
-      {state.status === 'unavailable' ? (
-        <FeedbackCallout message={sourceFeedback('unavailable')}>
-          {config.appName} ist derzeit nicht erreichbar. Die anderen Pfade bleiben nutzbar.
-        </FeedbackCallout>
-      ) : null}
-
-      {state.status === 'ok' ? <SourceMetrics progress={state.progress} appName={config.appName} /> : null}
-
-      <div className="progress-actions">
-        {state.status === 'unauthenticated' && config.baseUrl ? (
-          <ButtonLink href={`${config.baseUrl}/anmelden`}>
-            In {config.appName} anmelden
-          </ButtonLink>
+      <div className="progress-card-main">
+        {state.status === 'loading' ? (
+          <FeedbackCallout message={sourceFeedback('loading')}>
+            Fortschritt aus {config.appName} wird geladen …
+          </FeedbackCallout>
         ) : null}
-        {openUrl ? (
-          <ButtonLink variant="secondary" href={`${openUrl}/fortschritt`}>
-            In {config.appName} öffnen
-          </ButtonLink>
+
+        {state.status === 'not_configured' ? (
+          kontoAnmelden ? (
+            <FeedbackCallout message={sourceFeedback('unauthenticated')}>
+              Mit deinem Lernpfade-Konto erscheint hier dein Stand aus {config.appName}.
+            </FeedbackCallout>
+          ) : (
+            <FeedbackCallout message={sourceFeedback('not_configured')}>
+              Nicht mit dem Hub verbunden. Dein Fortschritt in {config.appName} ist dort weiterhin
+              vollständig sichtbar.
+            </FeedbackCallout>
+          )
         ) : null}
+
+        {state.status === 'unauthenticated' ? (
+          <FeedbackCallout message={sourceFeedback('unauthenticated')}>
+            {viaHub ? (
+              <>
+                {config.appName} kennt dein Lernpfade-Konto noch nicht. Melde dich dort einmal an, dann
+                erscheint dein Stand hier.
+              </>
+            ) : (
+              <>
+                In {config.appName} bist du nicht angemeldet. Ohne Anmeldung zeigt der Hub hier nichts — das
+                heißt nicht, dass du dort keinen Fortschritt hast.
+              </>
+            )}
+          </FeedbackCallout>
+        ) : null}
+
+        {state.status === 'unavailable' ? (
+          <FeedbackCallout message={sourceFeedback('unavailable')}>
+            {config.appName} ist derzeit nicht erreichbar. Die anderen Pfade bleiben nutzbar.
+          </FeedbackCallout>
+        ) : null}
+
+        {state.status === 'ok' ? <SourceMetrics progress={state.progress} appName={config.appName} /> : null}
+
+        <div className="progress-actions">
+          {state.status === 'unauthenticated' && config.baseUrl ? (
+            <ButtonLink href={`${config.baseUrl}/anmelden`}>
+              In {config.appName} anmelden
+            </ButtonLink>
+          ) : null}
+          {openUrl ? (
+            <ButtonLink variant="secondary" href={`${openUrl}/fortschritt`}>
+              In {config.appName} öffnen
+            </ButtonLink>
+          ) : null}
+        </div>
       </div>
     </article>
   );
@@ -261,35 +291,39 @@ function SourceMetrics({ progress, appName }: { progress: SourceProgress; appNam
 function VocabularyCard({ state }: { state: VocabularyState }): React.ReactElement {
   return (
     <article className="progress-card" aria-labelledby="progress-vocabulary">
-      <div className="progress-card-head">
-        <h3 id="progress-vocabulary">VokabelPfad</h3>
-        <span className="review-domain domain-language">LOKAL · nur in diesem Browser</span>
+      <div className="progress-card-side">
+        <div className="progress-card-head">
+          <h3 id="progress-vocabulary">VokabelPfad</h3>
+          <span className="review-domain domain-language">LOKAL · nur in diesem Browser</span>
+        </div>
+        <p className="progress-muted">
+          Deine eigenen Decks liegen nur in diesem Browser. Sie werden an keine App und keinen Server gesendet.
+        </p>
       </div>
-      <p className="progress-muted">
-        Deine eigenen Decks liegen nur in diesem Browser. Sie werden an keine App und keinen Server gesendet.
-      </p>
 
-      {state.status === 'loading' ? (
-        <FeedbackCallout message={vocabularyFeedback('loading')}>Vokabelstand wird gelesen …</FeedbackCallout>
-      ) : null}
+      <div className="progress-card-main">
+        {state.status === 'loading' ? (
+          <FeedbackCallout message={vocabularyFeedback('loading')}>Vokabelstand wird gelesen …</FeedbackCallout>
+        ) : null}
 
-      {state.status === 'error' ? (
-        <FeedbackCallout message={vocabularyFeedback(state.reason)}>
-          {state.reason === 'corrupt'
-            ? 'Deine Vokabeldaten in diesem Browser lassen sich nicht lesen. Sie wurden nicht verändert.'
-            : state.reason === 'future'
-              ? 'Deine Vokabeldaten stammen aus einer neueren Version von VokabelPfad und werden hier nicht gelesen.'
-              : 'Der Browser erlaubt gerade keinen Zugriff auf den lokalen Speicher.'}{' '}
-          Ein Fortschritt von 0 wäre deshalb falsch — prüfe den Stand im VokabelPfad.
-        </FeedbackCallout>
-      ) : null}
+        {state.status === 'error' ? (
+          <FeedbackCallout message={vocabularyFeedback(state.reason)}>
+            {state.reason === 'corrupt'
+              ? 'Deine Vokabeldaten in diesem Browser lassen sich nicht lesen. Sie wurden nicht verändert.'
+              : state.reason === 'future'
+                ? 'Deine Vokabeldaten stammen aus einer neueren Version von VokabelPfad und werden hier nicht gelesen.'
+                : 'Der Browser erlaubt gerade keinen Zugriff auf den lokalen Speicher.'}{' '}
+            Ein Fortschritt von 0 wäre deshalb falsch — prüfe den Stand im VokabelPfad.
+          </FeedbackCallout>
+        ) : null}
 
-      {state.status === 'ok' ? <VocabularyMetrics summary={state.summary} /> : null}
+        {state.status === 'ok' ? <VocabularyMetrics summary={state.summary} /> : null}
 
-      <div className="progress-actions">
-        <ButtonLink variant="secondary" href="/vokabeln">
-          {state.status === 'error' ? 'Im VokabelPfad prüfen' : 'Zum VokabelPfad'}
-        </ButtonLink>
+        <div className="progress-actions">
+          <ButtonLink variant="secondary" href="/vokabeln">
+            {state.status === 'error' ? 'Im VokabelPfad prüfen' : 'Zum VokabelPfad'}
+          </ButtonLink>
+        </div>
       </div>
     </article>
   );
@@ -331,9 +365,21 @@ function readableStore(outcome: LoadOutcome | null) {
   return outcome && (outcome.status === 'ok' || outcome.status === 'empty') ? outcome.store : null;
 }
 
-export function ProgressOverview({ sources }: { sources: readonly ProgressSourceConfig[] }): React.ReactElement {
+export function ProgressOverview({
+  sources,
+  viaHub = false,
+  kontoAnmelden = null,
+}: {
+  sources: readonly ProgressSourceConfig[];
+  /** E4.5c: Angemeldet im Hub, kommen alle Quellen in einem Abruf über den Hub-Server. */
+  viaHub?: boolean;
+  /** Anmeldeadresse des Hubs, wenn das gemeinsame Konto eingerichtet ist; sonst `null`. */
+  kontoAnmelden?: string | null;
+}): React.ReactElement {
   const enabled = sources.filter((config) => config.baseUrl).map((config) => config.source);
   const [states, setStates] = useState<Record<ProgressSource, SourceState>>(() => initialSourceStates(enabled));
+  // Der Hub kennt die Sitzung nicht mehr (beim Konto abgemeldet): neu anmelden statt „nicht verbunden“.
+  const [abgelaufen, setAbgelaufen] = useState(false);
   const [vocabOutcome, setVocabOutcome] = useState<LoadOutcome | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [timeZone, setTimeZone] = useState<string | undefined>(undefined);
@@ -348,6 +394,29 @@ export function ProgressOverview({ sources }: { sources: readonly ProgressSource
 
   const loadSources = useCallback(() => {
     sourcesLoadedAtRef.current = Date.now();
+    if (viaHub) {
+      const angefragt = sourcesRef.current.filter((config) => config.baseUrl).map((config) => config.source);
+      const tickets = Object.fromEntries(
+        angefragt.map((source) => {
+          const ticket = (sourceTicketsRef.current[source] ?? 0) + 1;
+          sourceTicketsRef.current[source] = ticket;
+          return [source, ticket];
+        }),
+      );
+      void fetchProgressViaHub(angefragt, (url, init) => fetch(url, init)).then(({ abgemeldet, outcomes }) => {
+        if (!mountedRef.current) return;
+        setAbgelaufen(abgemeldet);
+        setStates((current) => {
+          const naechste = { ...current };
+          for (const outcome of outcomes) {
+            if (sourceTicketsRef.current[outcome.source] !== tickets[outcome.source]) continue;
+            naechste[outcome.source] = abgemeldet ? { status: 'not_configured' } : resolveSourceOutcome(outcome);
+          }
+          return naechste;
+        });
+      });
+      return;
+    }
     // Jede Quelle für sich: Wer zuerst antwortet, erscheint zuerst; niemand wartet auf andere.
     for (const config of sourcesRef.current) {
       if (!config.baseUrl) continue;
@@ -361,7 +430,7 @@ export function ProgressOverview({ sources }: { sources: readonly ProgressSource
         },
       );
     }
-  }, []);
+  }, [viaHub]);
 
   // Lokale Vokabeln: nur lesen, mit der vorhandenen, geprüften Statistik.
   const loadVocabulary = useCallback(() => {
@@ -425,11 +494,24 @@ export function ProgressOverview({ sources }: { sources: readonly ProgressSource
   return (
     <>
       <BacklogSummary total={total} configs={sources} />
-      <section className="progress-paths" aria-labelledby="progress-paths-title">
+      <section className="los-section progress-paths" aria-labelledby="progress-paths-title">
         <h2 id="progress-paths-title">Deine Pfade</h2>
+        {abgelaufen && kontoAnmelden ? (
+          <FeedbackCallout message={{ tone: 'info', title: 'Anmeldung abgelaufen', live: true }}>
+            Deine Anmeldung bei Lernpfade ist abgelaufen.{' '}
+            {/* Absichtlich <a>: Das Ziel leitet zum gemeinsamen Konto weiter. */}
+            <a href={kontoAnmelden}>Erneut anmelden</a>
+          </FeedbackCallout>
+        ) : null}
         <div className="progress-grid">
           {sources.map((config) => (
-            <SourceCard key={config.source} config={config} state={states[config.source]} />
+            <SourceCard
+              viaHub={viaHub}
+              kontoAnmelden={Boolean(kontoAnmelden) && (!viaHub || abgelaufen)}
+              key={config.source}
+              config={config}
+              state={states[config.source]}
+            />
           ))}
           <VocabularyCard state={vocabulary} />
         </div>

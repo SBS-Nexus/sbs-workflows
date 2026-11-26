@@ -1,3 +1,4 @@
+import { fetchSourcesViaHub, type HubAbruf } from '../hub/fetch-via-hub.ts';
 import { normalizeSourceBaseUrl } from '../review/fetch-source.ts';
 import { PROGRESS_SOURCES, type ProgressSource } from './contract.ts';
 
@@ -92,4 +93,19 @@ export function parseProgressSources(value: string | undefined | null): Progress
   if (!value) return [];
   const wanted = new Set(value.split(',').map((part) => part.trim().toLowerCase()));
   return PROGRESS_SOURCES.filter((source) => wanted.has(source));
+}
+
+/**
+ * E4.5c: Abruf über den Hub-Server (`../hub/fetch-via-hub.ts`). Der Browser
+ * fragt einmal `/api/hub/fortschritt`; der Hub-Server holt jede Quelle mit
+ * seinem Zugriffstoken.
+ */
+export const HUB_PROGRESS_PATH = '/api/hub/fortschritt';
+
+export function fetchProgressViaHub(
+  sources: readonly ProgressSource[],
+  fetchImpl: FetchLike,
+  timeoutMs: number = PROGRESS_SOURCE_TIMEOUT_MS * 2,
+): Promise<HubAbruf<ProgressSource>> {
+  return fetchSourcesViaHub(HUB_PROGRESS_PATH, sources, fetchImpl, timeoutMs);
 }

@@ -1,0 +1,256 @@
+name: Lernpfade – gemeinsames Konto (E2E)
+
+# Strecke gegen einen echten ZITADEL (E4.2 Schritt 4, E4.4; Vertrag
+# docs/learning-auth/): ZITADEL v4.20.5 und die eigene Anmelde-App aus
+# konto/login laufen per Docker Compose auf dem Runner, eingerichtet mit
+# demselben Skript wie konto.lernpfade.net. Je App ein Lauf mit Schalter `an`.
+# Läuft bei Änderungen an einer App, am Konto oder am Vertrag.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'aipfad/**'
+      - 'pythonpfad/**'
+      - 'sqlpfad/**'
+      - 'konto/**'
+      - 'docs/learning-auth/**'
+      - 'lernpfade/**'
+      - '.github/workflows/konto-e2e.yml'
+  pull_request:
+    paths:
+      - 'aipfad/**'
+      - 'pythonpfad/**'
+      - 'sqlpfad/**'
+      - 'konto/**'
+      - 'docs/learning-auth/**'
+      - 'lernpfade/**'
+      - '.github/workflows/konto-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Anmeldung gegen echten ZITADEL (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: aipfad
+            port: 3101
+          - app: pythonpfad
+            port: 3100
+          - app: sqlpfad
+            port: 3100
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ${{ matrix.app }}
+          POSTGRES_PASSWORD: ${{ matrix.app }}
+          POSTGRES_DB: ${{ matrix.app }}
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://${{ matrix.app }}:${{ matrix.app }}@localhost:5432/${{ matrix.app }}?schema=public
+      APP_URL: http://127.0.0.1:${{ matrix.port }}
+      DEPLOYMENT_ID: ${{ github.sha }}
+      SEED_DEMO_USERS: 'false'
+      # Testwerte, keine echten Geheimnisse (wie in den CI-Läufen der Apps).
+      # Jede App liest nur, was sie braucht.
+      CRON_SECRET: 'ci-testgeheimnis-kein-echtes-geheimnis'
+      RETENTION_MODE: 'dry-run'
+      AUTH_SECRET: ci-lauf-geheimnis-ohne-jede-bedeutung-0123456789
+      FEATURE_SQL_RUNNER: 'false'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+
+      - name: Arbeitsordner für Testgeheimnisse
+        run: echo "KONTO_E2E_DIR=$RUNNER_TEMP/konto-e2e" >> "$GITHUB_ENV"
+
+      - name: Anmelde-App bauen (konto/login)
+        run: docker build -t lernpfade/konto-login:e2e konto/login
+
+      - name: Test-ZITADEL starten und einrichten
+        run: konto/pruefung/e2e/starte.sh
+
+      - name: App – Abhängigkeiten, Datenbank, Produktionsbuild
+        working-directory: ${{ matrix.app }}
+        run: |
+          npm ci
+          npm run db:deploy
+          npm run db:seed
+          npm run build
+
+      - name: Browser
+        working-directory: ${{ matrix.app }}
+        run: npx playwright install --with-deps chromium
+
+      - name: Anmelden, Rückkanal, verlorener Zustand, Bestätigungspflicht
+        working-directory: ${{ matrix.app }}
+        run: npx playwright test -c playwright.konto.config.ts
+
+      - name: Protokolle der Testumgebung
+        if: failure()
+        run: docker compose -f konto/pruefung/e2e/compose.yaml logs --no-color --tail 300
+
+      - name: Testbericht sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: konto-e2e-${{ matrix.app }}
+          path: ${{ matrix.app }}/playwright-report/
+          retention-days: 14
+
+      - name: Aufräumen
+        if: always()
+        run: docker compose -f konto/pruefung/e2e/compose.yaml down -v
+
+  hub:
+    name: Anmeldung im Hub gegen echten ZITADEL
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    # AIPfad läuft mit, damit /fortschritt im Hub echte Daten zeigen kann (Tor E4.5).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aipfad
+          POSTGRES_PASSWORD: aipfad
+          POSTGRES_DB: aipfad
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://aipfad:aipfad@localhost:5432/aipfad?schema=public
+      APP_URL: http://127.0.0.1:3101
+      DEPLOYMENT_ID: ${{ github.sha }}
+      SEED_DEMO_USERS: 'false'
+      # Testwerte, keine echten Geheimnisse (wie in aipfad-ci.yml).
+      CRON_SECRET: 'ci-testgeheimnis-kein-echtes-geheimnis'
+      RETENTION_MODE: 'dry-run'
+      # Der Hub liest die Adresse auch zur Laufzeit (process.env[name] wird nicht
+      # eingebacken); deshalb für den ganzen Job, nicht nur beim Bauen.
+      NEXT_PUBLIC_AIPFAD_URL: http://127.0.0.1:3101
+      # E5.1: eigene Datenbank des Hubs im selben Postgres-Dienst. Eigener Name,
+      # weil DATABASE_URL hier AIPfad gehört; playwright.konto.config.ts reicht
+      # sie dem Hub als DATABASE_URL weiter.
+      HUB_DATABASE_URL: postgresql://aipfad:aipfad@localhost:5432/plattform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Arbeitsordner für Testgeheimnisse
+        run: echo "KONTO_E2E_DIR=$RUNNER_TEMP/konto-e2e" >> "$GITHUB_ENV"
+
+      - name: Anmelde-App bauen (konto/login)
+        run: docker build -t lernpfade/konto-login:e2e konto/login
+
+      - name: Test-ZITADEL starten und einrichten
+        run: konto/pruefung/e2e/starte.sh
+
+      - name: AIPfad bauen und starten (Schalter an, nimmt Hub-Token an)
+        working-directory: aipfad
+        run: |
+          npm ci
+          npm run db:deploy
+          npm run db:seed
+          npm run build
+          set -a; . "$KONTO_E2E_DIR/aipfad.env"; set +a
+          nohup npm run start -- --port 3101 > "$RUNNER_TEMP/aipfad.log" 2>&1 &
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:3101/api/health >/dev/null && break; sleep 2; done
+          curl -fsS http://127.0.0.1:3101/api/health >/dev/null
+
+      - name: Hub – Abhängigkeiten, Datenbank und Produktionsbuild
+        working-directory: lernpfade
+        run: |
+          npm install --no-audit --no-fund
+          PGPASSWORD=aipfad psql -h localhost -U aipfad -d aipfad -c 'CREATE DATABASE plattform'
+          DATABASE_URL="$HUB_DATABASE_URL" npx prisma migrate deploy
+          npm run build
+
+      - name: Browser
+        working-directory: lernpfade
+        run: npx playwright install --with-deps chromium
+
+      - name: Anmelden im Hub, Fortschritt mit echten Daten, Organisationen, Abmelden
+        working-directory: lernpfade
+        run: npx playwright test -c playwright.konto.config.ts
+
+      - name: Protokolle der Testumgebung
+        if: failure()
+        run: |
+          docker compose -f konto/pruefung/e2e/compose.yaml logs --no-color --tail 300
+          tail -n 200 "$RUNNER_TEMP/aipfad.log" || true
+
+      - name: Testbericht sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: konto-e2e-hub
+          path: lernpfade/playwright-report/
+          retention-days: 14
+
+      - name: Aufräumen
+        if: always()
+        run: docker compose -f konto/pruefung/e2e/compose.yaml down -v
+  uebernahme:
+    name: Kontoübernahme gegen echten ZITADEL
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: konto/uebernahme/package-lock.json
+
+      - name: Arbeitsordner für Testgeheimnisse
+        run: echo "KONTO_E2E_DIR=$RUNNER_TEMP/konto-e2e" >> "$GITHUB_ENV"
+
+      - name: Werkzeug installieren
+        working-directory: konto/uebernahme
+        run: npm ci
+
+      # Nur ZITADEL: Die Probe braucht weder Anmelde-App noch eine App.
+      - name: Test-ZITADEL starten
+        run: konto/pruefung/e2e/starte.sh
+        env:
+          KONTO_E2E_UMFANG: zitadel
+
+      - name: Probe der Übernahme (Probelauf, Einfuhr, zweiter Lauf, Anmeldung)
+        run: node konto/pruefung/uebernahme-pruefung.mjs --basis http://localhost:8080 --schluessel "$KONTO_E2E_DIR/einrichtung.pem"
+
+      - name: Protokolle der Testumgebung
+        if: failure()
+        run: docker compose -f konto/pruefung/e2e/compose.yaml logs --no-color --tail 200
+
+      - name: Aufräumen
+        if: always()
+        run: docker compose -f konto/pruefung/e2e/compose.yaml down -v

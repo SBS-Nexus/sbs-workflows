@@ -1,0 +1,103 @@
+diff --git a/apps/login/src/lib/actions/password.ts b/apps/login/src/lib/actions/password.ts
+index 0d03048..b3657af 100644
+--- a/apps/login/src/lib/actions/password.ts
++++ b/apps/login/src/lib/actions/password.ts
+@@ -4,6 +4,7 @@ import { completeFlowOrGetUrl } from "@/lib/actions/flow";
+ import { equalsIgnoreCase } from "@/lib/server/auth-utils";
+ import { getSessionCookieById, getSessionCookieByLoginName } from "@/lib/server/cookies";
+ import { isClassifiedError } from "@/lib/server/grpc/interceptors/error-classification";
++import { normalisierePasswort } from "@/lib/password-normalization";
+ import { getPublicHostWithProtocol } from "@/lib/server/host";
+ import { createLogger } from "@/lib/server/logger";
+ import { recordAuthAttempt, recordAuthFailure, recordAuthSuccess } from "@/lib/server/metrics";
+@@ -152,6 +153,10 @@ export async function sendPassword(
+ 
+   recordAuthAttempt("password", command.organization);
+ 
++  if (command.checks?.password) {
++    command.checks.password.password = normalisierePasswort(command.checks.password.password);
++  }
++
+   let sessionCookie = await getSessionCookieByLoginName({
+     loginName: command.loginName,
+     organization: command.organization,
+@@ -488,6 +493,7 @@ export async function sendPassword(
+ 
+ // this function lets users with code set a password or users with valid User Verification Check
+ export async function changePassword(command: { code?: string; userId: string; password: string; organization?: string }) {
++  command.password = normalisierePasswort(command.password);
+   const _headers = await headers();
+   const { serviceConfig } = getServiceConfig(_headers);
+   const t = await getTranslations("password");
+@@ -541,6 +547,8 @@ export async function checkSessionAndSetPassword({
+   currentPassword,
+   password,
+ }: CheckSessionAndSetPasswordCommand) {
++  currentPassword = normalisierePasswort(currentPassword);
++  password = normalisierePasswort(password);
+   const _headers = await headers();
+   const { serviceConfig } = getServiceConfig(_headers);
+   const t = await getTranslations("password");
+diff --git a/apps/login/src/lib/actions/register.ts b/apps/login/src/lib/actions/register.ts
+index 8276547..c980db5 100644
+--- a/apps/login/src/lib/actions/register.ts
++++ b/apps/login/src/lib/actions/register.ts
+@@ -1,5 +1,6 @@
+ "use server";
+ 
++import { normalisierePasswort } from "@/lib/password-normalization";
+ import { completeFlowOrGetUrl } from "@/lib/actions/flow";
+ import { getBindingIdCookie } from "@/lib/server/fingerprint";
+ import { isIdpFlowProofValid } from "@/lib/server/idp-flow-proof";
+@@ -73,6 +74,7 @@ export async function registerUser(
+   const t = await getTranslations("register");
+   const _headers = await headers();
+   const { serviceConfig } = getServiceConfig(_headers);
++  command.password = normalisierePasswort(command.password);
+ 
+   const loginSettings = await getLoginSettings({ serviceConfig, organization: command.organization });
+ 
+diff --git a/apps/login/src/lib/password-normalization.test.ts b/apps/login/src/lib/password-normalization.test.ts
+new file mode 100644
+index 0000000..347dd66
+--- /dev/null
++++ b/apps/login/src/lib/password-normalization.test.ts
+@@ -0,0 +1,21 @@
++import { describe, expect, it } from "vitest";
++import { normalisierePasswort } from "./password-normalization";
++
++describe("normalisierePasswort (Lernpfade, NFKC wie in den Apps)", () => {
++  it("lässt gewöhnliche Passwörter unverändert", () => {
++    expect(normalisierePasswort("Grüße-aus-Köln-2026")).toBe("Grüße-aus-Köln-2026");
++  });
++
++  it("löst Kompatibilitätsformen auf (Ligatur, Vollbreite)", () => {
++    expect(normalisierePasswort("Proﬁ-Passwort")).toBe("Profi-Passwort");
++    expect(normalisierePasswort("２０２６")).toBe("2026");
++  });
++
++  it("vereinheitlicht zerlegte Umlaute", () => {
++    expect(normalisierePasswort("Köln")).toBe("Köln");
++  });
++
++  it("lässt fehlende Werte fehlen", () => {
++    expect(normalisierePasswort(undefined)).toBeUndefined();
++  });
++});
+diff --git a/apps/login/src/lib/password-normalization.ts b/apps/login/src/lib/password-normalization.ts
+new file mode 100644
+index 0000000..a4263b1
+--- /dev/null
++++ b/apps/login/src/lib/password-normalization.ts
+@@ -0,0 +1,11 @@
++/**
++ * Lernpfade: Passwörter werden vor dem Prüfen und Setzen nach Unicode NFKC
++ * normalisiert, genau wie die Lernpfade-Apps es beim Hashen tun. Sonst passten
++ * übernommene Hashes nicht, sobald ein Passwort Zeichen mit Kompatibilitätsform
++ * enthält (etwa die Ligatur „ﬁ“ oder Vollbreiten-Ziffern). Siehe E4.0-Bericht.
++ */
++export function normalisierePasswort(passwort: string): string;
++export function normalisierePasswort(passwort: string | undefined): string | undefined;
++export function normalisierePasswort(passwort: string | undefined): string | undefined {
++  return passwort?.normalize("NFKC");
++}

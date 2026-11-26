@@ -1,5 +1,12 @@
 # Startseiten-Hero: Liquid Sculpture
 
+> **Archiv (17.11.2026, LO-UI-001):** Die Startseite trägt jetzt das Learning
+> OS mit eigenem Wissensorbit (`docs/LEARNING-OS-DESIGN-20261116.md`). Code,
+> CSS, Bilder und Browserfälle der Liquid Sculpture Hero wurden aus dem Hub
+> entfernt; die unten genannten Dateien existieren in diesem Stand nicht mehr.
+> Lizenzhistorie: `../THIRD_PARTY_NOTICES.md`. Das Dokument bleibt als Nachweis
+> der damaligen Entscheidungen und Messungen erhalten.
+
 Stand: 19.10.2026 · Branch `claude/lernpfade-liquid-hero` · Basis
 `claude/lernpfade-unified-hub` @ `72fbe7d`
 

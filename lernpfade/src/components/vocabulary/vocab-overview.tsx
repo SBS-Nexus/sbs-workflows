@@ -13,7 +13,8 @@ import { formatDateTime, originLabel, plural } from './format';
 import type { VocabActions } from './vocab-app';
 import { VocabImport } from './vocab-import';
 import { FieldError, useFocusOnMount } from './vocab-fields';
-import { Button, EmptyState } from '@/components/ui/primitives';
+import { Button, ButtonLink, EmptyState } from '@/components/ui/primitives';
+import { OrbitMark } from '@/components/learning-os/orbit';
 
 type DirectionChoice = 'en-de' | 'de-en' | 'both';
 
@@ -104,22 +105,47 @@ export function VocabOverview({
   }
 
   return (
-    <div className="vocab-overview">
-      <section className="vocab-intro" aria-labelledby="vocab-title">
-        <p className="eyebrow">VokabelPfad · lokaler MVP</p>
-        <h1 id="vocab-title" ref={headingRef} tabIndex={-1}>
-          Vokabeln lernen – Englisch ↔ Deutsch
-        </h1>
-        <p>
-          Eigene Decks, beide Lernrichtungen und tägliche Wiederholung mit aktivem Abruf. Geplant wird mit
-          demselben Wiederholungsmotor wie im übrigen Lernpfade-Hub.
-        </p>
-        <aside className="vocab-storage-note" aria-label="Speicherort deiner Daten">
-          <strong>Nur in diesem Browser gespeichert.</strong> Kein Konto, keine Synchronisation zwischen Geräten oder
-          Browsern. Wenn du die Browserdaten dieser Seite löschst, sind deine Decks und dein Fortschritt weg –
-          sichere Inhalte bei Bedarf per Export (der Export enthält keinen Lernfortschritt).
-        </aside>
+    <div className="vocab-overview los-flow">
+      <section className="vocab-intro los-head" aria-labelledby="vocab-title">
+        <div className="los-head-grid">
+          <div className="los-head-copy">
+            <p className="eyebrow">VokabelPfad · lokaler MVP</p>
+            <h1 id="vocab-title" ref={headingRef} tabIndex={-1}>
+              Vokabeln lernen – <em>Englisch ↔ Deutsch</em>
+            </h1>
+            <p>
+              Eigene Decks, beide Lernrichtungen und tägliche Wiederholung mit aktivem Abruf. Geplant wird mit
+              demselben Wiederholungsmotor wie im übrigen Lernpfade-Hub.
+            </p>
+            <nav aria-label="Bereiche im VokabelPfad">
+              <ul className="los-jump">
+                <li>
+                  <a href="#session-title">Lernmodus</a>
+                </li>
+                <li>
+                  <a href="#decks-title">Decks &amp; Export</a>
+                </li>
+                <li>
+                  <a href="#starter-title">Starterdecks</a>
+                </li>
+                <li>
+                  <a href="#import-title">Deck importieren</a>
+                </li>
+              </ul>
+            </nav>
+          </div>
+          <div className="los-head-side">
+            <OrbitMark />
+            <aside className="vocab-storage-note" aria-label="Speicherort deiner Daten">
+              <strong>Nur in diesem Browser gespeichert.</strong> Kein Konto, keine Synchronisation zwischen Geräten
+              oder Browsern. Wenn du die Browserdaten dieser Seite löschst, sind deine Decks und dein Fortschritt weg –
+              sichere Inhalte bei Bedarf per Export (der Export enthält keinen Lernfortschritt).
+            </aside>
+          </div>
+        </div>
       </section>
+
+      <SessionSetup store={store} actions={actions} />
 
       <section className="vocab-panel" aria-labelledby="stats-title">
         <h2 id="stats-title">Dein Stand</h2>
@@ -156,8 +182,6 @@ export function VocabOverview({
         </p>
       </section>
 
-      <SessionSetup store={store} actions={actions} />
-
       <section className="vocab-panel" aria-labelledby="decks-title">
         <div className="vocab-panel-head">
           <h2 id="decks-title">Deine Decks</h2>
@@ -172,6 +196,11 @@ export function VocabOverview({
             size="compact"
             title="Noch keine Decks"
             description="Lege unten ein eigenes Deck an, übernimm ein Starterdeck oder importiere eine Datei."
+            action={
+              <ButtonLink href="#starter-title" variant="secondary" size="sm">
+                Zu den Starterdecks
+              </ButtonLink>
+            }
           />
         ) : (
           <ul className="vocab-deck-list">
@@ -294,20 +323,36 @@ function SessionSetup({ store, actions }: { store: VocabStore; actions: VocabAct
 
   if (store.cards.length === 0) {
     return (
-      <section className="vocab-panel" aria-labelledby="session-title">
-        <h2 id="session-title">Daily Review</h2>
+      <section className="vocab-panel vocab-focus" aria-labelledby="session-title">
+        <div className="vocab-focus-head">
+          <p className="eyebrow">Lernmodus</p>
+          <h2 id="session-title">Daily Review</h2>
+        </div>
         <EmptyState
           size="compact"
           title="Noch nichts abzufragen"
           description="Sobald ein Deck Karten enthält, kannst du hier eine Session starten."
+          action={
+            <ButtonLink href="#decks-title" variant="secondary" size="sm">
+              Zu deinen Decks
+            </ButtonLink>
+          }
         />
       </section>
     );
   }
 
   return (
-    <section className="vocab-panel vocab-session-setup" aria-labelledby="session-title">
-      <h2 id="session-title">Daily Review</h2>
+    <section className="vocab-panel vocab-focus vocab-session-setup" aria-labelledby="session-title">
+      <div className="vocab-focus-head">
+        <p className="eyebrow">Lernmodus</p>
+        <h2 id="session-title">Daily Review</h2>
+        {/* Dieselbe Zahl steht als Satz in der Zusammenfassung des Formulars (aria-live). */}
+        <p className="vocab-focus-figure" aria-hidden="true">
+          <strong>{dueCount}</strong>
+          <span>{dueCount === 1 ? 'Abfrage fällig' : 'Abfragen fällig'} in deiner Auswahl</span>
+        </p>
+      </div>
       <form
         id={formId}
         onSubmit={(event) => {

@@ -149,7 +149,7 @@ test('führt eine Code-Aufgabe aus und bewertet sie automatisch', async ({ page 
   await expect(editor).toBeVisible({ timeout: 30_000 });
 
   await editor.click();
-  await page.keyboard.press('Control+A');
+  await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.type(
     'grundgebuehr = 40\nstundenpreis = 12\nstunden = 5\ngesamt = grundgebuehr + stundenpreis * stunden\nprint(gesamt)',
   );
@@ -218,7 +218,7 @@ test('stoppt eine Endlosschleife über den Stopp-Knopf', async ({ page }) => {
   await waitForPythonReady(page);
 
   await editor.click();
-  await page.keyboard.press('Control+A');
+  await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.type('print("los")\nwhile True:\n    pass\n');
 
   await page.getByRole('button', { name: /Ausführen/ }).click();

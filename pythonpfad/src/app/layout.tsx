@@ -4,6 +4,7 @@ import './globals.css';
 import { getCurrentUser } from '@/server/auth/session';
 import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
 import { LearningPlatformBar } from '@/components/navigation/learning-platform-bar';
+import { LearningLegalFooter } from '@/components/navigation/learning-legal-footer';
 import { BRAND } from '@/lib/brand';
 import { siteUrl } from '@/server/site';
 
@@ -144,6 +145,7 @@ export default async function RootLayout({
         <ServiceWorkerRegistration />
         <LearningPlatformBar app="python" />
         {children}
+        <LearningLegalFooter app="python" />
       </body>
     </html>
   );

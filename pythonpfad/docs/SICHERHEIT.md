@@ -138,6 +138,27 @@ sich im Server-Log wiederfinden lässt.
 
 ---
 
+### 2.11 Anmeldung über das gemeinsame Konto (E4.4)
+
+Seit E4.4 kann die App über das gemeinsame Konto (konto.lernpfade.net,
+ZITADEL) anmelden, gesteuert über `FEATURE_ZENTRALE_ANMELDUNG` (Vorgabe `aus`,
+Werte in `.env.example`).
+
+- Der Code kommt aus dem Vertrag `docs/learning-auth/` im
+  Repository-Wurzelverzeichnis, bytegleich mit AIPfad und der jeweils
+  anderen App.
+- Die Sicherheitsbegründung steht in `aipfad/docs/SECURITY.md`, Abschnitt
+  „Anmeldung über das gemeinsame Konto“:
+  - PKCE, `state`, `nonce` und signierter Zustand.
+  - Nur relative Rücksprungziele.
+  - Verknüpfung nur mit bestätigter Adresse; Admins nur mit zweitem Faktor.
+  - Abmelden über `end_session`, dazu die Rückkanal-Abmeldung.
+- Mit Schalter `an` leiten `/anmelden` und `/registrieren` weiter. Die eigenen
+  Formulare nehmen auch bei direktem Aufruf nichts mehr an.
+- Einladungen: `/einladung` und `/organisation` stehen in den geschützten
+  Pfaden des Proxys. Wer eingeladen ist, kommt nach Anmeldung oder
+  Registrierung beim Konto auf die Einladung zurück.
+
 ## 3. Bewusste Grenzen dieser Version
 
 ### 3.1 Der Browser ist keine Vertrauensgrenze
@@ -307,7 +328,7 @@ Cookie`, Route `force-dynamic`. Personenbezogene Antworten landen in keinem
 - **Same-Site-Voraussetzung:** Das Sitzungscookie bleibt unverändert
   host-only, `httpOnly`, `SameSite=Lax`. Der Browser schickt es nur mit, wenn
   Hub und App same-site sind (gemeinsame registrierbare Domain). Unter
-  `*.vercel.app` ist das nicht der Fall; dort antwortet die Route dem Hub mit 401. Die Cookie-Attribute werden dafür ausdrücklich nicht gelockert.
+  Plattform-Adressen wie `*.up.railway.app` oder `*.vercel.app` (Public Suffix) ist das nicht der Fall; dort antwortet die Route dem Hub mit 401. Die Cookie-Attribute werden dafür ausdrücklich nicht gelockert.
 - **Restrisiko:** Eine XSS-Lücke in der freigegebenen Hub-Origin könnte über
   diese Route die Wiederholungsdaten der angemeldeten Person lesen — nur
   lesen, nur diese Route. Deshalb genau eine Origin und Vorgabe aus.

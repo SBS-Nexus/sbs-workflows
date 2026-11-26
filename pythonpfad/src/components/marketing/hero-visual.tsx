@@ -54,9 +54,9 @@ export function HeroVisual(): ReactNode {
   return (
     <div aria-hidden="true" className="relative mx-auto w-full max-w-md select-none lg:max-w-lg">
       {/* Leuchten hinter der Karte. Rein schmückend, liegt hinter allem. */}
-      <div className="pointer-events-none absolute -inset-8 -z-10 rounded-[3rem] bg-[radial-gradient(circle_at_50%_40%,rgba(124,58,237,0.55),transparent_65%)] blur-2xl" />
+      <div className="pointer-events-none absolute -inset-8 -z-10 rounded-[3rem] bg-[radial-gradient(circle_at_50%_40%,rgba(59,109,245,0.42),transparent_65%)] blur-2xl" />
 
-      <div className="animate-float rounded-2xl border border-white/15 bg-[#101528]/90 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.7)] backdrop-blur-sm">
+      <div className="animate-float rounded-2xl border border-white/15 bg-[#0f1513]/90 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.7)] backdrop-blur-sm">
         {/* Fensterleiste */}
         <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
           <span className="size-2.5 rounded-full bg-[#f87171]" />
@@ -111,9 +111,10 @@ export function HeroVisual(): ReactNode {
       {/* Hinweis auf die Zeile, die gerade läuft. Die Farbe steht hier als
           fester Wert und nicht als Modulfarbe: Der Kopfbereich ist in beiden
           Farbschemata dunkel, die Modulfarben werden im dunklen Schema aber
-          aufgehellt – Weiß auf Pastellorange wäre nicht mehr lesbar. */}
+          aufgehellt. Limette mit Tinte ist die Signalfarbe des Learning OS
+          und liest sich besser als das frühere Weiß auf Orange (3,6 : 1). */}
       <div
-        className="animate-pop absolute -right-3 top-16 flex items-center gap-2 rounded-2xl bg-[#ea580c] px-3 py-2 text-white shadow-[0_16px_32px_-12px_rgba(0,0,0,0.6)] sm:-right-8"
+        className="animate-pop absolute -right-3 top-16 flex items-center gap-2 rounded-2xl bg-[#d0fa83] px-3 py-2 text-[#0b0e0e] shadow-[0_16px_32px_-12px_rgba(0,0,0,0.6)] sm:-right-8"
         style={{ animationDelay: '400ms', animationFillMode: 'backwards' }}
       >
         <Icon name="abspielen" size={14} />
@@ -131,19 +132,27 @@ export function HeroVisual(): ReactNode {
  * Bei `prefers-reduced-motion` stehen sie still – die Farbe bleibt, nur die
  * Bewegung geht.
  */
+/*
+ * Langsam treibende Lichtflächen hinter dem Kopfbereich.
+ *
+ * Vorher Violett, Rosa und Blau mit bis zu 40 % Deckkraft – drei Farben, die
+ * nur hier vorkamen. Jetzt die Signalfarben des Learning OS: die Leitfarbe
+ * und eine Spur Limette und Minze, wie im Hub. Die Bewegung bleibt, sie
+ * schaltet sich bei reduzierter Bewegung ab.
+ */
 export function AuroraBackdrop(): ReactNode {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
       <div
-        className="animate-drift absolute -left-24 -top-32 size-[32rem] rounded-full bg-[var(--color-modul-0)] opacity-40 blur-3xl"
+        className="animate-drift absolute -left-24 -top-32 size-[32rem] rounded-full bg-[var(--color-accent-500)] opacity-30 blur-3xl"
         style={{ animationDelay: '0s' }}
       />
       <div
-        className="animate-drift absolute -right-32 top-0 size-[28rem] rounded-full bg-[var(--color-projekt)] opacity-30 blur-3xl"
+        className="animate-drift absolute -right-32 top-0 size-[28rem] rounded-full bg-[#d0fa83] opacity-[0.12] blur-3xl"
         style={{ animationDelay: '-7s' }}
       />
       <div
-        className="animate-drift absolute -bottom-40 left-1/3 size-[34rem] rounded-full bg-[var(--color-modul-3)] opacity-35 blur-3xl"
+        className="animate-drift absolute -bottom-40 left-1/3 size-[34rem] rounded-full bg-[#b4f5d2] opacity-[0.1] blur-3xl"
         style={{ animationDelay: '-14s' }}
       />
     </div>
